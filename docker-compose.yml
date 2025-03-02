@@ -14,7 +14,8 @@ services:
       - backend
     environment:
       - NODE_ENV=development
-      - REACT_APP_API_URL=http://localhost:8000/api
+      - REACT_APP_API_URL=http://backend:8000/api
+      - WDS_SOCKET_PORT=0
 
   backend:
     build:
