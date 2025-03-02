@@ -21,33 +21,58 @@ class BusinessAuthTokenView(APIView):
     def post(self, request, *args, **kwargs):
         from .serializers import AuthTokenWithBusinessSerializer
         
-        # Validate with our custom serializer
-        serializer = AuthTokenWithBusinessSerializer(data=request.data,
-                                             context={'request': request})
-        serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data['user']
+        # Validate credentials
+        email = request.data.get('email')
+        password = request.data.get('password')
+        business_id = request.data.get('business_id')
         
-        # Get the business_id from validated data
-        business_id = serializer.validated_data.get('business_id')
-        
-        # Try to find the business
-        try:
-            business = Business.objects.get(business_id=business_id)
-        except Business.DoesNotExist:
+        if not email or not password:
             return Response(
-                {'error': 'Invalid business ID'},
+                {'error': 'Email and password are required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-                
-        # Check if the user belongs to this business
-        if user.business and user.business != business:
+            
+        # Authenticate user
+        user = authenticate(request=request, username=email, password=password)
+        if not user:
             return Response(
-                {'error': 'User is not authorized for this business'},
-                status=status.HTTP_403_FORBIDDEN
+                {'error': 'Invalid credentials'},
+                status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # If user has no business yet, assign them to this business
-        if not user.business:
+            
+        # ビジネスID処理
+        if business_id:
+            # 特定のビジネスIDが指定された場合
+            try:
+                business = Business.objects.get(business_id=business_id)
+                
+                # 指定されたビジネスに所属しているか確認
+                if user.business and user.business != business:
+                    return Response(
+                        {'error': 'User is not authorized for this business'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+                    
+                # ユーザーがビジネスに所属していない場合は割り当て
+                if not user.business:
+                    user.business = business
+                    user.save()
+            except Business.DoesNotExist:
+                return Response(
+                    {'error': 'Invalid business ID'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        elif not user.business:
+            # ビジネスIDが指定されておらず、ユーザーにビジネスがない場合はデフォルトビジネスを作成
+            business_name = f"{user.get_full_name()}'s Business"
+            if not business_name.strip():
+                business_name = f"{user.email.split('@')[0]}'s Business"
+                
+            business = Business.objects.create(
+                name=business_name,
+                owner=user
+            )
+            
             user.business = business
             user.save()
         

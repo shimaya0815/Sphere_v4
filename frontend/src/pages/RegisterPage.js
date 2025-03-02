@@ -26,13 +26,23 @@ const RegisterPage = () => {
       const success = await registerUser(userData);
       
       if (success) {
-        // If registration is successful, log in automatically
+        // 登録成功メッセージ
+        console.log("Registration successful, attempting auto-login...");
+        
+        // ビジネスIDは自動生成されるので特定のIDを渡す必要はない
         const loginSuccess = await login(data.email, data.password);
         if (loginSuccess) {
+          console.log("Auto-login successful, redirecting to dashboard");
           navigate('/dashboard');
         } else {
-          // If auto-login fails, navigate to login page
-          navigate('/login');
+          console.log("Auto-login failed, redirecting to login page");
+          // 自動ログインに失敗した場合はログインページへ
+          navigate('/login', { 
+            state: { 
+              message: "アカウント登録が完了しました。ログインしてください。",
+              email: data.email 
+            } 
+          });
         }
       }
     } finally {

@@ -43,6 +43,27 @@ class UserCreateSerializer(BaseUserCreateSerializer):
     class Meta(BaseUserCreateSerializer.Meta):
         model = User
         fields = ('id', 'email', 'password', 'first_name', 'last_name', 'phone', 'position')
+        
+    def create(self, validated_data):
+        # 通常のユーザー作成
+        user = super().create(validated_data)
+        
+        # ユーザー用のビジネスを自動作成
+        from business.models import Business
+        business_name = f"{user.get_full_name()}'s Business"
+        if not business_name.strip():
+            business_name = f"{user.email.split('@')[0]}'s Business"
+            
+        business = Business.objects.create(
+            name=business_name,
+            owner=user
+        )
+        
+        # ユーザーにビジネスを割り当て
+        user.business = business
+        user.save()
+        
+        return user
 
 
 class UserPreferencesSerializer(serializers.ModelSerializer):
