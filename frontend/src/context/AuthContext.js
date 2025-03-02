@@ -1,5 +1,9 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
+import apiClient from '../api/client';
+
+// API URLを設定
+const API_URL = 'http://localhost:8000/api';
 
 const AuthContext = createContext(null);
 
@@ -20,7 +24,7 @@ export const AuthProvider = ({ children }) => {
           axios.defaults.headers.common['Authorization'] = `Token ${token}`;
           
           // Get user data
-          const response = await axios.get(`${process.env.REACT_APP_API_URL}/auth/users/me/`);
+          const response = await axios.get(`${API_URL}/auth/users/me/`);
           setCurrentUser({
             ...response.data,
             business_id: businessId
@@ -43,7 +47,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password, businessId) => {
     setError(null);
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/auth/token/login/`, {
+      const response = await axios.post(`${API_URL}/auth/token/login/`, {
         email,
         password,
         business_id: businessId
@@ -58,7 +62,7 @@ export const AuthProvider = ({ children }) => {
       axios.defaults.headers.common['Authorization'] = `Token ${token}`;
       
       // Get user data
-      const userResponse = await axios.get(`${process.env.REACT_APP_API_URL}/auth/users/me/`);
+      const userResponse = await axios.get(`${API_URL}/auth/users/me/`);
       setCurrentUser({
         ...userResponse.data,
         business_id  // Add business_id to user data
@@ -75,7 +79,7 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     setError(null);
     try {
-      await axios.post(`${process.env.REACT_APP_API_URL}/auth/users/`, userData);
+      await axios.post(`${API_URL}/auth/users/`, userData);
       return true;
     } catch (err) {
       setError(err.response?.data || 'Registration failed');
@@ -86,7 +90,7 @@ export const AuthProvider = ({ children }) => {
   // Logout function
   const logout = async () => {
     try {
-      await axios.post(`${process.env.REACT_APP_API_URL}/auth/token/logout/`);
+      await axios.post(`${API_URL}/auth/token/logout/`);
     } catch (err) {
       console.error('Logout error:', err);
     } finally {
