@@ -6,9 +6,9 @@ from rest_framework.views import APIView
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
 from django.shortcuts import get_object_or_404
+from django.contrib.auth import get_user_model, authenticate
 from .models import UserPreferences
 from .serializers import UserSerializer, UserPreferencesSerializer
-from django.contrib.auth import get_user_model
 from business.models import Business
 
 User = get_user_model()
