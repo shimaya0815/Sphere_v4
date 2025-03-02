@@ -10,8 +10,8 @@ import {
   HiOutlineCalendar,
   HiOutlineUserCircle
 } from 'react-icons/hi';
-import { format } from 'date-fns';
-import { ja } from 'date-fns/locale';
+// import { format } from 'date-fns';
+// import { ja } from 'date-fns/locale';
 import toast from 'react-hot-toast';
 import { tasksApi } from '../../api';
 
@@ -23,7 +23,9 @@ const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
   const formatDate = (dateString) => {
     if (!dateString) return '';
     try {
-      return format(new Date(dateString), 'yyyy年MM月dd日', { locale: ja });
+      // 簡易的な日付フォーマット（date-fnsがないため）
+      const date = new Date(dateString);
+      return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
     } catch (error) {
       console.error('Invalid date format:', error);
       return dateString;
