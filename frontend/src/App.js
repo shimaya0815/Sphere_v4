@@ -7,6 +7,9 @@ import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import TasksPage from './pages/TasksPage';
 import ClientsPage from './pages/ClientsPage';
+import ClientNewPage from './pages/ClientNewPage';
+import ClientDetailPage from './pages/ClientDetailPage';
+import ClientEditPage from './pages/ClientEditPage';
 import ChatPage from './pages/ChatPage';
 import WikiPage from './pages/WikiPage';
 import TimeManagementPage from './pages/TimeManagementPage';
@@ -65,6 +68,21 @@ function App() {
           <Route path="/clients" element={
             <PrivateRoute>
               <ClientsPage />
+            </PrivateRoute>
+          } />
+          <Route path="/clients/new" element={
+            <PrivateRoute>
+              <ClientNewPage />
+            </PrivateRoute>
+          } />
+          <Route path="/clients/:clientId" element={
+            <PrivateRoute>
+              <ClientDetailPage />
+            </PrivateRoute>
+          } />
+          <Route path="/clients/:clientId/edit" element={
+            <PrivateRoute>
+              <ClientEditPage />
             </PrivateRoute>
           } />
           <Route path="/chat" element={

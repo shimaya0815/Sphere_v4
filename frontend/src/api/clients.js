@@ -32,9 +32,9 @@ const clientsApi = {
     return response.data;
   },
   
-  // Get client contracts
-  getContracts: async (clientId) => {
-    const response = await apiClient.get(`/clients/${clientId}/contracts/`);
+  // Get all contracts with optional filters
+  getContracts: async (filters = {}) => {
+    const response = await apiClient.get('/clients/contracts/', { params: filters });
     return response.data;
   },
   
@@ -45,8 +45,8 @@ const clientsApi = {
   },
   
   // Create a new contract
-  createContract: async (clientId, contractData) => {
-    const response = await apiClient.post(`/clients/${clientId}/contracts/`, contractData);
+  createContract: async (contractData) => {
+    const response = await apiClient.post('/clients/contracts/', contractData);
     return response.data;
   },
   
@@ -62,15 +62,15 @@ const clientsApi = {
     return response.data;
   },
   
-  // Get client notes
-  getNotes: async (clientId) => {
-    const response = await apiClient.get(`/clients/${clientId}/notes/`);
+  // Get all notes with optional filters
+  getNotes: async (filters = {}) => {
+    const response = await apiClient.get('/clients/notes/', { params: filters });
     return response.data;
   },
   
   // Create a new note
-  createNote: async (clientId, noteData) => {
-    const response = await apiClient.post(`/clients/${clientId}/notes/`, noteData);
+  createNote: async (noteData) => {
+    const response = await apiClient.post('/clients/notes/', noteData);
     return response.data;
   },
   
@@ -89,6 +89,12 @@ const clientsApi = {
   // Get client tasks
   getTasks: async (clientId) => {
     const response = await apiClient.get(`/clients/${clientId}/tasks/`);
+    return response.data;
+  },
+  
+  // Get client industries (unique list)
+  getIndustries: async () => {
+    const response = await apiClient.get('/clients/industries/');
     return response.data;
   },
 };
