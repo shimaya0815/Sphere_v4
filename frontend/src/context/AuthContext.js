@@ -44,14 +44,20 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // Login function
-  const login = async (email, password, businessId) => {
+  const login = async (email, password, businessId = null) => {
     setError(null);
     try {
-      const response = await axios.post(`${API_URL}/auth/token/login/`, {
+      // ビジネスIDがある場合は含める、ない場合は新規ユーザー
+      const loginData = {
         email,
-        password,
-        business_id: businessId
-      });
+        password
+      };
+      
+      if (businessId) {
+        loginData.business_id = businessId;
+      }
+      
+      const response = await axios.post(`${API_URL}/auth/token/login/`, loginData);
       
       // From our custom login endpoint, we get token directly
       const { token, business_id } = response.data;
