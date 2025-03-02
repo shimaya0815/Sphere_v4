@@ -1,10 +1,11 @@
 import axios from 'axios';
 
 // Create axios instance with base URL
-// プロキシ経由で接続するか、環境変数のURLを使用
-const API_URL = process.env.NODE_ENV === 'development' ? 
-                (process.env.REACT_APP_API_URL || 'http://backend:8000/api') : 
-                '/api';
+// ブラウザではlocalhostを使用する
+const isServer = typeof window === 'undefined';
+const API_URL = isServer ? 
+                'http://backend:8000/api' : 
+                'http://localhost:8000/api';
 
 console.log('Using API URL:', API_URL);
 
