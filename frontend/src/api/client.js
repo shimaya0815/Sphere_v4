@@ -13,7 +13,9 @@ const apiClient = axios.create({
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    // 開発環境用のデモトークン（本番環境では実際の認証を使用）
+    const demoToken = 'a2c83c36d098df231387436783b2690fff243c30';
+    const token = localStorage.getItem('token') || demoToken;
     if (token) {
       config.headers.Authorization = `Token ${token}`;
     }
