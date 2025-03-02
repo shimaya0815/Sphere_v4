@@ -22,42 +22,45 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-md">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-card">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            アカウントにログイン
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            または{' '}
-            <Link to="/register" className="font-medium text-blue-600 hover:text-blue-500">
-              新規アカウント登録
-            </Link>
-          </p>
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-primary-700 mb-2">Sphere</h1>
+            <h2 className="text-2xl font-bold text-gray-900">
+              アカウントにログイン
+            </h2>
+            <p className="mt-2 text-center text-sm text-gray-600">
+              または{' '}
+              <Link to="/register" className="font-medium text-primary-600 hover:text-primary-500 transition-colors">
+                新規アカウント登録
+              </Link>
+            </p>
+          </div>
         </div>
         
         {error && (
-          <div className="alert alert-error">
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm mb-4">
             {typeof error === 'object' 
               ? Object.entries(error).map(([key, value]) => (
-                  <div key={key}>{key}: {value}</div>
+                  <div key={key} className="mb-1 last:mb-0">{key}: {value}</div>
                 ))
               : error}
           </div>
         )}
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
-          <div className="rounded-md shadow-sm -space-y-px">
+          <div className="space-y-4">
             <div>
-              <label htmlFor="email" className="sr-only">メールアドレス</label>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">メールアドレス</label>
               <input
                 id="email"
                 type="email"
                 autoComplete="email"
-                className={`appearance-none rounded-none relative block w-full px-3 py-2 border ${
-                  errors.email ? 'border-red-300' : 'border-gray-300'
-                } placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
-                placeholder="メールアドレス"
+                className={`appearance-none relative block w-full px-4 py-3 border ${
+                  errors.email ? 'border-red-300 ring-1 ring-red-300' : 'border-gray-300'
+                } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm`}
+                placeholder="your.email@example.com"
                 {...register('email', { 
                   required: 'メールアドレスは必須です',
                   pattern: {
@@ -72,15 +75,15 @@ const LoginPage = () => {
             </div>
             
             <div>
-              <label htmlFor="password" className="sr-only">パスワード</label>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">パスワード</label>
               <input
                 id="password"
                 type="password"
                 autoComplete="current-password"
-                className={`appearance-none rounded-none relative block w-full px-3 py-2 border ${
-                  errors.password ? 'border-red-300' : 'border-gray-300'
-                } placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
-                placeholder="パスワード"
+                className={`appearance-none relative block w-full px-4 py-3 border ${
+                  errors.password ? 'border-red-300 ring-1 ring-red-300' : 'border-gray-300'
+                } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm`}
+                placeholder="••••••••"
                 {...register('password', { 
                   required: 'パスワードは必須です',
                   minLength: {
@@ -95,14 +98,14 @@ const LoginPage = () => {
             </div>
             
             <div>
-              <label htmlFor="businessId" className="sr-only">ビジネスID</label>
+              <label htmlFor="businessId" className="block text-sm font-medium text-gray-700 mb-1">ビジネスID</label>
               <input
                 id="businessId"
                 type="text"
-                className={`appearance-none rounded-none relative block w-full px-3 py-2 border ${
-                  errors.businessId ? 'border-red-300' : 'border-gray-300'
-                } placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
-                placeholder="ビジネスID"
+                className={`appearance-none relative block w-full px-4 py-3 border ${
+                  errors.businessId ? 'border-red-300 ring-1 ring-red-300' : 'border-gray-300'
+                } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm`}
+                placeholder="your-business-id"
                 {...register('businessId', { 
                   required: 'ビジネスIDは必須です'
                 })}
@@ -119,15 +122,15 @@ const LoginPage = () => {
                 id="remember-me"
                 name="remember-me"
                 type="checkbox"
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
               />
-              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
+              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
                 ログイン状態を保存
               </label>
             </div>
 
             <div className="text-sm">
-              <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
+              <a href="#" className="font-medium text-primary-600 hover:text-primary-500 transition-colors">
                 パスワードをお忘れですか？
               </a>
             </div>
@@ -137,7 +140,7 @@ const LoginPage = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+              className={`w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors ${
                 isLoading ? 'opacity-70 cursor-not-allowed' : ''
               }`}
             >
@@ -156,45 +159,48 @@ const LoginPage = () => {
           </div>
         </form>
         
-        <div className="mt-6">
+        <div className="mt-8">
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
+              <div className="w-full border-t border-gray-200"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">
+              <span className="px-4 bg-white text-gray-500">
                 または以下でログイン
               </span>
             </div>
           </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-3">
+          <div className="mt-6 grid grid-cols-2 gap-4">
             <div>
-              <a
-                href="#"
-                className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+              <button
+                type="button"
+                className="w-full flex items-center justify-center py-3 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
               >
-                <span className="sr-only">Googleでログイン</span>
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"></path>
+                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M22.501 12.2551C22.501 11.4411 22.4296 10.6261 22.2808 9.83011H12.2148V14.2551H18.1198C17.887 15.5901 17.1579 16.7931 16.0476 17.6001V20.3821H19.6212C21.7584 18.3411 22.501 15.5511 22.501 12.2551Z" fill="#4285F4"/>
+                  <path d="M12.214 23.0008C15.1068 23.0008 17.5353 22.0148 19.6254 20.3828L16.0518 17.6008C15.0899 18.2518 13.8078 18.6258 12.214 18.6258C9.38654 18.6258 6.97086 16.6928 6.11961 14.0938H2.4165V16.9378C4.5009 20.6648 8.18049 23.0008 12.214 23.0008Z" fill="#34A853"/>
+                  <path d="M6.11865 14.0941C5.92595 13.4431 5.8189 12.7301 5.8189 12.0001C5.8189 11.2701 5.92595 10.5571 6.11865 9.90609V7.06209H2.4165C1.73845 8.5941 1.35156 10.2581 1.35156 12.0001C1.35156 13.7421 1.73845 15.4061 2.4165 16.9381L6.11865 14.0941Z" fill="#FBBC05"/>
+                  <path d="M12.214 5.37429C13.7572 5.37429 15.1356 5.92229 16.231 7.01629L19.3578 3.87429C17.5346 1.99529 15.1068 0.999292 12.214 0.999292C8.18049 0.999292 4.5009 3.33529 2.4165 7.06229L6.11865 9.90629C6.97086 7.30729 9.38654 5.37429 12.214 5.37429Z" fill="#EA4335"/>
                 </svg>
-              </a>
+                <span>Google</span>
+              </button>
             </div>
 
             <div>
-              <a
-                href="#"
-                className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+              <button
+                type="button"
+                className="w-full flex items-center justify-center py-3 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
               >
-                <span className="sr-only">GitHubでログイン</span>
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
                   <path
                     fillRule="evenodd"
-                    d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z"
+                    d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"
                     clipRule="evenodd"
                   />
                 </svg>
-              </a>
+                <span>GitHub</span>
+              </button>
             </div>
           </div>
         </div>

@@ -15,7 +15,32 @@ root.render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <App />
-        <Toaster position="top-right" />
+        <Toaster 
+          position="top-right" 
+          toastOptions={{
+            className: '',
+            duration: 5000,
+            style: {
+              background: '#fff',
+              color: '#334155',
+              borderRadius: '0.5rem',
+              boxShadow: '0 2px 20px rgba(0, 0, 0, 0.08)',
+              padding: '1rem',
+            },
+            success: {
+              iconTheme: {
+                primary: '#36D399',
+                secondary: 'white',
+              },
+            },
+            error: {
+              iconTheme: {
+                primary: '#F87272',
+                secondary: 'white',
+              },
+            },
+          }}
+        />
       </BrowserRouter>
     </QueryClientProvider>
   </React.StrictMode>
