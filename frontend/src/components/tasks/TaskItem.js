@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   HiOutlineClock, 
   HiOutlineDotsVertical, 
@@ -8,7 +9,8 @@ import {
   HiOutlineStop,
   HiOutlineClipboardCheck,
   HiOutlineCalendar,
-  HiOutlineUserCircle
+  HiOutlineUserCircle,
+  HiOutlineEye
 } from 'react-icons/hi';
 // import { format } from 'date-fns';
 // import { ja } from 'date-fns/locale';
@@ -16,6 +18,7 @@ import toast from 'react-hot-toast';
 import { tasksApi } from '../../api';
 
 const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
+  const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isTimerRunning, setIsTimerRunning] = useState(!!task.active_timer);
   const [loading, setLoading] = useState(false);
@@ -162,6 +165,18 @@ const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
                     >
                       <HiOutlinePencil className="mr-2" />
                       編集
+                    </button>
+                  </li>
+                  <li>
+                    <button 
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                      onClick={() => {
+                        navigate(`/tasks/${task.id}`);
+                        setIsMenuOpen(false);
+                      }}
+                    >
+                      <HiOutlineEye className="mr-2" />
+                      詳細を表示
                     </button>
                   </li>
                   <li>

@@ -57,6 +57,11 @@ function App() {
               <TasksPage />
             </PrivateRoute>
           } />
+          <Route path="/tasks/:taskId" element={
+            <PrivateRoute>
+              <TasksPage view="detail" />
+            </PrivateRoute>
+          } />
           <Route path="/clients" element={
             <PrivateRoute>
               <ClientsPage />
