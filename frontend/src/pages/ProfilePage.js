@@ -58,11 +58,11 @@ const ProfilePage = () => {
         ...response,
       });
       
-      toast.success('Profile updated successfully');
+      toast.success('プロフィールを更新しました');
       setIsEditMode(false);
     } catch (error) {
       console.error('Error updating profile:', error);
-      toast.error('Failed to update profile');
+      toast.error('プロフィールの更新に失敗しました');
     } finally {
       setIsLoading(false);
     }
@@ -127,7 +127,7 @@ const ProfilePage = () => {
               <div className="flex items-center mb-4">
                 <FaEnvelope className="mr-3" />
                 <div>
-                  <p className="text-sm text-blue-200">Email</p>
+                  <p className="text-sm text-blue-200">メールアドレス</p>
                   <p>{currentUser.email}</p>
                 </div>
               </div>
@@ -135,24 +135,24 @@ const ProfilePage = () => {
               <div className="flex items-center mb-4">
                 <FaPhone className="mr-3" />
                 <div>
-                  <p className="text-sm text-blue-200">Phone</p>
-                  <p>{currentUser.phone || 'Not provided'}</p>
+                  <p className="text-sm text-blue-200">電話番号</p>
+                  <p>{currentUser.phone || '未設定'}</p>
                 </div>
               </div>
               
               <div className="flex items-center mb-4">
                 <FaBriefcase className="mr-3" />
                 <div>
-                  <p className="text-sm text-blue-200">Position</p>
-                  <p>{currentUser.position || 'Not specified'}</p>
+                  <p className="text-sm text-blue-200">役職</p>
+                  <p>{currentUser.position || '未設定'}</p>
                 </div>
               </div>
               
               <div className="flex items-center">
                 <FaBuilding className="mr-3" />
                 <div>
-                  <p className="text-sm text-blue-200">Business ID</p>
-                  <p>{currentUser.business_id || 'Not assigned'}</p>
+                  <p className="text-sm text-blue-200">ビジネスID</p>
+                  <p>{currentUser.business_id || '未割り当て'}</p>
                 </div>
               </div>
             </div>
@@ -160,20 +160,20 @@ const ProfilePage = () => {
           
           <div className="md:w-2/3 p-8">
             <div className="flex justify-between items-center mb-6">
-              <h1 className="text-2xl font-bold text-gray-800">Your Profile</h1>
+              <h1 className="text-2xl font-bold text-gray-800">プロフィール</h1>
               {!isEditMode ? (
                 <button
                   onClick={() => setIsEditMode(true)}
                   className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                 >
-                  Edit Profile
+                  編集する
                 </button>
               ) : (
                 <button
                   onClick={() => setIsEditMode(false)}
                   className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors"
                 >
-                  Cancel
+                  キャンセル
                 </button>
               )}
             </div>
@@ -182,14 +182,14 @@ const ProfilePage = () => {
               <form onSubmit={handleSubmit(onSubmit)}>
                 <div className="mb-4">
                   <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="first_name">
-                    First Name
+                    名前
                   </label>
                   <input
                     id="first_name"
                     type="text"
                     className={`w-full px-3 py-2 border rounded-md ${errors.first_name ? 'border-red-500' : 'border-gray-300'}`}
-                    placeholder="First Name"
-                    {...register('first_name', { required: 'First name is required' })}
+                    placeholder="名前"
+                    {...register('first_name', { required: '名前は必須です' })}
                   />
                   {errors.first_name && (
                     <p className="text-red-500 text-xs mt-1">{errors.first_name.message}</p>
@@ -198,14 +198,14 @@ const ProfilePage = () => {
                 
                 <div className="mb-4">
                   <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="last_name">
-                    Last Name
+                    姓
                   </label>
                   <input
                     id="last_name"
                     type="text"
                     className={`w-full px-3 py-2 border rounded-md ${errors.last_name ? 'border-red-500' : 'border-gray-300'}`}
-                    placeholder="Last Name"
-                    {...register('last_name', { required: 'Last name is required' })}
+                    placeholder="姓"
+                    {...register('last_name', { required: '姓は必須です' })}
                   />
                   {errors.last_name && (
                     <p className="text-red-500 text-xs mt-1">{errors.last_name.message}</p>
@@ -214,33 +214,33 @@ const ProfilePage = () => {
                 
                 <div className="mb-4">
                   <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="phone">
-                    Phone Number
+                    電話番号
                   </label>
                   <input
                     id="phone"
                     type="text"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    placeholder="Phone Number"
+                    placeholder="電話番号"
                     {...register('phone')}
                   />
                 </div>
                 
                 <div className="mb-4">
                   <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="position">
-                    Position
+                    役職
                   </label>
                   <input
                     id="position"
                     type="text"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    placeholder="Your Position"
+                    placeholder="役職"
                     {...register('position')}
                   />
                 </div>
                 
                 <div className="mb-6">
                   <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="profile_image">
-                    Profile Image
+                    プロフィール画像
                   </label>
                   <input
                     id="profile_image"
@@ -255,10 +255,10 @@ const ProfilePage = () => {
                       htmlFor="profile_image"
                       className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 cursor-pointer"
                     >
-                      Choose File
+                      ファイルを選択
                     </label>
                     <span className="ml-3 text-sm text-gray-500">
-                      {imagePreview ? 'Image selected' : 'No file chosen'}
+                      {imagePreview ? '画像が選択されています' : 'ファイルが選択されていません'}
                     </span>
                   </div>
                 </div>
@@ -271,54 +271,54 @@ const ProfilePage = () => {
                       isLoading ? 'opacity-75 cursor-not-allowed' : ''
                     }`}
                   >
-                    {isLoading ? 'Saving...' : 'Save Changes'}
+                    {isLoading ? '保存中...' : '変更を保存'}
                   </button>
                 </div>
               </form>
             ) : (
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Account Information</h3>
+                  <h3 className="text-lg font-semibold text-gray-700 mb-2">アカウント情報</h3>
                   <div className="bg-gray-50 p-4 rounded-md">
-                    <p className="text-sm text-gray-500 mb-1">Email Address</p>
+                    <p className="text-sm text-gray-500 mb-1">メールアドレス</p>
                     <p className="text-gray-800">{currentUser.email}</p>
                   </div>
                 </div>
                 
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Personal Information</h3>
+                  <h3 className="text-lg font-semibold text-gray-700 mb-2">個人情報</h3>
                   <div className="bg-gray-50 p-4 rounded-md space-y-4">
                     <div>
-                      <p className="text-sm text-gray-500 mb-1">Full Name</p>
+                      <p className="text-sm text-gray-500 mb-1">氏名</p>
                       <p className="text-gray-800">{currentUser.first_name} {currentUser.last_name}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500 mb-1">Phone Number</p>
-                      <p className="text-gray-800">{currentUser.phone || 'Not provided'}</p>
+                      <p className="text-sm text-gray-500 mb-1">電話番号</p>
+                      <p className="text-gray-800">{currentUser.phone || '未設定'}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500 mb-1">Position</p>
-                      <p className="text-gray-800">{currentUser.position || 'Not specified'}</p>
+                      <p className="text-sm text-gray-500 mb-1">役職</p>
+                      <p className="text-gray-800">{currentUser.position || '未設定'}</p>
                     </div>
                   </div>
                 </div>
                 
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Business Information</h3>
+                  <h3 className="text-lg font-semibold text-gray-700 mb-2">ビジネス情報</h3>
                   <div className="bg-gray-50 p-4 rounded-md">
-                    <p className="text-sm text-gray-500 mb-1">Business ID</p>
-                    <p className="text-gray-800">{currentUser.business_id || 'Not assigned'}</p>
+                    <p className="text-sm text-gray-500 mb-1">ビジネスID</p>
+                    <p className="text-gray-800">{currentUser.business_id || '未割り当て'}</p>
                   </div>
                 </div>
                 
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Account Settings</h3>
+                  <h3 className="text-lg font-semibold text-gray-700 mb-2">アカウント設定</h3>
                   <div className="space-y-2">
                     <button className="text-blue-600 hover:text-blue-800 text-sm">
-                      Change Password
+                      パスワード変更
                     </button>
                     <button className="block text-blue-600 hover:text-blue-800 text-sm">
-                      Notification Preferences
+                      通知設定
                     </button>
                   </div>
                 </div>
