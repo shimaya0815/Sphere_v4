@@ -4,7 +4,8 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm install
+# 依存関係のインストール時にピア依存関係の警告を無視
+RUN npm install --legacy-peer-deps
 
 COPY . .
 
