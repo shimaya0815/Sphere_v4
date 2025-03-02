@@ -26,12 +26,12 @@ const LoginPage = () => {
       <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-md">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sign in to your account
+            アカウントにログイン
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Or{' '}
+            または{' '}
             <Link to="/register" className="font-medium text-blue-600 hover:text-blue-500">
-              register for a new account
+              新規アカウント登録
             </Link>
           </p>
         </div>
@@ -49,7 +49,7 @@ const LoginPage = () => {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
-              <label htmlFor="email" className="sr-only">Email address</label>
+              <label htmlFor="email" className="sr-only">メールアドレス</label>
               <input
                 id="email"
                 type="email"
@@ -57,12 +57,12 @@ const LoginPage = () => {
                 className={`appearance-none rounded-none relative block w-full px-3 py-2 border ${
                   errors.email ? 'border-red-300' : 'border-gray-300'
                 } placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
-                placeholder="Email address"
+                placeholder="メールアドレス"
                 {...register('email', { 
-                  required: 'Email is required',
+                  required: 'メールアドレスは必須です',
                   pattern: {
                     value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                    message: 'Invalid email address'
+                    message: '有効なメールアドレスを入力してください'
                   }
                 })}
               />
@@ -72,7 +72,7 @@ const LoginPage = () => {
             </div>
             
             <div>
-              <label htmlFor="password" className="sr-only">Password</label>
+              <label htmlFor="password" className="sr-only">パスワード</label>
               <input
                 id="password"
                 type="password"
@@ -80,12 +80,12 @@ const LoginPage = () => {
                 className={`appearance-none rounded-none relative block w-full px-3 py-2 border ${
                   errors.password ? 'border-red-300' : 'border-gray-300'
                 } placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
-                placeholder="Password"
+                placeholder="パスワード"
                 {...register('password', { 
-                  required: 'Password is required',
+                  required: 'パスワードは必須です',
                   minLength: {
                     value: 6,
-                    message: 'Password must be at least 6 characters'
+                    message: 'パスワードは6文字以上で入力してください'
                   }
                 })}
               />
@@ -95,16 +95,16 @@ const LoginPage = () => {
             </div>
             
             <div>
-              <label htmlFor="businessId" className="sr-only">Business ID</label>
+              <label htmlFor="businessId" className="sr-only">ビジネスID</label>
               <input
                 id="businessId"
                 type="text"
                 className={`appearance-none rounded-none relative block w-full px-3 py-2 border ${
                   errors.businessId ? 'border-red-300' : 'border-gray-300'
                 } placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
-                placeholder="Business ID"
+                placeholder="ビジネスID"
                 {...register('businessId', { 
-                  required: 'Business ID is required'
+                  required: 'ビジネスIDは必須です'
                 })}
               />
               {errors.businessId && (
@@ -122,13 +122,13 @@ const LoginPage = () => {
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
               <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-                Remember me
+                ログイン状態を保存
               </label>
             </div>
 
             <div className="text-sm">
               <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
-                Forgot your password?
+                パスワードをお忘れですか？
               </a>
             </div>
           </div>
@@ -147,10 +147,10 @@ const LoginPage = () => {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Signing in...
+                  ログイン中...
                 </span>
               ) : (
-                'Sign in'
+                'ログイン'
               )}
             </button>
           </div>
@@ -163,7 +163,7 @@ const LoginPage = () => {
             </div>
             <div className="relative flex justify-center text-sm">
               <span className="px-2 bg-white text-gray-500">
-                Or continue with
+                または以下でログイン
               </span>
             </div>
           </div>
@@ -174,7 +174,7 @@ const LoginPage = () => {
                 href="#"
                 className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
               >
-                <span className="sr-only">Sign in with Google</span>
+                <span className="sr-only">Googleでログイン</span>
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"></path>
                 </svg>
@@ -186,7 +186,7 @@ const LoginPage = () => {
                 href="#"
                 className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
               >
-                <span className="sr-only">Sign in with GitHub</span>
+                <span className="sr-only">GitHubでログイン</span>
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
                   <path
                     fillRule="evenodd"

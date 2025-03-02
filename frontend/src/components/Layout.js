@@ -29,12 +29,12 @@ const Layout = () => {
         </div>
         <nav className="mt-5">
           <ul>
-            <NavItem to="/dashboard" label="Dashboard" icon="📊" isSidebarOpen={isSidebarOpen} />
-            <NavItem to="/tasks" label="Tasks" icon="✅" isSidebarOpen={isSidebarOpen} />
-            <NavItem to="/clients" label="Clients" icon="👥" isSidebarOpen={isSidebarOpen} />
-            <NavItem to="/chat" label="Chat" icon="💬" isSidebarOpen={isSidebarOpen} />
-            <NavItem to="/wiki" label="Wiki" icon="📝" isSidebarOpen={isSidebarOpen} />
-            <NavItem to="/time-management" label="Time" icon="⏱️" isSidebarOpen={isSidebarOpen} />
+            <NavItem to="/dashboard" label="ダッシュボード" icon="📊" isSidebarOpen={isSidebarOpen} />
+            <NavItem to="/tasks" label="タスク管理" icon="✅" isSidebarOpen={isSidebarOpen} />
+            <NavItem to="/clients" label="クライアント" icon="👥" isSidebarOpen={isSidebarOpen} />
+            <NavItem to="/chat" label="チャット" icon="💬" isSidebarOpen={isSidebarOpen} />
+            <NavItem to="/wiki" label="ナレッジ" icon="📝" isSidebarOpen={isSidebarOpen} />
+            <NavItem to="/time-management" label="作業時間" icon="⏱️" isSidebarOpen={isSidebarOpen} />
           </ul>
         </nav>
       </div>
@@ -58,9 +58,9 @@ const Layout = () => {
                       </div>
                     </label>
                     <ul tabIndex={0} className="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
-                      <li><Link to="/profile">Profile</Link></li>
-                      <li><a>Settings</a></li>
-                      <li><a onClick={handleLogout}>Logout</a></li>
+                      <li><Link to="/profile">プロフィール</Link></li>
+                      <li><a>設定</a></li>
+                      <li><a onClick={handleLogout}>ログアウト</a></li>
                     </ul>
                   </div>
                 </>
