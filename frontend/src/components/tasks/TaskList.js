@@ -10,7 +10,7 @@ import {
   HiOutlineX,
   HiOutlineExclamationCircle
 } from 'react-icons/hi';
-import { Dialog, Transition } from '@headlessui/react';
+// import { Dialog, Transition } from '@headlessui/react';
 
 const TaskList = () => {
   const [tasks, setTasks] = useState([]);
@@ -234,14 +234,10 @@ const TaskList = () => {
       )}
       
       {/* タスク追加・編集モーダル */}
-      <Transition show={modalOpen} as={React.Fragment}>
-        <Dialog 
-          as="div" 
-          className="fixed inset-0 z-50 overflow-y-auto"
-          onClose={() => setModalOpen(false)}
-        >
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="min-h-screen px-4 text-center">
-            <Dialog.Overlay className="fixed inset-0 bg-black opacity-30" />
+            <div className="fixed inset-0 bg-black opacity-30"></div>
             
             <span className="inline-block h-screen align-middle" aria-hidden="true">&#8203;</span>
             
@@ -256,25 +252,21 @@ const TaskList = () => {
               />
             </div>
           </div>
-        </Dialog>
-      </Transition>
+        </div>
+      )}
       
       {/* タスク削除確認モーダル */}
-      <Transition show={deleteModalOpen} as={React.Fragment}>
-        <Dialog 
-          as="div" 
-          className="fixed inset-0 z-50 overflow-y-auto"
-          onClose={() => setDeleteModalOpen(false)}
-        >
+      {deleteModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="min-h-screen px-4 text-center">
-            <Dialog.Overlay className="fixed inset-0 bg-black opacity-30" />
+            <div className="fixed inset-0 bg-black opacity-30"></div>
             
             <span className="inline-block h-screen align-middle" aria-hidden="true">&#8203;</span>
             
             <div className="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle bg-white rounded-lg shadow-xl transform transition-all">
-              <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
+              <h3 className="text-lg font-medium leading-6 text-gray-900">
                 タスクの削除
-              </Dialog.Title>
+              </h3>
               
               <div className="mt-2">
                 <p className="text-sm text-gray-500">
@@ -300,8 +292,8 @@ const TaskList = () => {
               </div>
             </div>
           </div>
-        </Dialog>
-      </Transition>
+        </div>
+      )}
     </div>
   );
 };

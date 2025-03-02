@@ -3,23 +3,60 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
 from .models import Task, TaskCategory, TaskStatus, TaskPriority, TaskComment, TaskAttachment, TaskTimer, TaskHistory, TaskNotification
+from .serializers import (
+    TaskSerializer, TaskCategorySerializer, TaskStatusSerializer, 
+    TaskPrioritySerializer, TaskCommentSerializer, TaskAttachmentSerializer, 
+    TaskTimerSerializer, TaskHistorySerializer, TaskNotificationSerializer
+)
 from business.permissions import IsSameBusiness
 from django.db.models import Q
+from rest_framework.filters import SearchFilter, OrderingFilter
 
-# ViewSets will be implemented properly later, these are placeholders
 class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
+    serializer_class = TaskSerializer
     permission_classes = [permissions.IsAuthenticated, IsSameBusiness]
+    filter_backends = [SearchFilter, OrderingFilter]
+    search_fields = ['title', 'description']
+    ordering_fields = ['created_at', 'due_date', 'status__order', 'priority__level']
+    ordering = ['-created_at']
     
     def get_queryset(self):
         """Return tasks for the authenticated user's business."""
-        return Task.objects.filter(business=self.request.user.business)
+        queryset = Task.objects.filter(business=self.request.user.business)
+        
+        # Filter by is_template (only show non-templates by default)
+        queryset = queryset.filter(is_template=False)
+        
+        # Apply filters from query parameters
+        status = self.request.query_params.get('status', None)
+        priority = self.request.query_params.get('priority', None)
+        category = self.request.query_params.get('category', None)
+        search_term = self.request.query_params.get('searchTerm', None)
+        
+        if status:
+            queryset = queryset.filter(status__name__icontains=status)
+        
+        if priority:
+            queryset = queryset.filter(priority__name__icontains=priority)
+            
+        if category:
+            queryset = queryset.filter(category__name__icontains=category)
+            
+        if search_term:
+            queryset = queryset.filter(
+                Q(title__icontains=search_term) | 
+                Q(description__icontains=search_term)
+            )
+            
+        return queryset
     
     @action(detail=True, methods=['post'])
     def mark_complete(self, request, pk=None):
         task = self.get_object()
         task.mark_complete(user=request.user)
-        return Response({'status': 'task marked as complete'})
+        serializer = self.get_serializer(task)
+        return Response(serializer.data)
     
     @action(detail=True, methods=['post'], url_path='timers/start')
     def start_timer(self, request, pk=None):
@@ -29,7 +66,11 @@ class TaskViewSet(viewsets.ModelViewSet):
             user=request.user,
             start_time=timezone.now()
         )
-        return Response({'id': timer.id, 'status': 'timer started'})
+        return Response({
+            'id': timer.id, 
+            'status': 'timer started',
+            'active_timer': True
+        })
     
     @action(detail=True, methods=['post'], url_path='timers/stop')
     def stop_timer(self, request, pk=None):
@@ -47,38 +88,56 @@ class TaskViewSet(viewsets.ModelViewSet):
             )
         
         timer.stop_timer()
-        return Response({'id': timer.id, 'status': 'timer stopped'})
+        return Response({
+            'id': timer.id, 
+            'status': 'timer stopped',
+            'active_timer': False,
+            'duration': str(timer.duration)
+        })
 
 
 class TaskCategoryViewSet(viewsets.ModelViewSet):
     queryset = TaskCategory.objects.all()
+    serializer_class = TaskCategorySerializer
     permission_classes = [permissions.IsAuthenticated, IsSameBusiness]
     
     def get_queryset(self):
         """Return categories for the authenticated user's business."""
         return TaskCategory.objects.filter(business=self.request.user.business)
+    
+    def perform_create(self, serializer):
+        serializer.save(business=self.request.user.business)
 
 
 class TaskStatusViewSet(viewsets.ModelViewSet):
     queryset = TaskStatus.objects.all()
+    serializer_class = TaskStatusSerializer
     permission_classes = [permissions.IsAuthenticated, IsSameBusiness]
     
     def get_queryset(self):
         """Return statuses for the authenticated user's business."""
         return TaskStatus.objects.filter(business=self.request.user.business)
+    
+    def perform_create(self, serializer):
+        serializer.save(business=self.request.user.business)
 
 
 class TaskPriorityViewSet(viewsets.ModelViewSet):
     queryset = TaskPriority.objects.all()
+    serializer_class = TaskPrioritySerializer
     permission_classes = [permissions.IsAuthenticated, IsSameBusiness]
     
     def get_queryset(self):
         """Return priorities for the authenticated user's business."""
         return TaskPriority.objects.filter(business=self.request.user.business)
+    
+    def perform_create(self, serializer):
+        serializer.save(business=self.request.user.business)
 
 
 class TaskCommentViewSet(viewsets.ModelViewSet):
     queryset = TaskComment.objects.all()
+    serializer_class = TaskCommentSerializer
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
@@ -88,6 +147,7 @@ class TaskCommentViewSet(viewsets.ModelViewSet):
 
 class TaskAttachmentViewSet(viewsets.ModelViewSet):
     queryset = TaskAttachment.objects.all()
+    serializer_class = TaskAttachmentSerializer
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
@@ -97,6 +157,7 @@ class TaskAttachmentViewSet(viewsets.ModelViewSet):
 
 class TaskTimerViewSet(viewsets.ModelViewSet):
     queryset = TaskTimer.objects.all()
+    serializer_class = TaskTimerSerializer
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
@@ -106,6 +167,7 @@ class TaskTimerViewSet(viewsets.ModelViewSet):
 
 class TaskTemplateViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.filter(is_template=True)
+    serializer_class = TaskSerializer
     permission_classes = [permissions.IsAuthenticated, IsSameBusiness]
     
     def get_queryset(self):
@@ -137,4 +199,5 @@ class TaskTemplateViewSet(viewsets.ModelViewSet):
             recurrence_pattern=request.data.get('recurrence_pattern', None),
         )
         
-        return Response({'id': new_task.id, 'status': 'task created from template'})
+        serializer = self.get_serializer(new_task)
+        return Response(serializer.data)
