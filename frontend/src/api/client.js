@@ -14,17 +14,23 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  // デフォルトタイムアウトを設定
+  timeout: 15000, // 15秒
 });
 
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
   (config) => {
-    // 開発環境用のデモトークン（本番環境では実際の認証を使用）
-    const demoToken = 'a2c83c36d098df231387436783b2690fff243c30';
+    // 最新のトークンで更新
+    const demoToken = '23724bba110cc61ee5fd048570dac24e27948f32';
     const token = localStorage.getItem('token') || demoToken;
     if (token) {
       config.headers.Authorization = `Token ${token}`;
     }
+    // デバッグ用
+    console.log("Sending request with headers:", JSON.stringify(config.headers));
+    console.log("Request URL:", config.url);
+    console.log("Request data:", typeof config.data === 'string' ? config.data : JSON.stringify(config.data));
     return config;
   },
   (error) => {
@@ -35,9 +41,12 @@ apiClient.interceptors.request.use(
 // Response interceptor for error handling
 apiClient.interceptors.response.use(
   (response) => {
+    console.log("Response received:", response.status, response.data);
     return response;
   },
   (error) => {
+    console.error("API Error:", error.response?.status, error.response?.data);
+    
     const { response } = error;
     
     if (response && response.status === 401) {
