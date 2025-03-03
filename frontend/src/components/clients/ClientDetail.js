@@ -6,6 +6,7 @@ import FiscalYearForm from './FiscalYearForm';
 import CheckSettingForm from './CheckSettingForm';
 import FiscalYearTimeline from './FiscalYearTimeline';
 import FiscalYearTaskGenerator from './FiscalYearTaskGenerator';
+import FiscalYearManagement from './FiscalYearManagement';
 import { 
   HiOutlineOfficeBuilding, 
   HiOutlinePhone, 
@@ -219,55 +220,6 @@ const ClientDetail = ({ id, client: initialClient }) => {
       
       {activeTab === 'fiscal' && (
         <div>
-          <div className="flex justify-between mb-4">
-            <h2 className="text-xl font-semibold">決算期管理</h2>
-            <button 
-              className="btn btn-primary btn-sm"
-              onClick={() => {
-                setEditingFiscalYear(null);
-                setShowFiscalYearForm(true);
-              }}
-            >
-              <HiOutlinePlus className="mr-1" /> 決算期を追加
-            </button>
-          </div>
-          
-          {/* タイムラインチャート表示 */}
-          {fiscalYears && fiscalYears.length > 0 && (
-            <FiscalYearTimeline fiscalYears={fiscalYears} />
-          )}
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-            {fiscalYears && fiscalYears.length > 0 ? (
-              fiscalYears.map(fiscal => (
-                <FiscalYearCard 
-                  key={fiscal.id} 
-                  fiscalYear={fiscal}
-                  onEdit={() => {
-                    setEditingFiscalYear(fiscal);
-                    setShowFiscalYearForm(true);
-                  }}
-                  onDelete={async () => {
-                    if (window.confirm(`決算期「第${fiscal.fiscal_period}期」を削除してもよろしいですか？`)) {
-                      try {
-                        await clientsApi.deleteFiscalYear(fiscal.id);
-                        toast.success('決算期を削除しました');
-                        fetchFiscalYears();
-                      } catch (error) {
-                        console.error('Error deleting fiscal year:', error);
-                        toast.error('決算期の削除に失敗しました');
-                      }
-                    }
-                  }}
-                />
-              ))
-            ) : (
-              <div className="col-span-2 bg-gray-50 p-6 rounded-lg text-center text-gray-500">
-                決算期情報が登録されていません
-              </div>
-            )}
-          </div>
-          
           {/* タスク自動生成セクション */}
           {fiscalYears && fiscalYears.length > 0 && (
             <div className="mt-8">
@@ -292,6 +244,11 @@ const ClientDetail = ({ id, client: initialClient }) => {
               }
             </div>
           )}
+          
+          {/* 決算期管理 */}
+          <div className="mt-6">
+            <FiscalYearManagement clientId={id} />
+          </div>
         </div>
       )}
       

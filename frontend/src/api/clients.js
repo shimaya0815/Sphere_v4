@@ -77,6 +77,48 @@ const clientsApi = {
     return response.data;
   },
   
+  // Set fiscal year as current
+  setCurrentFiscalYear: async (fiscalYearId) => {
+    console.log(`API - Setting fiscal year ${fiscalYearId} as current`);
+    try {
+      const response = await apiClient.post(`/clients/fiscal-years/${fiscalYearId}/set_current/`);
+      console.log('API - Fiscal year set as current successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('API - Failed to set fiscal year as current:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+  
+  // Toggle fiscal year lock status
+  toggleFiscalYearLock: async (fiscalYearId) => {
+    console.log(`API - Toggling lock status for fiscal year ${fiscalYearId}`);
+    try {
+      const response = await apiClient.post(`/clients/fiscal-years/${fiscalYearId}/toggle_lock/`);
+      console.log('API - Fiscal year lock status toggled successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('API - Failed to toggle fiscal year lock status:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+  
+  // Get current fiscal year for a client
+  getCurrentFiscalYear: async (clientId) => {
+    console.log(`API - Getting current fiscal year for client ${clientId}`);
+    try {
+      const response = await apiClient.get(`/clients/${clientId}/fiscal-years/`, {
+        params: { is_current: true }
+      });
+      console.log('API - Current fiscal year fetched successfully:', response.data);
+      // Return the first item or null if no current fiscal year
+      return response.data.length > 0 ? response.data[0] : null;
+    } catch (error) {
+      console.error('API - Failed to get current fiscal year:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+  
   // Get check settings for a client
   getCheckSettings: async (clientId) => {
     const response = await apiClient.get(`/clients/${clientId}/check-settings/`);
