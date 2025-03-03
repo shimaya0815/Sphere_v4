@@ -62,6 +62,56 @@ class TaskViewSet(viewsets.ModelViewSet):
             
         return queryset
     
+    def create(self, request, *args, **kwargs):
+        """Create a task."""
+        # リクエストデータのデバッグ
+        print("Request data:", request.data)
+        
+        try:
+            # ワークスペースの取得
+            workspace = request.user.business.workspaces.first()
+            if not workspace:
+                return Response(
+                    {"detail": "No workspace found for this business"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # immutable辞書の場合はmutableに変換して操作
+            if hasattr(request.data, '_mutable'):
+                request.data._mutable = True
+                
+            # ワークスペースIDとビジネスIDを追加
+            if isinstance(request.data, dict):
+                request.data['workspace'] = workspace.id
+                request.data['business'] = request.user.business.id
+            else:
+                request.data['workspace'] = workspace.id
+                request.data['business'] = request.user.business.id
+                
+            if hasattr(request.data, '_mutable'):
+                request.data._mutable = False
+            
+            print("Modified request data:", request.data)
+            serializer = self.get_serializer(data=request.data)
+            
+            # バリデーションエラーの詳細を出力
+            if not serializer.is_valid():
+                print("Validation errors:", serializer.errors)
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+            # タスク作成
+            serializer.save(business=request.user.business, creator=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            print("Error creating task:", str(e))
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    
     @action(detail=True, methods=['post'])
     def mark_complete(self, request, pk=None):
         task = self.get_object()
