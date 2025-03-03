@@ -57,48 +57,52 @@ const DashboardPage = () => {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      // これらはモックデータなので、実際のAPIが実装されたら切り替える
-      
       // 時間データを取得
       const timeSummary = await timeManagementApi.getDashboardSummary();
       
       // グラフデータ
       const timeChartData = await timeManagementApi.getChartData('time', 'week');
       
-      // 最近のタスク - モックデータ
-      const recentTasks = generateMockTasks(5);
+      // タスク、イベント、クライアントデータの取得を試みる
+      // 以下は将来的に実際のAPIが実装されたら切り替える部分
+      let taskData = [];
+      let eventData = [];
+      let clientData = [];
       
-      // 今後のイベント - モックデータ
-      const upcomingEvents = generateMockEvents();
-      
-      // クライアントデータ - モックデータ
-      const clientData = generateMockClients();
-      
-      // 実際のデータが取得できるものだけを使用し、
-      // 取得できないものは空の配列やデフォルト値を設定
-      
-      // 既存のAPIから取得した時間データのみ実データを使用
-      const formattedTimeData = timeChartData.labels.map((day, index) => ({
-        name: day,
-        hours: timeChartData.datasets[0].data[index]
-      }));
+      // 時間追跡グラフのデータをフォーマット
+      let formattedTimeData = [];
+      if (timeChartData.labels && timeChartData.datasets && timeChartData.datasets.length > 0) {
+        formattedTimeData = timeChartData.labels.map((day, index) => ({
+          name: day,
+          hours: timeChartData.datasets[0].data[index] || 0
+        }));
+      }
             
       // データをまとめる
       setDashboardData({
         stats: {
-          activeTasks: 0,  // 実データがないためゼロ表示
-          completedTasks: 0, // 実データがないためゼロ表示
-          clients: 0, // 実データがないためゼロ表示
-          hoursTracked: Math.floor(timeSummary.this_month.hours)
+          activeTasks: 0,  // 将来的にAPIが実装されたら実データに置き換え
+          completedTasks: 0, // 将来的にAPIが実装されたら実データに置き換え
+          clients: 0, // 将来的にAPIが実装されたら実データに置き換え
+          hoursTracked: timeSummary?.this_month?.hours ? Math.floor(timeSummary.this_month.hours) : 0
         },
-        recentTasks: [], // 実データがないため空配列
-        upcomingEvents: [], // 実データがないため空配列
+        recentTasks: taskData,
+        upcomingEvents: eventData,
         timeData: formattedTimeData,
-        clientData: [] // 実データがないため空配列
+        clientData: clientData
       });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       showToast('ダッシュボードデータの取得中にエラーが発生しました', 'error');
+      
+      // エラー時は空データで初期化
+      setDashboardData({
+        stats: { activeTasks: 0, completedTasks: 0, clients: 0, hoursTracked: 0 },
+        recentTasks: [],
+        upcomingEvents: [],
+        timeData: [],
+        clientData: []
+      });
     } finally {
       setLoading(false);
     }
