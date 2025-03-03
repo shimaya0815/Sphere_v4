@@ -14,7 +14,8 @@ import {
 } from 'react-icons/hi';
 // import { Dialog, Transition } from '@headlessui/react';
 
-const TaskList = (props) => {
+// forwardRefを使用してコンポーネントから参照できるようにする
+const TaskList = React.forwardRef((props, ref) => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -121,17 +122,33 @@ const TaskList = (props) => {
   // 親コンポーネントからタスク更新通知を受け取るためのイベントハンドラ
   useEffect(() => {
     const handleTaskUpdate = () => {
+      console.log("Task updated event received");
+      fetchTasks();
+    };
+    
+    const handleForceRefresh = () => {
+      console.log("Force refresh event received");
       fetchTasks();
     };
     
     // カスタムイベントのリスナーを追加
     window.addEventListener('task-updated', handleTaskUpdate);
+    window.addEventListener('task-update-force-refresh', handleForceRefresh);
     
     // クリーンアップ関数
     return () => {
       window.removeEventListener('task-updated', handleTaskUpdate);
+      window.removeEventListener('task-update-force-refresh', handleForceRefresh);
     };
   }, []);
+  
+  // 親コンポーネントに公開するメソッド
+  React.useImperativeHandle(ref, () => ({
+    refreshTasks: () => {
+      console.log("Refresh tasks method called");
+      fetchTasks();
+    }
+  }));
 
   // フィルター変更時に再検索
   const handleFilterChange = (name, value) => {
@@ -493,6 +510,6 @@ const TaskList = (props) => {
       )}
     </div>
   );
-};
+});
 
 export default TaskList;
