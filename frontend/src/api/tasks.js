@@ -35,11 +35,18 @@ const tasksApi = {
     console.log('Creating task with data:', taskData);
     try {
       // Djangoの設定に合わせて末尾にスラッシュをつける必要がある
-      const response = await apiClient.post('/tasks/', taskData);
+      const response = await apiClient.post('/tasks/', taskData, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       console.log('Task created successfully:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Error creating task:', error.response?.data || error.message);
+      console.error('Error creating task:', error);
+      console.error('Error details:', error.response?.data);
+      console.error('Error message:', error.message);
+      console.error('Error status:', error.response?.status);
       throw error;
     }
   },

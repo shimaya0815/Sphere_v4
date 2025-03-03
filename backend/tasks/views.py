@@ -64,51 +64,55 @@ class TaskViewSet(viewsets.ModelViewSet):
     
     def create(self, request, *args, **kwargs):
         """Create a task."""
-        # リクエストデータのデバッグ
-        print("Request data:", request.data)
+        # リクエストデータの詳細デバッグ
+        print("REQUEST DATA TYPE:", type(request.data))
+        print("REQUEST DATA CONTENT:", request.data)
+        print("REQUEST METHOD:", request.method)
+        print("REQUEST PATH:", request.path)
+        print("REQUEST CONTENT TYPE:", request.content_type)
+        print("REQUEST USER:", request.user)
+        print("REQUEST USER BUSINESS:", request.user.business)
         
         try:
             # ワークスペースの取得
             workspace = request.user.business.workspaces.first()
             if not workspace:
+                print("NO WORKSPACE FOUND")
                 return Response(
                     {"detail": "No workspace found for this business"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # immutable辞書の場合はmutableに変換して操作
-            if hasattr(request.data, '_mutable'):
-                request.data._mutable = True
-                
-            # ワークスペースIDとビジネスIDを追加
-            if isinstance(request.data, dict):
-                request.data['workspace'] = workspace.id
-                request.data['business'] = request.user.business.id
-            else:
-                request.data['workspace'] = workspace.id
-                request.data['business'] = request.user.business.id
-                
-            if hasattr(request.data, '_mutable'):
-                request.data._mutable = False
+            print("WORKSPACE:", workspace.id, workspace.name)
             
-            print("Modified request data:", request.data)
-            serializer = self.get_serializer(data=request.data)
+            # 新しいデータディクショナリを作成（元のデータを変更しない）
+            data_dict = dict(request.data.items())
+            data_dict['workspace'] = workspace.id
+            data_dict['business'] = request.user.business.id
             
-            # バリデーションエラーの詳細を出力
+            print("DATA DICT:", data_dict)
+            
+            # シリアライザでデータをバリデーション
+            serializer = self.get_serializer(data=data_dict)
+            
             if not serializer.is_valid():
-                print("Validation errors:", serializer.errors)
+                print("VALIDATION ERRORS:", serializer.errors)
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             
             # タスク作成
-            serializer.save(business=request.user.business, creator=request.user)
+            task = serializer.save(business=request.user.business, creator=request.user)
+            print("TASK CREATED:", task.id, task.title)
+            
             return Response(serializer.data, status=status.HTTP_201_CREATED)
             
         except Exception as e:
-            print("Error creating task:", str(e))
+            print("ERROR CREATING TASK:", str(e))
+            print("ERROR TYPE:", type(e))
             import traceback
+            print("TRACEBACK:")
             traceback.print_exc()
             return Response(
-                {"detail": str(e)},
+                {"detail": f"Error creating task: {str(e)}"},
                 status=status.HTTP_400_BAD_REQUEST
             )
     
