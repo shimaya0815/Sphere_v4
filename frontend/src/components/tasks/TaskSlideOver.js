@@ -237,8 +237,12 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
       
       // すぐに親コンポーネントに通知して状態を更新
       if (onTaskUpdated) {
+        // 重要: ここでAPIから返された結果を使用してタスク全体を更新
         onTaskUpdated(result);
       }
+      
+      // 現在のタスクのローカル状態も更新
+      task = { ...task, ...updateData };
       
       // リスト更新のイベント発火をわずかに遅らせて確実に反映
       setTimeout(() => {
