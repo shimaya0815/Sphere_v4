@@ -13,17 +13,17 @@ const wikiApi = {
     apiClient.post('/wiki/pages/', data).then(response => response.data),
   
   updatePage: (id, data) => 
-    apiClient.patch(`/wiki/pages/${id}/`, data),
+    apiClient.patch(`/wiki/pages/${id}/`, data).then(response => response.data),
   
   deletePage: (id) => 
-    apiClient.delete(`/wiki/pages/${id}/`),
+    apiClient.delete(`/wiki/pages/${id}/`).then(response => response.data),
   
   // Page versions
   getPageVersions: (id) => 
-    apiClient.get(`/wiki/pages/${id}/versions/`),
+    apiClient.get(`/wiki/pages/${id}/versions/`).then(response => response.data),
   
   restoreVersion: (pageId, versionId) => 
-    apiClient.post(`/wiki/pages/${pageId}/versions/${versionId}/restore/`),
+    apiClient.post(`/wiki/pages/${pageId}/versions/${versionId}/restore/`).then(response => response.data),
   
   // Page attachments
   getPageAttachments: (id) => 
@@ -58,20 +58,20 @@ const wikiApi = {
   },
   
   deleteAttachment: (id) => 
-    apiClient.delete(`/wiki/attachments/${id}/`),
+    apiClient.delete(`/wiki/attachments/${id}/`).then(response => response.data),
   
   // Page hierarchy
   movePage: (id, parentId, order = 0) => 
     apiClient.post(`/wiki/pages/${id}/move/`, {
       parent_id: parentId,
       order
-    }),
+    }).then(response => response.data),
   
   getChildren: (id) => 
-    apiClient.get(`/wiki/pages/${id}/children/`),
+    apiClient.get(`/wiki/pages/${id}/children/`).then(response => response.data),
   
   getBreadcrumbs: (id) => 
-    apiClient.get(`/wiki/pages/${id}/breadcrumbs/`),
+    apiClient.get(`/wiki/pages/${id}/breadcrumbs/`).then(response => response.data),
   
   // Wiki structure
   getWikiStructure: () => 
@@ -81,34 +81,34 @@ const wikiApi = {
   reorderPages: (pageOrders) => 
     apiClient.post('/wiki/pages/reorder/', {
       page_orders: pageOrders
-    }),
+    }).then(response => response.data),
   
   // Search
   searchWiki: (query) => 
     apiClient.get('/wiki/search/', {
       params: { query }
-    }),
+    }).then(response => response.data),
   
   // Stats
   getWikiStats: () => 
-    apiClient.get('/wiki/stats/'),
+    apiClient.get('/wiki/stats/').then(response => response.data),
     
   // Legacy / compatibility methods
   getChildPages: (parentId) => 
     apiClient.get(`/wiki/pages/`, { 
       params: { parent: parentId } 
-    }),
+    }).then(response => response.data),
     
   searchPages: (query) => 
     apiClient.get('/wiki/search/', { 
       params: { query } 
-    }),
+    }).then(response => response.data),
     
   getAttachments: (pageId) => 
-    apiClient.get(`/wiki/pages/${pageId}/attachments/`),
+    apiClient.get(`/wiki/pages/${pageId}/attachments/`).then(response => response.data),
     
   restorePageVersion: (pageId, versionId) => 
-    apiClient.post(`/wiki/pages/${pageId}/versions/${versionId}/restore/`)
+    apiClient.post(`/wiki/pages/${pageId}/versions/${versionId}/restore/`).then(response => response.data)
 };
 
 export default wikiApi;
