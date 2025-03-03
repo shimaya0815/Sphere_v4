@@ -82,7 +82,24 @@ const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
   const getPriorityColor = (priority) => {
     if (!priority) return 'bg-gray-100 text-gray-800';
     
-    switch (priority.name?.toLowerCase() || priority.toLowerCase()) {
+    // APIレスポンスが数値かオブジェクトかなどの形式を判定
+    const priorityName = typeof priority === 'object' && priority.name 
+      ? priority.name.toLowerCase()
+      : typeof priority === 'string' 
+        ? priority.toLowerCase()
+        : priority;
+    
+    // 数値の場合は優先度レベルで判定（1:低, 2:中, 3:高）
+    if (typeof priority === 'number' || !isNaN(Number(priority))) {
+      const level = Number(priority);
+      if (level === 3) return 'bg-red-100 text-red-800'; // 高
+      if (level === 2) return 'bg-yellow-100 text-yellow-800'; // 中
+      if (level === 1) return 'bg-green-100 text-green-800'; // 低
+      return 'bg-gray-100 text-gray-800';
+    }
+    
+    // 名前で判定
+    switch (priorityName) {
       case 'high':
       case '高':
         return 'bg-red-100 text-red-800';
@@ -100,18 +117,48 @@ const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
   const getStatusColor = (status) => {
     if (!status) return 'bg-gray-100 text-gray-800';
     
-    switch (status.name?.toLowerCase() || status.toLowerCase()) {
+    // APIレスポンスが数値かオブジェクトかなどの形式を判定
+    const statusName = typeof status === 'object' && status.name 
+      ? status.name.toLowerCase()
+      : typeof status === 'string' 
+        ? status.toLowerCase()
+        : status;
+    
+    // status_nameがある場合はそれを使用
+    if (task.status_name) {
+      const name = task.status_name.toLowerCase();
+      if (name.includes('完了')) return 'bg-green-100 text-green-800';
+      if (name.includes('進行') || name.includes('作業中')) return 'bg-blue-100 text-blue-800';
+      if (name.includes('レビュー')) return 'bg-yellow-100 text-yellow-800';
+      if (name.includes('未着手')) return 'bg-gray-100 text-gray-800';
+    }
+    
+    // 数値の場合はステータスコードで判定（仮定）
+    if (typeof status === 'number' || !isNaN(Number(status))) {
+      const code = Number(status);
+      if (code === 4) return 'bg-green-100 text-green-800'; // 完了
+      if (code === 2) return 'bg-blue-100 text-blue-800'; // 進行中
+      if (code === 3) return 'bg-yellow-100 text-yellow-800'; // レビュー中
+      if (code === 1) return 'bg-gray-100 text-gray-800'; // 未着手
+      return 'bg-gray-100 text-gray-800';
+    }
+    
+    // 名前で判定
+    switch (statusName) {
       case 'completed':
       case '完了':
         return 'bg-green-100 text-green-800';
       case 'in progress':
       case '進行中':
+      case 'in_progress':
         return 'bg-blue-100 text-blue-800';
       case 'in review':
       case 'レビュー中':
+      case 'in_review':
         return 'bg-yellow-100 text-yellow-800';
       case 'not started':
       case '未着手':
+      case 'not_started':
         return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
@@ -127,7 +174,46 @@ const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
   };
 
   const getStatusName = (status) => {
-    return status?.name || status || '未設定';
+    if (!status) return '未設定';
+    
+    // status_nameがある場合はそれを使用
+    if (task.status_name) return task.status_name;
+    
+    // オブジェクトの場合はnameプロパティを使用
+    if (typeof status === 'object' && status.name) return status.name;
+    
+    // 数値の場合はステータスコードからマッピング
+    if (typeof status === 'number' || !isNaN(Number(status))) {
+      const code = Number(status);
+      if (code === 4) return '完了';
+      if (code === 2) return '進行中';
+      if (code === 3) return 'レビュー中';
+      if (code === 1) return '未着手';
+    }
+    
+    // その他の場合は値をそのまま返す
+    return String(status);
+  };
+  
+  const getPriorityName = (priority) => {
+    if (!priority) return '未設定';
+    
+    // priority_nameがある場合はそれを使用
+    if (task.priority_name) return task.priority_name;
+    
+    // オブジェクトの場合はnameプロパティを使用
+    if (typeof priority === 'object' && priority.name) return priority.name;
+    
+    // 数値の場合は優先度レベルからマッピング
+    if (typeof priority === 'number' || !isNaN(Number(priority))) {
+      const level = Number(priority);
+      if (level === 3) return '高';
+      if (level === 2) return '中';
+      if (level === 1) return '低';
+    }
+    
+    // その他の場合は値をそのまま返す
+    return String(priority);
   };
 
   return (
@@ -230,13 +316,13 @@ const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
           
           {task.priority && (
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
-              {task.priority.name || task.priority}
+              {getPriorityName(task.priority)}
             </span>
           )}
           
           {task.category && (
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-              {task.category.name || task.category}
+              {typeof task.category === 'object' && task.category.name ? task.category.name : String(task.category)}
             </span>
           )}
           
