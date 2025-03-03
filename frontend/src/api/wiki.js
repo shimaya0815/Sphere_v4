@@ -2,96 +2,97 @@ import apiClient from './client';
 
 // Wiki API service
 const wikiApi = {
-  // Get all wiki pages with optional filters
-  getPages: async (filters = {}) => {
-    const response = await apiClient.get('/wiki/pages/', { params: filters });
-    return response.data;
-  },
+  // Pages
+  getPages: (params) => 
+    apiClient.get('/wiki/pages/', { params }),
   
-  // Get a specific wiki page by ID or slug
-  getPage: async (pageIdentifier) => {
-    const response = await apiClient.get(`/wiki/pages/${pageIdentifier}/`);
-    return response.data;
-  },
+  getPage: (id) => 
+    apiClient.get(`/wiki/pages/${id}/`),
   
-  // Create a new wiki page
-  createPage: async (pageData) => {
-    const response = await apiClient.post('/wiki/pages/', pageData);
-    return response.data;
-  },
+  createPage: (data) => 
+    apiClient.post('/wiki/pages/', data),
   
-  // Update a wiki page
-  updatePage: async (pageId, pageData) => {
-    const response = await apiClient.patch(`/wiki/pages/${pageId}/`, pageData);
-    return response.data;
-  },
+  updatePage: (id, data) => 
+    apiClient.patch(`/wiki/pages/${id}/`, data),
   
-  // Delete a wiki page
-  deletePage: async (pageId) => {
-    const response = await apiClient.delete(`/wiki/pages/${pageId}/`);
-    return response.data;
-  },
+  deletePage: (id) => 
+    apiClient.delete(`/wiki/pages/${id}/`),
   
-  // Get page versions
-  getPageVersions: async (pageId) => {
-    const response = await apiClient.get(`/wiki/pages/${pageId}/versions/`);
-    return response.data;
-  },
+  // Page versions
+  getPageVersions: (id) => 
+    apiClient.get(`/wiki/pages/${id}/versions/`),
   
-  // Get a specific version of a page
-  getPageVersion: async (pageId, versionId) => {
-    const response = await apiClient.get(`/wiki/pages/${pageId}/versions/${versionId}/`);
-    return response.data;
-  },
+  restoreVersion: (pageId, versionId) => 
+    apiClient.post(`/wiki/pages/${pageId}/versions/${versionId}/restore/`),
   
-  // Restore a page to a previous version
-  restorePageVersion: async (pageId, versionId) => {
-    const response = await apiClient.post(`/wiki/pages/${pageId}/versions/${versionId}/restore/`);
-    return response.data;
-  },
+  // Page attachments
+  getPageAttachments: (id) => 
+    apiClient.get(`/wiki/pages/${id}/attachments/`),
   
-  // Get page attachments
-  getAttachments: async (pageId) => {
-    const response = await apiClient.get(`/wiki/pages/${pageId}/attachments/`);
-    return response.data;
-  },
-  
-  // Upload an attachment to a page
-  uploadAttachment: async (pageId, file) => {
+  uploadAttachment: (pageId, file) => {
     const formData = new FormData();
+    formData.append('page', pageId);
     formData.append('file', file);
     
-    const response = await apiClient.post(`/wiki/pages/${pageId}/attachments/`, formData, {
+    return apiClient.post('/wiki/attachments/', formData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+        'Content-Type': 'multipart/form-data'
+      }
     });
-    return response.data;
   },
   
-  // Delete an attachment
-  deleteAttachment: async (attachmentId) => {
-    const response = await apiClient.delete(`/wiki/attachments/${attachmentId}/`);
-    return response.data;
-  },
+  deleteAttachment: (id) => 
+    apiClient.delete(`/wiki/attachments/${id}/`),
   
-  // Search wiki pages
-  searchPages: async (query) => {
-    const response = await apiClient.get('/wiki/search/', { params: { query } });
-    return response.data;
-  },
+  // Page hierarchy
+  movePage: (id, parentId, order = 0) => 
+    apiClient.post(`/wiki/pages/${id}/move/`, {
+      parent_id: parentId,
+      order
+    }),
   
-  // Get child pages
-  getChildPages: async (parentId) => {
-    const response = await apiClient.get(`/wiki/pages/${parentId}/children/`);
-    return response.data;
-  },
+  getChildren: (id) => 
+    apiClient.get(`/wiki/pages/${id}/children/`),
   
-  // Reorder pages
-  reorderPages: async (orderData) => {
-    const response = await apiClient.post('/wiki/pages/reorder/', orderData);
-    return response.data;
-  },
+  getBreadcrumbs: (id) => 
+    apiClient.get(`/wiki/pages/${id}/breadcrumbs/`),
+  
+  // Wiki structure
+  getWikiStructure: () => 
+    apiClient.get('/wiki/structure/'),
+  
+  // Reordering
+  reorderPages: (pageOrders) => 
+    apiClient.post('/wiki/pages/reorder/', {
+      page_orders: pageOrders
+    }),
+  
+  // Search
+  searchWiki: (query) => 
+    apiClient.get('/wiki/search/', {
+      params: { query }
+    }),
+  
+  // Stats
+  getWikiStats: () => 
+    apiClient.get('/wiki/stats/'),
+    
+  // Legacy / compatibility methods
+  getChildPages: (parentId) => 
+    apiClient.get(`/wiki/pages/`, { 
+      params: { parent: parentId } 
+    }),
+    
+  searchPages: (query) => 
+    apiClient.get('/wiki/search/', { 
+      params: { query } 
+    }),
+    
+  getAttachments: (pageId) => 
+    apiClient.get(`/wiki/pages/${pageId}/attachments/`),
+    
+  restorePageVersion: (pageId, versionId) => 
+    apiClient.post(`/wiki/pages/${pageId}/versions/${versionId}/restore/`)
 };
 
 export default wikiApi;
