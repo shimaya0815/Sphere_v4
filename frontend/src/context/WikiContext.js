@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
-import { wikiApi } from '../api';
+import wikiApi from '../api/wiki';
 import { useAuth } from './AuthContext';
 import debounce from 'lodash/debounce';
 
