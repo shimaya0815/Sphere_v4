@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { WikiProvider, useWiki } from '../context/WikiContext';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useLayoutEffect } from 'react';
 import {
   HiOutlineFolder,
   HiOutlineDocument,
@@ -649,13 +650,44 @@ const WikiContent = () => {
             <div className="flex-1 overflow-auto p-6 bg-white">
               {isEditing ? (
                 <div className="flex flex-col h-full">
-                  <textarea 
-                    ref={editorRef}
-                    className="w-full flex-1 p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    placeholder="Enter your content here..."
-                  />
+                  <div className="flex h-full">
+                    {/* Editor pane */}
+                    <div className="w-1/2 pr-2">
+                      <textarea 
+                        ref={editorRef}
+                        className="w-full h-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        placeholder="Enter your content here..."
+                      />
+                    </div>
+                    
+                    {/* Preview pane */}
+                    <div className="w-1/2 pl-2 border-l border-gray-200">
+                      <div className="p-4 h-full overflow-auto">
+                        <h3 className="text-sm font-medium text-gray-500 mb-2">Preview</h3>
+                        <div className="prose max-w-none">
+                          <ReactMarkdown 
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              img: ({node, ...props}) => (
+                                <img 
+                                  {...props} 
+                                  className="my-4 rounded-md shadow-md" 
+                                  alt={props.alt || 'Image'} 
+                                  // Force image reload by adding timestamp to prevent caching
+                                  src={`${props.src}?t=${Date.now()}`}
+                                  style={{maxWidth: '100%'}}
+                                />
+                              )
+                            }}
+                          >
+                            {editContent || '_No content yet._'}
+                          </ReactMarkdown>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                   
                   {/* Editor toolbar */}
                   <div className="flex items-center mt-2 text-gray-500 text-sm">
@@ -723,7 +755,21 @@ const WikiContent = () => {
                 </div>
               ) : (
                 <div className="prose max-w-none">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      img: ({node, ...props}) => (
+                        <img 
+                          {...props} 
+                          className="my-4 rounded-md shadow-md" 
+                          alt={props.alt || 'Image'} 
+                          // Force image reload by adding timestamp to prevent caching
+                          src={`${props.src}?t=${Date.now()}`}
+                          style={{maxWidth: '100%'}}
+                        />
+                      )
+                    }}
+                  >
                     {currentPage.content || '_No content yet. Click "Edit" to add content._'}
                   </ReactMarkdown>
                 </div>
