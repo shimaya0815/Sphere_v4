@@ -34,8 +34,8 @@ const tasksApi = {
   createTask: async (taskData) => {
     console.log('Creating task with data:', taskData);
     try {
-      // 正しいエンドポイントでタスク作成リクエストを送信 (末尾のスラッシュを除去)
-      const response = await apiClient.post('/tasks', taskData);
+      // Djangoの設定に合わせて末尾にスラッシュをつける必要がある
+      const response = await apiClient.post('/tasks/', taskData);
       console.log('Task created successfully:', response.data);
       return response.data;
     } catch (error) {
@@ -151,7 +151,7 @@ const tasksApi = {
   
   // Start a timer for a task
   startTimer: async (taskId) => {
-    const response = await apiClient.post(`/tasks/${taskId}/timers/start/`);
+    const response = await apiClient.post(`/tasks/${taskId}/timers/start/`, {});
     return response.data;
   },
   
