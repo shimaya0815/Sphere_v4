@@ -111,7 +111,25 @@ export const WikiProvider = ({ children }) => {
   const createPage = async (pageData) => {
     setLoading(true);
     try {
-      const newPage = await wikiApi.createPage(pageData);
+      console.log('Creating page with data:', pageData);
+      
+      // Clean up the data to ensure it's valid
+      const sanitizedData = { ...pageData };
+      
+      // Ensure parent is a valid number or null
+      if (sanitizedData.parent) {
+        sanitizedData.parent = Number(sanitizedData.parent);
+      } else {
+        // Remove parent field if it's null, undefined, empty string
+        delete sanitizedData.parent;
+      }
+      
+      // Ensure other fields are valid
+      if (typeof sanitizedData.is_published !== 'boolean') {
+        sanitizedData.is_published = true;
+      }
+      
+      const newPage = await wikiApi.createPage(sanitizedData);
       
       // Reload the wiki structure to include the new page
       await loadWikiStructure();
@@ -124,7 +142,13 @@ export const WikiProvider = ({ children }) => {
       return newPage;
     } catch (err) {
       console.error('Error creating page:', err);
-      setError('Failed to create page');
+      if (err.response && err.response.data) {
+        console.error('Error details:', err.response.data);
+        // Set a more descriptive error message
+        setError(`Failed to create page: ${JSON.stringify(err.response.data)}`);
+      } else {
+        setError('Failed to create page');
+      }
       return null;
     } finally {
       setLoading(false);
