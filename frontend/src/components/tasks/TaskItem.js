@@ -10,7 +10,9 @@ import {
   HiOutlineClipboardCheck,
   HiOutlineCalendar,
   HiOutlineUserCircle,
-  HiOutlineEye
+  HiOutlineEye,
+  HiOutlineOfficeBuilding,
+  HiOutlineDocumentDuplicate
 } from 'react-icons/hi';
 // import { format } from 'date-fns';
 // import { ja } from 'date-fns/locale';
@@ -237,6 +239,14 @@ const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
               {task.category.name || task.category}
             </span>
           )}
+          
+          {/* 決算期関連タスクバッジ */}
+          {task.is_fiscal_task && (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+              <HiOutlineDocumentDuplicate className="mr-1" />
+              {task.fiscal_period ? `第${task.fiscal_period}期` : '決算'}
+            </span>
+          )}
         </div>
         
         <div className="mt-4 pt-4 border-t border-gray-200 flex flex-wrap items-center gap-4 text-sm text-gray-500">
@@ -258,6 +268,14 @@ const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
             <div className="flex items-center">
               <HiOutlineClock className="mr-1" />
               <span>{task.estimated_hours}時間</span>
+            </div>
+          )}
+          
+          {/* クライアント名の表示 */}
+          {task.client_name && (
+            <div className="flex items-center">
+              <HiOutlineOfficeBuilding className="mr-1" />
+              <span className="truncate max-w-[150px]">{task.client_name}</span>
             </div>
           )}
         </div>

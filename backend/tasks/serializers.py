@@ -65,6 +65,8 @@ class TaskSerializer(serializers.ModelSerializer):
     creator_name = serializers.ReadOnlyField(source='creator.get_full_name', default=None)
     assignee_name = serializers.ReadOnlyField(source='assignee.get_full_name', default=None)
     approver_name = serializers.ReadOnlyField(source='approver.get_full_name', default=None)
+    client_name = serializers.ReadOnlyField(source='client.name', default=None)
+    fiscal_period = serializers.ReadOnlyField(source='fiscal_year.fiscal_period', default=None)
     
     class Meta:
         model = Task
@@ -72,7 +74,8 @@ class TaskSerializer(serializers.ModelSerializer):
             'id', 'title', 'description', 'business', 'workspace', 'status', 'status_name',
             'priority', 'priority_name', 'category', 'category_name', 'creator', 'creator_name',
             'assignee', 'assignee_name', 'approver', 'approver_name', 'created_at', 'updated_at',
-            'due_date', 'start_date', 'completed_at', 'estimated_hours', 'client',
+            'due_date', 'start_date', 'completed_at', 'estimated_hours', 'client', 'client_name',
+            'is_fiscal_task', 'fiscal_year', 'fiscal_period',  # 決算期関連フィールド追加
             'is_recurring', 'recurrence_pattern', 'recurrence_end_date', 'is_template', 'template_name'
         ]
         read_only_fields = ('business', 'creator', 'created_at', 'updated_at')

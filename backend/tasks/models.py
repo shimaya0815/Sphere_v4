@@ -26,6 +26,27 @@ class TaskCategory(models.Model):
     
     def __str__(self):
         return self.name
+        
+    @classmethod
+    def create_defaults(cls, business):
+        """Create default categories for a business."""
+        categories = [
+            {'name': '一般', 'color': '#3B82F6', 'description': '一般的なタスク'},
+            {'name': '税務顧問', 'color': '#10B981', 'description': '税務関連のタスク'},
+            {'name': '記帳代行', 'color': '#F59E0B', 'description': '記帳関連のタスク'},
+            {'name': '決算・申告', 'color': '#8B5CF6', 'description': '決算・申告関連のタスク'},
+            {'name': '給与計算', 'color': '#EC4899', 'description': '給与計算関連のタスク'},
+        ]
+        
+        for category in categories:
+            cls.objects.get_or_create(
+                business=business,
+                name=category['name'],
+                defaults={
+                    'color': category['color'],
+                    'description': category['description']
+                }
+            )
 
 
 class TaskStatus(models.Model):
@@ -49,6 +70,27 @@ class TaskStatus(models.Model):
     
     def __str__(self):
         return self.name
+        
+    @classmethod
+    def create_defaults(cls, business):
+        """Create default statuses for a business."""
+        statuses = [
+            {'name': '未着手', 'color': '#9CA3AF', 'order': 1, 'description': 'まだ開始していないタスク'},
+            {'name': '作業中', 'color': '#3B82F6', 'order': 2, 'description': '現在取り組んでいるタスク'},
+            {'name': 'レビュー待ち', 'color': '#F59E0B', 'order': 3, 'description': 'レビューを待っているタスク'},
+            {'name': '完了', 'color': '#10B981', 'order': 4, 'description': '完了したタスク'},
+        ]
+        
+        for status in statuses:
+            cls.objects.get_or_create(
+                business=business,
+                name=status['name'],
+                defaults={
+                    'color': status['color'],
+                    'order': status['order'],
+                    'description': status['description']
+                }
+            )
 
 
 class TaskPriority(models.Model):
@@ -72,6 +114,26 @@ class TaskPriority(models.Model):
     
     def __str__(self):
         return self.name
+    
+    @classmethod
+    def create_defaults(cls, business):
+        """Create default priorities for a business."""
+        priorities = [
+            {'name': '高', 'color': '#EF4444', 'level': 3, 'description': '緊急の対応が必要なタスク'},
+            {'name': '中', 'color': '#F59E0B', 'level': 2, 'description': '通常の優先度のタスク'},
+            {'name': '低', 'color': '#10B981', 'level': 1, 'description': '時間があれば対応するタスク'},
+        ]
+        
+        for priority in priorities:
+            cls.objects.get_or_create(
+                business=business,
+                name=priority['name'],
+                defaults={
+                    'color': priority['color'],
+                    'level': priority['level'],
+                    'description': priority['description']
+                }
+            )
 
 
 class Task(models.Model):
@@ -147,6 +209,16 @@ class Task(models.Model):
     client = models.ForeignKey(
         'clients.Client',
         on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='tasks'
+    )
+    
+    # 決算期関連タスクフラグと参照
+    is_fiscal_task = models.BooleanField(_('is fiscal year task'), default=False)
+    fiscal_year = models.ForeignKey(
+        'clients.FiscalYear',
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name='tasks'
