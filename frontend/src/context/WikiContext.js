@@ -291,6 +291,13 @@ export const WikiProvider = ({ children }) => {
   const uploadAttachment = async (pageId, file) => {
     try {
       console.log('Uploading attachment to page:', pageId, file);
+      console.log('File details:', {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        lastModified: file.lastModified
+      });
+      
       const attachment = await wikiApi.uploadAttachment(pageId, file);
       console.log('Upload response:', attachment);
       
@@ -300,7 +307,12 @@ export const WikiProvider = ({ children }) => {
       return attachment;
     } catch (err) {
       console.error('Error uploading attachment:', err);
-      setError('Failed to upload attachment');
+      console.error('Error details:', {
+        message: err.message,
+        response: err.response?.data || 'No response data',
+        status: err.response?.status || 'No status'
+      });
+      setError(`Failed to upload attachment: ${err.message}`);
       return null;
     }
   };
