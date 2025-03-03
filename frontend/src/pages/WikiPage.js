@@ -9,6 +9,7 @@ import {
   HiOutlineDocument,
   HiOutlineChevronDown,
   HiOutlineChevronRight, 
+  HiOutlineChevronLeft,
   HiOutlineSearch,
   HiOutlineSave,
   HiOutlineTrash,
@@ -26,7 +27,8 @@ import {
   HiOutlineExternalLink,
   HiOutlineUsers,
   HiOutlineArrowLeft,
-  HiOutlineCalendar
+  HiOutlineCalendar,
+  HiOutlineMoon
 } from 'react-icons/hi';
 
 // Wiki Sidebar Item Component
@@ -841,13 +843,15 @@ const WikiContent = () => {
                               style={{maxWidth: '100%'}}
                             />
                           ),
-                          a: ({node, ...props}) => (
+                          a: ({node, children, ...props}) => (
                             <a 
                               {...props} 
                               className={`text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300`}
                               target="_blank"
                               rel="noopener noreferrer"
-                            />
+                            >
+                              {children}
+                            </a>
                           ),
                           code: ({node, inline, ...props}) => (
                             inline 
@@ -889,13 +893,15 @@ const WikiContent = () => {
                                   style={{maxWidth: '100%'}}
                                 />
                               ),
-                              a: ({node, ...props}) => (
+                              a: ({node, children, ...props}) => (
                                 <a 
                                   {...props} 
                                   className={`text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                />
+                                >
+                                  {children}
+                                </a>
                               ),
                               code: ({node, inline, ...props}) => (
                                 inline 
@@ -1047,13 +1053,15 @@ const WikiContent = () => {
                           style={{maxWidth: '100%'}}
                         />
                       ),
-                      a: ({node, ...props}) => (
+                      a: ({node, children, ...props}) => (
                         <a 
                           {...props} 
                           className={`text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300`}
                           target="_blank"
                           rel="noopener noreferrer"
-                        />
+                        >
+                          {children}
+                        </a>
                       ),
                       code: ({node, inline, ...props}) => (
                         inline 
