@@ -104,12 +104,20 @@ const NewPageModal = ({ isOpen, onClose, onSave, parentId = null, parentOptions 
       return;
     }
     
-    onSave({
+    // Ensure parent is properly formatted - if null, it should not be sent
+    // If numeric, it should be sent as a number
+    const pageData = {
       title,
       content,
-      parent: selectedParentId,
       is_published: true
-    });
+    };
+    
+    // Only add parent field if it's a valid ID
+    if (selectedParentId !== null && selectedParentId !== undefined && selectedParentId !== "") {
+      pageData.parent = Number(selectedParentId);
+    }
+    
+    onSave(pageData);
     
     // Reset form
     setTitle('');
