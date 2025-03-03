@@ -34,10 +34,10 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
   const watchedIsFiscalTask = watch('is_fiscal_task');
   
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && task) {
       fetchTaskMetadata();
     }
-  }, [isOpen]);
+  }, [isOpen, task?.id]); // タスクIDが変更された場合も再取得
   
   // Load fiscal years when client changes
   useEffect(() => {
@@ -73,26 +73,38 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
   // Populate form when task changes
   useEffect(() => {
     if (task) {
-      reset({
-        title: task.title || '',
-        description: task.description || '',
-        category: task.category?.id || '',
-        status: task.status?.id || '',
-        priority: task.priority?.id || '',
-        due_date: task.due_date ? task.due_date.substring(0, 10) : '',
-        estimated_hours: task.estimated_hours || '',
-        client: task.client?.id || '',
-        is_fiscal_task: task.is_fiscal_task ? 'true' : 'false',
-        fiscal_year: task.fiscal_year?.id || '',
-      });
+      console.log("Task data received:", task);
       
-      // Update state values
-      setIsFiscalTask(task.is_fiscal_task);
-      if (task.client) {
-        setSelectedClient(task.client);
-      }
+      // メタデータの読み込みを確保
+      fetchTaskMetadata().then(() => {
+        // メタデータのロード後にフォームをリセット
+        reset({
+          title: task.title || '',
+          description: task.description || '',
+          category: task.category?.id || (typeof task.category === 'number' ? task.category : ''),
+          status: task.status?.id || (typeof task.status === 'number' ? task.status : ''),
+          priority: task.priority?.id || (typeof task.priority === 'number' ? task.priority : ''),
+          due_date: task.due_date ? task.due_date.substring(0, 10) : '',
+          estimated_hours: task.estimated_hours || '',
+          client: task.client?.id || (typeof task.client === 'number' ? task.client : ''),
+          is_fiscal_task: task.is_fiscal_task ? 'true' : 'false', 
+          fiscal_year: task.fiscal_year?.id || (typeof task.fiscal_year === 'number' ? task.fiscal_year : ''),
+        });
+        
+        // Update state values
+        setIsFiscalTask(task.is_fiscal_task);
+        if (task.client) {
+          setSelectedClient(task.client);
+        }
+        
+        console.log("Form reset with values:", {
+          title: task.title,
+          status: task.status?.id || (typeof task.status === 'number' ? task.status : ''),
+          category: task.category?.id || (typeof task.category === 'number' ? task.category : '')
+        });
+      });
     }
-  }, [task, reset]);
+  }, [task]);
   
   const fetchTaskMetadata = async () => {
     try {
