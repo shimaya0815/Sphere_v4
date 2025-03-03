@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
 import { ChatProvider, useChat } from '../context/ChatContext';
 import { useAuth } from '../context/AuthContext';
@@ -9,7 +9,8 @@ import {
   HiOutlinePaperClip,
   HiOutlineEmojiHappy,
   HiOutlineDotsVertical,
-  HiOutlineInformationCircle
+  HiOutlineInformationCircle,
+  HiOutlineRefresh
 } from 'react-icons/hi';
 
 // Inner component that uses the chat context
@@ -25,7 +26,8 @@ const ChatContent = () => {
     selectChannel,
     sendMessage,
     createChannel,
-    startDirectMessage
+    startDirectMessage,
+    loadChannels
   } = useChat();
   
   const { currentUser } = useAuth();
@@ -34,12 +36,14 @@ const ChatContent = () => {
   const [showNewChannelModal, setShowNewChannelModal] = useState(false);
   const [channelName, setChannelName] = useState('');
   const [channelDescription, setChannelDescription] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   const messagesEndRef = useRef(null);
+  const messageInputRef = useRef(null);
   
   // Filter channels by search query
   const filteredChannels = channels.filter(channel => 
-    channel.name.toLowerCase().includes(searchQuery.toLowerCase())
+    channel.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
   
   // Filter direct messages by search query
@@ -49,26 +53,55 @@ const ChatContent = () => {
   
   // Scroll to bottom when new messages arrive
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages]);
   
   // Select first channel if none is selected and channels are loaded
   useEffect(() => {
     if (!activeChannel && channels.length > 0) {
+      console.log('Auto-selecting first channel:', channels[0]);
       selectChannel(channels[0]);
     }
   }, [channels, activeChannel, selectChannel]);
+  
+  // Focus input field when channel changes
+  useEffect(() => {
+    if (activeChannel && messageInputRef.current) {
+      messageInputRef.current.focus();
+    }
+  }, [activeChannel]);
+  
+  // Handler to refresh channels
+  const handleRefreshChannels = useCallback(() => {
+    setIsRefreshing(true);
+    loadChannels()
+      .finally(() => {
+        setTimeout(() => {
+          setIsRefreshing(false);
+        }, 500);
+      });
+  }, [loadChannels]);
   
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!messageText.trim()) return;
     
-    sendMessage(messageText)
+    // Capture message text and clear input immediately for responsiveness
+    const messageToSend = messageText.trim();
+    setMessageText('');
+    
+    // Send the message
+    sendMessage(messageToSend)
       .then(() => {
-        setMessageText('');
+        // Focus back on input after sending
+        messageInputRef.current?.focus();
       })
       .catch(error => {
         console.error('Failed to send message:', error);
+        // Restore message text if sending failed completely
+        setMessageText(messageToSend);
       });
   };
   
@@ -79,12 +112,7 @@ const ChatContent = () => {
     // Find the default workspace
     const workspace = channels.length > 0 
       ? channels[0].workspace.id 
-      : null;
-    
-    if (!workspace) {
-      alert('No workspace available to create a channel');
-      return;
-    }
+      : 1; // Default to workspace ID 1 if no channels exist
     
     createChannel({
       name: channelName,
@@ -100,6 +128,7 @@ const ChatContent = () => {
       })
       .catch(error => {
         console.error('Failed to create channel:', error);
+        alert('チャンネルの作成に失敗しました。もう一度お試しください。');
       });
   };
   
@@ -153,10 +182,20 @@ const ChatContent = () => {
           </div>
         </div>
         
-        {/* Connection status */}
-        <div className={`px-4 py-2 text-xs font-medium ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
-          {isConnected ? 'Connected' : 'Disconnected'} 
-          <span className={`inline-block w-2 h-2 ml-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
+        {/* Connection status with refresh button */}
+        <div className="px-4 py-2 flex justify-between items-center">
+          <div className={`text-xs font-medium ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
+            {isConnected ? 'Connected' : 'Disconnected'} 
+            <span className={`inline-block w-2 h-2 ml-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
+          </div>
+          <button 
+            className={`text-gray-500 hover:text-gray-900 p-1 rounded ${isRefreshing ? 'animate-spin' : ''}`}
+            onClick={handleRefreshChannels}
+            disabled={isRefreshing}
+            title="チャンネル一覧を更新"
+          >
+            <HiOutlineRefresh className="w-4 h-4" />
+          </button>
         </div>
         
         {/* Channels */}
@@ -280,31 +319,47 @@ const ChatContent = () => {
           ) : (
             <div className="space-y-6">
               {messages.length > 0 ? (
-                messages.map(msg => (
-                  <div key={msg.id || `temp-${Date.now()}`} className={`flex ${safe(() => msg.user.id) === currentUser?.id ? 'justify-end' : 'items-start'}`}>
-                    {safe(() => msg.user.id) !== currentUser?.id && (
-                      <div className="flex-shrink-0 mr-3">
-                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-800">
-                          {getInitials(safe(() => msg.user.full_name))}
-                        </div>
-                      </div>
-                    )}
-                    <div className={`flex flex-col ${safe(() => msg.user.id) === currentUser?.id ? 'items-end' : ''}`}>
-                      {safe(() => msg.user.id) !== currentUser?.id && (
-                        <div className="flex items-center mb-1">
-                          <span className="font-medium text-gray-900 mr-2">{safe(() => msg.user.full_name, 'Unknown')}</span>
-                          <span className="text-xs text-gray-500">{formatTime(msg.created_at)}</span>
+                messages.map(msg => {
+                  // Generate a stable key even for temporary messages
+                  const messageKey = msg.id || `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                  const isCurrentUser = safe(() => msg.user.id) === currentUser?.id;
+                  
+                  return (
+                    <div 
+                      key={messageKey} 
+                      className={`flex ${isCurrentUser ? 'justify-end' : 'items-start'} mb-4 hover:bg-gray-50 p-2 rounded-lg cursor-pointer transition-colors`}
+                      onClick={() => console.log('Message clicked:', msg)}
+                    >
+                      {!isCurrentUser && (
+                        <div className="flex-shrink-0 mr-3">
+                          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-800">
+                            {getInitials(safe(() => msg.user.full_name))}
+                          </div>
                         </div>
                       )}
-                      <div className={`px-4 py-2 rounded-lg ${safe(() => msg.user.id) === currentUser?.id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800'}`}>
-                        {msg.content || ''}
+                      <div className={`flex flex-col max-w-[70%] ${isCurrentUser ? 'items-end' : ''}`}>
+                        {!isCurrentUser && (
+                          <div className="flex items-center mb-1">
+                            <span className="font-medium text-gray-900 mr-2">{safe(() => msg.user.full_name, 'Unknown')}</span>
+                            <span className="text-xs text-gray-500">{formatTime(msg.created_at)}</span>
+                          </div>
+                        )}
+                        <div 
+                          className={`px-4 py-2 rounded-lg break-words ${
+                            isCurrentUser 
+                              ? 'bg-blue-600 text-white' 
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {msg.content || ''}
+                        </div>
+                        {isCurrentUser && (
+                          <span className="text-xs text-gray-500 mt-1">{formatTime(msg.created_at)}</span>
+                        )}
                       </div>
-                      {safe(() => msg.user.id) === currentUser?.id && (
-                        <span className="text-xs text-gray-500 mt-1">{formatTime(msg.created_at)}</span>
-                      )}
                     </div>
-                  </div>
-                ))
+                  );
+                })
               ) : activeChannel ? (
                 <div className="text-center text-gray-500">
                   No messages in this channel yet.
@@ -332,7 +387,9 @@ const ChatContent = () => {
                 className="flex-1 py-2 px-4 bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
                 value={messageText}
                 onChange={(e) => setMessageText(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage(e)}
                 disabled={!isConnected}
+                ref={messageInputRef}
               />
               <button type="button" className="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100">
                 <HiOutlineEmojiHappy className="w-5 h-5" />
