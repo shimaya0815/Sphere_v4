@@ -4,6 +4,8 @@ import { clientsApi } from '../../api';
 import toast from 'react-hot-toast';
 import FiscalYearForm from './FiscalYearForm';
 import CheckSettingForm from './CheckSettingForm';
+import FiscalYearTimeline from './FiscalYearTimeline';
+import FiscalYearTaskGenerator from './FiscalYearTaskGenerator';
 import { 
   HiOutlineOfficeBuilding, 
   HiOutlinePhone, 
@@ -230,7 +232,12 @@ const ClientDetail = ({ id, client: initialClient }) => {
             </button>
           </div>
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* タイムラインチャート表示 */}
+          {fiscalYears && fiscalYears.length > 0 && (
+            <FiscalYearTimeline fiscalYears={fiscalYears} />
+          )}
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
             {fiscalYears && fiscalYears.length > 0 ? (
               fiscalYears.map(fiscal => (
                 <FiscalYearCard 
@@ -260,6 +267,31 @@ const ClientDetail = ({ id, client: initialClient }) => {
               </div>
             )}
           </div>
+          
+          {/* タスク自動生成セクション */}
+          {fiscalYears && fiscalYears.length > 0 && (
+            <div className="mt-8">
+              <h3 className="text-lg font-semibold mb-4">決算タスク管理</h3>
+              
+              {/* 未来または現在の決算期のみタスク生成を表示 */}
+              {fiscalYears
+                .filter(fy => new Date(fy.end_date) >= new Date())
+                .sort((a, b) => new Date(a.end_date) - new Date(b.end_date))
+                .slice(0, 1)
+                .map(activeFiscalYear => (
+                  <FiscalYearTaskGenerator 
+                    key={activeFiscalYear.id}
+                    fiscalYear={activeFiscalYear}
+                    clientId={client.id}
+                    clientName={client.name}
+                    onTasksGenerated={() => {
+                      toast.success('タスクが正常に生成されました');
+                    }}
+                  />
+                ))
+              }
+            </div>
+          )}
         </div>
       )}
       

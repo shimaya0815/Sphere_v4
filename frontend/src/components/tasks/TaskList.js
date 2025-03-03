@@ -25,6 +25,8 @@ const TaskList = () => {
     status: '',
     priority: '',
     searchTerm: '',
+    is_fiscal_task: '',
+    client: '',
   });
   const [showFilters, setShowFilters] = useState(false);
 
@@ -32,13 +34,40 @@ const TaskList = () => {
   const fetchTasks = async () => {
     setLoading(true);
     try {
-      const response = await tasksApi.getTasks(filters);
-      setTasks(response.results || response);
+      // フィルターのクリーンアップ（空の値は送信しない）
+      const cleanFilters = {};
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== '') {
+          cleanFilters[key] = value;
+        }
+      });
+      
+      const response = await tasksApi.getTasks(cleanFilters);
+      // レスポンスの形式をログ出力して確認
+      console.log('API Response:', response);
+      
+      // レスポンスが配列かオブジェクトかを確認
+      if (Array.isArray(response)) {
+        setTasks(response);
+      } else if (response && Array.isArray(response.results)) {
+        setTasks(response.results);
+      } else if (response && typeof response === 'object') {
+        // 空の配列をデフォルトとして設定
+        setTasks([]);
+        console.warn('API response is not an array, received:', typeof response);
+      } else {
+        // それ以外の場合も空配列を設定
+        setTasks([]);
+        console.warn('Unexpected API response format:', response);
+      }
+      
       setError(null);
     } catch (error) {
       console.error('Error fetching tasks:', error);
       setError('タスク一覧の取得に失敗しました');
       toast.error('タスク一覧の取得に失敗しました');
+      // エラー時は空の配列を設定
+      setTasks([]);
     } finally {
       setLoading(false);
     }
@@ -62,6 +91,8 @@ const TaskList = () => {
       status: '',
       priority: '',
       searchTerm: '',
+      is_fiscal_task: '',
+      client: '',
     });
     fetchTasks();
   };
@@ -140,7 +171,7 @@ const TaskList = () => {
             </button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">タスク名検索</label>
               <div className="relative">
@@ -183,6 +214,20 @@ const TaskList = () => {
                 <option value="high">高</option>
                 <option value="medium">中</option>
                 <option value="low">低</option>
+              </select>
+            </div>
+            
+            {/* 決算期タスクフィルター追加 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">タスク種別</label>
+              <select
+                className="appearance-none relative block w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                value={filters.is_fiscal_task}
+                onChange={(e) => handleFilterChange('is_fiscal_task', e.target.value)}
+              >
+                <option value="">すべて</option>
+                <option value="true">決算期関連タスク</option>
+                <option value="false">通常タスク</option>
               </select>
             </div>
             
