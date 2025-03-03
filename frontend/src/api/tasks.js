@@ -164,17 +164,27 @@ const tasksApi = {
       console.log('PATCH request to:', `/tasks/${taskId}/`);
       console.log('Request data:', JSON.stringify(taskData));
       
-      const response = await apiClient.patch(`/tasks/${taskId}/`, taskData);
+      // タイムアウト設定を延長する
+      const response = await apiClient.patch(`/tasks/${taskId}/`, taskData, {
+        timeout: 10000 // 10秒のタイムアウト
+      });
       console.log('Task updated successfully:', response.data);
       
       // レスポンスデータの詳細ログ
       console.log('Raw response data:', JSON.stringify(response.data));
       
-      // データを正規化
-      const normalizedData = normalizeTaskData(response.data);
-      console.log('Normalized task data:', normalizedData);
+      // オブジェクト参照型の値を直接返す（正規化せず）
+      if (response.data && typeof response.data === 'object') {
+        // 基本的なデータ構造チェック
+        if (response.data.id !== undefined) {
+          console.log('Returning raw response data');
+          return response.data;
+        }
+      }
       
-      // 正規化したデータを返す
+      // バックアッププラン: データを正規化して返す
+      console.log('Normalizing response data');
+      const normalizedData = normalizeTaskData(response.data);
       return normalizedData;
     } catch (error) {
       console.error('Error updating task:', error.response?.data || error.message);

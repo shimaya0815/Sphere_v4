@@ -51,21 +51,32 @@ const TasksPage = ({ view }) => {
       });
     }
     
-    // 更新されたタスクを選択状態にセット（スライドオーバーの表示を更新）
-    setSelectedTask(updatedTask);
+    // 重要: 更新されたタスクのディープコピーを作成して状態を正しく更新
+    const taskCopy = JSON.parse(JSON.stringify(updatedTask));
+    console.log("Setting selected task with deep copy:", taskCopy);
     
-    // 強制的にタスク一覧を再読み込み - 少し遅延させて状態更新が確実に行われるようにする
+    // 更新されたタスクを選択状態にセット（スライドオーバーの表示を更新）
+    setSelectedTask(taskCopy);
+    
+    // リスト更新を即時実行して状態を同期
+    console.log("Immediately refreshing task list");
+    if (taskListRef.current && typeof taskListRef.current.refreshTasks === 'function') {
+      console.log("Refreshing task list via ref - immediate");
+      taskListRef.current.refreshTasks();
+    }
+    
+    // 念のため、少し遅延させた再読み込みも行う（UI更新を確実にするため）
     setTimeout(() => {
-      console.log("Attempting to refresh task list after delay");
+      console.log("Refreshing task list again after delay");
       if (taskListRef.current && typeof taskListRef.current.refreshTasks === 'function') {
-        console.log("Refreshing task list via ref");
+        console.log("Refreshing task list via ref - delayed");
         taskListRef.current.refreshTasks();
       } else {
         console.log("Could not refresh tasks via ref - using event fallback");
         // フォールバック: カスタムイベントを発火
         window.dispatchEvent(new Event('task-update-force-refresh'));
       }
-    }, 300); // 少し長めの遅延で確実にUIを更新
+    }, 500); // さらに長めの遅延で確実にUIを更新
   };
   
   // 詳細表示の場合 (URL経由での表示)
