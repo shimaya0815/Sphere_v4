@@ -4,34 +4,58 @@ import apiClient from './client';
 const normalizeTaskData = (task) => {
   if (!task) return null;
   
-  // 一貫した形式でタスクデータを返す
-  return {
+  console.log('Normalizing task data:', task);
+  
+  // ステータス情報を正規化
+  let status_data = null;
+  if (task.status_data) {
+    status_data = task.status_data;
+  } else if (task.status && typeof task.status === 'object') {
+    status_data = { id: task.status.id, name: task.status.name };
+  } else if (task.status) {
+    status_data = { id: task.status, name: task.status_name || getDefaultStatusName(task.status) };
+  }
+  
+  // 優先度情報を正規化
+  let priority_data = null;
+  if (task.priority_data) {
+    priority_data = task.priority_data;
+  } else if (task.priority && typeof task.priority === 'object') {
+    priority_data = { id: task.priority.id, name: task.priority.name };
+  } else if (task.priority) {
+    priority_data = { id: task.priority, name: task.priority_name || getDefaultPriorityName(task.priority) };
+  }
+  
+  // カテゴリ情報を正規化
+  let category_data = null;
+  if (task.category_data) {
+    category_data = task.category_data;
+  } else if (task.category && typeof task.category === 'object') {
+    category_data = { id: task.category.id, name: task.category.name };
+  } else if (task.category) {
+    category_data = { id: task.category, name: task.category_name || '' };
+  }
+  
+  // クライアント情報を正規化
+  let client_data = null;
+  if (task.client_data) {
+    client_data = task.client_data;
+  } else if (task.client && typeof task.client === 'object') {
+    client_data = { id: task.client.id, name: task.client.name };
+  } else if (task.client) {
+    client_data = { id: task.client, name: task.client_name || '' };
+  }
+  
+  const normalized = {
     ...task,
-    // ステータス情報を正規化
-    status_data: task.status_data || (
-      task.status && typeof task.status === 'object' 
-        ? { id: task.status.id, name: task.status.name }
-        : task.status ? { id: task.status, name: task.status_name || getDefaultStatusName(task.status) } : null
-    ),
-    // 優先度情報を正規化
-    priority_data: task.priority_data || (
-      task.priority && typeof task.priority === 'object'
-        ? { id: task.priority.id, name: task.priority.name }
-        : task.priority ? { id: task.priority, name: task.priority_name || getDefaultPriorityName(task.priority) } : null
-    ),
-    // カテゴリ情報を正規化
-    category_data: task.category_data || (
-      task.category && typeof task.category === 'object'
-        ? { id: task.category.id, name: task.category.name }
-        : task.category ? { id: task.category, name: task.category_name || '' } : null
-    ),
-    // クライアント情報を正規化
-    client_data: task.client_data || (
-      task.client && typeof task.client === 'object'
-        ? { id: task.client.id, name: task.client.name }
-        : task.client ? { id: task.client, name: task.client_name || '' } : null
-    )
+    status_data,
+    priority_data,
+    category_data,
+    client_data
   };
+  
+  console.log('Normalized task data result:', normalized);
+  return normalized;
 };
 
 // IDに基づいてデフォルトのステータス名を取得
@@ -126,13 +150,39 @@ const tasksApi = {
   updateTask: async (taskId, taskData) => {
     console.log('Updating task with ID:', taskId, 'and data:', taskData);
     try {
+      // タスクIDが数値であることを確認
+      if (!taskId || isNaN(Number(taskId))) {
+        throw new Error(`Invalid task ID: ${taskId}`);
+      }
+      
+      // 更新フィールドが少なくとも1つあることを確認
+      if (!taskData || Object.keys(taskData).length === 0) {
+        throw new Error('No update data provided');
+      }
+      
+      // リクエスト送信前に詳細ログ
+      console.log('PATCH request to:', `/tasks/${taskId}/`);
+      console.log('Request data:', JSON.stringify(taskData));
+      
       const response = await apiClient.patch(`/tasks/${taskId}/`, taskData);
       console.log('Task updated successfully:', response.data);
       
-      // 更新後のタスクデータを正規化して返す
-      return normalizeTaskData(response.data);
+      // レスポンスデータの詳細ログ
+      console.log('Raw response data:', JSON.stringify(response.data));
+      
+      // データを正規化
+      const normalizedData = normalizeTaskData(response.data);
+      console.log('Normalized task data:', normalizedData);
+      
+      // 正規化したデータを返す
+      return normalizedData;
     } catch (error) {
       console.error('Error updating task:', error.response?.data || error.message);
+      console.error('Error details:', error);
+      if (error.response) {
+        console.error('Status:', error.response.status);
+        console.error('Headers:', error.response.headers);
+      }
       throw error;
     }
   },

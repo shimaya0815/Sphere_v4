@@ -36,6 +36,9 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
   useEffect(() => {
     if (isOpen && task) {
       fetchTaskMetadata();
+      
+      // 詳細な現在のタスク情報をログ出力（デバッグ用）
+      console.log('Current task in SlideOver:', JSON.stringify(task));
     }
   }, [isOpen, task?.id]); // タスクIDが変更された場合も再取得
   
@@ -73,7 +76,7 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
   // Populate form when task changes
   useEffect(() => {
     if (task) {
-      console.log("Task data received:", task);
+      console.log("Task data received in form population:", task);
       
       // メタデータの読み込みを確保
       fetchTaskMetadata().then(() => {
@@ -81,52 +84,72 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
         let statusId = '';
         if (task.status_data) {
           statusId = task.status_data.id;
+          console.log('Using status_data.id:', statusId);
         } else if (task.status?.id) {
           statusId = task.status.id;
-        } else if (typeof task.status === 'number') {
+          console.log('Using status.id:', statusId);
+        } else if (typeof task.status === 'number' || !isNaN(Number(task.status))) {
           statusId = task.status;
+          console.log('Using status as number:', statusId);
         }
         
         let priorityId = '';
         if (task.priority_data) {
           priorityId = task.priority_data.id;
+          console.log('Using priority_data.id:', priorityId);
         } else if (task.priority?.id) {
           priorityId = task.priority.id;
-        } else if (typeof task.priority === 'number') {
+          console.log('Using priority.id:', priorityId);
+        } else if (typeof task.priority === 'number' || !isNaN(Number(task.priority))) {
           priorityId = task.priority;
+          console.log('Using priority as number:', priorityId);
         }
         
         let categoryId = '';
         if (task.category_data) {
           categoryId = task.category_data.id;
+          console.log('Using category_data.id:', categoryId);
         } else if (task.category?.id) {
           categoryId = task.category.id;
-        } else if (typeof task.category === 'number') {
+          console.log('Using category.id:', categoryId);
+        } else if (typeof task.category === 'number' || !isNaN(Number(task.category))) {
           categoryId = task.category;
+          console.log('Using category as number:', categoryId);
         }
         
         let clientId = '';
         if (task.client_data) {
           clientId = task.client_data.id;
+          console.log('Using client_data.id:', clientId);
         } else if (task.client?.id) {
           clientId = task.client.id;
-        } else if (typeof task.client === 'number') {
+          console.log('Using client.id:', clientId);
+        } else if (typeof task.client === 'number' || !isNaN(Number(task.client))) {
           clientId = task.client;
+          console.log('Using client as number:', clientId);
         }
         
-        // メタデータのロード後にフォームをリセット
-        reset({
+        // 文字列に変換してフォームに設定
+        const formValues = {
           title: task.title || '',
           description: task.description || '',
-          category: categoryId,
-          status: statusId,
-          priority: priorityId,
+          category: categoryId ? categoryId.toString() : '',
+          status: statusId ? statusId.toString() : '',
+          priority: priorityId ? priorityId.toString() : '',
           due_date: task.due_date ? task.due_date.substring(0, 10) : '',
           estimated_hours: task.estimated_hours || '',
-          client: clientId,
-          is_fiscal_task: task.is_fiscal_task ? 'true' : 'false', 
-          fiscal_year: task.fiscal_year?.id || (typeof task.fiscal_year === 'number' ? task.fiscal_year : ''),
-        });
+          client: clientId ? clientId.toString() : '',
+          is_fiscal_task: task.is_fiscal_task ? 'true' : 'false',
+          fiscal_year: task.fiscal_year?.id || (typeof task.fiscal_year === 'number' ? task.fiscal_year.toString() : ''),
+        };
+        
+        console.log("Form values to be set:", formValues);
+        
+        // メタデータのロード後にフォームをリセット
+        reset(formValues);
+        
+        // 選択済み値の詳細ログ
+        console.log("Current form values after reset:", getValues());
         
         // Update state values
         setIsFiscalTask(task.is_fiscal_task);
@@ -143,12 +166,6 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
             setSelectedClient(clientObj);
           }
         }
-        
-        console.log("Form reset with values:", {
-          title: task.title,
-          status: statusId,
-          category: categoryId
-        });
       });
     }
   }, [task]);
@@ -229,25 +246,39 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
         return; // Don't update fiscal_year if is_fiscal_task is false
       }
       
+      // デバッグログを追加
+      console.log(`Sending API request to update task ${task.id} with data:`, updateData);
+      
       // Send update to API
       const result = await tasksApi.updateTask(task.id, updateData);
+      
+      // デバッグログを追加
+      console.log(`API response for task update:`, result);
       
       // Notify success
       toast.success(`${getFieldLabel(field)}を更新しました`, { duration: 2000 });
       
+      // 結果に基づいてフォームをリセット (特に重要なフィールド)
+      if (result) {
+        if (field === 'status' && result.status_data) {
+          setValue('status', result.status_data.id.toString());
+        }
+        if (field === 'priority' && result.priority_data) {
+          setValue('priority', result.priority_data.id.toString());
+        }
+        if (field === 'category' && result.category_data) {
+          setValue('category', result.category_data.id.toString());
+        }
+      }
+      
       // すぐに親コンポーネントに通知して状態を更新
       if (onTaskUpdated) {
-        // 重要: ここでAPIから返された結果を使用してタスク全体を更新
+        // 更新されたタスク全体をセットするためにAPIレスポンス全体を渡す
         onTaskUpdated(result);
       }
       
-      // 現在のタスクのローカル状態も更新
-      task = { ...task, ...updateData };
-      
-      // リスト更新のイベント発火をわずかに遅らせて確実に反映
-      setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('task-updated'));
-      }, 100);
+      // リスト更新のイベント発火
+      window.dispatchEvent(new CustomEvent('task-updated'));
     } catch (error) {
       console.error(`Error updating ${field}:`, error);
       toast.error(`${getFieldLabel(field)}の更新に失敗しました`);
