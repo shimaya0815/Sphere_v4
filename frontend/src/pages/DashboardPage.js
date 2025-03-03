@@ -74,21 +74,27 @@ const DashboardPage = () => {
       // クライアントデータ - モックデータ
       const clientData = generateMockClients();
       
+      // 実際のデータが取得できるものだけを使用し、
+      // 取得できないものは空の配列やデフォルト値を設定
+      
+      // 既存のAPIから取得した時間データのみ実データを使用
+      const formattedTimeData = timeChartData.labels.map((day, index) => ({
+        name: day,
+        hours: timeChartData.datasets[0].data[index]
+      }));
+            
       // データをまとめる
       setDashboardData({
         stats: {
-          activeTasks: Math.floor(Math.random() * 30) + 5,
-          completedTasks: Math.floor(Math.random() * 50) + 10,
-          clients: clientData.length,
+          activeTasks: 0,  // 実データがないためゼロ表示
+          completedTasks: 0, // 実データがないためゼロ表示
+          clients: 0, // 実データがないためゼロ表示
           hoursTracked: Math.floor(timeSummary.this_month.hours)
         },
-        recentTasks,
-        upcomingEvents,
-        timeData: timeChartData.labels.map((day, index) => ({
-          name: day,
-          hours: timeChartData.datasets[0].data[index]
-        })),
-        clientData
+        recentTasks: [], // 実データがないため空配列
+        upcomingEvents: [], // 実データがないため空配列
+        timeData: formattedTimeData,
+        clientData: [] // 実データがないため空配列
       });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -319,29 +325,42 @@ const DashboardPage = () => {
               <HiArrowRight className="ml-1" />
             </button>
           </div>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={dashboardData.clientData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                  label={({ name, percent }) => `${name.substring(0, 4)}... ${(percent * 100).toFixed(0)}%`}
+          <div className="h-72 flex flex-col items-center justify-center">
+            {dashboardData.clientData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={dashboardData.clientData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                    label={({ name, percent }) => `${name.substring(0, 4)}... ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {dashboardData.clientData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value, name, props) => [
+                    `${value}時間`, 
+                    props.payload.name
+                  ]} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="text-center">
+                <HiOutlineUserGroup className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">クライアントデータはありません</p>
+                <button 
+                  className="mt-4 px-4 py-2 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors"
+                  onClick={() => navigate('/clients')}
                 >
-                  {dashboardData.clientData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value, name, props) => [
-                  `${value}時間`, 
-                  props.payload.name
-                ]} />
-              </PieChart>
-            </ResponsiveContainer>
+                  クライアントページへ
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -361,55 +380,68 @@ const DashboardPage = () => {
                 <HiArrowRight className="ml-1" />
               </button>
             </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <th className="px-6 py-3">タスク</th>
-                    <th className="px-6 py-3">期限</th>
-                    <th className="px-6 py-3">ステータス</th>
-                    <th className="px-6 py-3">優先度</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {dashboardData.recentTasks.map(task => (
-                    <tr key={task.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="font-medium text-gray-900">{task.title}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`${isPastDue(task.dueDate) && task.status !== 'Completed' ? 'text-red-500 font-semibold' : 'text-gray-500'}`}>
-                          {formatDueDate(task.dueDate)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          task.status === 'Completed' ? 'bg-green-100 text-green-800' : 
-                          task.status === 'In Progress' ? 'bg-blue-100 text-blue-800' :
-                          task.status === 'In Review' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {task.status === 'Completed' ? '完了' : 
-                           task.status === 'In Progress' ? '進行中' :
-                           task.status === 'In Review' ? 'レビュー中' :
-                           '未着手'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          task.priority === 'High' ? 'bg-red-100 text-red-800' : 
-                          task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-green-100 text-green-800'
-                        }`}>
-                          {task.priority === 'High' ? '高' : 
-                           task.priority === 'Medium' ? '中' : '低'}
-                        </span>
-                      </td>
+            {dashboardData.recentTasks.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3">タスク</th>
+                      <th className="px-6 py-3">期限</th>
+                      <th className="px-6 py-3">ステータス</th>
+                      <th className="px-6 py-3">優先度</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {dashboardData.recentTasks.map(task => (
+                      <tr key={task.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="font-medium text-gray-900">{task.title}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`${isPastDue(task.dueDate) && task.status !== 'Completed' ? 'text-red-500 font-semibold' : 'text-gray-500'}`}>
+                            {formatDueDate(task.dueDate)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 text-xs rounded-full ${
+                            task.status === 'Completed' ? 'bg-green-100 text-green-800' : 
+                            task.status === 'In Progress' ? 'bg-blue-100 text-blue-800' :
+                            task.status === 'In Review' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {task.status === 'Completed' ? '完了' : 
+                             task.status === 'In Progress' ? '進行中' :
+                             task.status === 'In Review' ? 'レビュー中' :
+                             '未着手'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 text-xs rounded-full ${
+                            task.priority === 'High' ? 'bg-red-100 text-red-800' : 
+                            task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-green-100 text-green-800'
+                          }`}>
+                            {task.priority === 'High' ? '高' : 
+                             task.priority === 'Medium' ? '中' : '低'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="py-12 text-center">
+                <HiOutlineClipboardCheck className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">最近のタスクはありません</p>
+                <button 
+                  className="mt-4 px-4 py-2 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors"
+                  onClick={() => navigate('/tasks')}
+                >
+                  タスクを作成する
+                </button>
+              </div>
+            )}
           </div>
         </div>
         
@@ -426,25 +458,38 @@ const DashboardPage = () => {
                 <HiArrowRight className="ml-1" />
               </button>
             </div>
-            <div className="space-y-4">
-              {dashboardData.upcomingEvents.map(event => (
-                <div key={event.id} className="flex items-start space-x-4 p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                  <div className={`rounded-full p-2 ${
-                    event.type === 'meeting' ? 'bg-blue-100 text-blue-600' : 
-                    event.type === 'deadline' ? 'bg-red-100 text-red-600' :
-                    'bg-green-100 text-green-600'
-                  }`}>
-                    {event.type === 'meeting' ? <HiOutlineCalendar className="w-5 h-5" /> : 
-                     event.type === 'deadline' ? <HiOutlineClockAlarm className="w-5 h-5" /> : 
-                     <HiOutlineBell className="w-5 h-5" />}
+            {dashboardData.upcomingEvents.length > 0 ? (
+              <div className="space-y-4">
+                {dashboardData.upcomingEvents.map(event => (
+                  <div key={event.id} className="flex items-start space-x-4 p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                    <div className={`rounded-full p-2 ${
+                      event.type === 'meeting' ? 'bg-blue-100 text-blue-600' : 
+                      event.type === 'deadline' ? 'bg-red-100 text-red-600' :
+                      'bg-green-100 text-green-600'
+                    }`}>
+                      {event.type === 'meeting' ? <HiOutlineCalendar className="w-5 h-5" /> : 
+                       event.type === 'deadline' ? <HiOutlineClockAlarm className="w-5 h-5" /> : 
+                       <HiOutlineBell className="w-5 h-5" />}
+                    </div>
+                    <div>
+                      <h4 className="font-medium">{event.title}</h4>
+                      <p className="text-sm text-gray-600">{event.date}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-medium">{event.title}</h4>
-                    <p className="text-sm text-gray-600">{event.date}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-8 text-center">
+                <HiOutlineCalendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">予定はありません</p>
+                <button 
+                  className="mt-4 px-4 py-2 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors"
+                  onClick={() => navigate('/calendar')}
+                >
+                  カレンダーを見る
+                </button>
+              </div>
+            )}
           </div>
           
           {/* Quick Actions */}
