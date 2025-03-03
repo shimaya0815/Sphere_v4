@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { clientsApi } from '../../api';
+import clientsApi from '../../api/clients';
 import toast from 'react-hot-toast';
 import { 
   HiOutlineOfficeBuilding, 
@@ -22,19 +22,32 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
   
   const [formData, setFormData] = useState({
     name: '',
-    address: '',
+    client_code: '',
+    corporate_individual: 'corporate',
+    corporate_number: '',
+    postal_code: '',
+    prefecture: '',
+    city: '',
+    street_address: '',
+    building: '',
     phone: '',
     email: '',
-    website: '',
-    industry: '',
-    notes: '',
-    contact_name: '',
-    contact_position: '',
-    contact_email: '',
-    contact_phone: '',
-    fiscal_year_end: '',
-    tax_id: '',
-    account_manager: null
+    capital: '',
+    establishment_date: '',
+    tax_eTax_ID: '',
+    tax_eLTAX_ID: '',
+    tax_taxpayer_confirmation_number: '',
+    tax_invoice_no: '',
+    tax_invoice_registration_date: '',
+    salary_closing_day: '',
+    salary_payment_month: 'next',
+    salary_payment_day: '',
+    attendance_management_software: '',
+    fiscal_year: '',
+    fiscal_date: '',
+    contract_status: 'active',
+    some_task_flag: false,
+    user: null
   });
   
   useEffect(() => {
@@ -81,22 +94,64 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
       return;
     }
     
+    if (!formData.client_code) {
+      toast.error('クライアントコードは必須です');
+      return;
+    }
+    
     setSaving(true);
+    
+    // 数値型のフィールドを適切に処理
+    const submitData = {
+      ...formData,
+      fiscal_year: formData.fiscal_year ? parseInt(formData.fiscal_year, 10) : null,
+      salary_closing_day: formData.salary_closing_day ? parseInt(formData.salary_closing_day, 10) : null,
+      salary_payment_day: formData.salary_payment_day ? parseInt(formData.salary_payment_day, 10) : null,
+      capital: formData.capital ? parseFloat(formData.capital) : null,
+      fiscal_date: formData.fiscal_date && formData.fiscal_date.trim() !== '' ? formData.fiscal_date : null,
+      establishment_date: formData.establishment_date && formData.establishment_date.trim() !== '' ? formData.establishment_date : null,
+      tax_invoice_registration_date: formData.tax_invoice_registration_date && formData.tax_invoice_registration_date.trim() !== '' ? formData.tax_invoice_registration_date : null
+    };
     
     try {
       if (clientId) {
         // Update existing client
-        await clientsApi.updateClient(clientId, formData);
+        await clientsApi.updateClient(clientId, submitData);
         toast.success('クライアント情報を更新しました');
       } else {
         // Create new client
-        const newClient = await clientsApi.createClient(formData);
-        toast.success('新規クライアントを作成しました');
-        navigate(`/clients/${newClient.id}`);
+        console.log('Submitting client data:', submitData);
+        const newClient = await clientsApi.createClient(submitData);
+        console.log('New client created:', newClient);
+        console.log('Client ID from response:', newClient.id);
+        console.log('Full response structure:', JSON.stringify(newClient));
+        
+        if (newClient && newClient.id) {
+          toast.success('新規クライアントを作成しました');
+          navigate(`/clients/${newClient.id}`);
+        } else {
+          console.error('Missing client ID in response');
+          toast.error('クライアントIDの取得に失敗しました');
+          // フォールバック: 一覧ページにリダイレクト
+          navigate('/clients');
+        }
       }
     } catch (error) {
       console.error('Error saving client:', error);
-      toast.error('クライアント情報の保存に失敗しました');
+      console.error('Error details:', error.response?.data);
+      
+      // エラーメッセージをフォーマット
+      let errorMsg = 'クライアント情報の保存に失敗しました';
+      if (error.response?.data) {
+        const errors = Object.entries(error.response.data)
+          .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+          .join('; ');
+        errorMsg += `: ${errors}`;
+      } else {
+        errorMsg += `: ${error.message}`;
+      }
+      
+      toast.error(errorMsg);
     } finally {
       setSaving(false);
     }
@@ -157,28 +212,64 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
               />
             </div>
           </div>
-          
+
           <div>
-            <label htmlFor="industry" className="block text-sm font-medium text-gray-700 mb-1">
-              業種
+            <label htmlFor="client_code" className="block text-sm font-medium text-gray-700 mb-1">
+              クライアントコード <span className="text-red-500">*</span>
             </label>
             <div className="flex">
               <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
-                <HiOutlineBriefcase />
+                <HiOutlineIdentification />
               </span>
               <input
                 type="text"
-                id="industry"
-                name="industry"
-                value={formData.industry}
+                id="client_code"
+                name="client_code"
+                value={formData.client_code}
                 onChange={handleChange}
                 className="input input-bordered rounded-l-none w-full"
+                required
               />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="corporate_individual" className="block text-sm font-medium text-gray-700 mb-1">
+              法人/個人
+            </label>
+            <select
+              id="corporate_individual"
+              name="corporate_individual"
+              value={formData.corporate_individual}
+              onChange={handleChange}
+              className="select select-bordered w-full"
+            >
+              <option value="corporate">法人</option>
+              <option value="individual">個人</option>
+            </select>
+          </div>
+          
+          <div>
+            <label htmlFor="some_task_flag" className="block text-sm font-medium text-gray-700 mb-1">
+              タスク設定フラグ
+            </label>
+            <div className="form-control">
+              <label className="label cursor-pointer">
+                <input
+                  type="checkbox"
+                  id="some_task_flag"
+                  name="some_task_flag"
+                  checked={formData.some_task_flag}
+                  onChange={(e) => setFormData({...formData, some_task_flag: e.target.checked})}
+                  className="checkbox"
+                />
+                <span className="label-text ml-2">タスク設定を有効にする</span>
+              </label>
             </div>
           </div>
           
           <div>
-            <label htmlFor="tax_id" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="corporate_number" className="block text-sm font-medium text-gray-700 mb-1">
               法人番号
             </label>
             <div className="flex">
@@ -187,27 +278,101 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
               </span>
               <input
                 type="text"
-                id="tax_id"
-                name="tax_id"
-                value={formData.tax_id}
+                id="corporate_number"
+                name="corporate_number"
+                value={formData.corporate_number}
                 onChange={handleChange}
                 className="input input-bordered rounded-l-none w-full"
               />
             </div>
           </div>
           
-          <div className="col-span-2">
-            <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
-              住所
+          <div>
+            <label htmlFor="contract_status" className="block text-sm font-medium text-gray-700 mb-1">
+              契約状況
             </label>
-            <textarea
-              id="address"
-              name="address"
-              value={formData.address}
+            <select
+              id="contract_status"
+              name="contract_status"
+              value={formData.contract_status}
               onChange={handleChange}
-              rows="3"
-              className="textarea textarea-bordered w-full"
-            ></textarea>
+              className="select select-bordered w-full"
+            >
+              <option value="active">契約中</option>
+              <option value="suspended">休止中</option>
+              <option value="terminated">解約</option>
+              <option value="preparing">契約準備中</option>
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="postal_code" className="block text-sm font-medium text-gray-700 mb-1">
+              郵便番号
+            </label>
+            <input
+              type="text"
+              id="postal_code"
+              name="postal_code"
+              value={formData.postal_code}
+              onChange={handleChange}
+              className="input input-bordered w-full"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="prefecture" className="block text-sm font-medium text-gray-700 mb-1">
+              都道府県
+            </label>
+            <input
+              type="text"
+              id="prefecture"
+              name="prefecture"
+              value={formData.prefecture}
+              onChange={handleChange}
+              className="input input-bordered w-full"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
+              市区町村
+            </label>
+            <input
+              type="text"
+              id="city"
+              name="city"
+              value={formData.city}
+              onChange={handleChange}
+              className="input input-bordered w-full"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="street_address" className="block text-sm font-medium text-gray-700 mb-1">
+              番地
+            </label>
+            <input
+              type="text"
+              id="street_address"
+              name="street_address"
+              value={formData.street_address}
+              onChange={handleChange}
+              className="input input-bordered w-full"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="building" className="block text-sm font-medium text-gray-700 mb-1">
+              建物名・部屋番号
+            </label>
+            <input
+              type="text"
+              id="building"
+              name="building"
+              value={formData.building}
+              onChange={handleChange}
+              className="input input-bordered w-full"
+            />
           </div>
           
           <div>
@@ -268,8 +433,22 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
           </div>
           
           <div>
-            <label htmlFor="fiscal_year_end" className="block text-sm font-medium text-gray-700 mb-1">
-              決算期
+            <label htmlFor="fiscal_year" className="block text-sm font-medium text-gray-700 mb-1">
+              決算期（期）
+            </label>
+            <input
+              type="number"
+              id="fiscal_year"
+              name="fiscal_year"
+              value={formData.fiscal_year || ''}
+              onChange={handleChange}
+              className="input input-bordered w-full"
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="fiscal_date" className="block text-sm font-medium text-gray-700 mb-1">
+              決算日
             </label>
             <div className="flex">
               <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
@@ -277,9 +456,9 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
               </span>
               <input
                 type="date"
-                id="fiscal_year_end"
-                name="fiscal_year_end"
-                value={formData.fiscal_year_end || ''}
+                id="fiscal_date"
+                name="fiscal_date"
+                value={formData.fiscal_date || ''}
                 onChange={handleChange}
                 className="input input-bordered rounded-l-none w-full"
               />
@@ -288,100 +467,147 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
         </div>
       </div>
       
-      {/* 担当者情報セクション */}
+      {/* 税務情報セクション */}
       <div>
-        <h3 className="text-lg font-medium text-gray-800 mb-4">担当者情報</h3>
+        <h3 className="text-lg font-medium text-gray-800 mb-4">税務情報</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label htmlFor="contact_name" className="block text-sm font-medium text-gray-700 mb-1">
-              担当者名
-            </label>
-            <div className="flex">
-              <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
-                <HiOutlineUser />
-              </span>
-              <input
-                type="text"
-                id="contact_name"
-                name="contact_name"
-                value={formData.contact_name}
-                onChange={handleChange}
-                className="input input-bordered rounded-l-none w-full"
-              />
-            </div>
-          </div>
-          
-          <div>
-            <label htmlFor="contact_position" className="block text-sm font-medium text-gray-700 mb-1">
-              役職
+            <label htmlFor="tax_eTax_ID" className="block text-sm font-medium text-gray-700 mb-1">
+              eTax ID
             </label>
             <input
               type="text"
-              id="contact_position"
-              name="contact_position"
-              value={formData.contact_position}
+              id="tax_eTax_ID"
+              name="tax_eTax_ID"
+              value={formData.tax_eTax_ID}
               onChange={handleChange}
               className="input input-bordered w-full"
             />
           </div>
           
           <div>
-            <label htmlFor="contact_email" className="block text-sm font-medium text-gray-700 mb-1">
-              担当者メールアドレス
+            <label htmlFor="tax_eLTAX_ID" className="block text-sm font-medium text-gray-700 mb-1">
+              eLTAX ID
             </label>
-            <div className="flex">
-              <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
-                <HiOutlineMail />
-              </span>
-              <input
-                type="email"
-                id="contact_email"
-                name="contact_email"
-                value={formData.contact_email}
-                onChange={handleChange}
-                className="input input-bordered rounded-l-none w-full"
-              />
-            </div>
+            <input
+              type="text"
+              id="tax_eLTAX_ID"
+              name="tax_eLTAX_ID"
+              value={formData.tax_eLTAX_ID}
+              onChange={handleChange}
+              className="input input-bordered w-full"
+            />
           </div>
           
           <div>
-            <label htmlFor="contact_phone" className="block text-sm font-medium text-gray-700 mb-1">
-              担当者電話番号
+            <label htmlFor="tax_taxpayer_confirmation_number" className="block text-sm font-medium text-gray-700 mb-1">
+              納税者確認番号
             </label>
-            <div className="flex">
-              <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
-                <HiOutlinePhone />
-              </span>
-              <input
-                type="tel"
-                id="contact_phone"
-                name="contact_phone"
-                value={formData.contact_phone}
-                onChange={handleChange}
-                className="input input-bordered rounded-l-none w-full"
-              />
-            </div>
+            <input
+              type="text"
+              id="tax_taxpayer_confirmation_number"
+              name="tax_taxpayer_confirmation_number"
+              value={formData.tax_taxpayer_confirmation_number}
+              onChange={handleChange}
+              className="input input-bordered w-full"
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="tax_invoice_no" className="block text-sm font-medium text-gray-700 mb-1">
+              インボイスNo
+            </label>
+            <input
+              type="text"
+              id="tax_invoice_no"
+              name="tax_invoice_no"
+              value={formData.tax_invoice_no}
+              onChange={handleChange}
+              className="input input-bordered w-full"
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="tax_invoice_registration_date" className="block text-sm font-medium text-gray-700 mb-1">
+              インボイス登録日
+            </label>
+            <input
+              type="date"
+              id="tax_invoice_registration_date"
+              name="tax_invoice_registration_date"
+              value={formData.tax_invoice_registration_date || ''}
+              onChange={handleChange}
+              className="input input-bordered w-full"
+            />
           </div>
         </div>
       </div>
       
-      {/* 備考セクション */}
+      {/* 給与情報セクション */}
       <div>
-        <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
-          備考
-        </label>
-        <div className="flex">
-          <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
-            <HiOutlineDocumentText />
-          </span>
-          <textarea
-            id="notes"
-            name="notes"
-            value={formData.notes}
-            onChange={handleChange}
-            rows="4"
-            className="textarea textarea-bordered rounded-l-none w-full"
-          ></textarea>
+        <h3 className="text-lg font-medium text-gray-800 mb-4">給与情報</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label htmlFor="salary_closing_day" className="block text-sm font-medium text-gray-700 mb-1">
+              給与締め日
+            </label>
+            <input
+              type="number"
+              id="salary_closing_day"
+              name="salary_closing_day"
+              value={formData.salary_closing_day || ''}
+              onChange={handleChange}
+              min="1"
+              max="31"
+              className="input input-bordered w-full"
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="salary_payment_month" className="block text-sm font-medium text-gray-700 mb-1">
+              給与支払月
+            </label>
+            <select
+              id="salary_payment_month"
+              name="salary_payment_month"
+              value={formData.salary_payment_month}
+              onChange={handleChange}
+              className="select select-bordered w-full"
+            >
+              <option value="current">当月</option>
+              <option value="next">翌月</option>
+            </select>
+          </div>
+          
+          <div>
+            <label htmlFor="salary_payment_day" className="block text-sm font-medium text-gray-700 mb-1">
+              給与支払日
+            </label>
+            <input
+              type="number"
+              id="salary_payment_day"
+              name="salary_payment_day"
+              value={formData.salary_payment_day || ''}
+              onChange={handleChange}
+              min="1"
+              max="31"
+              className="input input-bordered w-full"
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="attendance_management_software" className="block text-sm font-medium text-gray-700 mb-1">
+              勤怠管理ソフト
+            </label>
+            <input
+              type="text"
+              id="attendance_management_software"
+              name="attendance_management_software"
+              value={formData.attendance_management_software}
+              onChange={handleChange}
+              className="input input-bordered w-full"
+            />
+          </div>
         </div>
       </div>
       
