@@ -29,6 +29,47 @@ const TaskList = () => {
     client: '',
   });
   const [showFilters, setShowFilters] = useState(false);
+  
+  const getPriorityName = (priority) => {
+    if (!priority) return '未設定';
+    
+    // priority_nameがある場合はそれを使用
+    if (typeof priority === 'object' && priority.name) {
+      return priority.name;
+    }
+    
+    // 数値の場合は優先度レベルからマッピング
+    if (typeof priority === 'number' || !isNaN(Number(priority))) {
+      const level = Number(priority);
+      if (level === 3) return '高';
+      if (level === 2) return '中';
+      if (level === 1) return '低';
+    }
+    
+    // その他の場合は値をそのまま返す
+    return String(priority);
+  };
+  
+  const getStatusName = (status) => {
+    if (!status) return '未設定';
+    
+    // オブジェクトの場合はnameプロパティを使用
+    if (typeof status === 'object' && status.name) {
+      return status.name;
+    }
+    
+    // 数値の場合はステータスコードからマッピング
+    if (typeof status === 'number' || !isNaN(Number(status))) {
+      const code = Number(status);
+      if (code === 4) return '完了';
+      if (code === 2) return '進行中';
+      if (code === 3) return 'レビュー中';
+      if (code === 1) return '未着手';
+    }
+    
+    // その他の場合は値をそのまま返す
+    return String(status);
+  };
 
   // タスク一覧を取得
   const fetchTasks = async () => {
@@ -275,16 +316,87 @@ const TaskList = () => {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {tasks.map(task => (
-            <TaskItem
-              key={task.id}
-              task={task}
-              onEdit={handleEditTask}
-              onDelete={handleDeleteConfirm}
-              onTaskUpdated={fetchTasks}
-            />
-          ))}
+        <div className="overflow-x-auto">
+          <table className="table w-full">
+            <thead>
+              <tr>
+                <th>タイトル</th>
+                <th>ステータス</th>
+                <th>優先度</th>
+                <th>カテゴリー</th>
+                <th>担当者</th>
+                <th>期限日</th>
+                <th>クライアント</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tasks.map(task => (
+                <tr key={task.id} className="hover">
+                  <td className="font-medium">
+                    {task.title}
+                  </td>
+                  <td>
+                    {task.status && (
+                      <span className={`badge ${
+                        task.status_name?.includes('完了') ? 'badge-success' :
+                        task.status_name?.includes('進行中') ? 'badge-info' :
+                        task.status_name?.includes('レビュー') ? 'badge-warning' :
+                        'badge-ghost'
+                      }`}>
+                        {task.status_name || getStatusName(task.status)}
+                      </span>
+                    )}
+                  </td>
+                  <td>
+                    {task.priority && (
+                      <span className={`badge ${
+                        task.priority_name?.includes('高') ? 'badge-error' :
+                        task.priority_name?.includes('中') ? 'badge-warning' :
+                        task.priority_name?.includes('低') ? 'badge-success' :
+                        'badge-ghost'
+                      }`}>
+                        {task.priority_name || getPriorityName(task.priority)}
+                      </span>
+                    )}
+                  </td>
+                  <td>
+                    {task.category && (
+                      <span className="badge badge-outline badge-primary">
+                        {task.category_name || (task.category.name || task.category)}
+                      </span>
+                    )}
+                  </td>
+                  <td>
+                    {task.assignee_name || (task.assignee?.name || '')}
+                  </td>
+                  <td>
+                    {task.due_date ? new Date(task.due_date).toLocaleDateString() : '-'}
+                  </td>
+                  <td>
+                    {task.client_name || (task.client?.name || '')}
+                    {task.is_fiscal_task && <span className="ml-1 badge badge-xs badge-accent">決算</span>}
+                  </td>
+                  <td>
+                    <div className="flex space-x-1">
+                      <button 
+                        className="btn btn-xs btn-outline"
+                        onClick={() => handleEditTask(task)}
+                      >
+                        編集
+                      </button>
+                      <button 
+                        className="btn btn-xs btn-outline btn-error"
+                        onClick={() => handleDeleteConfirm(task)}
+                      >
+                        削除
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
       
