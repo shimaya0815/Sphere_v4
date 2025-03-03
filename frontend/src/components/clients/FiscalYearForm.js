@@ -8,7 +8,9 @@ const FiscalYearForm = ({ clientId, fiscalYear = null, onClose, onSuccess }) => 
     fiscal_period: '',
     start_date: '',
     end_date: '',
-    description: ''
+    description: '',
+    is_current: false,
+    is_locked: false
   });
   
   const [loading, setLoading] = useState(false);
@@ -21,16 +23,18 @@ const FiscalYearForm = ({ clientId, fiscalYear = null, onClose, onSuccess }) => 
         fiscal_period: fiscalYear.fiscal_period,
         start_date: fiscalYear.start_date,
         end_date: fiscalYear.end_date,
-        description: fiscalYear.description || ''
+        description: fiscalYear.description || '',
+        is_current: fiscalYear.is_current || false,
+        is_locked: fiscalYear.is_locked || false
       });
     }
   }, [fiscalYear]);
   
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData({
       ...formData,
-      [name]: value
+      [name]: type === 'checkbox' ? checked : value
     });
   };
   
@@ -173,6 +177,43 @@ const FiscalYearForm = ({ clientId, fiscalYear = null, onClose, onSuccess }) => 
                 rows="3"
                 className="textarea textarea-bordered w-full"
               ></textarea>
+            </div>
+            
+            <div className="flex space-x-6">
+              <div className="form-control">
+                <label className="label cursor-pointer">
+                  <span className="label-text mr-2">現在の期</span>
+                  <input
+                    type="checkbox"
+                    name="is_current"
+                    checked={formData.is_current}
+                    onChange={handleChange}
+                    className="checkbox checkbox-primary"
+                    disabled={fiscalYear && fiscalYear.is_locked}
+                  />
+                </label>
+                <span className="text-xs text-gray-500">
+                  これを現在の期として設定します。一度に1つだけ設定できます。
+                </span>
+              </div>
+              
+              {fiscalYear && (
+                <div className="form-control">
+                  <label className="label cursor-pointer">
+                    <span className="label-text mr-2">ロック</span>
+                    <input
+                      type="checkbox"
+                      name="is_locked"
+                      checked={formData.is_locked}
+                      onChange={handleChange}
+                      className="checkbox checkbox-warning"
+                    />
+                  </label>
+                  <span className="text-xs text-gray-500">
+                    ロックすると基本データの編集ができなくなります。
+                  </span>
+                </div>
+              )}
             </div>
           </div>
           
