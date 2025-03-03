@@ -19,12 +19,45 @@ const TaskForm = ({ task, onClose, onTaskSaved }) => {
           tasksApi.getPriorities(),
         ]);
         
-        setCategories(categoriesData.results || categoriesData);
-        setStatuses(statusesData.results || statusesData);
-        setPriorities(prioritiesData.results || prioritiesData);
+        console.log('API Responses:', { categoriesData, statusesData, prioritiesData });
+        
+        // カテゴリーの処理
+        if (Array.isArray(categoriesData)) {
+          setCategories(categoriesData);
+        } else if (categoriesData && Array.isArray(categoriesData.results)) {
+          setCategories(categoriesData.results);
+        } else {
+          setCategories([]);
+          console.warn('Categories data is not an array:', categoriesData);
+        }
+        
+        // ステータスの処理
+        if (Array.isArray(statusesData)) {
+          setStatuses(statusesData);
+        } else if (statusesData && Array.isArray(statusesData.results)) {
+          setStatuses(statusesData.results);
+        } else {
+          setStatuses([]);
+          console.warn('Statuses data is not an array:', statusesData);
+        }
+        
+        // 優先度の処理
+        if (Array.isArray(prioritiesData)) {
+          setPriorities(prioritiesData);
+        } else if (prioritiesData && Array.isArray(prioritiesData.results)) {
+          setPriorities(prioritiesData.results);
+        } else {
+          setPriorities([]);
+          console.warn('Priorities data is not an array:', prioritiesData);
+        }
       } catch (error) {
         console.error('Error fetching task metadata:', error);
         toast.error('タスクのメタデータの取得に失敗しました');
+        
+        // エラー時はデフォルト値を設定
+        setCategories([]);
+        setStatuses([]);
+        setPriorities([]);
       }
     };
 
@@ -49,22 +82,36 @@ const TaskForm = ({ task, onClose, onTaskSaved }) => {
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     try {
+      // 送信データの整形
+      const formattedData = {
+        ...data,
+        // 数値型のIDに変換
+        status: data.status ? parseInt(data.status) : null,
+        priority: data.priority ? parseInt(data.priority) : null,
+        category: data.category ? parseInt(data.category) : null,
+        // client, workspace など他の必要なフィールドがあれば追加
+      };
+      
+      console.log('タスク送信データ:', formattedData);
+      
       let result;
       if (task) {
         // 既存タスクの更新
-        result = await tasksApi.updateTask(task.id, data);
+        result = await tasksApi.updateTask(task.id, formattedData);
         toast.success('タスクが更新されました');
       } else {
         // 新規タスクの作成
-        result = await tasksApi.createTask(data);
+        result = await tasksApi.createTask(formattedData);
         toast.success('タスクが作成されました');
       }
       
+      console.log('サーバーレスポンス:', result);
       onTaskSaved(result);
       onClose();
     } catch (error) {
       console.error('Error saving task:', error);
-      toast.error('タスクの保存中にエラーが発生しました');
+      const errorMessage = error.response?.data?.detail || 'タスクの保存中にエラーが発生しました';
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
