@@ -105,14 +105,32 @@ const ChatContent = () => {
   
   const formatTime = (timestamp) => {
     if (!timestamp) return '';
-    const date = new Date(timestamp);
-    return format(date, 'h:mm a');
+    try {
+      const date = new Date(timestamp);
+      return format(date, 'h:mm a');
+    } catch (error) {
+      console.error('Error formatting time:', error);
+      return 'Invalid time';
+    }
   };
   
   // Get initials for avatar
   const getInitials = (fullName) => {
     if (!fullName) return '?';
-    return fullName.split(' ').map(n => n[0]).join('').toUpperCase();
+    try {
+      return fullName.split(' ').map(n => n[0]).join('').toUpperCase();
+    } catch (error) {
+      return '?';
+    }
+  };
+  
+  // Helper function to safely access nested properties
+  const safe = (fn, fallback = '') => {
+    try {
+      return fn() || fallback;
+    } catch (e) {
+      return fallback;
+    }
   };
   
   return (
@@ -263,25 +281,25 @@ const ChatContent = () => {
             <div className="space-y-6">
               {messages.length > 0 ? (
                 messages.map(msg => (
-                  <div key={msg.id} className={`flex ${msg.user?.id === currentUser?.id ? 'justify-end' : 'items-start'}`}>
-                    {msg.user?.id !== currentUser?.id && (
+                  <div key={msg.id || `temp-${Date.now()}`} className={`flex ${safe(() => msg.user.id) === currentUser?.id ? 'justify-end' : 'items-start'}`}>
+                    {safe(() => msg.user.id) !== currentUser?.id && (
                       <div className="flex-shrink-0 mr-3">
                         <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-800">
-                          {getInitials(msg.user?.full_name)}
+                          {getInitials(safe(() => msg.user.full_name))}
                         </div>
                       </div>
                     )}
-                    <div className={`flex flex-col ${msg.user?.id === currentUser?.id ? 'items-end' : ''}`}>
-                      {msg.user?.id !== currentUser?.id && (
+                    <div className={`flex flex-col ${safe(() => msg.user.id) === currentUser?.id ? 'items-end' : ''}`}>
+                      {safe(() => msg.user.id) !== currentUser?.id && (
                         <div className="flex items-center mb-1">
-                          <span className="font-medium text-gray-900 mr-2">{msg.user?.full_name}</span>
+                          <span className="font-medium text-gray-900 mr-2">{safe(() => msg.user.full_name, 'Unknown')}</span>
                           <span className="text-xs text-gray-500">{formatTime(msg.created_at)}</span>
                         </div>
                       )}
-                      <div className={`px-4 py-2 rounded-lg ${msg.user?.id === currentUser?.id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800'}`}>
-                        {msg.content}
+                      <div className={`px-4 py-2 rounded-lg ${safe(() => msg.user.id) === currentUser?.id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800'}`}>
+                        {msg.content || ''}
                       </div>
-                      {msg.user?.id === currentUser?.id && (
+                      {safe(() => msg.user.id) === currentUser?.id && (
                         <span className="text-xs text-gray-500 mt-1">{formatTime(msg.created_at)}</span>
                       )}
                     </div>

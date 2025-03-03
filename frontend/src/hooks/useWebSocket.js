@@ -23,12 +23,18 @@ const useWebSocket = (url, options = {}) => {
   
   // Connect function
   const connect = useCallback(() => {
+    // Don't attempt to connect if no URL
+    if (!url) {
+      return;
+    }
+    
     // Clear any existing connection
     if (websocketRef.current) {
       websocketRef.current.close();
     }
     
     try {
+      console.log(`Connecting to WebSocket: ${url}`);
       // Create new WebSocket connection
       websocketRef.current = new WebSocket(url);
       
@@ -46,6 +52,7 @@ const useWebSocket = (url, options = {}) => {
       websocketRef.current.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          console.log('WebSocket message received:', data);
           setMessages(prevMessages => [...prevMessages, data]);
           
           if (onMessage) onMessage(data);
@@ -89,15 +96,18 @@ const useWebSocket = (url, options = {}) => {
   // Send message
   const sendMessage = useCallback((data) => {
     if (websocketRef.current && websocketRef.current.readyState === WebSocket.OPEN) {
+      console.log('Sending WebSocket message:', data);
       websocketRef.current.send(JSON.stringify(data));
       return true;
     }
+    console.warn('Cannot send message: WebSocket not connected');
     return false;
   }, []);
   
   // Disconnect
   const disconnect = useCallback(() => {
     if (websocketRef.current) {
+      console.log('Manually disconnecting WebSocket');
       websocketRef.current.close();
       websocketRef.current = null;
     }
@@ -110,13 +120,15 @@ const useWebSocket = (url, options = {}) => {
     setIsConnected(false);
   }, []);
   
-  // Connect on mount if automaticOpen is true
+  // Connect/disconnect when URL changes
   useEffect(() => {
-    if (automaticOpen) {
+    if (automaticOpen && url) {
       connect();
+    } else if (!url && websocketRef.current) {
+      disconnect();
     }
     
-    // Cleanup on unmount
+    // Cleanup on unmount or URL change
     return () => {
       disconnect();
     };
