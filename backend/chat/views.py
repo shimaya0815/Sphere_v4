@@ -100,6 +100,15 @@ class ChannelViewSet(viewsets.ModelViewSet):
             Prefetch('thread_messages', queryset=Message.objects.order_by('created_at'))
         )
         
+        # Update read status if this is the first page of results
+        if offset == 0 and not before_id and not after_id:
+            membership = channel.memberships.filter(user=request.user).first()
+            if membership:
+                # Mark channel as read - update the last_read_at timestamp
+                membership.last_read_at = timezone.now()
+                membership.unread_count = 0
+                membership.save(update_fields=['last_read_at', 'unread_count'])
+        
         serializer = MessageSerializer(messages, many=True)
         
         return Response({
@@ -206,7 +215,39 @@ class MessageViewSet(viewsets.ModelViewSet):
                 file_size=file.size
             )
         
+        # Update unread count for all other channel members
+        channel = message.channel
+        memberships = channel.memberships.exclude(user=self.request.user)
+        for membership in memberships:
+            membership.unread_count = F('unread_count') + 1
+            membership.save(update_fields=['unread_count'])
+        
         return message
+        
+    @action(detail=False, methods=['post'])
+    def mark_read(self, request):
+        """Mark all messages in a channel as read."""
+        channel_id = request.data.get('channel_id')
+        if not channel_id:
+            return Response({'error': 'channel_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            channel = Channel.objects.get(
+                id=channel_id, 
+                workspace__business=request.user.business,
+                members=request.user
+            )
+        except Channel.DoesNotExist:
+            return Response({'error': 'Channel not found'}, status=status.HTTP_404_NOT_FOUND)
+            
+        # Update membership with current timestamp and reset unread count
+        membership = channel.memberships.filter(user=request.user).first()
+        if membership:
+            membership.last_read_at = timezone.now()
+            membership.unread_count = 0
+            membership.save(update_fields=['last_read_at', 'unread_count'])
+            
+        return Response({'status': 'Channel marked as read'})
     
     @action(detail=True, methods=['get'])
     def thread(self, request, pk=None):

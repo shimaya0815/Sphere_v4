@@ -12,6 +12,10 @@ const chatApi = {
   
   deleteChannel: (id) => apiClient.delete(`/api/chat/channels/${id}/`),
   
+  // Mark channel as read
+  markChannelAsRead: (channelId) => 
+    apiClient.post('/api/chat/messages/mark_read/', { channel_id: channelId }),
+  
   // Channel messages
   getChannelMessages: (channelId, params) => 
     apiClient.get(`/api/chat/channels/${channelId}/messages/`, { params }),

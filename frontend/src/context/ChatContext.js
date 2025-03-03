@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
-import { chatApi } from '../api';
+import chatApi from '../api/chat';
 import { useAuth } from './AuthContext';
 import useWebSocket from '../hooks/useWebSocket';
 
@@ -20,8 +20,13 @@ export const ChatProvider = ({ children }) => {
     
     console.log('Getting WebSocket URL for channel:', channelId);
     
-    // リバースプロキシを介してWebSocketサーバーに接続
-    // これによりCORSの問題が解決される
+    // WebSocketの直接接続（開発環境用）
+    // 注意: 本番環境では適切なURL構成に変更する必要がある
+    if (window.location.hostname === 'localhost') {
+      return `ws://localhost:8001/ws/chat/${channelId}/`;
+    }
+    
+    // その他の環境ではプロキシを介して接続
     return `ws://${window.location.host}/ws/chat/${channelId}/`;
   };
   
@@ -35,6 +40,9 @@ export const ChatProvider = ({ children }) => {
       onMessage: (data) => {
         if (data.type === 'chat_message') {
           handleNewMessage(data.data);
+        } else if (data.type === 'read_status') {
+          // Update read status when other users read messages
+          handleReadStatusUpdate(data.data);
         }
       }
     }
@@ -177,8 +185,37 @@ export const ChatProvider = ({ children }) => {
     setActiveChannel(channel);
     if (channel) {
       await loadMessages(channel.id);
+      
+      // Reset unread count for this channel in the local state
+      setChannels(prevChannels => {
+        return prevChannels.map(ch => {
+          if (ch.id === channel.id) {
+            return { ...ch, unread_count: 0 };
+          }
+          return ch;
+        });
+      });
+      
+      // Send API request to mark channel as read
+      try {
+        await chatApi.markChannelAsRead(channel.id);
+        
+        // Also notify other users through WebSocket
+        if (isConnected) {
+          sendWebSocketMessage({
+            type: 'read_status',
+            data: {
+              user_id: currentUser?.id,
+              channel_id: channel.id,
+              timestamp: new Date().toISOString()
+            }
+          });
+        }
+      } catch (err) {
+        console.error("Failed to mark channel as read:", err);
+      }
     }
-  }, [loadMessages]);
+  }, [loadMessages, currentUser, isConnected, sendWebSocketMessage]);
   
   // Handle new message (from WebSocket or after sending)
   const handleNewMessage = useCallback((message) => {
@@ -202,9 +239,35 @@ export const ChatProvider = ({ children }) => {
       if (exists) return prevMessages;
       return [...prevMessages, enhancedMessage];
     });
-  }, [currentUser]);
+    
+    // If message is from another user and in a different channel than active one
+    // increment unread count for that channel
+    if (message.user?.id !== currentUser?.id && 
+        message.channel !== activeChannel?.id) {
+      setChannels(prevChannels => {
+        return prevChannels.map(ch => {
+          if (ch.id === message.channel) {
+            return {
+              ...ch,
+              unread_count: (ch.unread_count || 0) + 1
+            };
+          }
+          return ch;
+        });
+      });
+    }
+  }, [currentUser, activeChannel]);
   
-  // Send a message to the current channel
+  // Handle read status updates from other users
+  const handleReadStatusUpdate = useCallback((data) => {
+    if (!data || !data.user_id || !data.channel_id) return;
+    
+    // We don't need to update our own UI when others read messages
+    // This is primarily for syncing read receipts in the future
+    console.log(`User ${data.user_id} read messages in channel ${data.channel_id}`);
+  }, []);
+  
+  // Send a message to the current channel - works both online and offline
   const sendMessage = useCallback(async (content, options = {}) => {
     if (!activeChannel) return null;
     
@@ -216,8 +279,8 @@ export const ChatProvider = ({ children }) => {
       // Create a unique timestamp-based ID for this message
       const tempId = `temp-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       
-      // Create a mock message immediately for UI responsiveness
-      const mockMessage = {
+      // Create a message object for immediate display
+      const messageObj = {
         id: tempId,
         content,
         channel: activeChannel.id,
@@ -226,18 +289,29 @@ export const ChatProvider = ({ children }) => {
           full_name: currentUser?.get_full_name ? currentUser.get_full_name() : 'Current User',
         },
         created_at: new Date().toISOString(),
+        is_local: !isConnected, // Flag to indicate if this is a local-only message
       };
       
-      // Add the mock message to the UI immediately
-      handleNewMessage(mockMessage);
+      // Add the message to the UI immediately for better responsiveness
+      handleNewMessage(messageObj);
       
-      // Try to send via WebSocket for real-time updates
+      // Always try to send via WebSocket for real-time updates, if connected
       if (isConnected) {
-        console.log('Sending via WebSocket:', mockMessage);
-        sendWebSocketMessage({
-          type: 'chat_message',
-          data: mockMessage
-        });
+        try {
+          console.log('Sending via WebSocket:', messageObj);
+          const sent = sendWebSocketMessage({
+            type: 'chat_message',
+            data: messageObj
+          });
+          
+          if (!sent) {
+            console.warn('WebSocket message send failed - connection may be lost');
+          }
+        } catch (wsError) {
+          console.error('WebSocket send error:', wsError);
+        }
+      } else {
+        console.warn('WebSocket not connected, message saved locally only');
       }
       
       // Prepare message data for API
@@ -254,52 +328,55 @@ export const ChatProvider = ({ children }) => {
         messageData.mentioned_user_ids = mentionedUserIds;
       }
       
-      try {
+      // Only try to save to API if we've had a successful connection
+      if (isConnected) {
         // Try to send via API (in the background)
-        if (files && files.length > 0) {
-          const formData = new FormData();
-          formData.append('channel', activeChannel.id);
-          formData.append('content', content);
-          
-          if (parentMessageId) {
-            formData.append('parent_message', parentMessageId);
+        try {
+          if (files && files.length > 0) {
+            const formData = new FormData();
+            formData.append('channel', activeChannel.id);
+            formData.append('content', content);
+            
+            if (parentMessageId) {
+              formData.append('parent_message', parentMessageId);
+            }
+            
+            if (mentionedUserIds && mentionedUserIds.length > 0) {
+              mentionedUserIds.forEach(id => {
+                formData.append('mentioned_user_ids', id);
+              });
+            }
+            
+            files.forEach(file => {
+              formData.append('files', file);
+            });
+            
+            // Send API request but don't block UI
+            chatApi.createMessage(formData)
+              .then(response => {
+                console.log('Message saved to API:', response.data);
+              })
+              .catch(err => {
+                console.warn('Could not save message to API, but WebSocket delivery was attempted', err);
+              });
+          } else {
+            // Regular JSON message - send but don't block UI
+            chatApi.createMessage(messageData)
+              .then(response => {
+                console.log('Message saved to API:', response.data);
+              })
+              .catch(err => {
+                console.warn('Could not save message to API, but WebSocket delivery was attempted', err);
+              });
           }
-          
-          if (mentionedUserIds && mentionedUserIds.length > 0) {
-            mentionedUserIds.forEach(id => {
-              formData.append('mentioned_user_ids', id);
-            });
-          }
-          
-          files.forEach(file => {
-            formData.append('files', file);
-          });
-          
-          // Send API request but don't block UI
-          chatApi.createMessage(formData)
-            .then(response => {
-              console.log('Message saved to API:', response.data);
-            })
-            .catch(err => {
-              console.warn('Could not save message to API, but WebSocket delivery was attempted', err);
-            });
-        } else {
-          // Regular JSON message - send but don't block UI
-          chatApi.createMessage(messageData)
-            .then(response => {
-              console.log('Message saved to API:', response.data);
-            })
-            .catch(err => {
-              console.warn('Could not save message to API, but WebSocket delivery was attempted', err);
-            });
+        } catch (apiError) {
+          console.error('API Error when sending message:', apiError);
+          // Already added message to UI and attempted WebSocket delivery
         }
-      } catch (apiError) {
-        console.error('API Error when sending message:', apiError);
-        // Already added message to UI and attempted WebSocket delivery
       }
       
-      // Return the mock message that was added to the UI
-      return mockMessage;
+      // Always return the message object that was added to the UI
+      return messageObj;
     } catch (err) {
       console.error('Error sending message:', err);
       setError('Failed to send message');

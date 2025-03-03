@@ -67,6 +67,10 @@ class ChannelMembership(models.Model):
     joined_at = models.DateTimeField(_('joined at'), auto_now_add=True)
     is_admin = models.BooleanField(_('is admin'), default=False)
     
+    # Read status tracking
+    last_read_at = models.DateTimeField(_('last read at'), null=True, blank=True)
+    unread_count = models.PositiveIntegerField(_('unread count'), default=0)
+    
     # Notification preferences
     muted = models.BooleanField(_('muted'), default=False)
     
