@@ -1,10 +1,13 @@
 import React, { useState, useEffect, Fragment } from 'react';
-import { Dialog, Transition } from '@headlessui/react';
-// import { XIcon } from '@heroicons/react/outline';
+import * as Headless from '@headlessui/react';
 import { useForm } from 'react-hook-form';
 import { tasksApi, clientsApi } from '../../api';
 import toast from 'react-hot-toast';
 import { HiOutlineX } from 'react-icons/hi';
+
+// Destructure headlessUI components properly
+const Dialog = Headless.Dialog;
+const Transition = Headless.Transition;
 
 const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
   const [categories, setCategories] = useState([]);
