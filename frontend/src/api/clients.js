@@ -16,8 +16,15 @@ const clientsApi = {
   
   // Create a new client
   createClient: async (clientData) => {
-    const response = await apiClient.post('/clients/', clientData);
-    return response.data;
+    console.log("Creating client with data:", clientData);
+    try {
+      const response = await apiClient.post('/clients/', clientData);
+      console.log("Client created successfully:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error("Failed to create client:", error.response?.data);
+      throw error;
+    }
   },
   
   // Update a client
@@ -32,10 +39,103 @@ const clientsApi = {
     return response.data;
   },
   
+  // Get fiscal years for a client
+  getFiscalYears: async (clientId) => {
+    const response = await apiClient.get(`/clients/${clientId}/fiscal-years/`);
+    return response.data;
+  },
+  
+  // Create fiscal year for a client
+  createFiscalYear: async (clientId, fiscalYearData) => {
+    console.log(`API - Creating fiscal year for client ${clientId}:`, fiscalYearData);
+    try {
+      const response = await apiClient.post(`/clients/${clientId}/fiscal-years/`, fiscalYearData);
+      console.log('API - Fiscal year created successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('API - Failed to create fiscal year:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+  
+  // Update fiscal year
+  updateFiscalYear: async (fiscalYearId, fiscalYearData) => {
+    console.log(`API - Updating fiscal year ${fiscalYearId}:`, fiscalYearData);
+    try {
+      const response = await apiClient.patch(`/clients/fiscal-years/${fiscalYearId}/`, fiscalYearData);
+      console.log('API - Fiscal year updated successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('API - Failed to update fiscal year:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+  
+  // Delete fiscal year
+  deleteFiscalYear: async (fiscalYearId) => {
+    const response = await apiClient.delete(`/clients/fiscal-years/${fiscalYearId}/`);
+    return response.data;
+  },
+  
+  // Get check settings for a client
+  getCheckSettings: async (clientId) => {
+    const response = await apiClient.get(`/clients/${clientId}/check-settings/`);
+    return response.data;
+  },
+  
+  // Create check setting for a client
+  createCheckSetting: async (clientId, checkSettingData) => {
+    console.log(`API - Creating check setting for client ${clientId}:`, checkSettingData);
+    try {
+      const response = await apiClient.post(`/clients/${clientId}/check-settings/`, checkSettingData);
+      console.log('API - Check setting created successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('API - Failed to create check setting:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+  
+  // Update check setting
+  updateCheckSetting: async (checkSettingId, checkSettingData) => {
+    console.log(`API - Updating check setting ${checkSettingId}:`, checkSettingData);
+    try {
+      const response = await apiClient.patch(`/clients/check-settings/${checkSettingId}/`, checkSettingData);
+      console.log('API - Check setting updated successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('API - Failed to update check setting:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+  
+  // Delete check setting
+  deleteCheckSetting: async (checkSettingId) => {
+    const response = await apiClient.delete(`/clients/check-settings/${checkSettingId}/`);
+    return response.data;
+  },
+  
   // Get all contracts with optional filters
   getContracts: async (filters = {}) => {
     const response = await apiClient.get('/clients/contracts/', { params: filters });
     return response.data;
+  },
+  
+  // Get task templates
+  getTaskTemplates: async () => {
+    // APIエンドポイントが実装されていない場合、仮のデータを返す
+    try {
+      const response = await apiClient.get('/tasks/templates/');
+      return response.data;
+    } catch (error) {
+      console.warn('Task templates API not implemented yet, returning mock data');
+      return [
+        { id: 1, title: 'スタンダード月次チェック' },
+        { id: 2, title: '簡易月次チェック' },
+        { id: 3, title: '法人税確定申告' },
+        { id: 4, title: '所得税確定申告' }
+      ];
+    }
   },
   
   // Get a specific contract by ID

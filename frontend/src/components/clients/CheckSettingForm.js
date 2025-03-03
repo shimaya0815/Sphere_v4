@@ -76,14 +76,24 @@ const CheckSettingForm = ({ clientId, checkSetting = null, onClose, onSuccess })
     
     setLoading(true);
     
+    // 送信データを整形
+    const submitData = {
+      ...formData,
+      client: Number(clientId),
+      create_day: Number(formData.create_day),
+      template: formData.template ? Number(formData.template) : null
+    };
+    
+    console.log('CheckSetting submit data:', submitData);
+    
     try {
       if (checkSetting) {
         // 更新
-        await clientsApi.updateCheckSetting(checkSetting.id, formData);
+        await clientsApi.updateCheckSetting(checkSetting.id, submitData);
         toast.success('チェック設定を更新しました');
       } else {
         // 新規作成
-        await clientsApi.createCheckSetting(clientId, formData);
+        await clientsApi.createCheckSetting(clientId, submitData);
         toast.success('チェック設定を追加しました');
       }
       
@@ -94,6 +104,8 @@ const CheckSettingForm = ({ clientId, checkSetting = null, onClose, onSuccess })
       onClose();
     } catch (error) {
       console.error('Error saving check setting:', error);
+      console.error('Request data:', submitData);
+      console.error('Error details:', error.response?.data);
       
       let errorMsg = 'チェック設定の保存に失敗しました';
       if (error.response?.data) {
@@ -199,7 +211,14 @@ const CheckSettingForm = ({ clientId, checkSetting = null, onClose, onSuccess })
                 id="template"
                 name="template"
                 value={formData.template || ''}
-                onChange={handleChange}
+                onChange={(e) => {
+                  // 数値、または空文字に変換
+                  const value = e.target.value === '' ? '' : Number(e.target.value);
+                  setFormData({
+                    ...formData,
+                    template: value
+                  });
+                }}
                 className="select select-bordered w-full"
               >
                 <option value="">なし</option>
