@@ -348,11 +348,14 @@ const WikiContent = () => {
             setEditContent(textBefore + placeholder + textAfter);
             
             // Upload the image
+            console.log('Uploading image for page ID:', currentPage.id);
             const result = await uploadAttachment(currentPage.id, file);
+            console.log('Upload result:', result);
             
             if (result && result.file) {
               // Replace the placeholder with the actual image markdown
-              const imageUrl = result.file;
+              // Form the full URL to the media file
+              const imageUrl = `http://localhost:8000${result.file}`;
               const imageMarkdown = `![${result.filename}](${imageUrl})`;
               setEditContent(prevContent => 
                 prevContent.replace(placeholder, imageMarkdown)
@@ -361,6 +364,7 @@ const WikiContent = () => {
               console.log('Image uploaded successfully:', result);
             } else {
               // Remove the placeholder if upload failed
+              console.error('Failed to upload image - result:', result);
               setEditContent(prevContent => 
                 prevContent.replace(placeholder, '*Failed to upload image*')
               );
@@ -674,9 +678,11 @@ const WikiContent = () => {
                               if (result && result.file) {
                                 // Add markdown link to the file
                                 const isImage = result.file_type.startsWith('image/');
+                                // Form the full URL to the media file
+                                const fileUrl = `http://localhost:8000${result.file}`;
                                 const markdownLink = isImage 
-                                  ? `\n\n![${result.filename}](${result.file})\n\n` 
-                                  : `\n\n[${result.filename}](${result.file})\n\n`;
+                                  ? `\n\n![${result.filename}](${fileUrl})\n\n` 
+                                  : `\n\n[${result.filename}](${fileUrl})\n\n`;
                                 
                                 setEditContent(prev => prev + markdownLink);
                                 console.log('File uploaded successfully:', result);
