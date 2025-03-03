@@ -330,7 +330,11 @@ const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
           {task.is_fiscal_task && (
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
               <HiOutlineDocumentDuplicate className="mr-1" />
-              {task.fiscal_period ? `第${task.fiscal_period}期` : '決算'}
+              {task.fiscal_year ? 
+                `第${task.fiscal_year.fiscal_period}期` : 
+                task.fiscal_period ? 
+                  `第${task.fiscal_period}期` : 
+                  '決算'}
             </span>
           )}
         </div>
@@ -358,10 +362,12 @@ const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
           )}
           
           {/* クライアント名の表示 */}
-          {task.client_name && (
+          {(task.client_name || (task.client && task.client.name)) && (
             <div className="flex items-center">
               <HiOutlineOfficeBuilding className="mr-1" />
-              <span className="truncate max-w-[150px]">{task.client_name}</span>
+              <span className="truncate max-w-[150px]">
+                {task.client_name || (task.client && task.client.name)}
+              </span>
             </div>
           )}
         </div>
