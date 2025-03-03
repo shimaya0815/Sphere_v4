@@ -33,6 +33,8 @@ class TaskViewSet(viewsets.ModelViewSet):
         priority = self.request.query_params.get('priority', None)
         category = self.request.query_params.get('category', None)
         search_term = self.request.query_params.get('searchTerm', None)
+        is_fiscal_task = self.request.query_params.get('is_fiscal_task', None)
+        client = self.request.query_params.get('client', None)
         
         if status:
             queryset = queryset.filter(status__name__icontains=status)
@@ -42,6 +44,15 @@ class TaskViewSet(viewsets.ModelViewSet):
             
         if category:
             queryset = queryset.filter(category__name__icontains=category)
+            
+        # 決算期タスクのフィルタリング
+        if is_fiscal_task is not None:
+            is_fiscal = is_fiscal_task.lower() == 'true'
+            queryset = queryset.filter(is_fiscal_task=is_fiscal)
+            
+        # クライアントでフィルタリング
+        if client:
+            queryset = queryset.filter(client_id=client)
             
         if search_term:
             queryset = queryset.filter(

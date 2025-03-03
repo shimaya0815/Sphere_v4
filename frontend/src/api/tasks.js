@@ -4,32 +4,70 @@ import apiClient from './client';
 const tasksApi = {
   // Get all tasks with optional filters
   getTasks: async (filters = {}) => {
-    const response = await apiClient.get('/tasks/', { params: filters });
-    return response.data;
+    console.log('Fetching tasks with filters:', filters);
+    try {
+      // 正しいエンドポイントでタスク一覧を取得
+      const response = await apiClient.get('/tasks/', { params: filters });
+      console.log('Tasks fetched successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching tasks:', error.response?.data || error.message);
+      // エラー処理を行っても、最低限の情報を返す
+      return { results: [] };
+    }
   },
   
   // Get a specific task by ID
   getTask: async (taskId) => {
-    const response = await apiClient.get(`/tasks/${taskId}/`);
-    return response.data;
+    console.log('Fetching task with ID:', taskId);
+    try {
+      const response = await apiClient.get(`/tasks/${taskId}/`);
+      console.log('Task fetched successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching task:', error.response?.data || error.message);
+      return null;
+    }
   },
   
   // Create a new task
   createTask: async (taskData) => {
-    const response = await apiClient.post('/tasks/', taskData);
-    return response.data;
+    console.log('Creating task with data:', taskData);
+    try {
+      // 正しいエンドポイントでタスク作成リクエストを送信 (末尾のスラッシュを除去)
+      const response = await apiClient.post('/tasks', taskData);
+      console.log('Task created successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating task:', error.response?.data || error.message);
+      throw error;
+    }
   },
   
   // Update a task
   updateTask: async (taskId, taskData) => {
-    const response = await apiClient.patch(`/tasks/${taskId}/`, taskData);
-    return response.data;
+    console.log('Updating task with ID:', taskId, 'and data:', taskData);
+    try {
+      const response = await apiClient.patch(`/tasks/${taskId}/`, taskData);
+      console.log('Task updated successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating task:', error.response?.data || error.message);
+      throw error;
+    }
   },
   
   // Delete a task
   deleteTask: async (taskId) => {
-    const response = await apiClient.delete(`/tasks/${taskId}/`);
-    return response.data;
+    console.log('Deleting task with ID:', taskId);
+    try {
+      const response = await apiClient.delete(`/tasks/${taskId}/`);
+      console.log('Task deleted successfully');
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting task:', error.response?.data || error.message);
+      throw error;
+    }
   },
   
   // Get task categories
