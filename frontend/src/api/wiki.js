@@ -27,7 +27,7 @@ const wikiApi = {
   
   // Page attachments
   getPageAttachments: (id) => 
-    apiClient.get(`/wiki/pages/${id}/attachments/`),
+    apiClient.get(`/wiki/pages/${id}/attachments/`).then(response => response.data),
   
   uploadAttachment: (pageId, file) => {
     const formData = new FormData();
@@ -38,7 +38,7 @@ const wikiApi = {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
-    });
+    }).then(response => response.data);
   },
   
   deleteAttachment: (id) => 

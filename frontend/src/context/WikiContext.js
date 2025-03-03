@@ -111,10 +111,14 @@ export const WikiProvider = ({ children }) => {
   // Load page attachments
   const loadPageAttachments = async (pageId) => {
     try {
+      console.log('Loading attachments for page:', pageId);
       const attachments = await wikiApi.getPageAttachments(pageId);
+      console.log('Loaded attachments:', attachments);
       setPageAttachments(attachments);
+      return attachments;
     } catch (err) {
       console.error('Error loading page attachments:', err);
+      return [];
     }
   };
   
@@ -286,7 +290,9 @@ export const WikiProvider = ({ children }) => {
   // Upload an attachment
   const uploadAttachment = async (pageId, file) => {
     try {
+      console.log('Uploading attachment to page:', pageId, file);
       const attachment = await wikiApi.uploadAttachment(pageId, file);
+      console.log('Upload response:', attachment);
       
       // Reload page attachments
       await loadPageAttachments(pageId);

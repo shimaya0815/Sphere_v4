@@ -16,7 +16,8 @@ import {
   HiOutlineClock,
   HiOutlinePaperClip,
   HiOutlineX,
-  HiOutlineExclamationCircle
+  HiOutlineExclamationCircle,
+  HiOutlinePhotograph
 } from 'react-icons/hi';
 
 // Wiki Sidebar Item Component
@@ -299,6 +300,10 @@ const WikiContent = () => {
   
   const editorRef = useRef(null);
   
+  // State for tracking image uploads
+  const [imageUploads, setImageUploads] = useState({});
+  const [uploadingImage, setUploadingImage] = useState(false);
+  
   // Set edit content when page changes or editing mode changes
   useEffect(() => {
     if (currentPage && isEditing) {
@@ -312,6 +317,69 @@ const WikiContent = () => {
       editorRef.current.focus();
     }
   }, [isEditing]);
+  
+  // Handle paste event for clipboard images
+  useEffect(() => {
+    if (!isEditing || !currentPage) return;
+    
+    const handlePaste = async (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      
+      // Look for image items in clipboard data
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (!file) continue;
+          
+          e.preventDefault(); // Prevent the default paste behavior
+          
+          try {
+            setUploadingImage(true);
+            // Create a unique placeholder for this upload
+            const placeholderId = `image-${Date.now()}`;
+            
+            // Add a placeholder in the editor
+            const cursorPosition = editorRef.current.selectionStart;
+            const textBefore = editContent.substring(0, cursorPosition);
+            const textAfter = editContent.substring(cursorPosition);
+            const placeholder = `![Uploading image...](${placeholderId})`;
+            setEditContent(textBefore + placeholder + textAfter);
+            
+            // Upload the image
+            const result = await uploadAttachment(currentPage.id, file);
+            
+            if (result && result.file) {
+              // Replace the placeholder with the actual image markdown
+              const imageUrl = result.file;
+              const imageMarkdown = `![${result.filename}](${imageUrl})`;
+              setEditContent(prevContent => 
+                prevContent.replace(placeholder, imageMarkdown)
+              );
+              
+              console.log('Image uploaded successfully:', result);
+            } else {
+              // Remove the placeholder if upload failed
+              setEditContent(prevContent => 
+                prevContent.replace(placeholder, '*Failed to upload image*')
+              );
+              console.error('Failed to upload image');
+            }
+          } catch (error) {
+            console.error('Error uploading pasted image:', error);
+          } finally {
+            setUploadingImage(false);
+          }
+        }
+      }
+    };
+    
+    // Add and remove event listener
+    document.addEventListener('paste', handlePaste);
+    return () => {
+      document.removeEventListener('paste', handlePaste);
+    };
+  }, [isEditing, currentPage, editContent, uploadAttachment]);
   
   // Generate parent options from wiki structure
   useEffect(() => {
@@ -575,13 +643,77 @@ const WikiContent = () => {
             {/* Document Content */}
             <div className="flex-1 overflow-auto p-6 bg-white">
               {isEditing ? (
-                <textarea 
-                  ref={editorRef}
-                  className="w-full h-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
-                  value={editContent}
-                  onChange={(e) => setEditContent(e.target.value)}
-                  placeholder="Enter your content here..."
-                />
+                <div className="flex flex-col h-full">
+                  <textarea 
+                    ref={editorRef}
+                    className="w-full flex-1 p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    placeholder="Enter your content here..."
+                  />
+                  
+                  {/* Editor toolbar */}
+                  <div className="flex items-center mt-2 text-gray-500 text-sm">
+                    <div className="flex items-center mr-4">
+                      <HiOutlinePaperClip className="w-4 h-4 mr-1" />
+                      <label htmlFor="fileUpload" className="cursor-pointer hover:text-gray-700">
+                        Attach file
+                        <input 
+                          type="file"
+                          id="fileUpload"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files[0];
+                            if (!file || !currentPage) return;
+                            
+                            try {
+                              setUploadingImage(true);
+                              const result = await uploadAttachment(currentPage.id, file);
+                              
+                              if (result && result.file) {
+                                // Add markdown link to the file
+                                const isImage = result.file_type.startsWith('image/');
+                                const markdownLink = isImage 
+                                  ? `\n\n![${result.filename}](${result.file})\n\n` 
+                                  : `\n\n[${result.filename}](${result.file})\n\n`;
+                                
+                                setEditContent(prev => prev + markdownLink);
+                                console.log('File uploaded successfully:', result);
+                              }
+                            } catch (error) {
+                              console.error('Error uploading file:', error);
+                            } finally {
+                              setUploadingImage(false);
+                              // Reset the input
+                              e.target.value = '';
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+                    
+                    <div className="flex items-center">
+                      <HiOutlinePhotograph className="w-4 h-4 mr-1" />
+                      <span className="text-gray-500">Paste images directly (Ctrl+V)</span>
+                    </div>
+                    
+                    {uploadingImage && (
+                      <div className="ml-auto flex items-center text-blue-600">
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Uploading image...
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Markdown tips */}
+                  <div className="mt-2 text-xs text-gray-500">
+                    <span className="block mb-1">Markdown supported: **bold**, *italic*, [links](url), ![images](url), `code`</span>
+                    <span>Paste screenshots or images directly with Ctrl+V or use the attachment button above.</span>
+                  </div>
+                </div>
               ) : (
                 <div className="prose max-w-none">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
