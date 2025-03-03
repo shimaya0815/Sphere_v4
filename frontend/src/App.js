@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import TasksPage from './pages/TasksPage';
+import TaskTemplatesPage from './pages/TaskTemplatesPage';
 import ClientsPage from './pages/ClientsPage';
 import ClientNewPage from './pages/ClientNewPage';
 import ClientDetailPage from './pages/ClientDetailPage';
@@ -58,6 +59,11 @@ function App() {
           <Route path="/tasks" element={
             <PrivateRoute>
               <TasksPage />
+            </PrivateRoute>
+          } />
+          <Route path="/tasks/templates" element={
+            <PrivateRoute>
+              <TaskTemplatesPage />
             </PrivateRoute>
           } />
           <Route path="/tasks/:taskId" element={
