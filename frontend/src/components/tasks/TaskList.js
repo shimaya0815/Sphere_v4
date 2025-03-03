@@ -14,7 +14,7 @@ import {
 } from 'react-icons/hi';
 // import { Dialog, Transition } from '@headlessui/react';
 
-const TaskList = () => {
+const TaskList = (props) => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -116,6 +116,21 @@ const TaskList = () => {
 
   useEffect(() => {
     fetchTasks();
+  }, []);
+  
+  // 親コンポーネントからタスク更新通知を受け取るためのイベントハンドラ
+  useEffect(() => {
+    const handleTaskUpdate = () => {
+      fetchTasks();
+    };
+    
+    // カスタムイベントのリスナーを追加
+    window.addEventListener('task-updated', handleTaskUpdate);
+    
+    // クリーンアップ関数
+    return () => {
+      window.removeEventListener('task-updated', handleTaskUpdate);
+    };
   }, []);
 
   // フィルター変更時に再検索
@@ -332,7 +347,16 @@ const TaskList = () => {
             </thead>
             <tbody>
               {tasks.map(task => (
-                <tr key={task.id} className="hover">
+                <tr 
+                  key={task.id} 
+                  className="hover cursor-pointer" 
+                  onClick={(e) => {
+                    // クリックが「編集」や「削除」ボタンでなければ、行全体のクリックとして扱う
+                    if (!e.target.closest('button')) {
+                      props.onTaskSelect ? props.onTaskSelect(task) : null;
+                    }
+                  }}
+                >
                   <td className="font-medium">
                     {task.title}
                   </td>
@@ -377,17 +401,23 @@ const TaskList = () => {
                     {task.client_name || (task.client?.name || '')}
                     {task.is_fiscal_task && <span className="ml-1 badge badge-xs badge-accent">決算</span>}
                   </td>
-                  <td>
+                  <td onClick={(e) => e.stopPropagation()}>
                     <div className="flex space-x-1">
                       <button 
                         className="btn btn-xs btn-outline"
-                        onClick={() => handleEditTask(task)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          props.onTaskSelect ? props.onTaskSelect(task) : handleEditTask(task);
+                        }}
                       >
                         編集
                       </button>
                       <button 
                         className="btn btn-xs btn-outline btn-error"
-                        onClick={() => handleDeleteConfirm(task)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteConfirm(task);
+                        }}
                       >
                         削除
                       </button>
