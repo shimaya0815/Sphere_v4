@@ -77,30 +77,77 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
       
       // メタデータの読み込みを確保
       fetchTaskMetadata().then(() => {
+        // 正規化されたデータ形式に対応
+        let statusId = '';
+        if (task.status_data) {
+          statusId = task.status_data.id;
+        } else if (task.status?.id) {
+          statusId = task.status.id;
+        } else if (typeof task.status === 'number') {
+          statusId = task.status;
+        }
+        
+        let priorityId = '';
+        if (task.priority_data) {
+          priorityId = task.priority_data.id;
+        } else if (task.priority?.id) {
+          priorityId = task.priority.id;
+        } else if (typeof task.priority === 'number') {
+          priorityId = task.priority;
+        }
+        
+        let categoryId = '';
+        if (task.category_data) {
+          categoryId = task.category_data.id;
+        } else if (task.category?.id) {
+          categoryId = task.category.id;
+        } else if (typeof task.category === 'number') {
+          categoryId = task.category;
+        }
+        
+        let clientId = '';
+        if (task.client_data) {
+          clientId = task.client_data.id;
+        } else if (task.client?.id) {
+          clientId = task.client.id;
+        } else if (typeof task.client === 'number') {
+          clientId = task.client;
+        }
+        
         // メタデータのロード後にフォームをリセット
         reset({
           title: task.title || '',
           description: task.description || '',
-          category: task.category?.id || (typeof task.category === 'number' ? task.category : ''),
-          status: task.status?.id || (typeof task.status === 'number' ? task.status : ''),
-          priority: task.priority?.id || (typeof task.priority === 'number' ? task.priority : ''),
+          category: categoryId,
+          status: statusId,
+          priority: priorityId,
           due_date: task.due_date ? task.due_date.substring(0, 10) : '',
           estimated_hours: task.estimated_hours || '',
-          client: task.client?.id || (typeof task.client === 'number' ? task.client : ''),
+          client: clientId,
           is_fiscal_task: task.is_fiscal_task ? 'true' : 'false', 
           fiscal_year: task.fiscal_year?.id || (typeof task.fiscal_year === 'number' ? task.fiscal_year : ''),
         });
         
         // Update state values
         setIsFiscalTask(task.is_fiscal_task);
-        if (task.client) {
+        
+        // クライアント情報の設定
+        if (task.client_data) {
+          setSelectedClient(task.client_data);
+        } else if (task.client && typeof task.client === 'object') {
           setSelectedClient(task.client);
+        } else if (clientId) {
+          // clientIdがある場合は、クライアントリストから該当するクライアントを探す
+          const clientObj = clients.find(c => c.id === parseInt(clientId));
+          if (clientObj) {
+            setSelectedClient(clientObj);
+          }
         }
         
         console.log("Form reset with values:", {
           title: task.title,
-          status: task.status?.id || (typeof task.status === 'number' ? task.status : ''),
-          category: task.category?.id || (typeof task.category === 'number' ? task.category : '')
+          status: statusId,
+          category: categoryId
         });
       });
     }
@@ -188,12 +235,15 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
       // Notify success
       toast.success(`${getFieldLabel(field)}を更新しました`, { duration: 2000 });
       
-      // Trigger task updated event for list refresh
-      window.dispatchEvent(new CustomEvent('task-updated'));
-      
+      // すぐに親コンポーネントに通知して状態を更新
       if (onTaskUpdated) {
         onTaskUpdated(result);
       }
+      
+      // リスト更新のイベント発火をわずかに遅らせて確実に反映
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('task-updated'));
+      }, 100);
     } catch (error) {
       console.error(`Error updating ${field}:`, error);
       toast.error(`${getFieldLabel(field)}の更新に失敗しました`);

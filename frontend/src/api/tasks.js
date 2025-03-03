@@ -1,5 +1,62 @@
 import apiClient from './client';
 
+// タスクデータを正規化する関数 - APIからの不一致を解消
+const normalizeTaskData = (task) => {
+  if (!task) return null;
+  
+  // 一貫した形式でタスクデータを返す
+  return {
+    ...task,
+    // ステータス情報を正規化
+    status_data: task.status_data || (
+      task.status && typeof task.status === 'object' 
+        ? { id: task.status.id, name: task.status.name }
+        : task.status ? { id: task.status, name: task.status_name || getDefaultStatusName(task.status) } : null
+    ),
+    // 優先度情報を正規化
+    priority_data: task.priority_data || (
+      task.priority && typeof task.priority === 'object'
+        ? { id: task.priority.id, name: task.priority.name }
+        : task.priority ? { id: task.priority, name: task.priority_name || getDefaultPriorityName(task.priority) } : null
+    ),
+    // カテゴリ情報を正規化
+    category_data: task.category_data || (
+      task.category && typeof task.category === 'object'
+        ? { id: task.category.id, name: task.category.name }
+        : task.category ? { id: task.category, name: task.category_name || '' } : null
+    ),
+    // クライアント情報を正規化
+    client_data: task.client_data || (
+      task.client && typeof task.client === 'object'
+        ? { id: task.client.id, name: task.client.name }
+        : task.client ? { id: task.client, name: task.client_name || '' } : null
+    )
+  };
+};
+
+// IDに基づいてデフォルトのステータス名を取得
+const getDefaultStatusName = (statusId) => {
+  if (!statusId) return '';
+  const statusMap = {
+    1: '未着手',
+    2: '作業中',
+    3: 'レビュー待ち',
+    4: '完了'
+  };
+  return statusMap[statusId] || `ステータス ${statusId}`;
+};
+
+// IDに基づいてデフォルトの優先度名を取得
+const getDefaultPriorityName = (priorityId) => {
+  if (!priorityId) return '';
+  const priorityMap = {
+    1: '低',
+    2: '中',
+    3: '高'
+  };
+  return priorityMap[priorityId] || `優先度 ${priorityId}`;
+};
+
 // Tasks API service
 const tasksApi = {
   // Get all tasks with optional filters
@@ -9,7 +66,21 @@ const tasksApi = {
       // 正しいエンドポイントでタスク一覧を取得
       const response = await apiClient.get('/tasks/', { params: filters });
       console.log('Tasks fetched successfully:', response.data);
-      return response.data;
+      
+      // レスポンスデータを正規化
+      if (Array.isArray(response.data)) {
+        return {
+          results: response.data.map(normalizeTaskData),
+          count: response.data.length
+        };
+      } else if (response.data && Array.isArray(response.data.results)) {
+        return {
+          ...response.data,
+          results: response.data.results.map(normalizeTaskData)
+        };
+      }
+      
+      return { results: [] };
     } catch (error) {
       console.error('Error fetching tasks:', error.response?.data || error.message);
       // エラー処理を行っても、最低限の情報を返す
@@ -23,7 +94,7 @@ const tasksApi = {
     try {
       const response = await apiClient.get(`/tasks/${taskId}/`);
       console.log('Task fetched successfully:', response.data);
-      return response.data;
+      return normalizeTaskData(response.data);
     } catch (error) {
       console.error('Error fetching task:', error.response?.data || error.message);
       return null;
@@ -57,7 +128,9 @@ const tasksApi = {
     try {
       const response = await apiClient.patch(`/tasks/${taskId}/`, taskData);
       console.log('Task updated successfully:', response.data);
-      return response.data;
+      
+      // 更新後のタスクデータを正規化して返す
+      return normalizeTaskData(response.data);
     } catch (error) {
       console.error('Error updating task:', error.response?.data || error.message);
       throw error;
