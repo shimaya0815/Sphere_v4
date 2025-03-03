@@ -304,16 +304,29 @@ const DashboardPage = () => {
             </button>
           </div>
           <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dashboardData.timeData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip formatter={(value) => [`${value.toFixed(1)}時間`, '作業時間']} />
-                <Legend />
-                <Bar dataKey="hours" name="作業時間" fill="#3B82F6" />
-              </BarChart>
-            </ResponsiveContainer>
+            {dashboardData.timeData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={dashboardData.timeData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => [`${value.toFixed(1)}時間`, '作業時間']} />
+                  <Legend />
+                  <Bar dataKey="hours" name="作業時間" fill="#3B82F6" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center">
+                <HiOutlineClock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">作業時間データはありません</p>
+                <button 
+                  className="mt-4 px-4 py-2 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors"
+                  onClick={() => navigate('/time-management')}
+                >
+                  時間管理ページへ
+                </button>
+              </div>
+            )}
           </div>
         </div>
         
