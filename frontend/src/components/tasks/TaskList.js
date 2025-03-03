@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import TaskItem from './TaskItem';
 import TaskForm from './TaskForm';
 import { tasksApi } from '../../api';
@@ -8,7 +9,8 @@ import {
   HiOutlinePlus, 
   HiOutlineSearch,
   HiOutlineX,
-  HiOutlineExclamationCircle
+  HiOutlineExclamationCircle,
+  HiOutlineDocumentText
 } from 'react-icons/hi';
 // import { Dialog, Transition } from '@headlessui/react';
 
@@ -103,6 +105,14 @@ const TaskList = () => {
             <HiOutlineFilter className="mr-2" />
             フィルター
           </button>
+          
+          <Link
+            to="/tasks/templates"
+            className="bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-4 rounded-lg transition-colors flex items-center"
+          >
+            <HiOutlineDocumentText className="mr-2" />
+            テンプレート
+          </Link>
           
           <button
             className="bg-primary-600 hover:bg-primary-700 text-white py-2 px-4 rounded-lg transition-colors flex items-center"
