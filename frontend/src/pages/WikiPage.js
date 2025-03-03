@@ -83,10 +83,16 @@ const WikiSidebarItem = ({ item, level = 0, onSelect }) => {
 };
 
 // New Page Modal Component
-const NewPageModal = ({ isOpen, onClose, onSave, parentId = null }) => {
+const NewPageModal = ({ isOpen, onClose, onSave, parentId = null, parentOptions = [] }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [selectedParentId, setSelectedParentId] = useState(parentId);
   const [error, setError] = useState('');
+  
+  // Reset selected parent when the prop changes
+  useEffect(() => {
+    setSelectedParentId(parentId);
+  }, [parentId]);
   
   if (!isOpen) return null;
   
@@ -101,7 +107,7 @@ const NewPageModal = ({ isOpen, onClose, onSave, parentId = null }) => {
     onSave({
       title,
       content,
-      parent: parentId,
+      parent: selectedParentId,
       is_published: true
     });
     
@@ -144,6 +150,21 @@ const NewPageModal = ({ isOpen, onClose, onSave, parentId = null }) => {
               placeholder="Page title"
               required
             />
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Parent Page</label>
+            <select
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={selectedParentId || ""}
+              onChange={(e) => setSelectedParentId(e.target.value === "" ? null : Number(e.target.value))}
+            >
+              <option value="">No parent (Root level)</option>
+              {parentOptions.map(page => (
+                <option key={page.id} value={page.id}>{page.title}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-gray-500">Select a parent to create this as a child page.</p>
           </div>
           
           <div className="mb-4">
@@ -257,13 +278,16 @@ const WikiContent = () => {
     updatePage,
     deletePage,
     handleSearchQueryChange,
-    restoreVersion
+    restoreVersion,
+    loadWikiStructure
   } = useWiki();
   
   const [showNewPageModal, setShowNewPageModal] = useState(false);
   const [showVersionsModal, setShowVersionsModal] = useState(false);
   const [editContent, setEditContent] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [newPageParentId, setNewPageParentId] = useState(null);
+  const [parentOptions, setParentOptions] = useState([]);
   
   const editorRef = useRef(null);
   
@@ -281,6 +305,27 @@ const WikiContent = () => {
     }
   }, [isEditing]);
   
+  // Generate parent options from wiki structure
+  useEffect(() => {
+    // Flatten the wiki structure to create a list of all pages
+    const flattenStructure = (pages, result = []) => {
+      pages.forEach(page => {
+        result.push({
+          id: page.id,
+          title: page.title
+        });
+        
+        if (page.children && page.children.length > 0) {
+          flattenStructure(page.children, result);
+        }
+      });
+      return result;
+    };
+    
+    const allPages = flattenStructure(wikiStructure);
+    setParentOptions(allPages);
+  }, [wikiStructure]);
+  
   const handleSave = async () => {
     if (!currentPage) return;
     
@@ -297,7 +342,16 @@ const WikiContent = () => {
     const newPage = await createPage(pageData);
     if (newPage) {
       setShowNewPageModal(false);
+      // Reload wiki structure to show the new page
+      await loadWikiStructure();
+      // Load the new page
+      loadPage(newPage.id);
     }
+  };
+  
+  const openNewPageModal = (parentId = null) => {
+    setNewPageParentId(parentId);
+    setShowNewPageModal(true);
   };
   
   const handleDeletePage = async () => {
@@ -375,7 +429,7 @@ const WikiContent = () => {
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Documents</h3>
                 <button 
                   className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                  onClick={() => setShowNewPageModal(true)}
+                  onClick={() => openNewPageModal(null)}
                 >
                   + New
                 </button>
@@ -397,7 +451,7 @@ const WikiContent = () => {
                     <p className="text-sm text-gray-500 mb-4">No pages yet</p>
                     <button
                       className="px-3 py-1 text-sm font-medium text-blue-700 bg-blue-50 rounded-md hover:bg-blue-100"
-                      onClick={() => setShowNewPageModal(true)}
+                      onClick={() => openNewPageModal(null)}
                     >
                       <HiOutlineDocumentAdd className="inline-block w-4 h-4 mr-1" />
                       Create First Page
@@ -446,6 +500,13 @@ const WikiContent = () => {
                   )}
                 </div>
                 <div className="flex items-center space-x-2">
+                  <button 
+                    className="px-3 py-1 text-sm bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 flex items-center"
+                    onClick={() => openNewPageModal(currentPage.id)}
+                  >
+                    <HiOutlineDocumentAdd className="w-4 h-4 mr-1" />
+                    Add Child
+                  </button>
                   <button 
                     className="px-3 py-1 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50 flex items-center"
                     onClick={() => setShowVersionsModal(true)}
@@ -518,7 +579,7 @@ const WikiContent = () => {
               <p className="text-gray-500 mb-4">No page selected or create a new page to get started</p>
               <button
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-                onClick={() => setShowNewPageModal(true)}
+                onClick={() => openNewPageModal(null)}
               >
                 <HiOutlineDocumentAdd className="inline-block w-4 h-4 mr-1" />
                 Create New Page
@@ -533,7 +594,8 @@ const WikiContent = () => {
         isOpen={showNewPageModal}
         onClose={() => setShowNewPageModal(false)}
         onSave={handleNewPage}
-        parentId={null}
+        parentId={newPageParentId}
+        parentOptions={parentOptions}
       />
       
       <VersionsModal
