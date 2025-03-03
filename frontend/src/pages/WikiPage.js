@@ -309,20 +309,28 @@ const WikiContent = () => {
   useEffect(() => {
     // Flatten the wiki structure to create a list of all pages
     const flattenStructure = (pages, result = []) => {
+      // Check if pages is an array before using forEach
+      if (!Array.isArray(pages)) {
+        console.warn('Expected pages to be an array but got:', typeof pages);
+        return result;
+      }
+      
       pages.forEach(page => {
         result.push({
           id: page.id,
           title: page.title
         });
         
-        if (page.children && page.children.length > 0) {
+        if (page.children && Array.isArray(page.children) && page.children.length > 0) {
           flattenStructure(page.children, result);
         }
       });
       return result;
     };
     
-    const allPages = flattenStructure(wikiStructure);
+    // Ensure wikiStructure is an array before processing
+    const pagesToProcess = Array.isArray(wikiStructure) ? wikiStructure : [];
+    const allPages = flattenStructure(pagesToProcess);
     setParentOptions(allPages);
   }, [wikiStructure]);
   
