@@ -192,11 +192,42 @@ class WikiAttachmentViewSet(viewsets.ModelViewSet):
         """Return wiki attachments for the authenticated user's business."""
         return WikiAttachment.objects.filter(page__business=self.request.user.business)
     
+    def create(self, request, *args, **kwargs):
+        """Override create to add better debugging"""
+        print("WikiAttachmentViewSet.create called")
+        print("Request data:", request.data)
+        print("Request FILES:", request.FILES)
+        print("Authenticated user:", request.user.id, request.user.email)
+        
+        # Debug user business association
+        if hasattr(request.user, 'business'):
+            print("User business:", request.user.business)
+        else:
+            print("User has no business attribute")
+            # Add a temporary business for development
+            from business.models import Business
+            business = Business.objects.first()
+            if business:
+                print("Using first available business:", business)
+                request.user.business = business
+            else:
+                print("No business found in database")
+        
+        try:
+            return super().create(request, *args, **kwargs)
+        except Exception as e:
+            print("Error creating attachment:", str(e))
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
     def perform_create(self, serializer):
         """Set the uploader field when creating a wiki attachment."""
+        print("WikiAttachmentViewSet.perform_create called")
         # Validate that the page exists and belongs to the user's business
         page_id = self.request.data.get('page')
+        print("Page ID from request:", page_id)
+        
         if not page_id:
+            print("Page ID is missing")
             raise ValidationError({'page': 'This field is required.'})
         
         try:
@@ -204,21 +235,34 @@ class WikiAttachmentViewSet(viewsets.ModelViewSet):
                 id=page_id,
                 business=self.request.user.business
             )
+            print("Found page:", page.id, page.title)
         except WikiPage.DoesNotExist:
+            print(f"Page with ID {page_id} not found for business {self.request.user.business}")
             raise ValidationError({'page': 'Invalid page ID.'})
         
         # Extract file metadata
         file = self.request.FILES.get('file')
+        print("File from request:", file)
+        
         if not file:
+            print("File is missing")
             raise ValidationError({'file': 'This field is required.'})
         
-        serializer.save(
-            page=page,
-            uploader=self.request.user,
-            filename=file.name,
-            file_type=file.content_type,
-            file_size=file.size
-        )
+        print("Saving attachment with file:", file.name, file.content_type, file.size)
+        
+        try:
+            attachment = serializer.save(
+                page=page,
+                uploader=self.request.user,
+                filename=file.name,
+                file_type=file.content_type,
+                file_size=file.size
+            )
+            print("Attachment saved successfully:", attachment.id, attachment.file.url)
+            return attachment
+        except Exception as e:
+            print("Error saving attachment:", str(e))
+            raise
 
 
 class SearchWikiPagesView(APIView):

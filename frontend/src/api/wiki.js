@@ -30,15 +30,31 @@ const wikiApi = {
     apiClient.get(`/wiki/pages/${id}/attachments/`).then(response => response.data),
   
   uploadAttachment: (pageId, file) => {
+    console.log('API uploadAttachment called with pageId:', pageId, 'and file:', file);
+    
     const formData = new FormData();
     formData.append('page', pageId);
     formData.append('file', file);
+    
+    // Debug formData
+    for (let pair of formData.entries()) {
+      console.log('FormData entry:', pair[0], pair[1]);
+    }
     
     return apiClient.post('/wiki/attachments/', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
-    }).then(response => response.data);
+    })
+    .then(response => {
+      console.log('Upload success response:', response.data);
+      return response.data;
+    })
+    .catch(error => {
+      console.error('Upload error in API layer:', error);
+      console.error('Error response:', error.response?.data || 'No response data');
+      throw error;
+    });
   },
   
   deleteAttachment: (id) => 
