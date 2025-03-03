@@ -353,7 +353,7 @@ const TaskList = (props) => {
                   onClick={(e) => {
                     // クリックが「編集」や「削除」ボタンでなければ、行全体のクリックとして扱う
                     if (!e.target.closest('button')) {
-                      props.onTaskSelect ? props.onTaskSelect(task) : null;
+                      if (props.onTaskSelect) props.onTaskSelect(task);
                     }
                   }}
                 >
