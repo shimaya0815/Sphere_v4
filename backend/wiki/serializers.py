@@ -23,12 +23,22 @@ class WikiAttachmentSerializer(serializers.ModelSerializer):
     """Serializer for wiki page attachments."""
     
     uploader = UserMiniSerializer(read_only=True)
-    page = serializers.PrimaryKeyRelatedField(queryset=WikiPage.objects.all(), required=True)
     
     class Meta:
         model = WikiAttachment
         fields = ('id', 'file', 'filename', 'file_type', 'file_size', 'uploader', 'uploaded_at', 'page')
         read_only_fields = ('uploader', 'uploaded_at', 'filename', 'file_type', 'file_size')
+        
+    def to_representation(self, instance):
+        """Ensure the file URL includes the full domain path."""
+        ret = super().to_representation(instance)
+        if ret.get('file'):
+            # Make sure the URL is absolute
+            if not ret['file'].startswith('http'):
+                request = self.context.get('request')
+                if request is not None:
+                    ret['file'] = request.build_absolute_uri(ret['file'])
+        return ret
 
 
 class WikiPageVersionSerializer(serializers.ModelSerializer):

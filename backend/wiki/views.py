@@ -188,6 +188,12 @@ class WikiAttachmentViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsSameBusiness]
     parser_classes = [MultiPartParser, FormParser]
     
+    def get_serializer_context(self):
+        """Add request to serializer context for absolute URL generation."""
+        context = super().get_serializer_context()
+        context.update({"request": self.request})
+        return context
+    
     def get_queryset(self):
         """Return wiki attachments for the authenticated user's business."""
         return WikiAttachment.objects.filter(page__business=self.request.user.business)
