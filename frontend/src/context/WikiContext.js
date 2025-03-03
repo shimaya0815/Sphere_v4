@@ -31,7 +31,9 @@ export const WikiProvider = ({ children }) => {
   const loadWikiStructure = async () => {
     setLoading(true);
     try {
-      const data = await wikiApi.getWikiStructure();
+      const response = await wikiApi.getWikiStructure();
+      // Ensure we always set an array, even if the API returns nothing or an error
+      const data = Array.isArray(response) ? response : [];
       setWikiStructure(data);
       
       // If no page is selected yet and we have pages, select the first one
@@ -43,6 +45,8 @@ export const WikiProvider = ({ children }) => {
     } catch (err) {
       console.error('Error loading wiki structure:', err);
       setError('Failed to load wiki structure');
+      // On error, ensure we have an empty array
+      setWikiStructure([]);
     } finally {
       setLoading(false);
     }
