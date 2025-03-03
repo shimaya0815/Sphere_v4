@@ -89,6 +89,8 @@ const TaskForm = ({ task, onClose, onTaskSaved }) => {
         status: data.status ? parseInt(data.status) : null,
         priority: data.priority ? parseInt(data.priority) : null,
         category: data.category ? parseInt(data.category) : null,
+        // 日付のフォーマット調整 (空の場合はnull、そうでない場合はISO形式に)
+        due_date: data.due_date ? new Date(data.due_date).toISOString() : null,
         // client, workspace など他の必要なフィールドがあれば追加
       };
       
@@ -110,7 +112,30 @@ const TaskForm = ({ task, onClose, onTaskSaved }) => {
       onClose();
     } catch (error) {
       console.error('Error saving task:', error);
-      const errorMessage = error.response?.data?.detail || 'タスクの保存中にエラーが発生しました';
+      // 詳細なエラーメッセージの取得
+      let errorMessage = 'タスクの保存中にエラーが発生しました';
+      
+      if (error.response?.data) {
+        if (typeof error.response.data === 'object') {
+          // エラーオブジェクトの場合、フィールドごとのエラーをまとめる
+          const errorDetails = Object.entries(error.response.data)
+            .map(([field, errors]) => {
+              if (Array.isArray(errors)) {
+                return `${field}: ${errors.join(', ')}`;
+              } else {
+                return `${field}: ${errors}`;
+              }
+            })
+            .join('; ');
+          
+          if (errorDetails) {
+            errorMessage = `保存エラー: ${errorDetails}`;
+          }
+        } else if (error.response.data.detail) {
+          errorMessage = error.response.data.detail;
+        }
+      }
+      
       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
