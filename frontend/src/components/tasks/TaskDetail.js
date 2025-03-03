@@ -273,10 +273,27 @@ const TaskDetail = () => {
                   {task.estimated_hours ? `${task.estimated_hours}時間` : '未設定'}
                 </div>
                 
-                {task.client && (
+                {/* クライアント情報の表示 */}
+                {(task.client || task.client_name) && (
                   <>
                     <div className="text-sm text-gray-500">クライアント</div>
-                    <div className="text-sm font-medium">{task.client.name}</div>
+                    <div className="text-sm font-medium">
+                      {task.client ? task.client.name : task.client_name}
+                    </div>
+                  </>
+                )}
+                
+                {/* 決算期関連タスクの場合、決算期情報を表示 */}
+                {task.is_fiscal_task && (
+                  <>
+                    <div className="text-sm text-gray-500">決算期タスク</div>
+                    <div className="text-sm font-medium">
+                      {task.fiscal_year ? 
+                        `第${task.fiscal_year.fiscal_period}期 (${formatDate(task.fiscal_year.start_date)} 〜 ${formatDate(task.fiscal_year.end_date)})` : 
+                        task.fiscal_period ? 
+                          `第${task.fiscal_period}期` : 
+                          '決算期タスク'}
+                    </div>
                   </>
                 )}
               </div>
