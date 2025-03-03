@@ -1,226 +1,327 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { format } from 'date-fns';
+import { WikiProvider, useWiki } from '../context/WikiContext';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import {
+  HiOutlineFolder,
+  HiOutlineDocument,
+  HiOutlineChevronDown,
+  HiOutlineChevronRight,
+  HiOutlinePlus,
+  HiOutlineSearch,
+  HiOutlineSave,
+  HiOutlineTrash,
+  HiOutlineDocumentAdd,
+  HiOutlineClock,
+  HiOutlinePaperClip,
+  HiOutlineX,
+  HiOutlineExclamationCircle
+} from 'react-icons/hi';
 
-const WikiPage = () => {
-  const [activeDocument, setActiveDocument] = useState('welcome');
-  const [isEditing, setIsEditing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+// Wiki Sidebar Item Component
+const WikiSidebarItem = ({ item, level = 0, onSelect }) => {
+  const [isExpanded, setIsExpanded] = useState(true);
+  const { activePage } = useWiki();
   
-  // Mock data for documents
-  const documents = {
-    'welcome': {
-      id: 'welcome',
-      title: 'Welcome to Sphere Wiki',
-      content: `
-# Welcome to Sphere Wiki
-
-This is your team's knowledge base where you can store important information, documentation, and guides.
-
-## Getting Started
-
-1. **Create Pages**: Click the "New Page" button to create a new document
-2. **Organize**: Use the folder structure on the left to organize your content
-3. **Collaborate**: Multiple team members can edit and contribute to the same document
-4. **Search**: Use the search bar to find information quickly
-
-## Key Features
-
-- Rich text editing with markdown support
-- Automatic saving
-- Version history
-- Access control and permissions
-- Quick search
-      `,
-      lastUpdated: '2023-10-15 15:30',
-      updatedBy: 'Admin',
-    },
-    'company-policies': {
-      id: 'company-policies',
-      title: 'Company Policies',
-      content: `
-# Company Policies
-
-This document outlines the key policies for our organization.
-
-## Work Hours
-
-Standard work hours are from 9:00 AM to 5:00 PM, Monday through Friday. We offer flexible scheduling with core hours from 10:00 AM to 3:00 PM.
-
-## Remote Work
-
-Employees are allowed to work remotely up to 3 days per week, with prior approval from their manager.
-
-## Vacation Policy
-
-- Full-time employees receive 20 days of paid vacation per year
-- Vacation requests should be submitted at least 2 weeks in advance
-- Unused vacation days can be carried over (up to 5 days)
-
-## Sick Leave
-
-Employees receive 10 paid sick days per year. A doctor's note is required for sick leave extending beyond 3 consecutive days.
-      `,
-      lastUpdated: '2023-10-14 11:45',
-      updatedBy: 'HR Manager',
-    },
-    'project-guidelines': {
-      id: 'project-guidelines',
-      title: 'Project Guidelines',
-      content: `
-# Project Guidelines
-
-This document outlines our standard approach to project management.
-
-## Project Phases
-
-1. **Planning**: Define scope, objectives, and deliverables
-2. **Design**: Create detailed specifications and mockups
-3. **Implementation**: Develop and build the project
-4. **Testing**: Quality assurance and user acceptance testing
-5. **Deployment**: Release and launch
-6. **Maintenance**: Ongoing support and improvements
-
-## Documentation Requirements
-
-All projects must maintain the following documentation:
-- Project brief
-- Technical specifications
-- User guides
-- Testing results
-- Deployment instructions
-
-## Change Management
-
-Any significant changes to project scope must go through the change request process:
-1. Submit change request form
-2. Impact assessment
-3. Approval by project sponsor
-4. Implementation planning
-      `,
-      lastUpdated: '2023-10-13 09:15',
-      updatedBy: 'Project Manager',
-    },
+  const hasChildren = item.children && item.children.length > 0;
+  const isActive = activePage === item.id;
+  
+  const handleToggle = (e) => {
+    e.stopPropagation();
+    setIsExpanded(!isExpanded);
   };
   
-  // Mock data for document structure
-  const documentStructure = [
-    {
-      id: 'welcome',
-      title: 'Welcome to Sphere Wiki',
-      type: 'document',
-    },
-    {
-      id: 'company',
-      title: 'Company',
-      type: 'folder',
-      children: [
-        {
-          id: 'company-policies',
-          title: 'Company Policies',
-          type: 'document',
-        },
-        {
-          id: 'team-structure',
-          title: 'Team Structure',
-          type: 'document',
-        },
-      ],
-    },
-    {
-      id: 'projects',
-      title: 'Projects',
-      type: 'folder',
-      children: [
-        {
-          id: 'project-guidelines',
-          title: 'Project Guidelines',
-          type: 'document',
-        },
-      ],
-    },
-    {
-      id: 'technical',
-      title: 'Technical Documentation',
-      type: 'folder',
-      children: [
-        {
-          id: 'api-documentation',
-          title: 'API Documentation',
-          type: 'document',
-        },
-        {
-          id: 'development-setup',
-          title: 'Development Setup',
-          type: 'document',
-        },
-      ],
-    },
-  ];
-  
-  // Filter documents based on search query
-  const filteredDocuments = searchQuery ? 
-    Object.values(documents).filter(doc => 
-      doc.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      doc.content.toLowerCase().includes(searchQuery.toLowerCase())
-    ) : [];
-  
-  // Rendering functions for the document structure
-  const renderDocumentStructure = (items, level = 0) => {
-    return (
-      <ul className={`space-y-1 ${level > 0 ? 'ml-4' : ''}`}>
-        {items.map(item => (
-          <li key={item.id}>
-            {item.type === 'folder' ? (
-              <div>
-                <button className="flex items-center w-full px-2 py-1 text-left text-sm hover:bg-gray-200 rounded-md">
-                  <svg className="w-4 h-4 mr-1 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
-                  </svg>
-                  {item.title}
-                </button>
-                {item.children && renderDocumentStructure(item.children, level + 1)}
-              </div>
-            ) : (
-              <button 
-                className={`flex items-center w-full px-2 py-1 text-left text-sm hover:bg-gray-200 rounded-md ${activeDocument === item.id ? 'bg-blue-100 text-blue-800' : ''}`}
-                onClick={() => setActiveDocument(item.id)}
-              >
-                <svg className="w-4 h-4 mr-1 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-                </svg>
-                {item.title}
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
-    );
+  const handleClick = () => {
+    onSelect(item.id);
   };
   
-  // Simple markdown-like rendering (actual implementation would use a proper markdown library)
-  const renderMarkdown = (text) => {
-    const lines = text.split('\n');
-    return (
-      <div className="prose max-w-none">
-        {lines.map((line, index) => {
-          if (line.startsWith('# ')) {
-            return <h1 key={index} className="text-2xl font-bold mt-6 mb-4">{line.substring(2)}</h1>;
-          } else if (line.startsWith('## ')) {
-            return <h2 key={index} className="text-xl font-bold mt-5 mb-3">{line.substring(3)}</h2>;
-          } else if (line.startsWith('- ')) {
-            return <li key={index} className="ml-4">{line.substring(2)}</li>;
-          } else if (line.startsWith('1. ') || line.startsWith('2. ') || line.startsWith('3. ') || line.startsWith('4. ') || line.startsWith('5. ') || line.startsWith('6. ')) {
-            return <li key={index} className="ml-4 list-decimal">{line.substring(3)}</li>;
-          } else if (line.trim() === '') {
-            return <div key={index} className="h-4"></div>;
-          } else {
-            return <p key={index} className="my-2">{line}</p>;
-          }
-        })}
+  return (
+    <div className="mb-1">
+      <div 
+        className={`flex items-center px-2 py-1 rounded-md cursor-pointer ${isActive ? 'bg-blue-100 text-blue-800' : 'hover:bg-gray-200'}`}
+        onClick={handleClick}
+        style={{ paddingLeft: `${(level * 12) + 8}px` }}
+      >
+        {hasChildren ? (
+          <button 
+            className="mr-1 text-gray-500 hover:text-gray-700 focus:outline-none"
+            onClick={handleToggle}
+          >
+            {isExpanded ? 
+              <HiOutlineChevronDown className="w-4 h-4" /> : 
+              <HiOutlineChevronRight className="w-4 h-4" />
+            }
+          </button>
+        ) : (
+          <span className="w-4 mr-1"></span>
+        )}
+        
+        {hasChildren ? (
+          <HiOutlineFolder className="w-4 h-4 mr-2 text-gray-500" />
+        ) : (
+          <HiOutlineDocument className="w-4 h-4 mr-2 text-gray-500" />
+        )}
+        
+        <span className="truncate text-sm">{item.title}</span>
       </div>
-    );
+      
+      {hasChildren && isExpanded && (
+        <div className="mt-1">
+          {item.children.map(child => (
+            <WikiSidebarItem 
+              key={child.id}
+              item={child}
+              level={level + 1}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// New Page Modal Component
+const NewPageModal = ({ isOpen, onClose, onSave, parentId = null }) => {
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [error, setError] = useState('');
+  
+  if (!isOpen) return null;
+  
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    if (!title.trim()) {
+      setError('Title is required');
+      return;
+    }
+    
+    onSave({
+      title,
+      content,
+      parent: parentId,
+      is_published: true
+    });
+    
+    // Reset form
+    setTitle('');
+    setContent('');
+    setError('');
   };
   
-  const currentDocument = documents[activeDocument];
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold text-gray-900">Create New Page</h2>
+            <button 
+              className="text-gray-500 hover:text-gray-700"
+              onClick={onClose}
+            >
+              <HiOutlineX className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 flex-1 overflow-y-auto">
+          {error && (
+            <div className="mb-4 bg-red-50 text-red-700 p-3 rounded-md flex items-center">
+              <HiOutlineExclamationCircle className="w-5 h-5 mr-2" />
+              {error}
+            </div>
+          )}
+          
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Title*</label>
+            <input
+              type="text"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Page title"
+              required
+            />
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Initial Content</label>
+            <textarea
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[200px]"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="# Your content here"
+            />
+            <p className="mt-1 text-xs text-gray-500">Markdown formatting is supported.</p>
+          </div>
+        </form>
+        
+        <div className="p-6 border-t border-gray-200 flex justify-end space-x-3">
+          <button
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
+            onClick={onClose}
+            type="button"
+          >
+            Cancel
+          </button>
+          <button
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            onClick={handleSubmit}
+            type="button"
+          >
+            Create Page
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Versions Modal Component
+const VersionsModal = ({ isOpen, onClose, versions, onRestore }) => {
+  if (!isOpen || !versions) return null;
+  
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold text-gray-900">Version History</h2>
+            <button 
+              className="text-gray-500 hover:text-gray-700"
+              onClick={onClose}
+            >
+              <HiOutlineX className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+        
+        <div className="p-6 flex-1 overflow-y-auto">
+          {versions.length > 0 ? (
+            <ul className="divide-y divide-gray-200">
+              {versions.map((version, index) => (
+                <li key={version.id} className="py-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {index === 0 ? 'Current Version' : `Version ${versions.length - index}`}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        By {version.editor?.full_name || 'Unknown'} on {format(new Date(version.created_at), 'MMM d, yyyy h:mm a')}
+                      </p>
+                    </div>
+                    {index > 0 && (
+                      <button
+                        className="px-3 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded-md hover:bg-blue-100"
+                        onClick={() => onRestore(version.id)}
+                      >
+                        Restore
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-gray-500 text-center py-4">No version history available.</p>
+          )}
+        </div>
+        
+        <div className="p-6 border-t border-gray-200">
+          <p className="text-sm text-gray-500">
+            Page versions are created automatically when the content is edited.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Wiki Page Content
+const WikiContent = () => {
+  const {
+    wikiStructure,
+    currentPage,
+    activePage,
+    isEditing,
+    searchResults,
+    searchQuery,
+    pageVersions,
+    loading,
+    error,
+    setIsEditing,
+    loadPage,
+    createPage,
+    updatePage,
+    deletePage,
+    handleSearchQueryChange,
+    restoreVersion
+  } = useWiki();
+  
+  const [showNewPageModal, setShowNewPageModal] = useState(false);
+  const [showVersionsModal, setShowVersionsModal] = useState(false);
+  const [editContent, setEditContent] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  
+  const editorRef = useRef(null);
+  
+  // Set edit content when page changes or editing mode changes
+  useEffect(() => {
+    if (currentPage && isEditing) {
+      setEditContent(currentPage.content || '');
+    }
+  }, [currentPage, isEditing]);
+  
+  // Focus editor when entering edit mode
+  useEffect(() => {
+    if (isEditing && editorRef.current) {
+      editorRef.current.focus();
+    }
+  }, [isEditing]);
+  
+  const handleSave = async () => {
+    if (!currentPage) return;
+    
+    const updated = await updatePage(currentPage.id, {
+      content: editContent
+    });
+    
+    if (updated) {
+      setIsEditing(false);
+    }
+  };
+  
+  const handleNewPage = async (pageData) => {
+    const newPage = await createPage(pageData);
+    if (newPage) {
+      setShowNewPageModal(false);
+    }
+  };
+  
+  const handleDeletePage = async () => {
+    if (!currentPage) return;
+    
+    const deleted = await deletePage(currentPage.id);
+    if (deleted) {
+      setConfirmDelete(false);
+    }
+  };
+  
+  const handleRestoreVersion = async (versionId) => {
+    if (!currentPage) return;
+    
+    const restored = await restoreVersion(currentPage.id, versionId);
+    if (restored) {
+      setShowVersionsModal(false);
+    }
+  };
+  
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    return format(new Date(dateString), 'MMM d, yyyy h:mm a');
+  };
   
   return (
     <div className="flex h-[calc(100vh-64px)]">
@@ -234,12 +335,10 @@ Any significant changes to project scope must go through the change request proc
               placeholder="Search wiki..."
               className="w-full py-2 pl-8 pr-3 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => handleSearchQueryChange(e.target.value)}
             />
             <div className="absolute inset-y-0 left-0 flex items-center pl-2">
-              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-              </svg>
+              <HiOutlineSearch className="w-4 h-4 text-gray-400" />
             </div>
           </div>
         </div>
@@ -249,21 +348,19 @@ Any significant changes to project scope must go through the change request proc
           {searchQuery ? (
             <>
               <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Search Results</h3>
-              {filteredDocuments.length > 0 ? (
+              {searchResults.length > 0 ? (
                 <ul className="space-y-1">
-                  {filteredDocuments.map(doc => (
-                    <li key={doc.id}>
+                  {searchResults.map(page => (
+                    <li key={page.id}>
                       <button 
                         className="flex items-center w-full px-2 py-1 text-left text-sm hover:bg-gray-200 rounded-md"
                         onClick={() => {
-                          setActiveDocument(doc.id);
-                          setSearchQuery('');
+                          loadPage(page.id);
+                          handleSearchQueryChange('');
                         }}
                       >
-                        <svg className="w-4 h-4 mr-1 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-                        </svg>
-                        {doc.title}
+                        <HiOutlineDocument className="w-4 h-4 mr-2 text-gray-500" />
+                        {page.title}
                       </button>
                     </li>
                   ))}
@@ -276,11 +373,38 @@ Any significant changes to project scope must go through the change request proc
             <>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Documents</h3>
-                <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                <button 
+                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                  onClick={() => setShowNewPageModal(true)}
+                >
                   + New
                 </button>
               </div>
-              {renderDocumentStructure(documentStructure)}
+              
+              <div className="space-y-1">
+                {wikiStructure.length > 0 ? (
+                  wikiStructure.map(item => (
+                    <WikiSidebarItem 
+                      key={item.id} 
+                      item={item}
+                      onSelect={loadPage}
+                    />
+                  ))
+                ) : loading ? (
+                  <p className="text-sm text-gray-500">Loading...</p>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-sm text-gray-500 mb-4">No pages yet</p>
+                    <button
+                      className="px-3 py-1 text-sm font-medium text-blue-700 bg-blue-50 rounded-md hover:bg-blue-100"
+                      onClick={() => setShowNewPageModal(true)}
+                    >
+                      <HiOutlineDocumentAdd className="inline-block w-4 h-4 mr-1" />
+                      Create First Page
+                    </button>
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>
@@ -288,28 +412,84 @@ Any significant changes to project scope must go through the change request proc
       
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {currentDocument ? (
+        {error && (
+          <div className="bg-red-50 text-red-700 p-4 border-b border-red-200 flex justify-between items-center">
+            <div className="flex items-center">
+              <HiOutlineExclamationCircle className="w-5 h-5 mr-2" />
+              {error}
+            </div>
+            <button 
+              className="text-red-700 hover:text-red-900"
+              onClick={() => window.location.reload()}
+            >
+              Reload
+            </button>
+          </div>
+        )}
+        
+        {loading && !currentPage ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        ) : currentPage ? (
           <>
             {/* Document Header */}
             <div className="bg-white border-b border-gray-200 px-6 py-4">
               <div className="flex justify-between items-center">
-                <h1 className="text-xl font-bold text-gray-900">{currentDocument.title}</h1>
-                <div className="flex items-center space-x-2">
-                  <button 
-                    className="px-3 py-1 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                    onClick={() => setIsEditing(!isEditing)}
-                  >
-                    {isEditing ? 'Cancel' : 'Edit'}
-                  </button>
-                  {isEditing && (
-                    <button className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                      Save
-                    </button>
+                <div>
+                  <h1 className="text-xl font-bold text-gray-900">{currentPage.title}</h1>
+                  {currentPage.last_editor && (
+                    <div className="mt-1 text-sm text-gray-500 flex items-center">
+                      <HiOutlineClock className="w-4 h-4 mr-1" />
+                      Last updated by {currentPage.last_editor.full_name} on {formatDate(currentPage.updated_at)}
+                    </div>
                   )}
                 </div>
-              </div>
-              <div className="mt-1 text-sm text-gray-500">
-                Last updated by {currentDocument.updatedBy} on {currentDocument.lastUpdated}
+                <div className="flex items-center space-x-2">
+                  <button 
+                    className="px-3 py-1 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50 flex items-center"
+                    onClick={() => setShowVersionsModal(true)}
+                  >
+                    <HiOutlineClock className="w-4 h-4 mr-1" />
+                    History
+                  </button>
+                  
+                  {!isEditing ? (
+                    <>
+                      <button 
+                        className="px-3 py-1 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50 flex items-center"
+                        onClick={() => setIsEditing(true)}
+                      >
+                        Edit
+                      </button>
+                      
+                      <button 
+                        className="px-3 py-1 text-sm bg-red-50 text-red-700 border border-red-200 rounded-md hover:bg-red-100 flex items-center"
+                        onClick={() => setConfirmDelete(true)}
+                      >
+                        <HiOutlineTrash className="w-4 h-4 mr-1" />
+                        Delete
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button 
+                        className="px-3 py-1 text-sm bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 flex items-center"
+                        onClick={() => setIsEditing(false)}
+                      >
+                        Cancel
+                      </button>
+                      
+                      <button 
+                        className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
+                        onClick={handleSave}
+                      >
+                        <HiOutlineSave className="w-4 h-4 mr-1" />
+                        Save
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
             
@@ -317,22 +497,90 @@ Any significant changes to project scope must go through the change request proc
             <div className="flex-1 overflow-auto p-6 bg-white">
               {isEditing ? (
                 <textarea 
-                  className="w-full h-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={currentDocument.content}
-                  onChange={() => {}}
+                  ref={editorRef}
+                  className="w-full h-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  placeholder="Enter your content here..."
                 />
               ) : (
-                renderMarkdown(currentDocument.content)
+                <div className="prose max-w-none">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {currentPage.content || '_No content yet. Click "Edit" to add content._'}
+                  </ReactMarkdown>
+                </div>
               )}
             </div>
           </>
         ) : (
           <div className="flex items-center justify-center h-full bg-white">
-            <p className="text-gray-500">Select a document from the sidebar</p>
+            <div className="text-center">
+              <p className="text-gray-500 mb-4">No page selected or create a new page to get started</p>
+              <button
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                onClick={() => setShowNewPageModal(true)}
+              >
+                <HiOutlineDocumentAdd className="inline-block w-4 h-4 mr-1" />
+                Create New Page
+              </button>
+            </div>
           </div>
         )}
       </div>
+      
+      {/* Modals */}
+      <NewPageModal 
+        isOpen={showNewPageModal}
+        onClose={() => setShowNewPageModal(false)}
+        onSave={handleNewPage}
+        parentId={null}
+      />
+      
+      <VersionsModal
+        isOpen={showVersionsModal}
+        onClose={() => setShowVersionsModal(false)}
+        versions={pageVersions}
+        onRestore={handleRestoreVersion}
+      />
+      
+      {/* Delete Confirmation Modal */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Delete Page</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Are you sure you want to delete "{currentPage?.title}"? This action cannot be undone.
+              </p>
+              
+              <div className="flex justify-end space-x-3">
+                <button
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
+                  onClick={() => setConfirmDelete(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700"
+                  onClick={handleDeletePage}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+};
+
+// Main Wiki Page Component with Provider
+const WikiPage = () => {
+  return (
+    <WikiProvider>
+      <WikiContent />
+    </WikiProvider>
   );
 };
 
