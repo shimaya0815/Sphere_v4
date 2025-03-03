@@ -23,11 +23,12 @@ class WikiAttachmentSerializer(serializers.ModelSerializer):
     """Serializer for wiki page attachments."""
     
     uploader = UserMiniSerializer(read_only=True)
+    page = serializers.PrimaryKeyRelatedField(queryset=WikiPage.objects.all(), required=True)
     
     class Meta:
         model = WikiAttachment
-        fields = ('id', 'file', 'filename', 'file_type', 'file_size', 'uploader', 'uploaded_at')
-        read_only_fields = ('uploader', 'uploaded_at')
+        fields = ('id', 'file', 'filename', 'file_type', 'file_size', 'uploader', 'uploaded_at', 'page')
+        read_only_fields = ('uploader', 'uploaded_at', 'filename', 'file_type', 'file_size')
 
 
 class WikiPageVersionSerializer(serializers.ModelSerializer):
