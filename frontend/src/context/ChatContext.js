@@ -20,8 +20,9 @@ export const ChatProvider = ({ children }) => {
     
     console.log('Getting WebSocket URL for channel:', channelId);
     
-    // Use explicit host for Docker environment
-    return `ws://localhost:8001/ws/chat/${channelId}/`;
+    // リバースプロキシを介してWebSocketサーバーに接続
+    // これによりCORSの問題が解決される
+    return `ws://${window.location.host}/ws/chat/${channelId}/`;
   };
   
   const { 
