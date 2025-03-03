@@ -207,10 +207,39 @@ export const ChatProvider = ({ children }) => {
   const sendMessage = useCallback(async (content, options = {}) => {
     if (!activeChannel) return null;
     
+    console.log('Sending message to channel:', activeChannel.id, content);
+    
     const { files, parentMessageId, mentionedUserIds } = options;
     
     try {
-      // Prepare message data
+      // Create a unique timestamp-based ID for this message
+      const tempId = `temp-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      
+      // Create a mock message immediately for UI responsiveness
+      const mockMessage = {
+        id: tempId,
+        content,
+        channel: activeChannel.id,
+        user: {
+          id: currentUser?.id || 1,
+          full_name: currentUser?.get_full_name ? currentUser.get_full_name() : 'Current User',
+        },
+        created_at: new Date().toISOString(),
+      };
+      
+      // Add the mock message to the UI immediately
+      handleNewMessage(mockMessage);
+      
+      // Try to send via WebSocket for real-time updates
+      if (isConnected) {
+        console.log('Sending via WebSocket:', mockMessage);
+        sendWebSocketMessage({
+          type: 'chat_message',
+          data: mockMessage
+        });
+      }
+      
+      // Prepare message data for API
       const messageData = {
         content,
         channel: activeChannel.id
@@ -224,20 +253,8 @@ export const ChatProvider = ({ children }) => {
         messageData.mentioned_user_ids = mentionedUserIds;
       }
       
-      // Create a mock message in case the API fails
-      const mockMessage = {
-        id: Math.floor(Math.random() * 1000000),
-        content,
-        channel: activeChannel.id,
-        user: {
-          id: currentUser?.id || 1,
-          full_name: currentUser?.get_full_name() || 'Current User',
-        },
-        created_at: new Date().toISOString(),
-      };
-      
       try {
-        // If has files, use FormData
+        // Try to send via API (in the background)
         if (files && files.length > 0) {
           const formData = new FormData();
           formData.append('channel', activeChannel.id);
@@ -257,52 +274,31 @@ export const ChatProvider = ({ children }) => {
             formData.append('files', file);
           });
           
-          const response = await chatApi.createMessage(formData);
-          
-          // Add new message to the list
-          handleNewMessage(response.data);
-          
-          // Also send via WebSocket for real-time updates to other users
-          if (isConnected) {
-            sendWebSocketMessage({
-              type: 'chat_message',
-              data: response.data
+          // Send API request but don't block UI
+          chatApi.createMessage(formData)
+            .then(response => {
+              console.log('Message saved to API:', response.data);
+            })
+            .catch(err => {
+              console.warn('Could not save message to API, but WebSocket delivery was attempted', err);
             });
-          }
-          
-          return response.data;
         } else {
-          // Regular JSON message
-          const response = await chatApi.createMessage(messageData);
-          
-          // Add new message to the list
-          handleNewMessage(response.data);
-          
-          // Also send via WebSocket for real-time updates to other users
-          if (isConnected) {
-            sendWebSocketMessage({
-              type: 'chat_message',
-              data: response.data
+          // Regular JSON message - send but don't block UI
+          chatApi.createMessage(messageData)
+            .then(response => {
+              console.log('Message saved to API:', response.data);
+            })
+            .catch(err => {
+              console.warn('Could not save message to API, but WebSocket delivery was attempted', err);
             });
-          }
-          
-          return response.data;
         }
       } catch (apiError) {
         console.error('API Error when sending message:', apiError);
-        
-        // If API fails, still update UI with the mock message and send via WebSocket
-        handleNewMessage(mockMessage);
-        
-        if (isConnected) {
-          sendWebSocketMessage({
-            type: 'chat_message',
-            data: mockMessage
-          });
-        }
-        
-        return mockMessage;
+        // Already added message to UI and attempted WebSocket delivery
       }
+      
+      // Return the mock message that was added to the UI
+      return mockMessage;
     } catch (err) {
       console.error('Error sending message:', err);
       setError('Failed to send message');
