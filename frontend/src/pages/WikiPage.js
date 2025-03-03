@@ -8,8 +8,7 @@ import {
   HiOutlineFolder,
   HiOutlineDocument,
   HiOutlineChevronDown,
-  HiOutlineChevronRight,
-  HiOutlinePlus,
+  HiOutlineChevronRight, 
   HiOutlineSearch,
   HiOutlineSave,
   HiOutlineTrash,
@@ -18,7 +17,16 @@ import {
   HiOutlinePaperClip,
   HiOutlineX,
   HiOutlineExclamationCircle,
-  HiOutlinePhotograph
+  HiOutlinePhotograph,
+  HiOutlineHome,
+  HiOutlinePlus,
+  HiOutlinePencil,
+  HiOutlineInformationCircle,
+  HiOutlineEye,
+  HiOutlineExternalLink,
+  HiOutlineUsers,
+  HiOutlineArrowLeft,
+  HiOutlineCalendar
 } from 'react-icons/hi';
 
 // Wiki Sidebar Item Component
@@ -280,6 +288,8 @@ const WikiContent = () => {
     searchResults,
     searchQuery,
     pageVersions,
+    pageAttachments,
+    wikiStats,
     loading,
     error,
     setIsEditing,
@@ -299,6 +309,9 @@ const WikiContent = () => {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [newPageParentId, setNewPageParentId] = useState(null);
   const [parentOptions, setParentOptions] = useState([]);
+  const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
+  const [viewMode, setViewMode] = useState('preview'); // 'preview', 'editor', 'split'
   
   const editorRef = useRef(null);
   
@@ -469,103 +482,215 @@ const WikiContent = () => {
     return format(new Date(dateString), 'MMM d, yyyy h:mm a');
   };
   
+  // Toggle dark mode
+  const toggleDarkMode = () => {
+    setDarkMode(!darkMode);
+    // You could store this preference in localStorage
+  };
+
+  // Toggle sidebar
+  const toggleSidebar = () => {
+    setSidebarExpanded(!sidebarExpanded);
+  };
+
+  // Base theme classes
+  const themeClasses = darkMode 
+    ? {
+        bg: 'bg-gray-900',
+        text: 'text-gray-100',
+        border: 'border-gray-700',
+        sidebar: 'bg-gray-800 border-gray-700',
+        input: 'bg-gray-800 border-gray-600 text-gray-100',
+        button: {
+          primary: 'bg-blue-600 hover:bg-blue-700 text-white',
+          secondary: 'bg-gray-700 hover:bg-gray-600 text-gray-100',
+          danger: 'bg-red-600 hover:bg-red-700 text-white',
+        },
+        iconButton: 'text-gray-400 hover:text-white',
+        card: 'bg-gray-800 border-gray-700',
+        highlight: 'bg-gray-700',
+        muted: 'text-gray-400'
+      }
+    : {
+        bg: 'bg-white',
+        text: 'text-gray-800',
+        border: 'border-gray-200',
+        sidebar: 'bg-gray-50 border-gray-200',
+        input: 'bg-white border-gray-300 text-gray-800',
+        button: {
+          primary: 'bg-blue-600 hover:bg-blue-700 text-white',
+          secondary: 'bg-gray-100 hover:bg-gray-200 text-gray-800',
+          danger: 'bg-red-600 hover:bg-red-700 text-white',
+        },
+        iconButton: 'text-gray-500 hover:text-gray-800',
+        card: 'bg-white border-gray-200',
+        highlight: 'bg-blue-50',
+        muted: 'text-gray-500'
+      };
+
   return (
-    <div className="flex h-[calc(100vh-64px)]">
+    <div className={`flex h-[calc(100vh-64px)] ${themeClasses.bg} ${themeClasses.text}`}>
       {/* Sidebar */}
-      <div className="w-64 bg-gray-50 border-r border-gray-200 flex flex-col">
-        {/* Search */}
-        <div className="p-4 border-b border-gray-200">
-          <div className="relative">
-            <input 
-              type="text" 
-              placeholder="Search wiki..."
-              className="w-full py-2 pl-8 pr-3 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={searchQuery}
-              onChange={(e) => handleSearchQueryChange(e.target.value)}
-            />
-            <div className="absolute inset-y-0 left-0 flex items-center pl-2">
-              <HiOutlineSearch className="w-4 h-4 text-gray-400" />
-            </div>
-          </div>
-        </div>
-        
-        {/* Document Tree / Search Results */}
-        <div className="flex-1 overflow-y-auto p-4">
-          {searchQuery ? (
-            <>
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Search Results</h3>
-              {searchResults.length > 0 ? (
-                <ul className="space-y-1">
-                  {searchResults.map(page => (
-                    <li key={page.id}>
-                      <button 
-                        className="flex items-center w-full px-2 py-1 text-left text-sm hover:bg-gray-200 rounded-md"
-                        onClick={() => {
-                          loadPage(page.id);
-                          handleSearchQueryChange('');
-                        }}
-                      >
-                        <HiOutlineDocument className="w-4 h-4 mr-2 text-gray-500" />
-                        {page.title}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-gray-500">No results found</p>
-              )}
-            </>
-          ) : (
-            <>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Documents</h3>
-                <button 
-                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                  onClick={() => openNewPageModal(null)}
-                >
-                  + New
-                </button>
+      <div className={`${sidebarExpanded ? 'w-64' : 'w-16'} ${themeClasses.sidebar} border-r ${themeClasses.border} flex flex-col transition-all duration-200`}>
+        {sidebarExpanded ? (
+          <>
+            {/* Search */}
+            <div className={`p-4 border-b ${themeClasses.border}`}>
+              <div className="relative">
+                <input 
+                  type="text" 
+                  placeholder="Search wiki..."
+                  className={`w-full py-2 pl-8 pr-3 text-sm ${themeClasses.input} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                  value={searchQuery}
+                  onChange={(e) => handleSearchQueryChange(e.target.value)}
+                />
+                <div className="absolute inset-y-0 left-0 flex items-center pl-2">
+                  <HiOutlineSearch className={`w-4 h-4 ${themeClasses.muted}`} />
+                </div>
               </div>
-              
-              <div className="space-y-1">
-                {wikiStructure.length > 0 ? (
-                  wikiStructure.map(item => (
-                    <WikiSidebarItem 
-                      key={item.id} 
-                      item={item}
-                      onSelect={loadPage}
-                    />
-                  ))
-                ) : loading ? (
-                  <p className="text-sm text-gray-500">Loading...</p>
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-sm text-gray-500 mb-4">No pages yet</p>
-                    <button
-                      className="px-3 py-1 text-sm font-medium text-blue-700 bg-blue-50 rounded-md hover:bg-blue-100"
+            </div>
+            
+            {/* Document Tree / Search Results */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {searchQuery ? (
+                <>
+                  <h3 className={`text-xs font-semibold ${themeClasses.muted} uppercase tracking-wider mb-2`}>Search Results</h3>
+                  {searchResults && searchResults.length > 0 ? (
+                    <ul className="space-y-1">
+                      {searchResults.map(page => (
+                        <li key={page.id}>
+                          <button 
+                            className={`flex items-center w-full px-2 py-1 text-left text-sm hover:${themeClasses.highlight} rounded-md`}
+                            onClick={() => {
+                              loadPage(page.id);
+                              handleSearchQueryChange('');
+                            }}
+                          >
+                            <HiOutlineDocument className={`w-4 h-4 mr-2 ${themeClasses.muted}`} />
+                            {page.title}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className={`text-sm ${themeClasses.muted}`}>No results found</p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className={`text-xs font-semibold ${themeClasses.muted} uppercase tracking-wider`}>Documents</h3>
+                    <button 
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                       onClick={() => openNewPageModal(null)}
                     >
-                      <HiOutlineDocumentAdd className="inline-block w-4 h-4 mr-1" />
-                      Create First Page
+                      + New
                     </button>
                   </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
+                  
+                  <div className="space-y-1">
+                    {wikiStructure && wikiStructure.length > 0 ? (
+                      wikiStructure.map(item => (
+                        <WikiSidebarItem 
+                          key={item.id} 
+                          item={item}
+                          onSelect={loadPage}
+                        />
+                      ))
+                    ) : loading ? (
+                      <div className="flex items-center justify-center h-32">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <p className={`text-sm ${themeClasses.muted} mb-4`}>No pages yet</p>
+                        <button
+                          className="px-3 py-1 text-sm font-medium text-blue-700 bg-blue-50 rounded-md hover:bg-blue-100"
+                          onClick={() => openNewPageModal(null)}
+                        >
+                          <HiOutlineDocumentAdd className="inline-block w-4 h-4 mr-1" />
+                          Create First Page
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </>
+        ) : (
+          /* Collapsed sidebar */
+          <div className="flex flex-col items-center pt-4">
+            <button 
+              className={`p-2 rounded-md mb-4 ${themeClasses.iconButton}`} 
+              onClick={toggleSidebar}
+              title="Expand sidebar"
+            >
+              <HiOutlineChevronRight className="w-5 h-5" />
+            </button>
+            <button 
+              className={`p-2 rounded-md mb-2 ${themeClasses.iconButton}`}
+              onClick={() => handleSearchQueryChange('')}
+              title="Search"
+            >
+              <HiOutlineSearch className="w-5 h-5" />
+            </button>
+            <button 
+              className={`p-2 rounded-md mb-2 ${themeClasses.iconButton}`}
+              onClick={() => openNewPageModal(null)}
+              title="New page"
+            >
+              <HiOutlineDocumentAdd className="w-5 h-5" />
+            </button>
+            <button 
+              className={`p-2 rounded-md mb-2 ${themeClasses.iconButton}`}
+              onClick={toggleDarkMode}
+              title={darkMode ? "Light mode" : "Dark mode"}
+            >
+              {darkMode ? (
+                <HiOutlineEye className="w-5 h-5" />
+              ) : (
+                <HiOutlineEye className="w-5 h-5" />
+              )}
+            </button>
+          </div>
+        )}
+        
+        {/* Footer with toggle and theme buttons */}
+        {sidebarExpanded && (
+          <div className={`p-2 border-t ${themeClasses.border} flex justify-between`}>
+            <button 
+              className={`p-2 rounded-md ${themeClasses.iconButton}`} 
+              onClick={toggleSidebar}
+              title="Collapse sidebar"
+            >
+              <HiOutlineChevronLeft className="w-5 h-5" />
+            </button>
+            <button 
+              className={`p-2 rounded-md ${themeClasses.iconButton}`}
+              onClick={toggleDarkMode}
+              title={darkMode ? "Light mode" : "Dark mode"}
+            >
+              {darkMode ? (
+                <HiOutlineEye className="w-5 h-5" />
+              ) : (
+                <HiOutlineEye className="w-5 h-5" />
+              )}
+            </button>
+          </div>
+        )}
       </div>
       
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className={`flex-1 flex flex-col overflow-hidden ${themeClasses.bg}`}>
         {error && (
-          <div className="bg-red-50 text-red-700 p-4 border-b border-red-200 flex justify-between items-center">
+          <div className={`bg-red-50 text-red-700 p-4 border-b border-red-200 flex justify-between items-center ${darkMode ? 'bg-red-900 border-red-800 text-red-200' : ''}`}>
             <div className="flex items-center">
               <HiOutlineExclamationCircle className="w-5 h-5 mr-2" />
               {error}
             </div>
             <button 
-              className="text-red-700 hover:text-red-900"
+              className={`${darkMode ? 'text-red-200 hover:text-red-100' : 'text-red-700 hover:text-red-900'}`}
               onClick={() => window.location.reload()}
             >
               Reload
@@ -575,126 +700,223 @@ const WikiContent = () => {
         
         {loading && !currentPage ? (
           <div className="flex-1 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className={`animate-spin rounded-full h-12 w-12 border-b-2 ${darkMode ? 'border-blue-400' : 'border-blue-600'}`}></div>
           </div>
         ) : currentPage ? (
           <>
             {/* Document Header */}
-            <div className="bg-white border-b border-gray-200 px-6 py-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h1 className="text-xl font-bold text-gray-900">{currentPage.title}</h1>
+            <div className={`${themeClasses.card} border-b ${themeClasses.border} px-6 py-4`}>
+              <div className="flex flex-col md:flex-row md:justify-between md:items-center">
+                <div className="mb-4 md:mb-0">
+                  <div className="flex items-center">
+                    <h1 className={`text-2xl font-bold ${themeClasses.text}`}>{currentPage.title}</h1>
+                    {!isEditing ? (
+                      <button
+                        className={`ml-2 p-1 rounded-full ${themeClasses.iconButton}`}
+                        onClick={() => setIsEditing(true)}
+                        title="Edit"
+                      >
+                        <HiOutlinePencil className="w-4 h-4" />
+                      </button>
+                    ) : null}
+                  </div>
                   {currentPage.last_editor && (
-                    <div className="mt-1 text-sm text-gray-500 flex items-center">
+                    <div className={`mt-1 text-sm ${themeClasses.muted} flex items-center`}>
                       <HiOutlineClock className="w-4 h-4 mr-1" />
-                      Last updated by {currentPage.last_editor.full_name} on {formatDate(currentPage.updated_at)}
+                      <span>Last updated by </span>
+                      <span className="font-medium mx-1">{currentPage.last_editor.full_name}</span>
+                      <span>on </span>
+                      <span className="ml-1 flex items-center">
+                        <HiOutlineCalendar className="w-3 h-3 mr-1" />
+                        {formatDate(currentPage.updated_at)}
+                      </span>
                     </div>
                   )}
                 </div>
-                <div className="flex items-center space-x-2">
-                  <button 
-                    className="px-3 py-1 text-sm bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 flex items-center"
-                    onClick={() => openNewPageModal(currentPage.id)}
-                  >
-                    <HiOutlineDocumentAdd className="w-4 h-4 mr-1" />
-                    Add Child
-                  </button>
-                  <button 
-                    className="px-3 py-1 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50 flex items-center"
-                    onClick={() => setShowVersionsModal(true)}
-                  >
-                    <HiOutlineClock className="w-4 h-4 mr-1" />
-                    History
-                  </button>
+                <div className="flex flex-wrap gap-2">
+                  {viewMode === 'preview' && isEditing ? (
+                    <button
+                      className={`px-3 py-2 text-sm rounded-md ${themeClasses.button.primary} font-medium flex items-center shadow-sm`}
+                      onClick={handleSave}
+                    >
+                      <HiOutlineSave className="w-4 h-4 mr-2" />
+                      Save
+                    </button>
+                  ) : null}
+                  
+                  <div className="flex rounded-md overflow-hidden shadow-sm border border-gray-300 dark:border-gray-700">
+                    <button
+                      className={`px-3 py-2 text-sm flex items-center ${viewMode === 'editor' ? 'bg-blue-100 dark:bg-blue-900' : 'bg-white dark:bg-gray-800'} ${isEditing ? '' : 'opacity-50 cursor-not-allowed'}`}
+                      onClick={() => isEditing && setViewMode('editor')}
+                      disabled={!isEditing}
+                      title="Editor"
+                    >
+                      <HiOutlinePencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      className={`px-3 py-2 text-sm flex items-center ${viewMode === 'split' ? 'bg-blue-100 dark:bg-blue-900' : 'bg-white dark:bg-gray-800'} ${isEditing ? '' : 'opacity-50 cursor-not-allowed'}`}
+                      onClick={() => isEditing && setViewMode('split')}
+                      disabled={!isEditing}
+                      title="Split view"
+                    >
+                      <HiOutlineExternalLink className="w-4 h-4" />
+                    </button>
+                    <button
+                      className={`px-3 py-2 text-sm flex items-center ${viewMode === 'preview' ? 'bg-blue-100 dark:bg-blue-900' : 'bg-white dark:bg-gray-800'}`}
+                      onClick={() => setViewMode('preview')}
+                      title="Preview"
+                    >
+                      <HiOutlineEye className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  <div className="flex">
+                    <button 
+                      className={`px-3 py-2 text-sm ${themeClasses.button.secondary} rounded-l-md flex items-center shadow-sm`}
+                      onClick={() => openNewPageModal(currentPage.id)}
+                    >
+                      <HiOutlineDocumentAdd className="w-4 h-4 mr-1" />
+                      <span className="hidden md:inline">Add Child</span>
+                      <span className="inline md:hidden">+</span>
+                    </button>
+                    <button 
+                      className={`px-3 py-2 text-sm ${themeClasses.button.secondary} rounded-r-md border-l ${themeClasses.border} flex items-center shadow-sm`}
+                      onClick={() => setShowVersionsModal(true)}
+                    >
+                      <HiOutlineClock className="w-4 h-4 mr-1" />
+                      <span className="hidden md:inline">History</span>
+                    </button>
+                  </div>
                   
                   {!isEditing ? (
-                    <>
-                      <button 
-                        className="px-3 py-1 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50 flex items-center"
-                        onClick={() => setIsEditing(true)}
-                      >
-                        Edit
-                      </button>
-                      
-                      <button 
-                        className="px-3 py-1 text-sm bg-red-50 text-red-700 border border-red-200 rounded-md hover:bg-red-100 flex items-center"
-                        onClick={() => setConfirmDelete(true)}
-                      >
-                        <HiOutlineTrash className="w-4 h-4 mr-1" />
-                        Delete
-                      </button>
-                    </>
+                    <button 
+                      className={`px-3 py-2 text-sm ${themeClasses.button.danger} rounded-md flex items-center shadow-sm`}
+                      onClick={() => setConfirmDelete(true)}
+                    >
+                      <HiOutlineTrash className="w-4 h-4 mr-1" />
+                      <span className="hidden md:inline">Delete</span>
+                    </button>
                   ) : (
-                    <>
-                      <button 
-                        className="px-3 py-1 text-sm bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 flex items-center"
-                        onClick={() => setIsEditing(false)}
-                      >
-                        Cancel
-                      </button>
-                      
-                      <button 
-                        className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
-                        onClick={handleSave}
-                      >
-                        <HiOutlineSave className="w-4 h-4 mr-1" />
-                        Save
-                      </button>
-                    </>
+                    <button 
+                      className={`px-3 py-2 text-sm ${themeClasses.button.secondary} rounded-md flex items-center shadow-sm`}
+                      onClick={() => setIsEditing(false)}
+                    >
+                      <HiOutlineX className="w-4 h-4 mr-1" />
+                      <span className="hidden md:inline">Cancel</span>
+                    </button>
                   )}
                 </div>
               </div>
+              
+              {/* Optional breadcrumbs or tags could go here */}
             </div>
             
             {/* Document Content */}
-            <div className="flex-1 overflow-auto p-6 bg-white">
+            <div className={`flex-1 overflow-auto p-6 ${themeClasses.bg}`}>
               {isEditing ? (
                 <div className="flex flex-col h-full">
-                  <div className="flex h-full">
-                    {/* Editor pane */}
-                    <div className="w-1/2 pr-2">
+                  {viewMode === 'editor' && (
+                    <div className="flex flex-col h-full">
                       <textarea 
                         ref={editorRef}
-                        className="w-full h-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                        className={`w-full h-full p-4 border ${themeClasses.border} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono ${darkMode ? 'bg-gray-800 text-gray-200' : 'bg-white'}`}
                         value={editContent}
                         onChange={(e) => setEditContent(e.target.value)}
                         placeholder="Enter your content here..."
                       />
                     </div>
-                    
-                    {/* Preview pane */}
-                    <div className="w-1/2 pl-2 border-l border-gray-200">
-                      <div className="p-4 h-full overflow-auto">
-                        <h3 className="text-sm font-medium text-gray-500 mb-2">Preview</h3>
-                        <div className="prose max-w-none">
+                  )}
+                  
+                  {viewMode === 'preview' && (
+                    <div className="prose prose-lg max-w-none dark:prose-invert">
+                      <ReactMarkdown 
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          img: ({node, ...props}) => (
+                            <img 
+                              {...props} 
+                              className="my-4 rounded-lg shadow-lg" 
+                              alt={props.alt || 'Image'} 
+                              src={`${props.src}?t=${Date.now()}`}
+                              style={{maxWidth: '100%'}}
+                            />
+                          ),
+                          a: ({node, ...props}) => (
+                            <a 
+                              {...props} 
+                              className={`text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            />
+                          ),
+                          code: ({node, inline, ...props}) => (
+                            inline 
+                              ? <code className={`px-1 py-0.5 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`} {...props} />
+                              : <code className={`block p-4 rounded-md ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`} {...props} />
+                          )
+                        }}
+                      >
+                        {editContent || '# New Document\n\nStart typing your content here...'}
+                      </ReactMarkdown>
+                    </div>
+                  )}
+                  
+                  {viewMode === 'split' && (
+                    <div className="flex h-full space-x-4">
+                      {/* Editor pane */}
+                      <div className="w-1/2">
+                        <textarea 
+                          ref={editorRef}
+                          className={`w-full h-full p-4 border ${themeClasses.border} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono ${darkMode ? 'bg-gray-800 text-gray-200' : 'bg-white'}`}
+                          value={editContent}
+                          onChange={(e) => setEditContent(e.target.value)}
+                          placeholder="Enter your content here..."
+                        />
+                      </div>
+                      
+                      {/* Preview pane */}
+                      <div className={`w-1/2 rounded-lg ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border p-4 overflow-auto`}>
+                        <div className="prose max-w-none dark:prose-invert">
                           <ReactMarkdown 
                             remarkPlugins={[remarkGfm]}
                             components={{
                               img: ({node, ...props}) => (
                                 <img 
                                   {...props} 
-                                  className="my-4 rounded-md shadow-md" 
+                                  className="my-4 rounded-lg shadow-md" 
                                   alt={props.alt || 'Image'} 
-                                  // Force image reload by adding timestamp to prevent caching
                                   src={`${props.src}?t=${Date.now()}`}
                                   style={{maxWidth: '100%'}}
                                 />
+                              ),
+                              a: ({node, ...props}) => (
+                                <a 
+                                  {...props} 
+                                  className={`text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                />
+                              ),
+                              code: ({node, inline, ...props}) => (
+                                inline 
+                                  ? <code className={`px-1 py-0.5 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`} {...props} />
+                                  : <code className={`block p-4 rounded-md ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`} {...props} />
                               )
                             }}
                           >
-                            {editContent || '_No content yet._'}
+                            {editContent || '# New Document\n\nStart typing your content here...'}
                           </ReactMarkdown>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                   
                   {/* Editor toolbar */}
-                  <div className="flex items-center mt-2 text-gray-500 text-sm">
-                    <div className="flex items-center mr-4">
-                      <HiOutlinePaperClip className="w-4 h-4 mr-1" />
-                      <label htmlFor="fileUpload" className="cursor-pointer hover:text-gray-700">
-                        Attach file
+                  <div className={`flex flex-wrap items-center gap-3 mt-4 py-3 px-4 border ${themeClasses.border} rounded-lg ${themeClasses.card} shadow-sm`}>
+                    <div className="flex items-center">
+                      <label htmlFor="fileUpload" className={`flex items-center gap-2 px-3 py-1.5 rounded-md ${themeClasses.button.secondary} cursor-pointer`}>
+                        <HiOutlinePaperClip className="w-4 h-4" />
+                        <span>Attach</span>
                         <input 
                           type="file"
                           id="fileUpload"
@@ -710,7 +932,7 @@ const WikiContent = () => {
                               if (result && result.file) {
                                 // Add markdown link to the file
                                 const isImage = result.file_type.startsWith('image/');
-                                // Use the URL directly from the server response (should now be absolute)
+                                // Use the URL directly from the server response
                                 const fileUrl = result.file;
                                 const markdownLink = isImage 
                                   ? `\n\n![${result.filename}](${fileUrl})\n\n` 
@@ -731,42 +953,112 @@ const WikiContent = () => {
                       </label>
                     </div>
                     
-                    <div className="flex items-center">
-                      <HiOutlinePhotograph className="w-4 h-4 mr-1" />
-                      <span className="text-gray-500">Paste images directly (Ctrl+V)</span>
+                    <div className={`hidden sm:flex items-center gap-2 text-sm ${themeClasses.muted}`}>
+                      <HiOutlinePhotograph className="w-4 h-4" />
+                      <span>Paste images with Ctrl+V</span>
+                    </div>
+                    
+                    {/* Markdown formatting buttons */}
+                    <div className="flex items-center gap-1 ml-auto">
+                      <button
+                        className={`p-1.5 rounded ${themeClasses.iconButton}`}
+                        onClick={() => {
+                          const selection = editorRef.current.selectionStart;
+                          const val = editorRef.current.value;
+                          setEditContent(
+                            val.substring(0, selection) + 
+                            "**Bold**" + 
+                            val.substring(selection)
+                          );
+                        }}
+                        title="Bold"
+                      >
+                        <span className="font-bold">B</span>
+                      </button>
+                      <button
+                        className={`p-1.5 rounded ${themeClasses.iconButton}`}
+                        onClick={() => {
+                          const selection = editorRef.current.selectionStart;
+                          const val = editorRef.current.value;
+                          setEditContent(
+                            val.substring(0, selection) + 
+                            "*Italic*" + 
+                            val.substring(selection)
+                          );
+                        }}
+                        title="Italic"
+                      >
+                        <span className="italic">I</span>
+                      </button>
+                      <button
+                        className={`p-1.5 rounded ${themeClasses.iconButton}`}
+                        onClick={() => {
+                          const selection = editorRef.current.selectionStart;
+                          const val = editorRef.current.value;
+                          setEditContent(
+                            val.substring(0, selection) + 
+                            "[Link](https://example.com)" + 
+                            val.substring(selection)
+                          );
+                        }}
+                        title="Link"
+                      >
+                        <span className="underline">L</span>
+                      </button>
+                      <button
+                        className={`p-1.5 rounded ${themeClasses.iconButton}`}
+                        onClick={() => {
+                          const selection = editorRef.current.selectionStart;
+                          const val = editorRef.current.value;
+                          setEditContent(
+                            val.substring(0, selection) + 
+                            "# Heading" + 
+                            val.substring(selection)
+                          );
+                        }}
+                        title="Heading"
+                      >
+                        <span className="font-bold">H</span>
+                      </button>
                     </div>
                     
                     {uploadingImage && (
-                      <div className="ml-auto flex items-center text-blue-600">
+                      <div className="flex items-center text-blue-600 dark:text-blue-400 ml-auto">
                         <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        Uploading image...
+                        <span>Uploading...</span>
                       </div>
                     )}
                   </div>
-                  
-                  {/* Markdown tips */}
-                  <div className="mt-2 text-xs text-gray-500">
-                    <span className="block mb-1">Markdown supported: **bold**, *italic*, [links](url), ![images](url), `code`</span>
-                    <span>Paste screenshots or images directly with Ctrl+V or use the attachment button above.</span>
-                  </div>
                 </div>
               ) : (
-                <div className="prose max-w-none">
+                <div className={`prose lg:prose-lg max-w-none ${darkMode ? 'prose-invert' : ''}`}>
                   <ReactMarkdown 
                     remarkPlugins={[remarkGfm]}
                     components={{
                       img: ({node, ...props}) => (
                         <img 
                           {...props} 
-                          className="my-4 rounded-md shadow-md" 
+                          className="my-4 rounded-lg shadow-lg" 
                           alt={props.alt || 'Image'} 
-                          // Force image reload by adding timestamp to prevent caching
                           src={`${props.src}?t=${Date.now()}`}
                           style={{maxWidth: '100%'}}
                         />
+                      ),
+                      a: ({node, ...props}) => (
+                        <a 
+                          {...props} 
+                          className={`text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        />
+                      ),
+                      code: ({node, inline, ...props}) => (
+                        inline 
+                          ? <code className={`px-1 py-0.5 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`} {...props} />
+                          : <code className={`block p-4 rounded-md ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`} {...props} />
                       )
                     }}
                   >
@@ -777,15 +1069,21 @@ const WikiContent = () => {
             </div>
           </>
         ) : (
-          <div className="flex items-center justify-center h-full bg-white">
-            <div className="text-center">
-              <p className="text-gray-500 mb-4">No page selected or create a new page to get started</p>
+          <div className={`flex items-center justify-center h-full ${themeClasses.bg}`}>
+            <div className="text-center max-w-md px-8 py-10 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-800">
+              <div className="flex justify-center mb-6">
+                <div className="p-3 bg-blue-50 dark:bg-blue-900 rounded-full">
+                  <HiOutlineDocumentAdd className="w-12 h-12 text-blue-600 dark:text-blue-400" />
+                </div>
+              </div>
+              <h2 className={`text-xl font-bold mb-2 ${themeClasses.text}`}>Welcome to the Wiki</h2>
+              <p className={`${themeClasses.muted} mb-6`}>Create your first page to get started with documentation, notes, procedures, and knowledge sharing.</p>
               <button
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                className="w-full px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 shadow-sm transition-all duration-150 flex items-center justify-center"
                 onClick={() => openNewPageModal(null)}
               >
-                <HiOutlineDocumentAdd className="inline-block w-4 h-4 mr-1" />
-                Create New Page
+                <HiOutlineDocumentAdd className="w-5 h-5 mr-2" />
+                Create Your First Page
               </button>
             </div>
           </div>
@@ -810,23 +1108,26 @@ const WikiContent = () => {
       
       {/* Delete Confirmation Modal */}
       {confirmDelete && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-xl max-w-md w-full transform transition-all duration-300 scale-100`}>
             <div className="p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Delete Page</h3>
-              <p className="text-sm text-gray-500 mb-4">
-                Are you sure you want to delete "{currentPage?.title}"? This action cannot be undone.
+              <h3 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'} mb-2 flex items-center`}>
+                <HiOutlineExclamationCircle className="w-5 h-5 text-red-500 mr-2" />
+                Delete Page
+              </h3>
+              <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-500'} mb-6`}>
+                Are you sure you want to delete <span className="font-medium">"{currentPage?.title}"</span>? This action cannot be undone.
               </p>
               
-              <div className="flex justify-end space-x-3">
+              <div className="flex justify-end gap-3">
                 <button
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
+                  className={`px-4 py-2 text-sm font-medium ${darkMode ? 'text-gray-300 bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-gray-100 hover:bg-gray-200'} rounded-md transition-colors`}
                   onClick={() => setConfirmDelete(false)}
                 >
                   Cancel
                 </button>
                 <button
-                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700"
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
                   onClick={handleDeletePage}
                 >
                   Delete
