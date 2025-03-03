@@ -22,13 +22,13 @@ import {
   HiOutlineBriefcase
 } from 'react-icons/hi';
 
-const ClientDetail = () => {
-  const { id } = useParams();
+const ClientDetail = ({ id, client: initialClient }) => {
+  // propsからidとclientを受け取る
   const navigate = useNavigate();
-  const [client, setClient] = useState(null);
+  const [client, setClient] = useState(initialClient || null);
   const [fiscalYears, setFiscalYears] = useState([]);
   const [checkSettings, setCheckSettings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialClient);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('basic');
   const [showFiscalYearForm, setShowFiscalYearForm] = useState(false);
@@ -37,19 +37,33 @@ const ClientDetail = () => {
   const [editingCheckSetting, setEditingCheckSetting] = useState(null);
   
   useEffect(() => {
-    console.log('ClientDetail received id:', id);
-    if (id) {
+    console.log('ClientDetail received id:', id, 'and client:', initialClient);
+    
+    // initialClientが提供された場合、それを使用
+    if (initialClient) {
+      setClient(initialClient);
+      setLoading(false);
+      
+      // 関連データの取得
+      if (id) {
+        fetchFiscalYears();
+        fetchCheckSettings();
+      }
+    } 
+    // そうでなく、IDが提供されている場合は、データをフェッチ
+    else if (id) {
       fetchClientData();
     } else {
       setError('クライアントIDが指定されていません');
       setLoading(false);
     }
-  }, [id]);
+  }, [id, initialClient]);
   
   const fetchClientData = async () => {
     setLoading(true);
     try {
       const clientData = await clientsApi.getClient(id);
+      console.log('Fetched client data in component:', clientData);
       setClient(clientData);
       
       // 関連データの取得
