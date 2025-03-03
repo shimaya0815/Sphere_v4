@@ -32,22 +32,40 @@ const TasksPage = ({ view }) => {
   const handleTaskUpdated = (updatedTask) => {
     console.log("Task updated in parent:", updatedTask);
     
+    if (!updatedTask) {
+      console.warn("Received empty updatedTask in handleTaskUpdated");
+      return;
+    }
+    
+    // 現在のタスクと更新タスクを比較（デバッグ用）
+    if (selectedTask) {
+      console.log("Previous task state:", selectedTask);
+      console.log("Updated task state:", updatedTask);
+      
+      // 重要なフィールドの変更を確認
+      const keysToCheck = ['status', 'priority', 'category'];
+      keysToCheck.forEach(key => {
+        const oldValue = selectedTask[key];
+        const newValue = updatedTask[key];
+        console.log(`Field ${key}: ${JSON.stringify(oldValue)} -> ${JSON.stringify(newValue)}`);
+      });
+    }
+    
     // 更新されたタスクを選択状態にセット（スライドオーバーの表示を更新）
     setSelectedTask(updatedTask);
     
-    // 強制的にタスク一覧を再読み込み
-    if (taskListRef.current && typeof taskListRef.current.refreshTasks === 'function') {
-      console.log("Refreshing task list");
-      setTimeout(() => {
+    // 強制的にタスク一覧を再読み込み - 少し遅延させて状態更新が確実に行われるようにする
+    setTimeout(() => {
+      console.log("Attempting to refresh task list after delay");
+      if (taskListRef.current && typeof taskListRef.current.refreshTasks === 'function') {
+        console.log("Refreshing task list via ref");
         taskListRef.current.refreshTasks();
-      }, 100);
-    } else {
-      console.log("Could not refresh tasks - ref or method not available");
-      // フォールバック: カスタムイベントを発火
-      setTimeout(() => {
+      } else {
+        console.log("Could not refresh tasks via ref - using event fallback");
+        // フォールバック: カスタムイベントを発火
         window.dispatchEvent(new Event('task-update-force-refresh'));
-      }, 100);
-    }
+      }
+    }, 300); // 少し長めの遅延で確実にUIを更新
   };
   
   // 詳細表示の場合 (URL経由での表示)

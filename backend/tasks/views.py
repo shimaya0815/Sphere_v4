@@ -21,6 +21,28 @@ class TaskViewSet(viewsets.ModelViewSet):
     ordering_fields = ['created_at', 'due_date', 'status__order', 'priority__level']
     ordering = ['-created_at']
     
+    def update(self, request, *args, **kwargs):
+        """Custom update method to handle task updates properly"""
+        print(f"TASK UPDATE REQUEST: {request.data}")
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        
+        # Log the update details for debugging
+        print(f"Updating task {instance.id} with data: {request.data}")
+        print(f"Current task status: {instance.status.id if instance.status else None}")
+        
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        
+        # Get the updated instance for returning the complete data
+        updated_instance = self.get_object()
+        print(f"Updated task status: {updated_instance.status.id if updated_instance.status else None}")
+        
+        # Create a serialized response with the fully updated task
+        response_serializer = self.get_serializer(updated_instance)
+        return Response(response_serializer.data)
+    
     def get_queryset(self):
         """Return tasks for the authenticated user's business."""
         queryset = Task.objects.filter(business=self.request.user.business)

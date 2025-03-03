@@ -227,71 +227,127 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
       // Format value based on field type
       let formattedValue = value;
       
+      // 厳格なデータ型変換を行う
       if (field === 'status' || field === 'priority' || field === 'category' || field === 'fiscal_year') {
-        formattedValue = value ? parseInt(value) : null;
+        formattedValue = value && value !== '' ? parseInt(value, 10) : null;
+        console.log(`Converting ${field} value '${value}' to ${formattedValue}`);
       } else if (field === 'due_date') {
         formattedValue = value ? new Date(value).toISOString() : null;
+        console.log(`Converting ${field} value '${value}' to ${formattedValue}`);
       } else if (field === 'is_fiscal_task') {
-        formattedValue = value === 'true';
+        formattedValue = value === 'true' || value === true;
+        console.log(`Converting ${field} value '${value}' to ${formattedValue}`);
       } else if (field === 'client') {
-        formattedValue = value ? parseInt(value) : null;
+        formattedValue = value && value !== '' ? parseInt(value, 10) : null;
+        console.log(`Converting ${field} value '${value}' to ${formattedValue}`);
       }
       
       // Update single field
       const updateData = { [field]: formattedValue };
-      console.log(`Updating ${field} to:`, formattedValue);
+      console.log(`Updating ${field} to:`, formattedValue, typeof formattedValue);
       
       // Special case for fiscal_year - only include if is_fiscal_task is true
-      if (field === 'fiscal_year' && !getValues('is_fiscal_task')) {
-        return; // Don't update fiscal_year if is_fiscal_task is false
+      if (field === 'fiscal_year' && getValues('is_fiscal_task') !== 'true') {
+        console.log(`Skipping fiscal_year update because is_fiscal_task is not true`);
+        return;
       }
       
-      // デバッグログを追加
+      // 詳細デバッグログ
       console.log(`Sending API request to update task ${task.id} with data:`, updateData);
+      console.log(`Current task state before update:`, task);
       
-      // Send update to API
+      // Send update to API with explicit content type
       const result = await tasksApi.updateTask(task.id, updateData);
       
-      // デバッグログを追加
-      console.log(`API response for task update:`, result);
+      // APIレスポンスの詳細ログ
+      console.log(`API response for task update (${field}):`, result);
       
-      // Notify success
+      // 成功通知
       toast.success(`${getFieldLabel(field)}を更新しました`, { duration: 2000 });
       
-      // 結果に基づいてフォームをリセット (特に重要なフィールド)
+      // 現在のフォーム値の保存（ステートコンフリクト防止のため）
+      const currentFormValues = getValues();
+      console.log("Current form values before update:", currentFormValues);
+      
+      // 重要: タスク状態をAPIレスポンスで更新
       if (result) {
+        // ローカルタスク変数を最新データで更新
+        Object.assign(task, result);
+        
+        // 重要: ステータスとその他のフィールドを明示的に更新
         if (field === 'status' && result.status_data) {
           setValue('status', result.status_data.id.toString());
+          console.log(`Updated form status value to: ${result.status_data.id}`);
         }
         if (field === 'priority' && result.priority_data) {
           setValue('priority', result.priority_data.id.toString());
+          console.log(`Updated form priority value to: ${result.priority_data.id}`);
         }
         if (field === 'category' && result.category_data) {
           setValue('category', result.category_data.id.toString());
+          console.log(`Updated form category value to: ${result.category_data.id}`);
         }
+        
+        // その他のフィールドも更新（可視性は保つため）
+        const formUpdate = {};
+        Object.keys(currentFormValues).forEach(key => {
+          if (result[key] !== undefined) {
+            if (typeof result[key] === 'object' && result[key]?.id) {
+              formUpdate[key] = result[key].id.toString();
+            } else if (key === 'is_fiscal_task') {
+              formUpdate[key] = result[key] ? 'true' : 'false';
+            } else if (result[key] !== null && (key === 'status' || key === 'priority' || key === 'category' || key === 'fiscal_year')) {
+              formUpdate[key] = result[key].toString();
+            }
+          }
+        });
+        
+        // 非同期でフォーム更新
+        setTimeout(() => {
+          if (Object.keys(formUpdate).length > 0) {
+            console.log("Updating form with values:", formUpdate);
+            Object.entries(formUpdate).forEach(([key, value]) => {
+              setValue(key, value);
+            });
+          }
+        }, 0);
       }
       
-      // すぐに親コンポーネントに通知して状態を更新
-      if (onTaskUpdated) {
-        // 更新されたタスク全体をセットするためにAPIレスポンス全体を渡す
+      // 親コンポーネントに通知して状態を更新
+      if (onTaskUpdated && typeof onTaskUpdated === 'function') {
+        // 更新されたタスク全体を渡す
+        console.log("Calling onTaskUpdated with result:", result);
         onTaskUpdated(result);
+      } else {
+        console.warn("onTaskUpdated is not available or not a function");
       }
       
-      // リスト更新のイベント発火
-      window.dispatchEvent(new CustomEvent('task-updated'));
+      // 強制的にリスト更新のイベント発火（UI反映のため）
+      setTimeout(() => {
+        console.log("Dispatching task-updated event");
+        window.dispatchEvent(new CustomEvent('task-updated'));
+        
+        // 念のため標準イベントも発火（古いコードとの互換性のため）
+        window.dispatchEvent(new Event('task-update-force-refresh'));
+      }, 100);
     } catch (error) {
       console.error(`Error updating ${field}:`, error);
       toast.error(`${getFieldLabel(field)}の更新に失敗しました`);
       
-      // Reset form field to original value
+      // フォームをエラー前の値に戻す
       if (task && task[field] !== undefined) {
         let originalValue = task[field];
         
-        // Handle object values like status, priority, etc.
+        // オブジェクト値を文字列に変換
         if (originalValue && typeof originalValue === 'object' && originalValue.id) {
           originalValue = originalValue.id.toString();
+        } else if (field === 'is_fiscal_task') {
+          originalValue = originalValue ? 'true' : 'false';
+        } else if (originalValue !== null && (field === 'status' || field === 'priority' || field === 'category' || field === 'fiscal_year')) {
+          originalValue = originalValue.toString();
         }
         
+        console.log(`Resetting ${field} to original value:`, originalValue);
         setValue(field, originalValue);
       }
     }
