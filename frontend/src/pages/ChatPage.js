@@ -3,14 +3,17 @@ import { format } from 'date-fns';
 import { ChatProvider, useChat } from '../context/ChatContext';
 import { useAuth } from '../context/AuthContext';
 import {
-  HiOutlineUserGroup,
   HiOutlinePlus,
   HiOutlineSearch,
   HiOutlinePaperClip,
   HiOutlineEmojiHappy,
   HiOutlineDotsVertical,
   HiOutlineInformationCircle,
-  HiOutlineRefresh
+  HiOutlineRefresh,
+  HiOutlineX,
+  HiOutlineReply,
+  HiOutlineClipboardCopy,
+  HiOutlineExclamation
 } from 'react-icons/hi';
 
 // Inner component that uses the chat context
@@ -37,9 +40,39 @@ const ChatContent = () => {
   const [channelName, setChannelName] = useState('');
   const [channelDescription, setChannelDescription] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedMessage, setSelectedMessage] = useState(null);
   
   const messagesEndRef = useRef(null);
   const messageInputRef = useRef(null);
+  
+  // メッセージ選択ハンドラー
+  const handleMessageSelect = useCallback((message) => {
+    setSelectedMessage(message);
+  }, []);
+  
+  // メッセージのコピー
+  const copyMessageContent = useCallback(() => {
+    if (selectedMessage?.content) {
+      navigator.clipboard.writeText(selectedMessage.content)
+        .then(() => {
+          alert('メッセージをクリップボードにコピーしました');
+        })
+        .catch(() => {
+          alert('コピーに失敗しました');
+        });
+    }
+  }, [selectedMessage]);
+  
+  // 返信機能
+  const replyToMessage = useCallback(() => {
+    if (selectedMessage) {
+      // 返信フォーマットを入力欄に入れる
+      const replyPrefix = `> ${selectedMessage.content}\n\n`;
+      setMessageText(replyPrefix);
+      setSelectedMessage(null);
+      messageInputRef.current?.focus();
+    }
+  }, [selectedMessage]);
   
   // Filter channels by search query
   const filteredChannels = channels.filter(channel => 
@@ -323,12 +356,15 @@ const ChatContent = () => {
                   // Generate a stable key even for temporary messages
                   const messageKey = msg.id || `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
                   const isCurrentUser = safe(() => msg.user.id) === currentUser?.id;
+                  const isSelected = selectedMessage?.id === msg.id;
                   
                   return (
                     <div 
                       key={messageKey} 
-                      className={`flex ${isCurrentUser ? 'justify-end' : 'items-start'} mb-4 hover:bg-gray-50 p-2 rounded-lg cursor-pointer transition-colors`}
-                      onClick={() => console.log('Message clicked:', msg)}
+                      className={`flex ${isCurrentUser ? 'justify-end' : 'items-start'} mb-4 ${
+                        isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
+                      } p-2 rounded-lg cursor-pointer transition-colors relative group`}
+                      onClick={() => handleMessageSelect(msg)}
                     >
                       {!isCurrentUser && (
                         <div className="flex-shrink-0 mr-3">
@@ -351,10 +387,55 @@ const ChatContent = () => {
                               : 'bg-gray-100 text-gray-800'
                           }`}
                         >
-                          {msg.content || ''}
+                          {/* 引用メッセージの特別な表示（> で始まる行は引用表示） */}
+                          {msg.content?.split('\n').map((line, i) => 
+                            line.startsWith('>') ? (
+                              <div key={i} className="pl-2 border-l-2 border-gray-400 italic text-gray-500 dark:text-gray-400">
+                                {line.substring(1)}
+                              </div>
+                            ) : (
+                              <div key={i}>{line || ' '}</div>
+                            )
+                          )}
                         </div>
                         {isCurrentUser && (
                           <span className="text-xs text-gray-500 mt-1">{formatTime(msg.created_at)}</span>
+                        )}
+                        
+                        {/* メッセージ操作メニュー（選択時） */}
+                        {isSelected && (
+                          <div className="absolute top-0 right-0 bg-white shadow-md rounded-md p-1 flex space-x-1 border border-gray-200">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                replyToMessage();
+                              }}
+                              className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                              title="返信"
+                            >
+                              <HiOutlineReply className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyMessageContent();
+                              }}
+                              className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                              title="コピー"
+                            >
+                              <HiOutlineClipboardCopy className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedMessage(null);
+                              }}
+                              className="p-1 text-gray-500 hover:bg-gray-50 rounded"
+                              title="閉じる"
+                            >
+                              <HiOutlineX className="w-4 h-4" />
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
