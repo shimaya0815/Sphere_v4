@@ -363,42 +363,42 @@ const TaskList = (props) => {
                   <td>
                     {task.status && (
                       <span className={`badge ${
-                        task.status_name?.includes('完了') ? 'badge-success' :
-                        task.status_name?.includes('進行中') ? 'badge-info' :
-                        task.status_name?.includes('レビュー') ? 'badge-warning' :
+                        (task.status_data?.name || task.status_name || '')?.includes('完了') ? 'badge-success' :
+                        (task.status_data?.name || task.status_name || '')?.includes('進行中') ? 'badge-info' :
+                        (task.status_data?.name || task.status_name || '')?.includes('レビュー') ? 'badge-warning' :
                         'badge-ghost'
                       }`}>
-                        {task.status_name || getStatusName(task.status)}
+                        {task.status_data?.name || task.status_name || getStatusName(task.status)}
                       </span>
                     )}
                   </td>
                   <td>
                     {task.priority && (
                       <span className={`badge ${
-                        task.priority_name?.includes('高') ? 'badge-error' :
-                        task.priority_name?.includes('中') ? 'badge-warning' :
-                        task.priority_name?.includes('低') ? 'badge-success' :
+                        (task.priority_data?.name || task.priority_name || '')?.includes('高') ? 'badge-error' :
+                        (task.priority_data?.name || task.priority_name || '')?.includes('中') ? 'badge-warning' :
+                        (task.priority_data?.name || task.priority_name || '')?.includes('低') ? 'badge-success' :
                         'badge-ghost'
                       }`}>
-                        {task.priority_name || getPriorityName(task.priority)}
+                        {task.priority_data?.name || task.priority_name || getPriorityName(task.priority)}
                       </span>
                     )}
                   </td>
                   <td>
                     {task.category && (
                       <span className="badge badge-outline badge-primary">
-                        {task.category_name || (task.category.name || task.category)}
+                        {task.category_data?.name || task.category_name || (typeof task.category === 'object' ? task.category.name : task.category)}
                       </span>
                     )}
                   </td>
                   <td>
-                    {task.assignee_name || (task.assignee?.name || '')}
+                    {task.assignee_data?.name || task.assignee_name || (task.assignee?.name || '')}
                   </td>
                   <td>
                     {task.due_date ? new Date(task.due_date).toLocaleDateString() : '-'}
                   </td>
                   <td>
-                    {task.client_name || (task.client?.name || '')}
+                    {task.client_data?.name || task.client_name || (task.client?.name || '')}
                     {task.is_fiscal_task && <span className="ml-1 badge badge-xs badge-accent">決算</span>}
                   </td>
                   <td onClick={(e) => e.stopPropagation()}>
