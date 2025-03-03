@@ -11,7 +11,9 @@ import {
   HiOutlineCalendar,
   HiOutlineIdentification,
   HiOutlineBriefcase,
-  HiOutlineDocumentText
+  HiOutlineDocumentText,
+  HiOutlineLocationMarker,
+  HiOutlineCreditCard
 } from 'react-icons/hi';
 
 const ClientForm = ({ clientId = null, initialData = null }) => {
@@ -182,459 +184,492 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
   }
   
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 p-6 bg-white rounded-lg shadow">
-      <div>
-        <h2 className="text-xl font-semibold text-gray-800 mb-6">
+    <form onSubmit={handleSubmit} className="space-y-8 p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">
           {clientId ? 'クライアント情報の編集' : '新規クライアント登録'}
-        </h2>
+        </h1>
+        
+        <div className="flex space-x-3">
+          <button
+            type="button"
+            onClick={() => navigate('/clients')}
+            className="btn btn-ghost"
+            disabled={saving}
+          >
+            キャンセル
+          </button>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={saving}
+          >
+            {saving ? (
+              <>
+                <span className="loading loading-spinner loading-sm mr-2"></span>
+                保存中...
+              </>
+            ) : (
+              clientId ? '更新する' : '登録する'
+            )}
+          </button>
+        </div>
       </div>
       
-      {/* 基本情報セクション */}
-      <div>
-        <h3 className="text-lg font-medium text-gray-800 mb-4">基本情報</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="col-span-2">
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-              クライアント名 <span className="text-red-500">*</span>
-            </label>
-            <div className="flex">
-              <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
-                <HiOutlineOfficeBuilding />
-              </span>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                className="input input-bordered rounded-l-none w-full"
-                required
-              />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="client_code" className="block text-sm font-medium text-gray-700 mb-1">
-              クライアントコード <span className="text-red-500">*</span>
-            </label>
-            <div className="flex">
-              <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
-                <HiOutlineIdentification />
-              </span>
-              <input
-                type="text"
-                id="client_code"
-                name="client_code"
-                value={formData.client_code}
-                onChange={handleChange}
-                className="input input-bordered rounded-l-none w-full"
-                required
-              />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="corporate_individual" className="block text-sm font-medium text-gray-700 mb-1">
-              法人/個人
-            </label>
-            <select
-              id="corporate_individual"
-              name="corporate_individual"
-              value={formData.corporate_individual}
-              onChange={handleChange}
-              className="select select-bordered w-full"
-            >
-              <option value="corporate">法人</option>
-              <option value="individual">個人</option>
-            </select>
-          </div>
-          
-          <div>
-            <label htmlFor="some_task_flag" className="block text-sm font-medium text-gray-700 mb-1">
-              タスク設定フラグ
-            </label>
-            <div className="form-control">
-              <label className="label cursor-pointer">
-                <input
-                  type="checkbox"
-                  id="some_task_flag"
-                  name="some_task_flag"
-                  checked={formData.some_task_flag}
-                  onChange={(e) => setFormData({...formData, some_task_flag: e.target.checked})}
-                  className="checkbox"
-                />
-                <span className="label-text ml-2">タスク設定を有効にする</span>
+      {/* 基本情報カード */}
+      <div className="bg-white rounded-lg shadow overflow-hidden mb-6">
+        <div className="p-4 border-b border-gray-200 bg-gray-50">
+          <h3 className="font-semibold text-gray-800 flex items-center">
+            <HiOutlineOfficeBuilding className="mr-2" />
+            基本情報
+          </h3>
+        </div>
+        <div className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="col-span-2">
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                クライアント名 <span className="text-red-500">*</span>
               </label>
+              <div className="flex">
+                <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
+                  <HiOutlineOfficeBuilding />
+                </span>
+                <input
+                  type="text"
+                  id="name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="input input-bordered rounded-l-none w-full"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="client_code" className="block text-sm font-medium text-gray-700 mb-1">
+                クライアントコード <span className="text-red-500">*</span>
+              </label>
+              <div className="flex">
+                <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
+                  <HiOutlineIdentification />
+                </span>
+                <input
+                  type="text"
+                  id="client_code"
+                  name="client_code"
+                  value={formData.client_code}
+                  onChange={handleChange}
+                  className="input input-bordered rounded-l-none w-full"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="corporate_individual" className="block text-sm font-medium text-gray-700 mb-1">
+                法人/個人
+              </label>
+              <select
+                id="corporate_individual"
+                name="corporate_individual"
+                value={formData.corporate_individual}
+                onChange={handleChange}
+                className="select select-bordered w-full"
+              >
+                <option value="corporate">法人</option>
+                <option value="individual">個人</option>
+              </select>
+            </div>
+            
+            <div>
+              <label htmlFor="some_task_flag" className="block text-sm font-medium text-gray-700 mb-1">
+                タスク設定フラグ
+              </label>
+              <div className="form-control">
+                <label className="label cursor-pointer">
+                  <input
+                    type="checkbox"
+                    id="some_task_flag"
+                    name="some_task_flag"
+                    checked={formData.some_task_flag}
+                    onChange={(e) => setFormData({...formData, some_task_flag: e.target.checked})}
+                    className="checkbox"
+                  />
+                  <span className="label-text ml-2">タスク設定を有効にする</span>
+                </label>
+              </div>
+            </div>
+            
+            <div>
+              <label htmlFor="corporate_number" className="block text-sm font-medium text-gray-700 mb-1">
+                法人番号
+              </label>
+              <div className="flex">
+                <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
+                  <HiOutlineIdentification />
+                </span>
+                <input
+                  type="text"
+                  id="corporate_number"
+                  name="corporate_number"
+                  value={formData.corporate_number}
+                  onChange={handleChange}
+                  className="input input-bordered rounded-l-none w-full"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <label htmlFor="contract_status" className="block text-sm font-medium text-gray-700 mb-1">
+                契約状況
+              </label>
+              <select
+                id="contract_status"
+                name="contract_status"
+                value={formData.contract_status}
+                onChange={handleChange}
+                className="select select-bordered w-full"
+              >
+                <option value="active">契約中</option>
+                <option value="suspended">休止中</option>
+                <option value="terminated">解約</option>
+                <option value="preparing">契約準備中</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                電話番号
+              </label>
+              <div className="flex">
+                <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
+                  <HiOutlinePhone />
+                </span>
+                <input
+                  type="tel"
+                  id="phone"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  className="input input-bordered rounded-l-none w-full"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                メールアドレス
+              </label>
+              <div className="flex">
+                <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
+                  <HiOutlineMail />
+                </span>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="input input-bordered rounded-l-none w-full"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-1">
+                Webサイト
+              </label>
+              <div className="flex">
+                <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
+                  <HiOutlineGlobeAlt />
+                </span>
+                <input
+                  type="url"
+                  id="website"
+                  name="website"
+                  value={formData.website}
+                  onChange={handleChange}
+                  className="input input-bordered rounded-l-none w-full"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <label htmlFor="fiscal_year" className="block text-sm font-medium text-gray-700 mb-1">
+                決算期（期）
+              </label>
+              <input
+                type="number"
+                id="fiscal_year"
+                name="fiscal_year"
+                value={formData.fiscal_year || ''}
+                onChange={handleChange}
+                className="input input-bordered w-full"
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="fiscal_date" className="block text-sm font-medium text-gray-700 mb-1">
+                決算日
+              </label>
+              <div className="flex">
+                <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
+                  <HiOutlineCalendar />
+                </span>
+                <input
+                  type="date"
+                  id="fiscal_date"
+                  name="fiscal_date"
+                  value={formData.fiscal_date || ''}
+                  onChange={handleChange}
+                  className="input input-bordered rounded-l-none w-full"
+                />
+              </div>
             </div>
           </div>
-          
-          <div>
-            <label htmlFor="corporate_number" className="block text-sm font-medium text-gray-700 mb-1">
-              法人番号
-            </label>
-            <div className="flex">
-              <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
-                <HiOutlineIdentification />
-              </span>
+        </div>
+      </div>
+      
+      {/* 住所情報カード */}
+      <div className="bg-white rounded-lg shadow overflow-hidden mb-6">
+        <div className="p-4 border-b border-gray-200 bg-gray-50">
+          <h3 className="font-semibold text-gray-800 flex items-center">
+            <HiOutlineLocationMarker className="mr-2" />
+            住所情報
+          </h3>
+        </div>
+        <div className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label htmlFor="postal_code" className="block text-sm font-medium text-gray-700 mb-1">
+                郵便番号
+              </label>
               <input
                 type="text"
-                id="corporate_number"
-                name="corporate_number"
-                value={formData.corporate_number}
+                id="postal_code"
+                name="postal_code"
+                value={formData.postal_code}
                 onChange={handleChange}
-                className="input input-bordered rounded-l-none w-full"
+                className="input input-bordered w-full"
               />
             </div>
-          </div>
-          
-          <div>
-            <label htmlFor="contract_status" className="block text-sm font-medium text-gray-700 mb-1">
-              契約状況
-            </label>
-            <select
-              id="contract_status"
-              name="contract_status"
-              value={formData.contract_status}
-              onChange={handleChange}
-              className="select select-bordered w-full"
-            >
-              <option value="active">契約中</option>
-              <option value="suspended">休止中</option>
-              <option value="terminated">解約</option>
-              <option value="preparing">契約準備中</option>
-            </select>
-          </div>
 
-          <div>
-            <label htmlFor="postal_code" className="block text-sm font-medium text-gray-700 mb-1">
-              郵便番号
-            </label>
-            <input
-              type="text"
-              id="postal_code"
-              name="postal_code"
-              value={formData.postal_code}
-              onChange={handleChange}
-              className="input input-bordered w-full"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="prefecture" className="block text-sm font-medium text-gray-700 mb-1">
-              都道府県
-            </label>
-            <input
-              type="text"
-              id="prefecture"
-              name="prefecture"
-              value={formData.prefecture}
-              onChange={handleChange}
-              className="input input-bordered w-full"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
-              市区町村
-            </label>
-            <input
-              type="text"
-              id="city"
-              name="city"
-              value={formData.city}
-              onChange={handleChange}
-              className="input input-bordered w-full"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="street_address" className="block text-sm font-medium text-gray-700 mb-1">
-              番地
-            </label>
-            <input
-              type="text"
-              id="street_address"
-              name="street_address"
-              value={formData.street_address}
-              onChange={handleChange}
-              className="input input-bordered w-full"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="building" className="block text-sm font-medium text-gray-700 mb-1">
-              建物名・部屋番号
-            </label>
-            <input
-              type="text"
-              id="building"
-              name="building"
-              value={formData.building}
-              onChange={handleChange}
-              className="input input-bordered w-full"
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-              電話番号
-            </label>
-            <div className="flex">
-              <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
-                <HiOutlinePhone />
-              </span>
+            <div>
+              <label htmlFor="prefecture" className="block text-sm font-medium text-gray-700 mb-1">
+                都道府県
+              </label>
               <input
-                type="tel"
-                id="phone"
-                name="phone"
-                value={formData.phone}
+                type="text"
+                id="prefecture"
+                name="prefecture"
+                value={formData.prefecture}
                 onChange={handleChange}
-                className="input input-bordered rounded-l-none w-full"
+                className="input input-bordered w-full"
               />
             </div>
-          </div>
-          
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              メールアドレス
-            </label>
-            <div className="flex">
-              <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
-                <HiOutlineMail />
-              </span>
+
+            <div>
+              <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
+                市区町村
+              </label>
               <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
+                type="text"
+                id="city"
+                name="city"
+                value={formData.city}
                 onChange={handleChange}
-                className="input input-bordered rounded-l-none w-full"
+                className="input input-bordered w-full"
               />
             </div>
-          </div>
-          
-          <div>
-            <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-1">
-              Webサイト
-            </label>
-            <div className="flex">
-              <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
-                <HiOutlineGlobeAlt />
-              </span>
+
+            <div>
+              <label htmlFor="street_address" className="block text-sm font-medium text-gray-700 mb-1">
+                番地
+              </label>
               <input
-                type="url"
-                id="website"
-                name="website"
-                value={formData.website}
+                type="text"
+                id="street_address"
+                name="street_address"
+                value={formData.street_address}
                 onChange={handleChange}
-                className="input input-bordered rounded-l-none w-full"
+                className="input input-bordered w-full"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="building" className="block text-sm font-medium text-gray-700 mb-1">
+                建物名・部屋番号
+              </label>
+              <input
+                type="text"
+                id="building"
+                name="building"
+                value={formData.building}
+                onChange={handleChange}
+                className="input input-bordered w-full"
               />
             </div>
           </div>
-          
-          <div>
-            <label htmlFor="fiscal_year" className="block text-sm font-medium text-gray-700 mb-1">
-              決算期（期）
-            </label>
-            <input
-              type="number"
-              id="fiscal_year"
-              name="fiscal_year"
-              value={formData.fiscal_year || ''}
-              onChange={handleChange}
-              className="input input-bordered w-full"
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="fiscal_date" className="block text-sm font-medium text-gray-700 mb-1">
-              決算日
-            </label>
-            <div className="flex">
-              <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
-                <HiOutlineCalendar />
-              </span>
+        </div>
+      </div>
+      
+      {/* 税務情報カード */}
+      <div className="bg-white rounded-lg shadow overflow-hidden mb-6">
+        <div className="p-4 border-b border-gray-200 bg-gray-50">
+          <h3 className="font-semibold text-gray-800 flex items-center">
+            <HiOutlineDocumentText className="mr-2" />
+            税務情報
+          </h3>
+        </div>
+        <div className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label htmlFor="tax_eTax_ID" className="block text-sm font-medium text-gray-700 mb-1">
+                eTax ID
+              </label>
+              <input
+                type="text"
+                id="tax_eTax_ID"
+                name="tax_eTax_ID"
+                value={formData.tax_eTax_ID}
+                onChange={handleChange}
+                className="input input-bordered w-full"
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="tax_eLTAX_ID" className="block text-sm font-medium text-gray-700 mb-1">
+                eLTAX ID
+              </label>
+              <input
+                type="text"
+                id="tax_eLTAX_ID"
+                name="tax_eLTAX_ID"
+                value={formData.tax_eLTAX_ID}
+                onChange={handleChange}
+                className="input input-bordered w-full"
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="tax_taxpayer_confirmation_number" className="block text-sm font-medium text-gray-700 mb-1">
+                納税者確認番号
+              </label>
+              <input
+                type="text"
+                id="tax_taxpayer_confirmation_number"
+                name="tax_taxpayer_confirmation_number"
+                value={formData.tax_taxpayer_confirmation_number}
+                onChange={handleChange}
+                className="input input-bordered w-full"
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="tax_invoice_no" className="block text-sm font-medium text-gray-700 mb-1">
+                インボイスNo
+              </label>
+              <input
+                type="text"
+                id="tax_invoice_no"
+                name="tax_invoice_no"
+                value={formData.tax_invoice_no}
+                onChange={handleChange}
+                className="input input-bordered w-full"
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="tax_invoice_registration_date" className="block text-sm font-medium text-gray-700 mb-1">
+                インボイス登録日
+              </label>
               <input
                 type="date"
-                id="fiscal_date"
-                name="fiscal_date"
-                value={formData.fiscal_date || ''}
+                id="tax_invoice_registration_date"
+                name="tax_invoice_registration_date"
+                value={formData.tax_invoice_registration_date || ''}
                 onChange={handleChange}
-                className="input input-bordered rounded-l-none w-full"
+                className="input input-bordered w-full"
               />
             </div>
           </div>
         </div>
       </div>
       
-      {/* 税務情報セクション */}
-      <div>
-        <h3 className="text-lg font-medium text-gray-800 mb-4">税務情報</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label htmlFor="tax_eTax_ID" className="block text-sm font-medium text-gray-700 mb-1">
-              eTax ID
-            </label>
-            <input
-              type="text"
-              id="tax_eTax_ID"
-              name="tax_eTax_ID"
-              value={formData.tax_eTax_ID}
-              onChange={handleChange}
-              className="input input-bordered w-full"
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="tax_eLTAX_ID" className="block text-sm font-medium text-gray-700 mb-1">
-              eLTAX ID
-            </label>
-            <input
-              type="text"
-              id="tax_eLTAX_ID"
-              name="tax_eLTAX_ID"
-              value={formData.tax_eLTAX_ID}
-              onChange={handleChange}
-              className="input input-bordered w-full"
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="tax_taxpayer_confirmation_number" className="block text-sm font-medium text-gray-700 mb-1">
-              納税者確認番号
-            </label>
-            <input
-              type="text"
-              id="tax_taxpayer_confirmation_number"
-              name="tax_taxpayer_confirmation_number"
-              value={formData.tax_taxpayer_confirmation_number}
-              onChange={handleChange}
-              className="input input-bordered w-full"
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="tax_invoice_no" className="block text-sm font-medium text-gray-700 mb-1">
-              インボイスNo
-            </label>
-            <input
-              type="text"
-              id="tax_invoice_no"
-              name="tax_invoice_no"
-              value={formData.tax_invoice_no}
-              onChange={handleChange}
-              className="input input-bordered w-full"
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="tax_invoice_registration_date" className="block text-sm font-medium text-gray-700 mb-1">
-              インボイス登録日
-            </label>
-            <input
-              type="date"
-              id="tax_invoice_registration_date"
-              name="tax_invoice_registration_date"
-              value={formData.tax_invoice_registration_date || ''}
-              onChange={handleChange}
-              className="input input-bordered w-full"
-            />
+      {/* 給与情報カード */}
+      <div className="bg-white rounded-lg shadow overflow-hidden mb-6">
+        <div className="p-4 border-b border-gray-200 bg-gray-50">
+          <h3 className="font-semibold text-gray-800 flex items-center">
+            <HiOutlineCreditCard className="mr-2" />
+            給与情報
+          </h3>
+        </div>
+        <div className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label htmlFor="salary_closing_day" className="block text-sm font-medium text-gray-700 mb-1">
+                給与締め日
+              </label>
+              <input
+                type="number"
+                id="salary_closing_day"
+                name="salary_closing_day"
+                value={formData.salary_closing_day || ''}
+                onChange={handleChange}
+                min="1"
+                max="31"
+                className="input input-bordered w-full"
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="salary_payment_month" className="block text-sm font-medium text-gray-700 mb-1">
+                給与支払月
+              </label>
+              <select
+                id="salary_payment_month"
+                name="salary_payment_month"
+                value={formData.salary_payment_month}
+                onChange={handleChange}
+                className="select select-bordered w-full"
+              >
+                <option value="current">当月</option>
+                <option value="next">翌月</option>
+              </select>
+            </div>
+            
+            <div>
+              <label htmlFor="salary_payment_day" className="block text-sm font-medium text-gray-700 mb-1">
+                給与支払日
+              </label>
+              <input
+                type="number"
+                id="salary_payment_day"
+                name="salary_payment_day"
+                value={formData.salary_payment_day || ''}
+                onChange={handleChange}
+                min="1"
+                max="31"
+                className="input input-bordered w-full"
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="attendance_management_software" className="block text-sm font-medium text-gray-700 mb-1">
+                勤怠管理ソフト
+              </label>
+              <input
+                type="text"
+                id="attendance_management_software"
+                name="attendance_management_software"
+                value={formData.attendance_management_software}
+                onChange={handleChange}
+                className="input input-bordered w-full"
+              />
+            </div>
           </div>
         </div>
-      </div>
-      
-      {/* 給与情報セクション */}
-      <div>
-        <h3 className="text-lg font-medium text-gray-800 mb-4">給与情報</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label htmlFor="salary_closing_day" className="block text-sm font-medium text-gray-700 mb-1">
-              給与締め日
-            </label>
-            <input
-              type="number"
-              id="salary_closing_day"
-              name="salary_closing_day"
-              value={formData.salary_closing_day || ''}
-              onChange={handleChange}
-              min="1"
-              max="31"
-              className="input input-bordered w-full"
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="salary_payment_month" className="block text-sm font-medium text-gray-700 mb-1">
-              給与支払月
-            </label>
-            <select
-              id="salary_payment_month"
-              name="salary_payment_month"
-              value={formData.salary_payment_month}
-              onChange={handleChange}
-              className="select select-bordered w-full"
-            >
-              <option value="current">当月</option>
-              <option value="next">翌月</option>
-            </select>
-          </div>
-          
-          <div>
-            <label htmlFor="salary_payment_day" className="block text-sm font-medium text-gray-700 mb-1">
-              給与支払日
-            </label>
-            <input
-              type="number"
-              id="salary_payment_day"
-              name="salary_payment_day"
-              value={formData.salary_payment_day || ''}
-              onChange={handleChange}
-              min="1"
-              max="31"
-              className="input input-bordered w-full"
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="attendance_management_software" className="block text-sm font-medium text-gray-700 mb-1">
-              勤怠管理ソフト
-            </label>
-            <input
-              type="text"
-              id="attendance_management_software"
-              name="attendance_management_software"
-              value={formData.attendance_management_software}
-              onChange={handleChange}
-              className="input input-bordered w-full"
-            />
-          </div>
-        </div>
-      </div>
-      
-      {/* 送信ボタン */}
-      <div className="flex justify-end space-x-3">
-        <button
-          type="button"
-          onClick={() => navigate('/clients')}
-          className="btn btn-ghost"
-          disabled={saving}
-        >
-          キャンセル
-        </button>
-        <button
-          type="submit"
-          className="btn btn-primary"
-          disabled={saving}
-        >
-          {saving ? (
-            <>
-              <span className="loading loading-spinner loading-sm mr-2"></span>
-              保存中...
-            </>
-          ) : (
-            clientId ? '更新する' : '登録する'
-          )}
-        </button>
       </div>
     </form>
   );
