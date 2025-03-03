@@ -71,44 +71,6 @@ const chatApi = {
   
   // User channels
   getUserChannels: () => apiClient.get('/api/chat/my-channels/'),
-  
-  // Helper methods for compatibility with the mock implementation
-  sendMessage: (channelId, messageData) => {
-    if (messageData.files && messageData.files.length > 0) {
-      const formData = new FormData();
-      formData.append('channel', channelId);
-      formData.append('content', messageData.content);
-      
-      if (messageData.parent_message) {
-        formData.append('parent_message', messageData.parent_message);
-      }
-      
-      if (messageData.mentioned_user_ids && messageData.mentioned_user_ids.length > 0) {
-        messageData.mentioned_user_ids.forEach(id => {
-          formData.append('mentioned_user_ids', id);
-        });
-      }
-      
-      // Add files
-      messageData.files.forEach(file => {
-        formData.append('files', file);
-      });
-      
-      return apiClient.post('/api/chat/messages/', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-    } else {
-      return apiClient.post('/api/chat/messages/', {
-        ...messageData,
-        channel: channelId
-      });
-    }
-  },
-  
-  getDirectMessageChannel: (userId) => 
-    apiClient.post('/api/chat/direct-messages/', { user_id: userId }),
 };
 
 export default chatApi;
