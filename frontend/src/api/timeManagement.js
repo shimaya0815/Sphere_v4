@@ -455,37 +455,48 @@ const timeManagementApi = {
   
   // Get dashboard summary data
   getDashboardSummary: async (params = {}) => {
-    console.log('Using mock getDashboardSummary:', params);
-    // const response = await apiClient.get('/time-management/dashboard/', { params });
-    // return response.data;
-    
-    return {
-      today: {
-        hours: Math.random() * 8,
-        entry_count: Math.floor(Math.random() * 5) + 1
-      },
-      this_week: {
-        hours: Math.random() * 40,
-        entry_count: Math.floor(Math.random() * 15) + 5
-      },
-      this_month: {
-        hours: Math.random() * 160,
-        entry_count: Math.floor(Math.random() * 60) + 20
-      },
-      has_active_timer: false,
-      active_timer: null
-    };
+    console.log('Fetching dashboard summary with params:', params);
+    try {
+      const response = await apiClient.get('/time-management/dashboard/', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching dashboard summary:', error);
+      // Fallback to empty data if API fails
+      return {
+        today: {
+          hours: 0,
+          entry_count: 0
+        },
+        this_week: {
+          hours: 0,
+          entry_count: 0
+        },
+        this_month: {
+          hours: 0,
+          entry_count: 0
+        },
+        has_active_timer: false,
+        active_timer: null
+      };
+    }
   },
   
   // Get chart data
   getChartData: async (type = 'time', period = 'week') => {
-    console.log('Using mock getChartData:', type, period);
-    // const response = await apiClient.get('/time-management/analytics/chart-data/', { 
-    //   params: { type, period } 
-    // });
-    // return response.data;
-    
-    return generateMockChartData(type, period);
+    console.log('Fetching chart data:', type, period);
+    try {
+      const response = await apiClient.get('/time-management/analytics/chart-data/', { 
+        params: { type, period } 
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching chart data:', error);
+      // Fallback to empty chart data if API fails
+      return {
+        labels: [],
+        datasets: []
+      };
+    }
   },
   
   // Generate analytics
