@@ -354,8 +354,8 @@ const WikiContent = () => {
             
             if (result && result.file) {
               // Replace the placeholder with the actual image markdown
-              // Form the full URL to the media file
-              const imageUrl = `http://localhost:8000${result.file}`;
+              // Use the URL directly from the server response (should now be absolute)
+              const imageUrl = result.file;
               const imageMarkdown = `![${result.filename}](${imageUrl})`;
               setEditContent(prevContent => 
                 prevContent.replace(placeholder, imageMarkdown)
@@ -678,8 +678,8 @@ const WikiContent = () => {
                               if (result && result.file) {
                                 // Add markdown link to the file
                                 const isImage = result.file_type.startsWith('image/');
-                                // Form the full URL to the media file
-                                const fileUrl = `http://localhost:8000${result.file}`;
+                                // Use the URL directly from the server response (should now be absolute)
+                                const fileUrl = result.file;
                                 const markdownLink = isImage 
                                   ? `\n\n![${result.filename}](${fileUrl})\n\n` 
                                   : `\n\n[${result.filename}](${fileUrl})\n\n`;
