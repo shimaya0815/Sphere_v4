@@ -1,15 +1,10 @@
 import json
 import asyncio
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Dict, Any
 import logging
 from pydantic import BaseModel
-import dj_database_url
-import os
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, DateTime, Text, Boolean
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 
 # Configure logging
@@ -27,32 +22,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Setup database connection
-DATABASE_URL = os.environ.get("DATABASE_URL", "postgres://postgres:postgres@db:5432/sphere")
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
-# Define SQLAlchemy models
-class Message(Base):
-    __tablename__ = "chat_message"
-    id = Column(Integer, primary_key=True, index=True)
-    channel_id = Column(Integer, ForeignKey("chat_channel.id"))
-    user_id = Column(Integer, ForeignKey("users_user.id"))
-    content = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    is_edited = Column(Boolean, default=False)
-    parent_message_id = Column(Integer, ForeignKey("chat_message.id"), nullable=True)
-
-# Dependency to get database session
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 # WebSocket connection manager
 class ConnectionManager:
