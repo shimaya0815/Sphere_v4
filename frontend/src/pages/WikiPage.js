@@ -288,7 +288,8 @@ const WikiContent = () => {
     deletePage,
     handleSearchQueryChange,
     restoreVersion,
-    loadWikiStructure
+    loadWikiStructure,
+    uploadAttachment
   } = useWiki();
   
   const [showNewPageModal, setShowNewPageModal] = useState(false);
