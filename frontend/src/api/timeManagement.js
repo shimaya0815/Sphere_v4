@@ -103,6 +103,16 @@ const timeManagementApi = {
     const response = await apiClient.get(`/time-management/reports/${reportId}/export/csv/`, {
       responseType: 'blob',
     });
+    
+    // Create a download link and trigger it
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `time-report-${reportId}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    
     return response.data;
   },
   
@@ -111,6 +121,27 @@ const timeManagementApi = {
     const response = await apiClient.get('/time-management/dashboard/', { params });
     return response.data;
   },
+  
+  // Get chart data
+  getChartData: async (type = 'time', period = 'week') => {
+    const response = await apiClient.get('/time-management/analytics/chart-data/', { 
+      params: { type, period } 
+    });
+    return response.data;
+  },
+  
+  // Generate analytics
+  generateAnalytics: async (date, userId) => {
+    const params = { date, user_id: userId };
+    const response = await apiClient.get('/time-management/analytics/generate/', { params });
+    return response.data;
+  },
+  
+  // Get analytics
+  getAnalytics: async (filters = {}) => {
+    const response = await apiClient.get('/time-management/analytics/', { params: filters });
+    return response.data;
+  }
 };
 
 export default timeManagementApi;

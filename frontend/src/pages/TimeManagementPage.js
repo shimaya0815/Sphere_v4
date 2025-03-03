@@ -3,7 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { format, parseISO, formatDistance, formatDuration, intervalToDuration } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { useAuth } from '../context/AuthContext';
-import timeManagementApi from '../api/timeManagement';
+import { timeManagementApi } from '../api';
 import { useToast } from '../hooks/useToast';
 
 const TimeManagementPage = () => {
