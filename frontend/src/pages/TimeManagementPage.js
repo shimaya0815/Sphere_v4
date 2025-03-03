@@ -1,10 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { format, parseISO, formatDistance, formatDuration, intervalToDuration } from 'date-fns';
-import { ja } from 'date-fns/locale';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { timeManagementApi } from '../api';
 import { useToast } from '../hooks/useToast';
+
+// Components
+import TimeTracker from '../components/TimeTracker';
+import TimeFilters from '../components/TimeFilters';
+import TimeCharts from '../components/TimeCharts';
+import TimeSummaryCards from '../components/TimeSummaryCards';
+import TimeEntriesTable from '../components/TimeEntriesTable';
 
 const TimeManagementPage = () => {
   const { currentUser } = useAuth();
@@ -14,15 +18,10 @@ const TimeManagementPage = () => {
   const [filteredEntries, setFilteredEntries] = useState([]);
   const [activeTimer, setActiveTimer] = useState(null);
   const [activeBreak, setActiveBreak] = useState(null);
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [elapsedTime, setElapsedTime] = useState('00:00:00');
   const [selectedRange, setSelectedRange] = useState('week');
   const [userFilter, setUserFilter] = useState('all');
   const [clientFilter, setClientFilter] = useState('all');
   const [taskFilter, setTaskFilter] = useState('all');
-  const [description, setDescription] = useState('');
-  const [taskId, setTaskId] = useState('');
-  const [clientId, setClientId] = useState('');
   const [summaryData, setSummaryData] = useState(null);
   const [chartData, setChartData] = useState({
     timeChart: [],
@@ -31,74 +30,22 @@ const TimeManagementPage = () => {
   const [availableTasks, setAvailableTasks] = useState([]);
   const [availableClients, setAvailableClients] = useState([]);
   const [users, setUsers] = useState([]);
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [customDateRange, setCustomDateRange] = useState({
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0]
   });
-  
-  const timerInterval = useRef(null);
-  const elapsedInterval = useRef(null);
   
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A28CFF', '#FF6B6B', '#4ECDC4', '#F7FFF7'];
 
   // Initial data loading
   useEffect(() => {
     fetchInitialData();
-    
-    // Cleanup intervals on unmount
-    return () => {
-      if (timerInterval.current) clearInterval(timerInterval.current);
-      if (elapsedInterval.current) clearInterval(elapsedInterval.current);
-    };
   }, []);
   
   // Update filtered entries when filters change
   useEffect(() => {
     applyFilters();
   }, [timeEntries, userFilter, clientFilter, taskFilter, selectedRange, customDateRange]);
-  
-  // Set up timer interval to update current time
-  useEffect(() => {
-    if (activeTimer) {
-      timerInterval.current = setInterval(() => {
-        setCurrentTime(new Date());
-      }, 1000);
-      
-      updateElapsedTime();
-      elapsedInterval.current = setInterval(updateElapsedTime, 1000);
-    } else {
-      clearInterval(timerInterval.current);
-      clearInterval(elapsedInterval.current);
-      setElapsedTime('00:00:00');
-    }
-    
-    return () => {
-      clearInterval(timerInterval.current);
-      clearInterval(elapsedInterval.current);
-    };
-  }, [activeTimer]);
-  
-  const updateElapsedTime = () => {
-    if (!activeTimer) return;
-    
-    const startTime = new Date(activeTimer.start_time);
-    const now = new Date();
-    
-    // If on break, don't update the timer
-    if (activeBreak) return;
-    
-    let duration = intervalToDuration({ start: startTime, end: now });
-    
-    // Format as HH:MM:SS
-    const formatted = [
-      String(duration.hours).padStart(2, '0'),
-      String(duration.minutes).padStart(2, '0'),
-      String(duration.seconds).padStart(2, '0')
-    ].join(':');
-    
-    setElapsedTime(formatted);
-  };
   
   const fetchInitialData = async () => {
     setLoading(true);
@@ -260,17 +207,10 @@ const TimeManagementPage = () => {
     setFilteredEntries(filtered);
   };
   
-  const handleStartTimer = async () => {
+  const handleStartTimer = async (data) => {
     try {
-      const data = {
-        description,
-        task_id: taskId || null,
-        client_id: clientId || null
-      };
-      
       const response = await timeManagementApi.startTimeEntry(data);
       setActiveTimer(response);
-      setDescription('');
       
       // Refresh entries
       const entriesResponse = await timeManagementApi.getTimeEntries();
@@ -391,28 +331,6 @@ const TimeManagementPage = () => {
     }
   };
   
-  // Format duration in seconds to hours and minutes
-  const formatDurationHM = (seconds) => {
-    if (!seconds) return '0h 0m';
-    
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    
-    return `${hours}h ${minutes}m`;
-  };
-  
-  // Format ISO date to readable format
-  const formatDate = (isoDate) => {
-    if (!isoDate) return '';
-    return format(parseISO(isoDate), 'yyyy/MM/dd');
-  };
-  
-  // Format ISO time to readable format
-  const formatTime = (isoDateTime) => {
-    if (!isoDateTime) return '';
-    return format(parseISO(isoDateTime), 'HH:mm');
-  };
-  
   if (loading) {
     return (
       <div className="p-4 flex justify-center items-center h-full">
@@ -431,296 +349,44 @@ const TimeManagementPage = () => {
       <h1 className="text-2xl font-bold mb-6">作業時間管理</h1>
       
       {/* Summary Cards */}
-      {summaryData && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-sm font-medium text-gray-500 mb-1">今日の作業時間</h3>
-            <div className="flex items-end">
-              <p className="text-3xl font-bold text-primary-600">{summaryData.today.hours.toFixed(1)}h</p>
-              <p className="text-sm text-gray-500 ml-2">{summaryData.today.entry_count} エントリ</p>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-sm font-medium text-gray-500 mb-1">今週の作業時間</h3>
-            <div className="flex items-end">
-              <p className="text-3xl font-bold text-primary-600">{summaryData.this_week.hours.toFixed(1)}h</p>
-              <p className="text-sm text-gray-500 ml-2">{summaryData.this_week.entry_count} エントリ</p>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-sm font-medium text-gray-500 mb-1">今月の作業時間</h3>
-            <div className="flex items-end">
-              <p className="text-3xl font-bold text-primary-600">{summaryData.this_month.hours.toFixed(1)}h</p>
-              <p className="text-sm text-gray-500 ml-2">{summaryData.this_month.entry_count} エントリ</p>
-            </div>
-          </div>
-        </div>
-      )}
+      <TimeSummaryCards summaryData={summaryData} />
       
       {/* Timer Widget */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-          <div className="mb-4 md:mb-0">
-            <h2 className="text-lg font-semibold mb-2">タイムトラッカー</h2>
-            {!activeTimer ? (
-              <div className="flex flex-col md:flex-row gap-3">
-                <select 
-                  className="select select-bordered max-w-xs"
-                  value={clientId}
-                  onChange={(e) => setClientId(e.target.value)}
-                  disabled={activeTimer !== null}
-                >
-                  <option value="">クライアントを選択</option>
-                  {availableClients.map(client => (
-                    <option key={client.id} value={client.id}>{client.name}</option>
-                  ))}
-                </select>
-                
-                <select 
-                  className="select select-bordered max-w-xs"
-                  value={taskId}
-                  onChange={(e) => setTaskId(e.target.value)}
-                  disabled={activeTimer !== null}
-                >
-                  <option value="">タスクを選択</option>
-                  {availableTasks.map(task => (
-                    <option key={task.id} value={task.id}>{task.title}</option>
-                  ))}
-                </select>
-                
-                <input 
-                  type="text" 
-                  placeholder="作業内容" 
-                  className="input input-bordered w-full max-w-xs"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  disabled={activeTimer !== null}
-                />
-              </div>
-            ) : (
-              <div className="mb-2">
-                <p className="text-lg font-medium">{activeTimer.description || '作業中'}</p>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {activeTimer.client && (
-                    <span className="badge badge-primary">{activeTimer.client.name}</span>
-                  )}
-                  {activeTimer.task && (
-                    <span className="badge badge-secondary">{activeTimer.task.title}</span>
-                  )}
-                  <span className="badge">開始: {formatTime(activeTimer.start_time)}</span>
-                </div>
-              </div>
-            )}
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            <div className={`text-3xl font-mono ${activeBreak ? 'text-gray-400' : 'text-gray-800'}`}>
-              {elapsedTime}
-            </div>
-            
-            {!activeTimer ? (
-              <button 
-                className="btn btn-primary" 
-                onClick={handleStartTimer}
-                disabled={loading}
-              >
-                タイマー開始
-              </button>
-            ) : (
-              <div className="flex gap-2">
-                {!activeBreak ? (
-                  <button 
-                    className="btn btn-warning" 
-                    onClick={handleStartBreak}
-                    disabled={loading}
-                  >
-                    休憩
-                  </button>
-                ) : (
-                  <button 
-                    className="btn btn-success" 
-                    onClick={handleStopBreak}
-                    disabled={loading}
-                  >
-                    休憩終了
-                  </button>
-                )}
-                
-                <button 
-                  className="btn btn-error" 
-                  onClick={handleStopTimer}
-                  disabled={loading}
-                >
-                  停止
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-        
-        {activeBreak && (
-          <div className="mt-4 p-3 bg-yellow-100 rounded-md flex justify-between items-center">
-            <div>
-              <p className="font-medium text-yellow-800">休憩中 - {activeBreak.reason || '休憩'}</p>
-              <p className="text-sm text-yellow-700">開始: {formatTime(activeBreak.start_time)}</p>
-            </div>
-            <button 
-              className="btn btn-sm btn-success" 
-              onClick={handleStopBreak}
-              disabled={loading}
-            >
-              休憩終了
-            </button>
-          </div>
-        )}
-      </div>
+      <TimeTracker
+        activeTimer={activeTimer}
+        activeBreak={activeBreak}
+        onStartTimer={handleStartTimer}
+        onStopTimer={handleStopTimer}
+        onStartBreak={handleStartBreak}
+        onStopBreak={handleStopBreak}
+        availableTasks={availableTasks}
+        availableClients={availableClients}
+        loading={loading}
+      />
       
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">期間</label>
-            <select 
-              className="select select-bordered w-full"
-              value={selectedRange}
-              onChange={(e) => {
-                setSelectedRange(e.target.value);
-                if (e.target.value === 'custom') {
-                  setShowDatePicker(true);
-                } else {
-                  setShowDatePicker(false);
-                }
-              }}
-            >
-              <option value="today">今日</option>
-              <option value="week">今週</option>
-              <option value="month">今月</option>
-              <option value="custom">カスタム期間</option>
-            </select>
-            
-            {showDatePicker && (
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">開始日</label>
-                  <input 
-                    type="date" 
-                    className="input input-bordered input-sm w-full" 
-                    value={customDateRange.startDate}
-                    onChange={(e) => setCustomDateRange(prev => ({ ...prev, startDate: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">終了日</label>
-                  <input 
-                    type="date" 
-                    className="input input-bordered input-sm w-full" 
-                    value={customDateRange.endDate}
-                    onChange={(e) => setCustomDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">ユーザー</label>
-            <select 
-              className="select select-bordered w-full"
-              value={userFilter}
-              onChange={(e) => setUserFilter(e.target.value)}
-            >
-              <option value="all">全てのユーザー</option>
-              {users.map(user => (
-                <option key={user.id} value={user.id}>{user.first_name} {user.last_name}</option>
-              ))}
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">クライアント</label>
-            <select 
-              className="select select-bordered w-full"
-              value={clientFilter}
-              onChange={(e) => setClientFilter(e.target.value)}
-            >
-              <option value="all">全てのクライアント</option>
-              {availableClients.map(client => (
-                <option key={client.id} value={client.id}>{client.name}</option>
-              ))}
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">タスク</label>
-            <select 
-              className="select select-bordered w-full"
-              value={taskFilter}
-              onChange={(e) => setTaskFilter(e.target.value)}
-            >
-              <option value="all">全てのタスク</option>
-              {availableTasks.map(task => (
-                <option key={task.id} value={task.id}>{task.title}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
+      <TimeFilters
+        selectedRange={selectedRange}
+        userFilter={userFilter}
+        clientFilter={clientFilter}
+        taskFilter={taskFilter}
+        customDateRange={customDateRange}
+        onRangeChange={setSelectedRange}
+        onUserFilterChange={setUserFilter}
+        onClientFilterChange={setClientFilter}
+        onTaskFilterChange={setTaskFilter}
+        onCustomDateChange={setCustomDateRange}
+        users={users}
+        availableClients={availableClients}
+        availableTasks={availableTasks}
+      />
       
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold mb-4">日別作業時間</h2>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={chartData.timeChart}
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="Total Hours" fill="#3B82F6" />
-                <Bar dataKey="Billable Hours" fill="#10B981" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold mb-4">クライアント別作業時間</h2>
-          <div className="h-64">
-            {chartData.projectChart.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={chartData.projectChart}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={true}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {chartData.projectChart.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => `${value.toFixed(1)}h`} />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-gray-400">
-                データがありません
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      <TimeCharts
+        timeChartData={chartData.timeChart}
+        projectChartData={chartData.projectChart}
+        COLORS={COLORS}
+      />
       
       {/* Time Entries Table */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -739,61 +405,11 @@ const TimeManagementPage = () => {
           </div>
         </div>
         
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日付</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">クライアント</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">タスク</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">内容</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">時間</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">作業時間</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">アクション</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredEntries.map(entry => (
-                <tr key={entry.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatDate(entry.start_time)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {entry.client ? entry.client.name : '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {entry.task ? entry.task.title : '-'}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
-                    {entry.description || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatTime(entry.start_time)} - {entry.end_time ? formatTime(entry.end_time) : '進行中'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {entry.duration_seconds ? formatDurationHM(entry.duration_seconds) : '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    {!entry.is_running && (
-                      <button 
-                        className="text-red-600 hover:text-red-900 ml-3"
-                        onClick={() => handleDeleteTimeEntry(entry.id)}
-                      >
-                        削除
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          
-          {filteredEntries.length === 0 && (
-            <div className="p-8 text-center text-gray-500">
-              検索条件に一致する作業時間データがありません。
-            </div>
-          )}
-        </div>
+        <TimeEntriesTable 
+          entries={filteredEntries} 
+          onDelete={handleDeleteTimeEntry}
+          loading={loading} 
+        />
       </div>
     </div>
   );
