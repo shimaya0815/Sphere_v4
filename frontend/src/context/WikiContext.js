@@ -31,22 +31,28 @@ export const WikiProvider = ({ children }) => {
   const loadWikiStructure = async () => {
     setLoading(true);
     try {
+      console.log('Loading wiki structure...');
       const response = await wikiApi.getWikiStructure();
+      console.log('Wiki structure response:', response);
+      
       // Ensure we always set an array, even if the API returns nothing or an error
       const data = Array.isArray(response) ? response : [];
       setWikiStructure(data);
       
       // If no page is selected yet and we have pages, select the first one
       if (!activePage && data.length > 0) {
-        loadPage(data[0].id);
+        console.log('No active page, auto-selecting first page:', data[0]);
+        await loadPage(data[0].id);
       }
       
       setError(null);
+      return data;
     } catch (err) {
       console.error('Error loading wiki structure:', err);
       setError('Failed to load wiki structure');
       // On error, ensure we have an empty array
       setWikiStructure([]);
+      return [];
     } finally {
       setLoading(false);
     }
@@ -68,7 +74,10 @@ export const WikiProvider = ({ children }) => {
     
     setLoading(true);
     try {
+      console.log('Loading page with ID:', pageId);
       const page = await wikiApi.getPage(pageId);
+      console.log('Loaded page:', page);
+      
       setCurrentPage(page);
       setActivePage(pageId);
       
@@ -79,9 +88,11 @@ export const WikiProvider = ({ children }) => {
       loadPageAttachments(pageId);
       
       setError(null);
+      return page;
     } catch (err) {
       console.error('Error loading page:', err);
       setError('Failed to load page');
+      return null;
     } finally {
       setLoading(false);
     }
@@ -129,14 +140,24 @@ export const WikiProvider = ({ children }) => {
         sanitizedData.is_published = true;
       }
       
-      const newPage = await wikiApi.createPage(sanitizedData);
+      const response = await wikiApi.createPage(sanitizedData);
+      console.log('API response for page creation:', response);
+      
+      // Get the new page data from the response
+      const newPage = response.data || response;
       
       // Reload the wiki structure to include the new page
       await loadWikiStructure();
       
-      // Set the new page as the active page
-      setCurrentPage(newPage);
-      setActivePage(newPage.id);
+      // Make sure we have a valid page with an ID before setting it active
+      if (newPage && newPage.id) {
+        console.log('Setting active page to:', newPage);
+        
+        // Load the full page data
+        await loadPage(newPage.id);
+      } else {
+        console.error('Created page missing ID:', newPage);
+      }
       
       setError(null);
       return newPage;

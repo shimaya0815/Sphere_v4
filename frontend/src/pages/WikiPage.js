@@ -356,12 +356,14 @@ const WikiContent = () => {
   
   const handleNewPage = async (pageData) => {
     const newPage = await createPage(pageData);
+    // Close the modal regardless of success/failure
+    setShowNewPageModal(false);
+    
     if (newPage) {
-      setShowNewPageModal(false);
-      // Reload wiki structure to show the new page
-      await loadWikiStructure();
-      // Load the new page
-      loadPage(newPage.id);
+      console.log('New page created successfully:', newPage);
+      // Structure and page loading is now handled inside createPage
+    } else {
+      console.error('Failed to create new page');
     }
   };
   

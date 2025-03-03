@@ -7,10 +7,10 @@ const wikiApi = {
     apiClient.get('/wiki/pages/', { params }),
   
   getPage: (id) => 
-    apiClient.get(`/wiki/pages/${id}/`),
+    apiClient.get(`/wiki/pages/${id}/`).then(response => response.data),
   
   createPage: (data) => 
-    apiClient.post('/wiki/pages/', data),
+    apiClient.post('/wiki/pages/', data).then(response => response.data),
   
   updatePage: (id, data) => 
     apiClient.patch(`/wiki/pages/${id}/`, data),
@@ -59,7 +59,7 @@ const wikiApi = {
   
   // Wiki structure
   getWikiStructure: () => 
-    apiClient.get('/wiki/structure/'),
+    apiClient.get('/wiki/structure/').then(response => response.data),
   
   // Reordering
   reorderPages: (pageOrders) => 
