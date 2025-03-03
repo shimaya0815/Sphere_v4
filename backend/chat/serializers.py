@@ -86,8 +86,8 @@ class ChannelMembershipSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = ChannelMembership
-        fields = ('id', 'user', 'joined_at', 'is_admin', 'muted')
-        read_only_fields = ('joined_at',)
+        fields = ('id', 'user', 'joined_at', 'is_admin', 'muted', 'last_read_at', 'unread_count')
+        read_only_fields = ('joined_at', 'last_read_at', 'unread_count')
 
 
 class ChannelSerializer(serializers.ModelSerializer):
@@ -95,18 +95,29 @@ class ChannelSerializer(serializers.ModelSerializer):
     
     created_by = UserMiniSerializer(read_only=True)
     members_count = serializers.SerializerMethodField()
+    unread_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Channel
         fields = (
             'id', 'name', 'description', 'workspace', 'channel_type',
             'created_by', 'created_at', 'updated_at', 'is_direct_message',
-            'members_count'
+            'members_count', 'unread_count'
         )
-        read_only_fields = ('created_at', 'updated_at')
+        read_only_fields = ('created_at', 'updated_at', 'unread_count')
     
     def get_members_count(self, obj):
         return obj.members.count()
+    
+    def get_unread_count(self, obj):
+        user = self.context.get('request').user if self.context.get('request') else None
+        if not user:
+            return 0
+        
+        membership = obj.memberships.filter(user=user).first()
+        if membership:
+            return membership.unread_count
+        return 0
 
 
 class ChannelDetailSerializer(ChannelSerializer):

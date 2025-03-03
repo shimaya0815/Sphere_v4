@@ -80,6 +80,12 @@ async def websocket_endpoint(websocket: WebSocket, channel_id: int):
                         "type": "typing",
                         "data": message_obj.data
                     }, channel_id)
+                elif message_obj.type == "read_status":
+                    # Broadcast read status update
+                    await manager.broadcast({
+                        "type": "read_status",
+                        "data": message_obj.data
+                    }, channel_id)
                 else:
                     logger.warning(f"Unknown message type: {message_obj.type}")
             except json.JSONDecodeError:
