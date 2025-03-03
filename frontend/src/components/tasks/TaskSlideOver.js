@@ -223,8 +223,11 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
     updateTaskField(field, currentValue);
   };
   
+  // JSXはシンプルに書き直し
+  if (!isOpen) return null;
+  
   return (
-    <div className={`fixed inset-0 overflow-hidden z-50 ${isOpen ? 'block' : 'hidden'}`}>
+    <div className="fixed inset-0 overflow-hidden z-50">
       <div className="absolute inset-0 overflow-hidden">
         {/* オーバーレイ背景 */}
         <div 
@@ -232,12 +235,10 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
           onClick={onClose}
         />
         
+        {/* スライド表示部分 */}
         <div className="fixed inset-y-0 right-0 pl-10 max-w-full flex">
-          <div 
-            className={`relative w-screen max-w-md transform transition-transform duration-300 ease-in-out ${
-              isOpen ? 'translate-x-0' : 'translate-x-full'
-            }`}
-          >
+          <div className="relative w-screen max-w-md transform transition-transform duration-300 ease-in-out translate-x-0">
+            {/* 閉じるボタン */}
             <div className="absolute top-0 left-0 -ml-8 pt-4 pr-2 flex sm:-ml-10 sm:pr-4">
               <button
                 type="button"
@@ -249,6 +250,7 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
               </button>
             </div>
             
+            {/* タスク詳細表示部分 */}
             {task ? (
               <div className="h-full flex flex-col py-6 bg-white shadow-xl overflow-y-auto">
                 <div className="px-4 sm:px-6">
@@ -256,206 +258,204 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
                     タスク詳細
                   </h2>
                 </div>
+                
+                <div className="mt-6 relative flex-1 px-4 sm:px-6">
+                  <div className="space-y-6">
+                    {/* タイトル */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        タイトル
+                      </label>
+                      <input
+                        type="text"
+                        className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                        {...register('title')}
+                        onBlur={() => handleFieldChange('title')}
+                      />
+                    </div>
                     
-                    <div className="mt-6 relative flex-1 px-4 sm:px-6">
-                      <div className="space-y-6">
-                        {/* タイトル */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            タイトル
-                          </label>
-                          <input
-                            type="text"
-                            className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                            {...register('title')}
-                            onBlur={() => handleFieldChange('title')}
-                          />
-                        </div>
-                        
-                        {/* 説明 */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            説明
-                          </label>
-                          <textarea
-                            rows="4"
-                            className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                            {...register('description')}
-                            onBlur={() => handleFieldChange('description')}
-                          />
-                        </div>
-                        
-                        {/* ステータスと優先度 */}
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              ステータス
-                            </label>
-                            <select
-                              className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                              {...register('status')}
-                              onChange={() => handleFieldChange('status')}
-                            >
-                              <option value="">選択してください</option>
-                              {statuses.map(status => (
-                                <option key={status.id} value={status.id}>{status.name}</option>
-                              ))}
-                            </select>
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              優先度
-                            </label>
-                            <select
-                              className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                              {...register('priority')}
-                              onChange={() => handleFieldChange('priority')}
-                            >
-                              <option value="">選択してください</option>
-                              {priorities.map(priority => (
-                                <option key={priority.id} value={priority.id}>{priority.name}</option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-                        
-                        {/* カテゴリーと期限日 */}
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              カテゴリー
-                            </label>
-                            <select
-                              className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                              {...register('category')}
-                              onChange={() => handleFieldChange('category')}
-                            >
-                              <option value="">選択してください</option>
-                              {categories.map(category => (
-                                <option key={category.id} value={category.id}>{category.name}</option>
-                              ))}
-                            </select>
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              期限日
-                            </label>
-                            <input
-                              type="date"
-                              className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                              {...register('due_date')}
-                              onBlur={() => handleFieldChange('due_date')}
-                            />
-                          </div>
-                        </div>
-                        
-                        {/* 見積時間 */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            見積時間 (時間)
-                          </label>
-                          <input
-                            type="number"
-                            step="0.5"
-                            min="0"
-                            className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                            {...register('estimated_hours')}
-                            onBlur={() => handleFieldChange('estimated_hours')}
-                          />
-                        </div>
-                        
-                        {/* クライアント */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            クライアント
-                          </label>
-                          <select
-                            className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                            {...register('client')}
-                            onChange={() => handleFieldChange('client')}
-                          >
-                            <option value="">選択してください</option>
-                            {clients.map(client => (
-                              <option key={client.id} value={client.id}>{client.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                        
-                        {/* タスク種別 */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            タスク種別
-                          </label>
-                          <select
-                            className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                            {...register('is_fiscal_task')}
-                            onChange={() => handleFieldChange('is_fiscal_task')}
-                            disabled={!watchedClient}
-                          >
-                            <option value="false">通常タスク</option>
-                            <option value="true">決算期関連タスク</option>
-                          </select>
-                        </div>
-                        
-                        {/* 決算期 */}
-                        {isFiscalTask && watchedClient && (
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              決算期
-                            </label>
-                            <select
-                              className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                              {...register('fiscal_year')}
-                              onChange={() => handleFieldChange('fiscal_year')}
-                            >
-                              <option value="">選択してください</option>
-                              {fiscalYears.map(fiscalYear => (
-                                <option key={fiscalYear.id} value={fiscalYear.id}>
-                                  第{fiscalYear.fiscal_period}期 ({new Date(fiscalYear.start_date).toLocaleDateString()} 〜 {new Date(fiscalYear.end_date).toLocaleDateString()})
-                                </option>
-                              ))}
-                            </select>
-                            {fiscalYears.length === 0 && (
-                              <p className="mt-1 text-xs text-amber-600">
-                                選択したクライアントに決算期情報が登録されていません。
-                              </p>
-                            )}
-                          </div>
+                    {/* 説明 */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        説明
+                      </label>
+                      <textarea
+                        rows="4"
+                        className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                        {...register('description')}
+                        onBlur={() => handleFieldChange('description')}
+                      />
+                    </div>
+                    
+                    {/* ステータスと優先度 */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          ステータス
+                        </label>
+                        <select
+                          className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                          {...register('status')}
+                          onChange={() => handleFieldChange('status')}
+                        >
+                          <option value="">選択してください</option>
+                          {statuses.map(status => (
+                            <option key={status.id} value={status.id}>{status.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          優先度
+                        </label>
+                        <select
+                          className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                          {...register('priority')}
+                          onChange={() => handleFieldChange('priority')}
+                        >
+                          <option value="">選択してください</option>
+                          {priorities.map(priority => (
+                            <option key={priority.id} value={priority.id}>{priority.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    
+                    {/* カテゴリーと期限日 */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          カテゴリー
+                        </label>
+                        <select
+                          className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                          {...register('category')}
+                          onChange={() => handleFieldChange('category')}
+                        >
+                          <option value="">選択してください</option>
+                          {categories.map(category => (
+                            <option key={category.id} value={category.id}>{category.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          期限日
+                        </label>
+                        <input
+                          type="date"
+                          className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                          {...register('due_date')}
+                          onBlur={() => handleFieldChange('due_date')}
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* 見積時間 */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        見積時間 (時間)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.5"
+                        min="0"
+                        className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                        {...register('estimated_hours')}
+                        onBlur={() => handleFieldChange('estimated_hours')}
+                      />
+                    </div>
+                    
+                    {/* クライアント */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        クライアント
+                      </label>
+                      <select
+                        className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                        {...register('client')}
+                        onChange={() => handleFieldChange('client')}
+                      >
+                        <option value="">選択してください</option>
+                        {clients.map(client => (
+                          <option key={client.id} value={client.id}>{client.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    {/* タスク種別 */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        タスク種別
+                      </label>
+                      <select
+                        className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                        {...register('is_fiscal_task')}
+                        onChange={() => handleFieldChange('is_fiscal_task')}
+                        disabled={!watchedClient}
+                      >
+                        <option value="false">通常タスク</option>
+                        <option value="true">決算期関連タスク</option>
+                      </select>
+                    </div>
+                    
+                    {/* 決算期 */}
+                    {isFiscalTask && watchedClient && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          決算期
+                        </label>
+                        <select
+                          className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                          {...register('fiscal_year')}
+                          onChange={() => handleFieldChange('fiscal_year')}
+                        >
+                          <option value="">選択してください</option>
+                          {fiscalYears.map(fiscalYear => (
+                            <option key={fiscalYear.id} value={fiscalYear.id}>
+                              第{fiscalYear.fiscal_period}期 ({new Date(fiscalYear.start_date).toLocaleDateString()} 〜 {new Date(fiscalYear.end_date).toLocaleDateString()})
+                            </option>
+                          ))}
+                        </select>
+                        {fiscalYears.length === 0 && (
+                          <p className="mt-1 text-xs text-amber-600">
+                            選択したクライアントに決算期情報が登録されていません。
+                          </p>
                         )}
-                        
-                        {/* クライアント情報表示 */}
-                        {selectedClient && (
-                          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mt-4">
-                            <h3 className="text-sm font-medium text-gray-700 mb-2">選択中のクライアント情報</h3>
-                            <div className="text-sm text-gray-600">
-                              <p><span className="font-medium">クライアント名:</span> {selectedClient.name}</p>
-                              <p><span className="font-medium">契約状況:</span> {selectedClient.contract_status_display || selectedClient.contract_status}</p>
-                              {selectedClient.fiscal_year && (
-                                <p><span className="font-medium">現在の決算期:</span> 第{selectedClient.fiscal_year}期</p>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* タスク作成・更新日時 */}
-                        <div className="pt-4 border-t border-gray-200">
-                          <div className="flex justify-between text-sm text-gray-500">
-                            <span>作成日: {task.created_at ? new Date(task.created_at).toLocaleString() : '-'}</span>
-                            <span>更新日: {task.updated_at ? new Date(task.updated_at).toLocaleString() : '-'}</span>
-                          </div>
+                      </div>
+                    )}
+                    
+                    {/* クライアント情報表示 */}
+                    {selectedClient && (
+                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mt-4">
+                        <h3 className="text-sm font-medium text-gray-700 mb-2">選択中のクライアント情報</h3>
+                        <div className="text-sm text-gray-600">
+                          <p><span className="font-medium">クライアント名:</span> {selectedClient.name}</p>
+                          <p><span className="font-medium">契約状況:</span> {selectedClient.contract_status_display || selectedClient.contract_status}</p>
+                          {selectedClient.fiscal_year && (
+                            <p><span className="font-medium">現在の決算期:</span> 第{selectedClient.fiscal_year}期</p>
+                          )}
                         </div>
+                      </div>
+                    )}
+                    
+                    {/* タスク作成・更新日時 */}
+                    <div className="pt-4 border-t border-gray-200">
+                      <div className="flex justify-between text-sm text-gray-500">
+                        <span>作成日: {task.created_at ? new Date(task.created_at).toLocaleString() : '-'}</span>
+                        <span>更新日: {task.updated_at ? new Date(task.updated_at).toLocaleString() : '-'}</span>
                       </div>
                     </div>
                   </div>
-                ) : (
-                  <div className="h-full flex flex-col items-center justify-center py-6 bg-white">
-                    <p>タスクが選択されていません</p>
-                  </div>
-                )}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center py-6 bg-white">
+                <p>タスクが選択されていません</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
