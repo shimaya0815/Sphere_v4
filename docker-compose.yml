@@ -12,10 +12,15 @@ services:
       - /app/node_modules
     depends_on:
       - backend
+      - websocket
     environment:
       - NODE_ENV=development
-      - REACT_APP_API_URL=http://backend:8000/api
+      - REACT_APP_API_URL=http://backend:8000
+      - REACT_APP_WS_URL=http://websocket:8001
       - WDS_SOCKET_PORT=0
+      - CHOKIDAR_USEPOLLING=true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   backend:
     build:
@@ -30,13 +35,15 @@ services:
     environment:
       - DEBUG=True
       - SECRET_KEY=dev_secret_key
-      - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
+      - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,backend,backend:8000,host.docker.internal,testserver
       - DATABASE_URL=postgres://postgres:postgres@db:5432/sphere
     command: >
       sh -c "python manage.py wait_for_db &&
              python manage.py makemigrations &&
              python manage.py migrate &&
              python manage.py runserver 0.0.0.0:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   websocket:
     build:
