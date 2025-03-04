@@ -19,6 +19,8 @@ services:
       - REACT_APP_WS_URL=http://websocket:8001
       - WDS_SOCKET_PORT=0
       - CHOKIDAR_USEPOLLING=true
+      - HOST=0.0.0.0
+      - DANGEROUSLY_DISABLE_HOST_CHECK=true
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
