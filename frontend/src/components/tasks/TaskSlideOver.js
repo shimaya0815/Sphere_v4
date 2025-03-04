@@ -143,17 +143,21 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
   
   // Load fiscal years when client changes
   useEffect(() => {
+    // クライアントIDが変更されるたびにデバウンスでAPIリクエストを実行
+    let timeoutId = null;
+    
     const fetchFiscalYears = async () => {
       if (watchedClient) {
         try {
+          // クライアントリストから選択したクライアントを見つける
+          const selectedClientData = clients.find(c => c.id === parseInt(watchedClient));
+          if (selectedClientData) {
+            setSelectedClient(selectedClientData);
+          }
+          
           const fiscalYearsData = await clientsApi.getFiscalYears(watchedClient);
           console.log('Fiscal years data:', fiscalYearsData);
           setFiscalYears(fiscalYearsData);
-          
-          // If there's already a client selected, find it
-          const selectedClientData = clients.find(c => c.id === parseInt(watchedClient));
-          setSelectedClient(selectedClientData);
-          
         } catch (error) {
           console.error('Error fetching fiscal years:', error);
           setFiscalYears([]);
@@ -164,7 +168,29 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
       }
     };
 
-    fetchFiscalYears();
+    // クライアントが選択されている場合のみAPI呼び出し
+    if (watchedClient) {
+      // まずは選択したクライアントをUIに反映（即時）
+      const selectedClientData = clients.find(c => c.id === parseInt(watchedClient));
+      if (selectedClientData) {
+        setSelectedClient(selectedClientData);
+      }
+      
+      // APIリクエストはデバウンスして実行
+      timeoutId = setTimeout(() => {
+        fetchFiscalYears();
+      }, 300);
+    } else {
+      setFiscalYears([]);
+      setSelectedClient(null);
+    }
+    
+    // クリーンアップ
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [watchedClient, clients]);
   
   // Update isFiscalTask state when the checkbox changes
@@ -261,7 +287,7 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
         // 文字列に変換してフォームに設定
         const formValues = {
           title: task.title || '',
-          description: task.description || '',
+          description: task.description || '', // 説明フィールドは特に注意して設定
           category: categoryId ? categoryId.toString() : '',
           status: statusId ? statusId.toString() : '',
           priority: priorityId ? priorityId.toString() : '',
@@ -282,7 +308,18 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
         console.log("Form values to be set:", formValues);
         
         // メタデータのロード後にフォームをリセット
+        // フォームリセット後に値が確実に反映されることを保証
         reset(formValues);
+        
+        // 説明フィールドの値を明示的に設定（resetだけでは反映されないことがあるため）
+        setTimeout(() => {
+          console.log("特別処理: 説明フィールドを明示的に設定:", task.description || '');
+          setValue('description', task.description || '', { shouldDirty: true, shouldValidate: true });
+          
+          // 確認のため現在の値をログ出力
+          const currentDesc = getValues('description');
+          console.log("説明フィールド設定後の値:", currentDesc);
+        }, 100);
         
         // 選択済み値の詳細ログ
         console.log("Current form values after reset:", getValues());
@@ -574,16 +611,26 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
     return labels[field] || field;
   };
   
-  // フィールド変更イベント処理を単純化
+  // テキストフィールド変更処理（説明欄など）に特化したハンドラー 
   const handleFieldChange = (field) => {
     // ログ出力のみを行い、実際の更新は一定時間後に実行する
-    console.log(`Field ${field} changed to: ${getValues(field)}`);
-    
-    // デバウンス処理で複数の変更を一度にまとめる
     const currentValue = getValues(field);
+    console.log(`Field ${field} changed to: "${currentValue}"`);
+    
+    // フォームの状態を強制更新して変更を確実に反映
+    setValue(field, currentValue, { shouldDirty: true, shouldValidate: true });
+
+    // 明示的にフォームの状態を最新化
+    const formValues = getValues();
+    console.log(`Form state after update:`, formValues);
     
     // 直接更新を実行（デバウンスを無効化して即時更新）
-    updateTaskField(field, currentValue);
+    if (field === 'description') {
+      // 説明フィールドの場合は特別に対応
+      updateTaskField('description', formValues.description);
+    } else {
+      updateTaskField(field, currentValue);
+    }
   };
   
   // JSXはシンプルに書き直し
@@ -670,16 +717,20 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                         name="description"
                         value={watch('description') || ''}
                         onChange={(e) => {
+                          // 入力した値を即座にフォームに保存
                           console.log(`Description being set to: "${e.target.value}"`);
-                          setValue('description', e.target.value, { shouldDirty: true });
+                          setValue('description', e.target.value, { shouldDirty: true, shouldValidate: true });
                         }}
                         onBlur={(e) => {
-                          // フォーカスが外れたときだけAPIに保存
-                          const currentDescription = isNewTask ? '' : (task?.description || '');
-                          if (e.target.value !== currentDescription) {
-                            console.log(`Description changed from "${currentDescription}" to "${e.target.value}"`);
-                            updateTaskField('description', e.target.value);
-                          }
+                          // フォーカスが外れたときに必ずAPIに保存
+                          console.log(`Description field lost focus, current value: "${e.target.value}"`);
+                          
+                          // フォーム値を最新化してAPI呼び出し用に取得
+                          const formValues = getValues();
+                          console.log(`Form values at blur:`, formValues);
+                          
+                          // 明示的にAPIを呼び出し
+                          updateTaskField('description', formValues.description);
                         }}
                       />
                     </div>
@@ -941,12 +992,16 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                       <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mt-4">
                         <h3 className="text-sm font-medium text-gray-700 mb-2">選択中のクライアント情報</h3>
                         <div className="text-sm text-gray-600">
-                          <p><span className="font-medium">クライアント名:</span> {selectedClient.name}</p>
-                          <p className="bg-white p-1 rounded">
+                          <div className="bg-white p-2 rounded mb-1">
+                            <span className="font-medium">クライアント名:</span> {selectedClient.name}
+                          </div>
+                          <div className="bg-white p-2 rounded mb-1">
                             <span className="font-medium">契約状況:</span> {selectedClient.contract_status_display || selectedClient.contract_status}
-                          </p>
+                          </div>
                           {selectedClient.fiscal_year && (
-                            <p><span className="font-medium">現在の決算期:</span> 第{selectedClient.fiscal_year}期</p>
+                            <div className="bg-white p-2 rounded">
+                              <span className="font-medium">現在の決算期:</span> 第{selectedClient.fiscal_year}期
+                            </div>
                           )}
                         </div>
                       </div>
