@@ -220,114 +220,122 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
     }
   };
   
+  /**
+   * タスクフィールドの更新処理
+   * バックエンドとの連携で最も重要な部分を簡略化
+   */
   const updateTaskField = async (field, value) => {
-    if (!task || !task.id) return;
+    if (!task || !task.id) {
+      console.error('Task is not loaded or has no ID');
+      return;
+    }
     
     try {
-      // シンプルな変換ルールでデータ形式を統一
-      let formattedValue = value;
+      // フォームの変更をロック（連続更新防止）
+      setIsSubmitting(true);
       
-      if (field === 'status' || field === 'priority' || field === 'category' || field === 'fiscal_year' || field === 'client') {
+      // 1. 送信データの準備 (シンプルなデータ変換)
+      let formattedValue;
+      
+      // 数値変換フィールド
+      if (['status', 'priority', 'category', 'fiscal_year', 'client'].includes(field)) {
         formattedValue = value && value !== '' ? parseInt(value, 10) : null;
-        console.log(`Converting ${field} value '${value}' to ${formattedValue} (${typeof formattedValue})`);
-      } else if (field === 'due_date') {
-        formattedValue = value ? new Date(value).toISOString() : null;
-        console.log(`Converting ${field} value '${value}' to ${formattedValue}`);
-      } else if (field === 'is_fiscal_task') {
+      } 
+      // 日付変換フィールド
+      else if (field === 'due_date') {
+        formattedValue = value ? value : null; // ISO文字列はバックエンドで処理
+      } 
+      // 真偽値変換フィールド
+      else if (field === 'is_fiscal_task') {
         formattedValue = value === 'true' || value === true;
-        console.log(`Converting ${field} value '${value}' to ${formattedValue}`);
+      }
+      // その他のフィールドはそのまま
+      else {
+        formattedValue = value;
       }
       
-      // 単一フィールド更新データ
-      const updateData = { [field]: formattedValue };
-      console.log(`Updating task ${task.id} field ${field} to:`, formattedValue);
-      
-      // fiscal_yearの特別ケース処理
+      // 特別なケース: 決算期タスクフラグが立っていない場合は決算期も更新しない
       if (field === 'fiscal_year' && getValues('is_fiscal_task') !== 'true') {
-        console.log(`Skipping fiscal_year update because is_fiscal_task is not true`);
+        console.log('Skipping fiscal_year update - not a fiscal task');
+        setIsSubmitting(false);
         return;
       }
       
-      // APIリクエスト送信
-      console.log(`Sending API request to update task ${task.id}:`, updateData);
-      const result = await tasksApi.updateTask(task.id, updateData);
-      console.log(`API response for task update:`, result);
+      // 2. APIリクエストを実行
+      console.log(`Updating task ${task.id} - field: ${field}, value:`, formattedValue);
       
-      // 成功通知
-      toast.success(`${getFieldLabel(field)}を更新しました`, { duration: 2000 });
+      // シンプルな更新データ構造
+      const updateData = { [field]: formattedValue };
       
-      // 重要: 新しい完全なタスクオブジェクトを作成
-      const updatedTask = {...task, ...result};
-      console.log("New merged task:", updatedTask);
+      // 更新APIを呼び出し
+      const updatedTask = await tasksApi.updateTask(task.id, updateData);
       
-      // フォームのフィールド値を更新（APIレスポンスに基づく）
-      if (result) {
-        // 特定のフィールドを明示的に処理
-        if (field === 'status' && result.status !== undefined) {
-          const statusValue = typeof result.status === 'object' ? 
-            result.status.id.toString() : String(result.status);
-          console.log(`Setting status form value to: ${statusValue}`);
-          setValue('status', statusValue);
-        }
-        
-        if (field === 'priority' && result.priority !== undefined) {
-          const priorityValue = typeof result.priority === 'object' ? 
-            result.priority.id.toString() : String(result.priority);
-          console.log(`Setting priority form value to: ${priorityValue}`);
-          setValue('priority', priorityValue);
-        }
-        
-        if (field === 'category' && result.category !== undefined) {
-          const categoryValue = typeof result.category === 'object' ? 
-            result.category.id.toString() : String(result.category);
-          console.log(`Setting category form value to: ${categoryValue}`);
-          setValue('category', categoryValue);
-        }
-        
-        if (field === 'client' && result.client !== undefined) {
-          const clientValue = typeof result.client === 'object' ? 
-            result.client.id.toString() : String(result.client);
-          console.log(`Setting client form value to: ${clientValue}`);
-          setValue('client', clientValue);
-        }
-        
-        if (field === 'is_fiscal_task') {
-          const fiscalValue = result.is_fiscal_task ? 'true' : 'false';
-          console.log(`Setting is_fiscal_task form value to: ${fiscalValue}`);
-          setValue('is_fiscal_task', fiscalValue);
-        }
+      if (!updatedTask || !updatedTask.id) {
+        throw new Error('Invalid response from server');
       }
       
-      // 親コンポーネントに完全な更新済みタスクを通知
+      // 3. 更新成功の通知
+      toast.success(`${getFieldLabel(field)}を更新しました`);
+      
+      // 4. フォーム状態の更新（バックエンドからの応答に基づく）
+      console.log('Task updated successfully:', updatedTask);
+      
+      // API応答に_dataフィールドが含まれている場合は使用する
+      if (field === 'status' && updatedTask.status_data) {
+        setValue('status', String(updatedTask.status_data.id));
+      }
+      else if (field === 'priority' && updatedTask.priority_data) {
+        setValue('priority', String(updatedTask.priority_data.id));
+      }
+      else if (field === 'category' && updatedTask.category_data) {
+        setValue('category', String(updatedTask.category_data.id));
+      }
+      else if (field === 'client' && updatedTask.client_data) {
+        setValue('client', String(updatedTask.client_data.id));
+      }
+      else if (field === 'is_fiscal_task') {
+        setValue('is_fiscal_task', updatedTask.is_fiscal_task ? 'true' : 'false');
+      }
+      else if (field === 'fiscal_year' && updatedTask.fiscal_year_data) {
+        setValue('fiscal_year', String(updatedTask.fiscal_year_data.id));
+      }
+      
+      // 5. 親コンポーネントへの通知
       if (onTaskUpdated && typeof onTaskUpdated === 'function') {
-        console.log("Calling onTaskUpdated with merged task:", updatedTask);
-        // ここで親コンポーネントにデータを渡す
         onTaskUpdated(updatedTask);
       }
       
-      // UIリフレッシュイベント発火 (一度に一つだけにする)
-      console.log("Dispatching task-updated event");
+      // 6. UI更新イベント発火
       window.dispatchEvent(new CustomEvent('task-updated'));
-    } catch (error) {
-      console.error(`Error updating ${field}:`, error);
-      toast.error(`${getFieldLabel(field)}の更新に失敗しました`);
+    } 
+    catch (error) {
+      // エラー処理
+      console.error('Failed to update task:', error);
+      toast.error(`${getFieldLabel(field)}の更新に失敗しました: ${error.message || '不明なエラー'}`);
       
-      // エラー時はフォームを元の値に戻す
-      if (task && task[field] !== undefined) {
-        let originalValue = task[field];
-        
-        // オブジェクト値を文字列に変換
-        if (originalValue && typeof originalValue === 'object' && originalValue.id) {
-          originalValue = originalValue.id.toString();
-        } else if (field === 'is_fiscal_task') {
-          originalValue = originalValue ? 'true' : 'false';
-        } else if (originalValue !== null && (field === 'status' || field === 'priority' || field === 'category')) {
-          originalValue = originalValue.toString();
+      // エラー時はフォーム値を元に戻す
+      const originalFieldValue = task[field];
+      
+      if (originalFieldValue !== undefined) {
+        if (['status', 'priority', 'category'].includes(field) && 
+            originalFieldValue && typeof originalFieldValue === 'object') {
+          setValue(field, String(originalFieldValue.id));
+        } 
+        else if (field === 'is_fiscal_task') {
+          setValue(field, originalFieldValue ? 'true' : 'false');
         }
-        
-        console.log(`Resetting ${field} to original value:`, originalValue);
-        setValue(field, originalValue);
+        else if (originalFieldValue !== null && 
+                ['status', 'priority', 'category', 'fiscal_year'].includes(field)) {
+          setValue(field, String(originalFieldValue));
+        }
+        else {
+          setValue(field, originalFieldValue);
+        }
       }
+    } 
+    finally {
+      // 処理完了後はフォームの変更をアンロック
+      setIsSubmitting(false);
     }
   };
   
@@ -348,10 +356,22 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
     return labels[field] || field;
   };
   
-  // Handle field change events
+  // フィールド変更イベント処理を単純化
   const handleFieldChange = (field) => {
+    // ログ出力のみを行い、実際の更新は一定時間後に実行する
+    console.log(`Field ${field} changed to: ${getValues(field)}`);
+    
+    // デバウンス処理で複数の変更を一度にまとめる
     const currentValue = getValues(field);
-    updateTaskField(field, currentValue);
+    
+    // 500ms待機して、ユーザーが入力を完了するのを待つ
+    setTimeout(() => {
+      const latestValue = getValues(field);
+      // 値が変更されていない場合のみ更新を実行
+      if (latestValue === currentValue) {
+        updateTaskField(field, latestValue);
+      }
+    }, 500);
   };
   
   // JSXはシンプルに書き直し
@@ -402,6 +422,7 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
                         className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
                         {...register('title')}
                         onBlur={() => handleFieldChange('title')}
+                        disabled={isSubmitting}
                       />
                     </div>
                     
@@ -428,6 +449,7 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
                           className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
                           {...register('status')}
                           onChange={() => handleFieldChange('status')}
+                          disabled={isSubmitting}
                         >
                           <option value="">選択してください</option>
                           {statuses.map(status => (
@@ -444,6 +466,7 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
                           className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
                           {...register('priority')}
                           onChange={() => handleFieldChange('priority')}
+                          disabled={isSubmitting}
                         >
                           <option value="">選択してください</option>
                           {priorities.map(priority => (
@@ -463,6 +486,7 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
                           className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
                           {...register('category')}
                           onChange={() => handleFieldChange('category')}
+                          disabled={isSubmitting}
                         >
                           <option value="">選択してください</option>
                           {categories.map(category => (
@@ -508,6 +532,7 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
                         className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
                         {...register('client')}
                         onChange={() => handleFieldChange('client')}
+                        disabled={isSubmitting}
                       >
                         <option value="">選択してください</option>
                         {clients.map(client => (
@@ -525,7 +550,7 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
                         className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
                         {...register('is_fiscal_task')}
                         onChange={() => handleFieldChange('is_fiscal_task')}
-                        disabled={!watchedClient}
+                        disabled={isSubmitting || !watchedClient}
                       >
                         <option value="false">通常タスク</option>
                         <option value="true">決算期関連タスク</option>
@@ -542,6 +567,7 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
                           className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
                           {...register('fiscal_year')}
                           onChange={() => handleFieldChange('fiscal_year')}
+                          disabled={isSubmitting}
                         >
                           <option value="">選択してください</option>
                           {fiscalYears.map(fiscalYear => (
