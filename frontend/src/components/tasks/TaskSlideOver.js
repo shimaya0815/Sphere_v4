@@ -326,10 +326,25 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
       else if (field === 'client') {
         if (updatedTask.client_data) {
           newFormValue = String(updatedTask.client_data.id);
+          // 選択されたクライアント情報を更新
+          setSelectedClient(updatedTask.client_data);
         } else if (updatedTask.client) {
           newFormValue = typeof updatedTask.client === 'object' ? 
                       String(updatedTask.client.id) : 
                       String(updatedTask.client);
+          
+          // クライアントIDに基づいてクライアント情報を更新
+          const clientId = typeof updatedTask.client === 'object' ? 
+                         updatedTask.client.id : 
+                         updatedTask.client;
+          
+          const selectedClientData = clients.find(c => c.id === parseInt(clientId));
+          if (selectedClientData) {
+            setSelectedClient(selectedClientData);
+          }
+        } else {
+          // クライアントが選択されていない場合
+          setSelectedClient(null);
         }
       }
       else if (field === 'is_fiscal_task') {
@@ -622,7 +637,19 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
                       <select
                         className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
                         {...register('client')}
-                        onChange={() => handleFieldChange('client')}
+                        onChange={(e) => {
+                          console.log("Client selected:", e.target.value);
+                          
+                          // フォームの値を明示的に設定
+                          setValue('client', e.target.value);
+                          
+                          // 変更をAPI経由で保存
+                          if (e.target.value) {
+                            setTimeout(() => {
+                              updateTaskField('client', e.target.value);
+                            }, 100);
+                          }
+                        }}
                         disabled={isSubmitting}
                       >
                         <option value="">選択してください</option>

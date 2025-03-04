@@ -46,6 +46,11 @@ const normalizeTaskData = (task) => {
     client_data = { id: task.client, name: task.client_name || '' };
   }
   
+  // APIのレスポンスでクライアント情報が不完全な場合は、各フィールドを丁寧に確認
+  if (client_data && client_data.id && !client_data.name && task.client_name) {
+    client_data.name = task.client_name;
+  }
+  
   const normalized = {
     ...task,
     status_data,
@@ -173,11 +178,36 @@ const tasksApi = {
       // レスポンスデータの詳細ログ
       console.log('Raw response data:', JSON.stringify(response.data));
       
-      // オブジェクト参照型の値を直接返す（正規化せず）
+      // 応答データを正規化せずに返す前に、必要な情報が揃っているか確認
       if (response.data && typeof response.data === 'object') {
         // 基本的なデータ構造チェック
         if (response.data.id !== undefined) {
-          console.log('Returning raw response data');
+          console.log('Processing response data before return');
+          
+          // client関連フィールドは常に正規化する（ここが重要）
+          if (response.data.client !== undefined) {
+            // クライアントデータの正規化
+            let client_data = null;
+            if (response.data.client_data) {
+              client_data = response.data.client_data;
+            } else if (response.data.client && typeof response.data.client === 'object') {
+              client_data = { 
+                id: response.data.client.id, 
+                name: response.data.client.name,
+                client_code: response.data.client.client_code
+              };
+            } else if (response.data.client) {
+              client_data = { 
+                id: response.data.client, 
+                name: response.data.client_name || '' 
+              };
+            }
+            
+            // 正規化したクライアントデータを追加
+            response.data.client_data = client_data;
+          }
+          
+          console.log('Returning processed response data');
           return response.data;
         }
       }
