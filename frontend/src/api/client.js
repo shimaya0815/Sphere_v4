@@ -5,7 +5,10 @@ import axios from 'axios';
 // 本番環境ではAPIのURL設定を行う
 const API_URL = '/api';
 
+// デバッグ用にAPIのURLをログ出力
 console.log('Using API URL:', API_URL);
+console.log('Environment:', process.env.NODE_ENV);
+console.log('REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
 
 const apiClient = axios.create({
   baseURL: API_URL,
@@ -13,7 +16,7 @@ const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
   // デフォルトタイムアウトを設定
-  timeout: 15000, // 15秒
+  timeout: 30000, // 30秒に延長
   // クロスドメインでCookieを送信する設定
   withCredentials: true,
 });
