@@ -51,12 +51,31 @@ const normalizeTaskData = (task) => {
     client_data.name = task.client_name;
   }
   
+  // 決算期情報を正規化
+  let fiscal_year_data = null;
+  if (task.fiscal_year_data) {
+    fiscal_year_data = task.fiscal_year_data;
+  } else if (task.fiscal_year && typeof task.fiscal_year === 'object') {
+    fiscal_year_data = { 
+      id: task.fiscal_year.id, 
+      fiscal_period: task.fiscal_year.fiscal_period,
+      start_date: task.fiscal_year.start_date,
+      end_date: task.fiscal_year.end_date
+    };
+  } else if (task.fiscal_year && task.fiscal_period) {
+    fiscal_year_data = { 
+      id: task.fiscal_year, 
+      fiscal_period: task.fiscal_period 
+    };
+  }
+  
   const normalized = {
     ...task,
     status_data,
     priority_data,
     category_data,
-    client_data
+    client_data,
+    fiscal_year_data
   };
   
   console.log('Normalized task data result:', normalized);
@@ -205,6 +224,32 @@ const tasksApi = {
             
             // 正規化したクライアントデータを追加
             response.data.client_data = client_data;
+          }
+          
+          // 決算期情報も正規化
+          if (response.data.fiscal_year !== undefined || response.data.is_fiscal_task) {
+            // 決算期データの正規化
+            let fiscal_year_data = null;
+            if (response.data.fiscal_year_data) {
+              fiscal_year_data = response.data.fiscal_year_data;
+            } else if (response.data.fiscal_year && typeof response.data.fiscal_year === 'object') {
+              fiscal_year_data = { 
+                id: response.data.fiscal_year.id, 
+                fiscal_period: response.data.fiscal_year.fiscal_period,
+                start_date: response.data.fiscal_year.start_date,
+                end_date: response.data.fiscal_year.end_date
+              };
+            } else if (response.data.fiscal_year && response.data.fiscal_period) {
+              fiscal_year_data = { 
+                id: response.data.fiscal_year, 
+                fiscal_period: response.data.fiscal_period 
+              };
+            }
+            
+            // 正規化した決算期データを追加
+            if (fiscal_year_data) {
+              response.data.fiscal_year_data = fiscal_year_data;
+            }
           }
           
           console.log('Returning processed response data');

@@ -349,6 +349,11 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
       }
       else if (field === 'is_fiscal_task') {
         newFormValue = updatedTask.is_fiscal_task ? 'true' : 'false';
+        
+        // タスク種別の状態を明示的に更新
+        setIsFiscalTask(updatedTask.is_fiscal_task);
+        
+        console.log(`Updated is_fiscal_task to: ${updatedTask.is_fiscal_task} (${newFormValue})`);
       }
       else if (field === 'fiscal_year') {
         if (updatedTask.fiscal_year_data) {
@@ -667,7 +672,20 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
                       <select
                         className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
                         {...register('is_fiscal_task')}
-                        onChange={() => handleFieldChange('is_fiscal_task')}
+                        onChange={(e) => {
+                          console.log("Task type selected:", e.target.value);
+                          
+                          // フォームの値を明示的に設定
+                          setValue('is_fiscal_task', e.target.value);
+                          
+                          // 状態も明示的に更新
+                          setIsFiscalTask(e.target.value === 'true');
+                          
+                          // 変更をAPI経由で保存
+                          setTimeout(() => {
+                            updateTaskField('is_fiscal_task', e.target.value);
+                          }, 100);
+                        }}
                         disabled={isSubmitting || !watchedClient}
                       >
                         <option value="false">通常タスク</option>
@@ -684,7 +702,19 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
                         <select
                           className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
                           {...register('fiscal_year')}
-                          onChange={() => handleFieldChange('fiscal_year')}
+                          onChange={(e) => {
+                            console.log("Fiscal year selected:", e.target.value);
+                            
+                            // フォームの値を明示的に設定
+                            setValue('fiscal_year', e.target.value);
+                            
+                            // 変更をAPI経由で保存
+                            if (e.target.value) {
+                              setTimeout(() => {
+                                updateTaskField('fiscal_year', e.target.value);
+                              }, 100);
+                            }
+                          }}
                           disabled={isSubmitting}
                         >
                           <option value="">選択してください</option>
