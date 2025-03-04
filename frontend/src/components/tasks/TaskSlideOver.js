@@ -26,12 +26,21 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
       client: '',
       is_fiscal_task: 'false',
       fiscal_year: '',
+      is_recurring: 'false',
+      recurrence_pattern: '',
+      recurrence_end_date: '',
+      is_template: 'false',
+      template_name: '',
+      start_date: '',
+      completed_at: '',
     }
   });
   
   // Watch selected values for dependent dropdowns
   const watchedClient = watch('client');
   const watchedIsFiscalTask = watch('is_fiscal_task');
+  const watchedIsRecurring = watch('is_recurring');
+  const watchedIsTemplate = watch('is_template');
   
   useEffect(() => {
     if (isOpen && task) {
@@ -141,6 +150,13 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
           client: clientId ? clientId.toString() : '',
           is_fiscal_task: task.is_fiscal_task ? 'true' : 'false',
           fiscal_year: task.fiscal_year?.id || (typeof task.fiscal_year === 'number' ? task.fiscal_year.toString() : ''),
+          is_recurring: task.is_recurring ? 'true' : 'false',
+          recurrence_pattern: task.recurrence_pattern || '',
+          recurrence_end_date: task.recurrence_end_date ? task.recurrence_end_date.substring(0, 10) : '',
+          is_template: task.is_template ? 'true' : 'false',
+          template_name: task.template_name || '',
+          start_date: task.start_date ? task.start_date.substring(0, 10) : '',
+          completed_at: task.completed_at ? task.completed_at.substring(0, 10) : '',
         };
         
         console.log("Form values to be set:", formValues);
@@ -746,108 +762,136 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
                       </div>
                     )}
                     
-                    {/* タスクフィールド一覧 */}
+                    {/* 追加フィールドセクション */}
                     <div className="mt-6 pt-4 border-t border-gray-200">
-                      <h3 className="text-md font-medium text-gray-700 mb-2">タスク情報一覧</h3>
-                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 overflow-auto max-h-96">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="bg-gray-100">
-                              <th className="text-left py-2 px-3">フィールド</th>
-                              <th className="text-left py-2 px-3">値</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr className="border-t border-gray-200">
-                              <td className="py-2 px-3 font-medium">タイトル</td>
-                              <td className="py-2 px-3">{task.title || '-'}</td>
-                            </tr>
-                            <tr className="border-t border-gray-200">
-                              <td className="py-2 px-3 font-medium">説明</td>
-                              <td className="py-2 px-3">{task.description || '-'}</td>
-                            </tr>
-                            <tr className="border-t border-gray-200">
-                              <td className="py-2 px-3 font-medium">ステータス</td>
-                              <td className="py-2 px-3">{task.status_data?.name || '-'}</td>
-                            </tr>
-                            <tr className="border-t border-gray-200">
-                              <td className="py-2 px-3 font-medium">優先度</td>
-                              <td className="py-2 px-3">{task.priority_data?.name || '-'}</td>
-                            </tr>
-                            <tr className="border-t border-gray-200">
-                              <td className="py-2 px-3 font-medium">カテゴリ</td>
-                              <td className="py-2 px-3">{task.category_data?.name || '-'}</td>
-                            </tr>
-                            <tr className="border-t border-gray-200">
-                              <td className="py-2 px-3 font-medium">担当者</td>
-                              <td className="py-2 px-3">{task.assignee_name || '-'}</td>
-                            </tr>
-                            <tr className="border-t border-gray-200">
-                              <td className="py-2 px-3 font-medium">承認者</td>
-                              <td className="py-2 px-3">{task.approver_name || '-'}</td>
-                            </tr>
-                            <tr className="border-t border-gray-200">
-                              <td className="py-2 px-3 font-medium">期限日</td>
-                              <td className="py-2 px-3">{task.due_date ? new Date(task.due_date).toLocaleDateString() : '-'}</td>
-                            </tr>
-                            <tr className="border-t border-gray-200">
-                              <td className="py-2 px-3 font-medium">開始日</td>
-                              <td className="py-2 px-3">{task.start_date ? new Date(task.start_date).toLocaleDateString() : '-'}</td>
-                            </tr>
-                            <tr className="border-t border-gray-200">
-                              <td className="py-2 px-3 font-medium">完了日</td>
-                              <td className="py-2 px-3">{task.completed_at ? new Date(task.completed_at).toLocaleDateString() : '-'}</td>
-                            </tr>
-                            <tr className="border-t border-gray-200">
-                              <td className="py-2 px-3 font-medium">見積時間</td>
-                              <td className="py-2 px-3">{task.estimated_hours || '-'}</td>
-                            </tr>
-                            <tr className="border-t border-gray-200">
-                              <td className="py-2 px-3 font-medium">クライアント</td>
-                              <td className="py-2 px-3">{task.client_data?.name || '-'}</td>
-                            </tr>
-                            <tr className="border-t border-gray-200">
-                              <td className="py-2 px-3 font-medium">決算期関連</td>
-                              <td className="py-2 px-3">{task.is_fiscal_task ? '✅' : '❌'}</td>
-                            </tr>
-                            <tr className="border-t border-gray-200">
-                              <td className="py-2 px-3 font-medium">決算期</td>
-                              <td className="py-2 px-3">{task.fiscal_year_data ? `第${task.fiscal_year_data.fiscal_period}期` : '-'}</td>
-                            </tr>
-                            <tr className="border-t border-gray-200">
-                              <td className="py-2 px-3 font-medium">繰り返しタスク</td>
-                              <td className="py-2 px-3">{task.is_recurring ? '✅' : '❌'}</td>
-                            </tr>
-                            <tr className="border-t border-gray-200">
-                              <td className="py-2 px-3 font-medium">繰り返しパターン</td>
-                              <td className="py-2 px-3">{task.recurrence_pattern || '-'}</td>
-                            </tr>
-                            <tr className="border-t border-gray-200">
-                              <td className="py-2 px-3 font-medium">繰り返し終了日</td>
-                              <td className="py-2 px-3">{task.recurrence_end_date ? new Date(task.recurrence_end_date).toLocaleDateString() : '-'}</td>
-                            </tr>
-                            <tr className="border-t border-gray-200">
-                              <td className="py-2 px-3 font-medium">テンプレート</td>
-                              <td className="py-2 px-3">{task.is_template ? '✅' : '❌'}</td>
-                            </tr>
-                            <tr className="border-t border-gray-200">
-                              <td className="py-2 px-3 font-medium">テンプレート名</td>
-                              <td className="py-2 px-3">{task.template_name || '-'}</td>
-                            </tr>
-                            <tr className="border-t border-gray-200">
-                              <td className="py-2 px-3 font-medium">作成者</td>
-                              <td className="py-2 px-3">{task.creator_name || '-'}</td>
-                            </tr>
-                            <tr className="border-t border-gray-200">
-                              <td className="py-2 px-3 font-medium">作成日</td>
-                              <td className="py-2 px-3">{task.created_at ? new Date(task.created_at).toLocaleString() : '-'}</td>
-                            </tr>
-                            <tr className="border-t border-gray-200">
-                              <td className="py-2 px-3 font-medium">更新日</td>
-                              <td className="py-2 px-3">{task.updated_at ? new Date(task.updated_at).toLocaleString() : '-'}</td>
-                            </tr>
-                          </tbody>
-                        </table>
+                      <h3 className="text-md font-medium text-gray-700 mb-2">追加フィールド</h3>
+                      
+                      {/* 繰り返しタスク設定 */}
+                      <div className="space-y-4">
+                        {/* 繰り返しタスクフラグ */}
+                        <div>
+                          <label className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              className="form-checkbox"
+                              checked={watchedIsRecurring === 'true'}
+                              onChange={(e) => {
+                                const newValue = e.target.checked ? 'true' : 'false';
+                                setValue('is_recurring', newValue);
+                                setTimeout(() => {
+                                  updateTaskField('is_recurring', newValue);
+                                }, 100);
+                              }}
+                            />
+                            <span className="text-sm font-medium text-gray-700">繰り返しタスク</span>
+                          </label>
+                        </div>
+                        
+                        {/* 繰り返しパターン */}
+                        {watchedIsRecurring === 'true' && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              繰り返しパターン
+                            </label>
+                            <select
+                              className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                              {...register('recurrence_pattern')}
+                              onChange={(e) => {
+                                console.log("Recurrence pattern selected:", e.target.value);
+                                setValue('recurrence_pattern', e.target.value);
+                                setTimeout(() => {
+                                  updateTaskField('recurrence_pattern', e.target.value);
+                                }, 100);
+                              }}
+                              disabled={isSubmitting}
+                            >
+                              <option value="">選択してください</option>
+                              <option value="daily">毎日</option>
+                              <option value="weekly">毎週</option>
+                              <option value="monthly">毎月</option>
+                              <option value="yearly">毎年</option>
+                            </select>
+                          </div>
+                        )}
+                        
+                        {/* 繰り返し終了日 */}
+                        {watchedIsRecurring === 'true' && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              繰り返し終了日
+                            </label>
+                            <input
+                              type="date"
+                              className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                              {...register('recurrence_end_date')}
+                              onBlur={() => handleFieldChange('recurrence_end_date')}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* テンプレート設定 */}
+                      <div className="mt-4 space-y-4">
+                        {/* テンプレートフラグ */}
+                        <div>
+                          <label className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              className="form-checkbox"
+                              checked={watchedIsTemplate === 'true'}
+                              onChange={(e) => {
+                                const newValue = e.target.checked ? 'true' : 'false';
+                                setValue('is_template', newValue);
+                                setTimeout(() => {
+                                  updateTaskField('is_template', newValue);
+                                }, 100);
+                              }}
+                            />
+                            <span className="text-sm font-medium text-gray-700">テンプレートとして保存</span>
+                          </label>
+                        </div>
+                        
+                        {/* テンプレート名 */}
+                        {watchedIsTemplate === 'true' && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              テンプレート名
+                            </label>
+                            <input
+                              type="text"
+                              className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                              {...register('template_name')}
+                              onBlur={() => handleFieldChange('template_name')}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* 開始日と完了日 */}
+                      <div className="mt-4 grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            開始日
+                          </label>
+                          <input
+                            type="date"
+                            className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                            {...register('start_date')}
+                            onBlur={() => handleFieldChange('start_date')}
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            完了日
+                          </label>
+                          <input
+                            type="date"
+                            className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                            {...register('completed_at')}
+                            onBlur={() => handleFieldChange('completed_at')}
+                          />
+                        </div>
                       </div>
                     </div>
                     
