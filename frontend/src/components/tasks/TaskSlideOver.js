@@ -582,14 +582,8 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
     // デバウンス処理で複数の変更を一度にまとめる
     const currentValue = getValues(field);
     
-    // 500ms待機して、ユーザーが入力を完了するのを待つ
-    setTimeout(() => {
-      const latestValue = getValues(field);
-      // 値が変更されていない場合のみ更新を実行
-      if (latestValue === currentValue) {
-        updateTaskField(field, latestValue);
-      }
-    }, 500);
+    // 直接更新を実行（デバウンスを無効化して即時更新）
+    updateTaskField(field, currentValue);
   };
   
   // JSXはシンプルに書き直し
@@ -677,14 +671,14 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                         value={watch('description') || ''}
                         onChange={(e) => {
                           console.log(`Description being set to: "${e.target.value}"`);
-                          setValue('description', e.target.value);
+                          setValue('description', e.target.value, { shouldDirty: true });
                         }}
                         onBlur={(e) => {
                           // フォーカスが外れたときだけAPIに保存
                           const currentDescription = isNewTask ? '' : (task?.description || '');
                           if (e.target.value !== currentDescription) {
                             console.log(`Description changed from "${currentDescription}" to "${e.target.value}"`);
-                            handleFieldChange('description');
+                            updateTaskField('description', e.target.value);
                           }
                         }}
                       />
@@ -728,7 +722,8 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                         </label>
                         <select
                           className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                          {...register('priority')}
+                          name="priority"
+                          value={watch('priority') || ''}
                           onChange={(e) => {
                             console.log("Priority selected:", e.target.value);
                             
@@ -760,7 +755,8 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                         </label>
                         <select
                           className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                          {...register('category')}
+                          name="category"
+                          value={watch('category') || ''}
                           onChange={(e) => {
                             console.log("Category selected:", e.target.value);
                             
@@ -790,8 +786,18 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                         <input
                           type="date"
                           className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                          {...register('due_date')}
-                          onBlur={() => handleFieldChange('due_date')}
+                          name="due_date"
+                          value={watch('due_date') || ''}
+                          onChange={(e) => {
+                            console.log(`Due date being set to: "${e.target.value}"`);
+                            setValue('due_date', e.target.value);
+                          }}
+                          onBlur={(e) => {
+                            const currentValue = isNewTask ? '' : (task?.due_date?.substring(0, 10) || '');
+                            if (e.target.value !== currentValue) {
+                              handleFieldChange('due_date');
+                            }
+                          }}
                         />
                       </div>
                     </div>
@@ -806,8 +812,18 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                         step="0.5"
                         min="0"
                         className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                        {...register('estimated_hours')}
-                        onBlur={() => handleFieldChange('estimated_hours')}
+                        name="estimated_hours"
+                        value={watch('estimated_hours') || ''}
+                        onChange={(e) => {
+                          console.log(`Estimated hours being set to: "${e.target.value}"`);
+                          setValue('estimated_hours', e.target.value);
+                        }}
+                        onBlur={(e) => {
+                          const currentValue = isNewTask ? '' : (task?.estimated_hours || '');
+                          if (e.target.value !== String(currentValue)) {
+                            handleFieldChange('estimated_hours');
+                          }
+                        }}
                       />
                     </div>
                     
@@ -818,14 +834,23 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                       </label>
                       <select
                         className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                        {...register('client')}
+                        name="client"
+                        value={watch('client') || ''}
                         onChange={(e) => {
                           console.log("Client selected:", e.target.value);
                           
                           // フォームの値を明示的に設定
                           setValue('client', e.target.value);
                           
-                          // 変更をAPI経由で保存
+                          // 選択したクライアントのデータをすぐに設定
+                          const selectedClientData = clients.find(c => c.id === parseInt(e.target.value));
+                          if (selectedClientData) {
+                            setSelectedClient(selectedClientData);
+                          } else {
+                            setSelectedClient(null);
+                          }
+                          
+                          // 変更をAPI経由で保存（少し遅延させる）
                           if (e.target.value) {
                             setTimeout(() => {
                               updateTaskField('client', e.target.value);
@@ -848,7 +873,8 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                       </label>
                       <select
                         className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                        {...register('is_fiscal_task')}
+                        name="is_fiscal_task"
+                        value={watch('is_fiscal_task') || 'false'}
                         onChange={(e) => {
                           console.log("Task type selected:", e.target.value);
                           
@@ -878,7 +904,8 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                         </label>
                         <select
                           className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                          {...register('fiscal_year')}
+                          name="fiscal_year"
+                          value={watch('fiscal_year') || ''}
                           onChange={(e) => {
                             console.log("Fiscal year selected:", e.target.value);
                             
@@ -915,7 +942,9 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                         <h3 className="text-sm font-medium text-gray-700 mb-2">選択中のクライアント情報</h3>
                         <div className="text-sm text-gray-600">
                           <p><span className="font-medium">クライアント名:</span> {selectedClient.name}</p>
-                          <p><span className="font-medium">契約状況:</span> {selectedClient.contract_status_display || selectedClient.contract_status}</p>
+                          <p className="bg-white p-1 rounded">
+                            <span className="font-medium">契約状況:</span> {selectedClient.contract_status_display || selectedClient.contract_status}
+                          </p>
                           {selectedClient.fiscal_year && (
                             <p><span className="font-medium">現在の決算期:</span> 第{selectedClient.fiscal_year}期</p>
                           )}
@@ -935,8 +964,10 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                             <input
                               type="checkbox"
                               className="form-checkbox"
-                              checked={watchedIsRecurring === 'true'}
+                              name="is_recurring"
+                              checked={watch('is_recurring') === 'true'}
                               onChange={(e) => {
+                                console.log(`Is recurring checkbox changed to: ${e.target.checked}`);
                                 const newValue = e.target.checked ? 'true' : 'false';
                                 setValue('is_recurring', newValue);
                                 setTimeout(() => {
@@ -956,7 +987,8 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                             </label>
                             <select
                               className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                              {...register('recurrence_pattern')}
+                              name="recurrence_pattern"
+                              value={watch('recurrence_pattern') || ''}
                               onChange={(e) => {
                                 console.log("Recurrence pattern selected:", e.target.value);
                                 setValue('recurrence_pattern', e.target.value);
@@ -984,8 +1016,18 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                             <input
                               type="date"
                               className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                              {...register('recurrence_end_date')}
-                              onBlur={() => handleFieldChange('recurrence_end_date')}
+                              name="recurrence_end_date"
+                              value={watch('recurrence_end_date') || ''}
+                              onChange={(e) => {
+                                console.log(`Recurrence end date being set to: "${e.target.value}"`);
+                                setValue('recurrence_end_date', e.target.value);
+                              }}
+                              onBlur={(e) => {
+                                const currentValue = isNewTask ? '' : (task?.recurrence_end_date?.substring(0, 10) || '');
+                                if (e.target.value !== currentValue) {
+                                  handleFieldChange('recurrence_end_date');
+                                }
+                              }}
                             />
                           </div>
                         )}
@@ -999,8 +1041,10 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                             <input
                               type="checkbox"
                               className="form-checkbox"
-                              checked={watchedIsTemplate === 'true'}
+                              name="is_template"
+                              checked={watch('is_template') === 'true'}
                               onChange={(e) => {
+                                console.log(`Is template checkbox changed to: ${e.target.checked}`);
                                 const newValue = e.target.checked ? 'true' : 'false';
                                 setValue('is_template', newValue);
                                 setTimeout(() => {
@@ -1049,8 +1093,18 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                           <input
                             type="date"
                             className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                            {...register('start_date')}
-                            onBlur={() => handleFieldChange('start_date')}
+                            name="start_date"
+                            value={watch('start_date') || ''}
+                            onChange={(e) => {
+                              console.log(`Start date being set to: "${e.target.value}"`);
+                              setValue('start_date', e.target.value);
+                            }}
+                            onBlur={(e) => {
+                              const currentValue = isNewTask ? '' : (task?.start_date?.substring(0, 10) || '');
+                              if (e.target.value !== currentValue) {
+                                handleFieldChange('start_date');
+                              }
+                            }}
                           />
                         </div>
                         
@@ -1061,8 +1115,18 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                           <input
                             type="date"
                             className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                            {...register('completed_at')}
-                            onBlur={() => handleFieldChange('completed_at')}
+                            name="completed_at"
+                            value={watch('completed_at') || ''}
+                            onChange={(e) => {
+                              console.log(`Completed date being set to: "${e.target.value}"`);
+                              setValue('completed_at', e.target.value);
+                            }}
+                            onBlur={(e) => {
+                              const currentValue = isNewTask ? '' : (task?.completed_at?.substring(0, 10) || '');
+                              if (e.target.value !== currentValue) {
+                                handleFieldChange('completed_at');
+                              }
+                            }}
                           />
                         </div>
                       </div>
