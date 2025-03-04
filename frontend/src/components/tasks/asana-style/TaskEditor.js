@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { HiOutlineX, HiCheck, HiOutlineClock } from 'react-icons/hi';
-import { tasksApi, clientsApi } from '../../../api';
+import { HiOutlineX, HiCheck, HiOutlineClock, HiUser, HiUserGroup } from 'react-icons/hi';
+import { tasksApi, clientsApi, usersApi, businessApi } from '../../../api';
 import toast from 'react-hot-toast';
 
 /**
@@ -16,6 +16,8 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated }) => {
   const [statuses, setStatuses] = useState([]);
   const [priorities, setPriorities] = useState([]);
   const [clients, setClients] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [businessId, setBusinessId] = useState(null);
   const [fiscalYears, setFiscalYears] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
   const [isFiscalTask, setIsFiscalTask] = useState(false);
@@ -37,6 +39,8 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated }) => {
       due_date: '',
       estimated_hours: '',
       client: '',
+      worker: '',
+      reviewer: '',
       is_fiscal_task: 'false',
       fiscal_year: '',
       is_recurring: 'false',
@@ -59,21 +63,35 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated }) => {
   useEffect(() => {
     const loadTaskMetadata = async () => {
       try {
-        const [categoriesData, statusesData, prioritiesData, clientsData] = await Promise.all([
-          tasksApi.getCategories(),
-          tasksApi.getStatuses(),
-          tasksApi.getPriorities(),
-          clientsApi.getClients({ contract_status: 'active' }), // 契約中クライアントのみ
-        ]);
+        // 最初に現在のユーザーとビジネス情報を取得
+        const currentUser = await usersApi.getCurrentUser();
         
-        setCategories(Array.isArray(categoriesData) ? categoriesData : 
-                      (categoriesData?.results || []));
-        setStatuses(Array.isArray(statusesData) ? statusesData : 
-                   (statusesData?.results || []));
-        setPriorities(Array.isArray(prioritiesData) ? prioritiesData : 
-                     (prioritiesData?.results || []));
-        setClients(Array.isArray(clientsData) ? clientsData : 
-                  (clientsData?.results || []));
+        if (currentUser && currentUser.business) {
+          setBusinessId(currentUser.business);
+          
+          // すべてのメタデータを並列で取得
+          const [categoriesData, statusesData, prioritiesData, clientsData, usersData] = await Promise.all([
+            tasksApi.getCategories(),
+            tasksApi.getStatuses(),
+            tasksApi.getPriorities(),
+            clientsApi.getClients({ contract_status: 'active' }), // 契約中クライアントのみ
+            usersApi.getBusinessUsers(currentUser.business), // 同じビジネスのユーザーを取得
+          ]);
+          
+          setCategories(Array.isArray(categoriesData) ? categoriesData : 
+                        (categoriesData?.results || []));
+          setStatuses(Array.isArray(statusesData) ? statusesData : 
+                     (statusesData?.results || []));
+          setPriorities(Array.isArray(prioritiesData) ? prioritiesData : 
+                       (prioritiesData?.results || []));
+          setClients(Array.isArray(clientsData) ? clientsData : 
+                    (clientsData?.results || []));
+          setUsers(Array.isArray(usersData) ? usersData : 
+                  (usersData?.results || []));
+        } else {
+          console.error('No business ID found for current user');
+          toast.error('ビジネス情報の取得に失敗しました');
+        }
       } catch (error) {
         console.error('Error loading task metadata:', error);
         toast.error('タスク情報の読み込みに失敗しました');
@@ -132,6 +150,8 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated }) => {
           priority: getIdAsString(task.priority_data?.id || task.priority),
           category: getIdAsString(task.category_data?.id || task.category),
           client: getIdAsString(task.client_data?.id || task.client),
+          worker: getIdAsString(task.worker_data?.id || task.worker),
+          reviewer: getIdAsString(task.reviewer_data?.id || task.reviewer),
           due_date: task.due_date ? task.due_date.substring(0, 10) : '',
           estimated_hours: task.estimated_hours || '',
           is_fiscal_task: task.is_fiscal_task ? 'true' : 'false',
@@ -369,6 +389,8 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated }) => {
       priority: data.priority ? parseInt(data.priority, 10) : null,
       category: data.category ? parseInt(data.category, 10) : null,
       client: data.client ? parseInt(data.client, 10) : null,
+      worker: data.worker ? parseInt(data.worker, 10) : null,
+      reviewer: data.reviewer ? parseInt(data.reviewer, 10) : null,
       fiscal_year: data.fiscal_year ? parseInt(data.fiscal_year, 10) : null,
       
       // 真偽値変換
@@ -745,6 +767,84 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated }) => {
                           </div>
                         </div>
                       )}
+                    </div>
+                    
+                    {/* 担当者設定セクション */}
+                    <div className="border-t border-gray-200 pt-4 mt-4">
+                      <h3 className="text-md font-medium text-gray-700 mb-3 flex items-center">
+                        <HiUserGroup className="mr-2 text-gray-500" />
+                        担当者設定
+                      </h3>
+                      
+                      {/* 作業者とレビュー担当者 */}
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* 作業者 */}
+                        <div>
+                          <label htmlFor="worker" className="block text-sm font-medium text-gray-700">
+                            作業担当者
+                          </label>
+                          <div className="mt-1">
+                            <Controller
+                              name="worker"
+                              control={control}
+                              render={({ field }) => (
+                                <select
+                                  id="worker"
+                                  className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                  {...field}
+                                  onChange={(e) => {
+                                    field.onChange(e);
+                                    handleFieldChange('worker', e.target.value);
+                                  }}
+                                >
+                                  <option value="">選択してください</option>
+                                  {users.map((user) => (
+                                    <option key={user.id} value={user.id}>
+                                      {user.get_full_name || user.email}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+                            />
+                          </div>
+                        </div>
+                        
+                        {/* レビュー担当者 */}
+                        <div>
+                          <label htmlFor="reviewer" className="block text-sm font-medium text-gray-700">
+                            レビュー担当者
+                          </label>
+                          <div className="mt-1">
+                            <Controller
+                              name="reviewer"
+                              control={control}
+                              render={({ field }) => (
+                                <select
+                                  id="reviewer"
+                                  className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                  {...field}
+                                  onChange={(e) => {
+                                    field.onChange(e);
+                                    handleFieldChange('reviewer', e.target.value);
+                                  }}
+                                >
+                                  <option value="">選択してください</option>
+                                  {users.map((user) => (
+                                    <option key={user.id} value={user.id}>
+                                      {user.get_full_name || user.email}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <p className="mt-2 text-sm text-gray-500">
+                        <span className="text-amber-600 font-medium">注意:</span> タスクのステータスによって担当者は自動的に切り替わります。
+                        作業者ステータスでは作業担当者が、レビューステータスではレビュー担当者が担当になります。
+                      </p>
                     </div>
                     
                     {/* タスク種別（決算期関連） */}

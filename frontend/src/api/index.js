@@ -6,6 +6,7 @@ import clientsApi from './clients';
 import chatApi from './chat';
 import timeManagementApi from './timeManagement';
 import wikiApi from './wiki';
+import usersApi from './users';
 
 // Export all APIs
 export {
@@ -17,4 +18,5 @@ export {
   chatApi,
   timeManagementApi,
   wikiApi,
+  usersApi,
 };
