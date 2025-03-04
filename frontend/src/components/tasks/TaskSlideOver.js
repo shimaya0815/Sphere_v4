@@ -746,6 +746,111 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
                       </div>
                     )}
                     
+                    {/* タスクフィールド一覧 */}
+                    <div className="mt-6 pt-4 border-t border-gray-200">
+                      <h3 className="text-md font-medium text-gray-700 mb-2">タスク情報一覧</h3>
+                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 overflow-auto max-h-96">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-gray-100">
+                              <th className="text-left py-2 px-3">フィールド</th>
+                              <th className="text-left py-2 px-3">値</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr className="border-t border-gray-200">
+                              <td className="py-2 px-3 font-medium">タイトル</td>
+                              <td className="py-2 px-3">{task.title || '-'}</td>
+                            </tr>
+                            <tr className="border-t border-gray-200">
+                              <td className="py-2 px-3 font-medium">説明</td>
+                              <td className="py-2 px-3">{task.description || '-'}</td>
+                            </tr>
+                            <tr className="border-t border-gray-200">
+                              <td className="py-2 px-3 font-medium">ステータス</td>
+                              <td className="py-2 px-3">{task.status_data?.name || '-'}</td>
+                            </tr>
+                            <tr className="border-t border-gray-200">
+                              <td className="py-2 px-3 font-medium">優先度</td>
+                              <td className="py-2 px-3">{task.priority_data?.name || '-'}</td>
+                            </tr>
+                            <tr className="border-t border-gray-200">
+                              <td className="py-2 px-3 font-medium">カテゴリ</td>
+                              <td className="py-2 px-3">{task.category_data?.name || '-'}</td>
+                            </tr>
+                            <tr className="border-t border-gray-200">
+                              <td className="py-2 px-3 font-medium">担当者</td>
+                              <td className="py-2 px-3">{task.assignee_name || '-'}</td>
+                            </tr>
+                            <tr className="border-t border-gray-200">
+                              <td className="py-2 px-3 font-medium">承認者</td>
+                              <td className="py-2 px-3">{task.approver_name || '-'}</td>
+                            </tr>
+                            <tr className="border-t border-gray-200">
+                              <td className="py-2 px-3 font-medium">期限日</td>
+                              <td className="py-2 px-3">{task.due_date ? new Date(task.due_date).toLocaleDateString() : '-'}</td>
+                            </tr>
+                            <tr className="border-t border-gray-200">
+                              <td className="py-2 px-3 font-medium">開始日</td>
+                              <td className="py-2 px-3">{task.start_date ? new Date(task.start_date).toLocaleDateString() : '-'}</td>
+                            </tr>
+                            <tr className="border-t border-gray-200">
+                              <td className="py-2 px-3 font-medium">完了日</td>
+                              <td className="py-2 px-3">{task.completed_at ? new Date(task.completed_at).toLocaleDateString() : '-'}</td>
+                            </tr>
+                            <tr className="border-t border-gray-200">
+                              <td className="py-2 px-3 font-medium">見積時間</td>
+                              <td className="py-2 px-3">{task.estimated_hours || '-'}</td>
+                            </tr>
+                            <tr className="border-t border-gray-200">
+                              <td className="py-2 px-3 font-medium">クライアント</td>
+                              <td className="py-2 px-3">{task.client_data?.name || '-'}</td>
+                            </tr>
+                            <tr className="border-t border-gray-200">
+                              <td className="py-2 px-3 font-medium">決算期関連</td>
+                              <td className="py-2 px-3">{task.is_fiscal_task ? '✅' : '❌'}</td>
+                            </tr>
+                            <tr className="border-t border-gray-200">
+                              <td className="py-2 px-3 font-medium">決算期</td>
+                              <td className="py-2 px-3">{task.fiscal_year_data ? `第${task.fiscal_year_data.fiscal_period}期` : '-'}</td>
+                            </tr>
+                            <tr className="border-t border-gray-200">
+                              <td className="py-2 px-3 font-medium">繰り返しタスク</td>
+                              <td className="py-2 px-3">{task.is_recurring ? '✅' : '❌'}</td>
+                            </tr>
+                            <tr className="border-t border-gray-200">
+                              <td className="py-2 px-3 font-medium">繰り返しパターン</td>
+                              <td className="py-2 px-3">{task.recurrence_pattern || '-'}</td>
+                            </tr>
+                            <tr className="border-t border-gray-200">
+                              <td className="py-2 px-3 font-medium">繰り返し終了日</td>
+                              <td className="py-2 px-3">{task.recurrence_end_date ? new Date(task.recurrence_end_date).toLocaleDateString() : '-'}</td>
+                            </tr>
+                            <tr className="border-t border-gray-200">
+                              <td className="py-2 px-3 font-medium">テンプレート</td>
+                              <td className="py-2 px-3">{task.is_template ? '✅' : '❌'}</td>
+                            </tr>
+                            <tr className="border-t border-gray-200">
+                              <td className="py-2 px-3 font-medium">テンプレート名</td>
+                              <td className="py-2 px-3">{task.template_name || '-'}</td>
+                            </tr>
+                            <tr className="border-t border-gray-200">
+                              <td className="py-2 px-3 font-medium">作成者</td>
+                              <td className="py-2 px-3">{task.creator_name || '-'}</td>
+                            </tr>
+                            <tr className="border-t border-gray-200">
+                              <td className="py-2 px-3 font-medium">作成日</td>
+                              <td className="py-2 px-3">{task.created_at ? new Date(task.created_at).toLocaleString() : '-'}</td>
+                            </tr>
+                            <tr className="border-t border-gray-200">
+                              <td className="py-2 px-3 font-medium">更新日</td>
+                              <td className="py-2 px-3">{task.updated_at ? new Date(task.updated_at).toLocaleString() : '-'}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    
                     {/* タスク作成・更新日時 */}
                     <div className="pt-4 border-t border-gray-200">
                       <div className="flex justify-between text-sm text-gray-500">
