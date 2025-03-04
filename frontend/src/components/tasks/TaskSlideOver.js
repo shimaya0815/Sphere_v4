@@ -647,15 +647,17 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                       <input
                         type="text"
                         className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                        {...register('title')}
+                        name="title"
+                        value={watch('title') || ''}
                         onChange={(e) => {
-                          // 入力値を直接フォーム状態に設定
+                          console.log(`Title being set to: "${e.target.value}"`);
                           setValue('title', e.target.value);
                         }}
                         onBlur={(e) => {
                           // フォーカスが外れたときだけAPIに保存
                           const currentTitle = isNewTask ? '' : (task?.title || '');
                           if (e.target.value !== currentTitle) {
+                            console.log(`Title changed from "${currentTitle}" to "${e.target.value}"`);
                             handleFieldChange('title');
                           }
                         }}
@@ -671,9 +673,10 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                       <textarea
                         rows="4"
                         className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                        {...register('description')}
+                        name="description"
+                        value={watch('description') || ''}
                         onChange={(e) => {
-                          // 入力値を直接フォーム状態に設定
+                          console.log(`Description being set to: "${e.target.value}"`);
                           setValue('description', e.target.value);
                         }}
                         onBlur={(e) => {
@@ -1018,15 +1021,17 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                             <input
                               type="text"
                               className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                              {...register('template_name')}
+                              name="template_name"
+                              value={watch('template_name') || ''}
                               onChange={(e) => {
-                                // 入力値を直接フォーム状態に設定
+                                console.log(`Template name being set to: "${e.target.value}"`);
                                 setValue('template_name', e.target.value);
                               }}
                               onBlur={(e) => {
                                 // フォーカスが外れたときだけAPIに保存
                                 const currentValue = isNewTask ? '' : (task?.template_name || '');
                                 if (e.target.value !== currentValue) {
+                                  console.log(`Template name changed from "${currentValue}" to "${e.target.value}"`);
                                   handleFieldChange('template_name');
                                 }
                               }}
