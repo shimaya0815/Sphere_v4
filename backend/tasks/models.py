@@ -52,6 +52,13 @@ class TaskCategory(models.Model):
 class TaskStatus(models.Model):
     """Status for tasks."""
     
+    # ステータスに応じた担当者タイプ
+    ASSIGNEE_TYPES = (
+        ('worker', _('作業者')),
+        ('reviewer', _('レビュー担当者')),
+        ('none', _('なし')),
+    )
+    
     business = models.ForeignKey(
         'business.Business',
         on_delete=models.CASCADE,
@@ -61,6 +68,13 @@ class TaskStatus(models.Model):
     color = models.CharField(_('color'), max_length=20, default='#3B82F6')  # Default blue
     description = models.TextField(_('description'), blank=True)
     order = models.PositiveIntegerField(_('order'), default=0)
+    assignee_type = models.CharField(
+        _('assignee type'),
+        max_length=20,
+        choices=ASSIGNEE_TYPES,
+        default='worker',
+        help_text=_('このステータスで担当となるユーザータイプ')
+    )
     
     class Meta:
         verbose_name = _('task status')
@@ -75,10 +89,83 @@ class TaskStatus(models.Model):
     def create_defaults(cls, business):
         """Create default statuses for a business."""
         statuses = [
-            {'name': '未着手', 'color': '#9CA3AF', 'order': 1, 'description': 'まだ開始していないタスク'},
-            {'name': '作業中', 'color': '#3B82F6', 'order': 2, 'description': '現在取り組んでいるタスク'},
-            {'name': 'レビュー待ち', 'color': '#F59E0B', 'order': 3, 'description': 'レビューを待っているタスク'},
-            {'name': '完了', 'color': '#10B981', 'order': 4, 'description': '完了したタスク'},
+            {
+                'name': '未着手', 
+                'color': '#9CA3AF', 
+                'order': 1, 
+                'description': 'タスクがまだ開始されていない状態',
+                'assignee_type': 'worker'
+            },
+            {
+                'name': '作業中', 
+                'color': '#3B82F6', 
+                'order': 2, 
+                'description': '作業者がタスクを現在進行している状態',
+                'assignee_type': 'worker'
+            },
+            {
+                'name': '作業者完了', 
+                'color': '#F59E0B', 
+                'order': 3, 
+                'description': '作業者の対応が完了し、レビュー待ちの状態',
+                'assignee_type': 'reviewer'
+            },
+            {
+                'name': 'レビュー開始前', 
+                'color': '#FBBF24', 
+                'order': 4, 
+                'description': 'レビュー担当者がレビューを開始する前の状態',
+                'assignee_type': 'reviewer'
+            },
+            {
+                'name': 'レビュー中', 
+                'color': '#A78BFA', 
+                'order': 5, 
+                'description': 'レビュー担当者が現在レビューを行っている状態',
+                'assignee_type': 'reviewer'
+            },
+            {
+                'name': '差戻中', 
+                'color': '#EF4444', 
+                'order': 6, 
+                'description': 'レビューで指摘された内容について、作業者がまだ対応を開始していない状態',
+                'assignee_type': 'worker'
+            },
+            {
+                'name': '差戻対応中', 
+                'color': '#FB7185', 
+                'order': 7, 
+                'description': '差戻された内容に対して、作業者が対応を進めている状態',
+                'assignee_type': 'worker'
+            },
+            {
+                'name': '差戻対応済', 
+                'color': '#FCD34D', 
+                'order': 8, 
+                'description': '作業者が差戻内容の対応を完了し、再レビュー待ちの状態',
+                'assignee_type': 'reviewer'
+            },
+            {
+                'name': '差戻レビュー開始前', 
+                'color': '#D8B4FE', 
+                'order': 9, 
+                'description': '差戻対応後、レビュー担当者が再レビューを開始する前の状態',
+                'assignee_type': 'reviewer'
+            },
+            {
+                'name': '差戻レビュー中', 
+                'color': '#C084FC', 
+                'order': 10, 
+                'description': 'レビュー担当者が差戻対応後の再レビューを行っている状態',
+                'assignee_type': 'reviewer'
+            },
+            {
+                'name': '完了', 
+                'color': '#10B981', 
+                'order': 11, 
+                'description': 'タスクが全ての作業とレビューを終えて完全に終了した状態',
+                'assignee_type': 'none'
+            },
         ]
         
         for status in statuses:
@@ -88,7 +175,8 @@ class TaskStatus(models.Model):
                 defaults={
                     'color': status['color'],
                     'order': status['order'],
-                    'description': status['description']
+                    'description': status['description'],
+                    'assignee_type': status['assignee_type']
                 }
             )
 
@@ -178,6 +266,7 @@ class Task(models.Model):
         null=True,
         related_name='created_tasks'
     )
+    # 現在の担当者（ステータスに基づいて自動的に変化）
     assignee = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -185,6 +274,25 @@ class Task(models.Model):
         blank=True,
         related_name='assigned_tasks'
     )
+    # 作業担当者（ワーカー）
+    worker = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='worker_tasks',
+        verbose_name=_('worker')
+    )
+    # レビュー担当者
+    reviewer = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewer_tasks',
+        verbose_name=_('reviewer')
+    )
+    # 承認者（従来のapproverを維持しつつ、より明確な名前に）
     approver = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -252,6 +360,47 @@ class Task(models.Model):
     def __str__(self):
         return self.title
     
+    def save(self, *args, **kwargs):
+        """Override save method to handle status changes and assignee updates."""
+        if self.pk:
+            # 既存のタスクの場合、ステータス変更を検出
+            try:
+                old_task = Task.objects.get(pk=self.pk)
+                if self.status and (not old_task.status or old_task.status.id != self.status.id):
+                    self._update_assignee_based_on_status()
+                    
+                    # 履歴記録
+                    TaskHistory.objects.create(
+                        task=self,
+                        user=kwargs.pop('user', None),
+                        field_name='status',
+                        old_value=old_task.status.name if old_task.status else None,
+                        new_value=self.status.name if self.status else None
+                    )
+            except Task.DoesNotExist:
+                # 新規作成の場合は何もしない
+                pass
+        else:
+            # 新規タスク作成時
+            if self.status:
+                self._update_assignee_based_on_status()
+        
+        # タスクを保存
+        super().save(*args, **kwargs)
+    
+    def _update_assignee_based_on_status(self):
+        """ステータスに基づいて担当者を更新"""
+        if not self.status:
+            return
+            
+        # ステータスのassignee_typeに基づいて担当者を設定
+        if self.status.assignee_type == 'worker' and self.worker:
+            self.assignee = self.worker
+        elif self.status.assignee_type == 'reviewer' and self.reviewer:
+            self.assignee = self.reviewer
+        elif self.status.assignee_type == 'none':
+            self.assignee = None
+    
     def mark_complete(self, user=None):
         """Mark the task as complete."""
         self.completed_at = timezone.now()
@@ -259,20 +408,23 @@ class Task(models.Model):
             # Find a "Completed" status or similar
             completed_status = TaskStatus.objects.filter(
                 business=self.business,
-                name__icontains='complete'
+                name='完了'
             ).first()
+            
+            if not completed_status:
+                # 「完了」がない場合はnameに'complete'が含まれるものを探す
+                completed_status = TaskStatus.objects.filter(
+                    business=self.business,
+                    name__icontains='complete'
+                ).first()
+                
             if completed_status:
+                old_status = self.status
                 self.status = completed_status
-        self.save()
-        
-        # Create a task history entry
-        TaskHistory.objects.create(
-            task=self,
-            user=user,
-            field_name='status',
-            old_value=self.status.name if self.status else None,
-            new_value='Completed'
-        )
+                self._update_assignee_based_on_status()
+                self.save(user=user)
+                
+                # 履歴はsaveメソッド内で自動作成されるため、ここでは不要
 
 
 class TaskComment(models.Model):
