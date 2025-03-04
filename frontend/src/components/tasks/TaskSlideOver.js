@@ -1025,13 +1025,15 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                       </div>
                     </div>
                     
-                    {/* タスク作成・更新日時 */}
-                    <div className="pt-4 border-t border-gray-200">
-                      <div className="flex justify-between text-sm text-gray-500">
-                        <span>作成日: {task.created_at ? new Date(task.created_at).toLocaleString() : '-'}</span>
-                        <span>更新日: {task.updated_at ? new Date(task.updated_at).toLocaleString() : '-'}</span>
+                    {/* タスク作成・更新日時 - 新規タスクの場合は表示しない */}
+                    {!isNewTask && task && (
+                      <div className="pt-4 border-t border-gray-200">
+                        <div className="flex justify-between text-sm text-gray-500">
+                          <span>作成日: {task.created_at ? new Date(task.created_at).toLocaleString() : '-'}</span>
+                          <span>更新日: {task.updated_at ? new Date(task.updated_at).toLocaleString() : '-'}</span>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>
