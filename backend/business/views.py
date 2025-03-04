@@ -10,7 +10,29 @@ from .serializers import (
     BusinessSerializer, WorkspaceSerializer, BusinessInvitationSerializer,
     BusinessWithOwnerSerializer
 )
+from users.serializers import UserSerializer
 from .permissions import IsBusinessOwner, IsBusinessMember, IsWorkspaceMember
+
+
+class BusinessUserListView(generics.ListAPIView):
+    """API view to list users in the current business."""
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserSerializer
+
+    def get_queryset(self):
+        """Return users from the same business as the authenticated user."""
+        business_id = self.request.query_params.get('business_id')
+        user = self.request.user
+        
+        if not user.business:
+            return user.__class__.objects.none()
+        
+        # If a business_id is provided and the user is in that business, use it
+        if business_id and str(user.business.id) == business_id:
+            return user.business.users.all()
+        
+        # Otherwise just return users from the user's business
+        return user.business.users.all()
 
 
 class CurrentBusinessView(APIView):
