@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
  * - 自動保存とバッチ処理
  * - 視覚的フィードバック強化
  */
-const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated }) => {
+const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = false }) => {
   // 状態管理
   const [categories, setCategories] = useState([]);
   const [statuses, setStatuses] = useState([]);
@@ -469,7 +469,9 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated }) => {
     }
   };
   
-  // Asana風スライドパネル
+  // Asana風スライドパネル - isOpenプロパティに基づいて条件付きレンダリング
+  if (!isOpen) return null;
+  
   return (
     <div className="fixed inset-0 overflow-hidden z-50">
       <div className="absolute inset-0 overflow-hidden">
