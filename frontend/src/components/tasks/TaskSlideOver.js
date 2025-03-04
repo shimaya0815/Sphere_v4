@@ -4,7 +4,7 @@ import { tasksApi, clientsApi } from '../../api';
 import toast from 'react-hot-toast';
 import { HiOutlineX } from 'react-icons/hi';
 
-const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
+const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated }) => {
   const [categories, setCategories] = useState([]);
   const [statuses, setStatuses] = useState([]);
   const [priorities, setPriorities] = useState([]);
@@ -43,13 +43,103 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
   const watchedIsTemplate = watch('is_template');
   
   useEffect(() => {
-    if (isOpen && task) {
+    if (isOpen) {
       fetchTaskMetadata();
       
-      // 詳細な現在のタスク情報をログ出力（デバッグ用）
-      console.log('Current task in SlideOver:', JSON.stringify(task));
+      if (task) {
+        // 詳細な現在のタスク情報をログ出力（デバッグ用）
+        console.log('Current task in SlideOver:', JSON.stringify(task));
+      }
     }
   }, [isOpen, task?.id]); // タスクIDが変更された場合も再取得
+  
+  // タスク作成・更新用の関数
+  const saveTask = async () => {
+    if (isSubmitting) return;
+    
+    try {
+      setIsSubmitting(true);
+      const formData = getValues();
+      
+      // Format data for API submission
+      const formattedData = {
+        ...formData,
+        // Convert string IDs to numbers
+        status: formData.status ? parseInt(formData.status) : null,
+        priority: formData.priority ? parseInt(formData.priority) : null,
+        category: formData.category ? parseInt(formData.category) : null,
+        client: formData.client ? parseInt(formData.client) : null,
+        // Format dates for API
+        due_date: formData.due_date ? new Date(formData.due_date).toISOString() : null,
+        start_date: formData.start_date ? new Date(formData.start_date).toISOString() : null,
+        completed_at: formData.completed_at ? new Date(formData.completed_at).toISOString() : null,
+        recurrence_end_date: formData.recurrence_end_date ? new Date(formData.recurrence_end_date).toISOString() : null,
+        // Convert string booleans to actual booleans
+        is_fiscal_task: formData.is_fiscal_task === 'true',
+        is_recurring: formData.is_recurring === 'true',
+        is_template: formData.is_template === 'true',
+        // Only include fiscal_year if is_fiscal_task is true
+        fiscal_year: formData.is_fiscal_task === 'true' && formData.fiscal_year ? parseInt(formData.fiscal_year) : null,
+      };
+      
+      console.log('タスク送信データ:', formattedData);
+      
+      let result;
+      if (isNewTask) {
+        // Create new task
+        result = await tasksApi.createTask(formattedData);
+        toast.success('タスクが作成されました');
+      } else {
+        // Update existing task
+        result = await tasksApi.updateTask(task.id, formattedData);
+        toast.success('タスクが更新されました');
+      }
+      
+      console.log('サーバーレスポンス:', result);
+      
+      // 親コンポーネントに通知
+      if (onTaskUpdated && typeof onTaskUpdated === 'function') {
+        onTaskUpdated(result);
+      }
+      
+      // グローバルイベント発火
+      window.dispatchEvent(new CustomEvent('task-updated'));
+      
+      // 新規作成の場合はパネルを閉じる
+      if (isNewTask) {
+        onClose();
+      }
+    } catch (error) {
+      console.error('Error saving task:', error);
+      // Get detailed error message
+      let errorMessage = 'タスクの保存中にエラーが発生しました';
+      
+      if (error.response?.data) {
+        if (typeof error.response.data === 'object') {
+          // Format field-specific errors
+          const errorDetails = Object.entries(error.response.data)
+            .map(([field, errors]) => {
+              if (Array.isArray(errors)) {
+                return `${field}: ${errors.join(', ')}`;
+              } else {
+                return `${field}: ${errors}`;
+              }
+            })
+            .join('; ');
+          
+          if (errorDetails) {
+            errorMessage = `保存エラー: ${errorDetails}`;
+          }
+        } else if (error.response.data.detail) {
+          errorMessage = error.response.data.detail;
+        }
+      }
+      
+      toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   
   // Load fiscal years when client changes
   useEffect(() => {
@@ -82,13 +172,43 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
     setIsFiscalTask(watchedIsFiscalTask === 'true');
   }, [watchedIsFiscalTask]);
   
-  // Populate form when task changes
+  // Populate form when task changes or for new tasks
   useEffect(() => {
-    if (task) {
-      console.log("Task data received in form population:", task);
+    if (isOpen) {
+      console.log("Form population triggered. isNewTask:", isNewTask, "task:", task);
       
       // メタデータの読み込みを確保
       fetchTaskMetadata().then(() => {
+        // 新規タスク作成の場合はフォームをリセット
+        if (isNewTask) {
+          // デフォルト値設定
+          const defaultValues = {
+            title: '',
+            description: '',
+            status: statuses.length > 0 ? String(statuses[0].id) : '',
+            priority: priorities.length > 0 ? String(priorities[0].id) : '',
+            category: '',
+            due_date: '',
+            estimated_hours: '',
+            client: '',
+            is_fiscal_task: 'false',
+            fiscal_year: '',
+            is_recurring: 'false',
+            recurrence_pattern: '',
+            recurrence_end_date: '',
+            is_template: 'false',
+            template_name: '',
+            start_date: '',
+            completed_at: '',
+          };
+          
+          reset(defaultValues);
+          return;
+        }
+        
+        // 既存タスク編集の場合
+        if (task) {
+          console.log("Task data received in form population:", task);
         // 正規化されたデータ形式に対応
         let statusId = '';
         if (task.status_data) {
@@ -182,9 +302,10 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
             setSelectedClient(clientObj);
           }
         }
+      }
       });
     }
-  }, [task]);
+  }, [isOpen, task, isNewTask, statuses, priorities]);
   
   const fetchTaskMetadata = async () => {
     try {
@@ -491,13 +612,22 @@ const TaskSlideOver = ({ isOpen, task, onClose, onTaskUpdated }) => {
               </button>
             </div>
             
-            {/* タスク詳細表示部分 */}
-            {task ? (
+            {/* タスク詳細表示部分 または 新規タスク作成フォーム */}
+            {(task || isNewTask) ? (
               <div className="h-full flex flex-col py-6 bg-white shadow-xl overflow-y-auto">
-                <div className="px-4 sm:px-6">
+                <div className="px-4 sm:px-6 flex justify-between items-center">
                   <h2 className="text-lg font-medium text-gray-900">
-                    タスク詳細
+                    {isNewTask ? '新規タスク作成' : 'タスク詳細'}
                   </h2>
+                  {(isNewTask || task) && (
+                    <button
+                      className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
+                      onClick={saveTask}
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? '保存中...' : isNewTask ? '作成' : '更新'}
+                    </button>
+                  )}
                 </div>
                 
                 <div className="mt-6 relative flex-1 px-4 sm:px-6">

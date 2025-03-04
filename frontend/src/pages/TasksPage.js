@@ -8,6 +8,7 @@ const TasksPage = ({ view }) => {
   const { taskId } = useParams();
   const [selectedTask, setSelectedTask] = useState(null);
   const [slideOverOpen, setSlideOverOpen] = useState(false);
+  const [isNewTask, setIsNewTask] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const taskListRef = useRef(null);
@@ -26,6 +27,14 @@ const TasksPage = ({ view }) => {
   const handleCloseSlideOver = () => {
     setSlideOverOpen(false);
     setSelectedTask(null);
+    setIsNewTask(false);
+  };
+  
+  // 新規タスク作成用のスライドオーバーを開く
+  const handleNewTask = () => {
+    setSelectedTask(null);
+    setIsNewTask(true);
+    setSlideOverOpen(true);
   };
   
   // タスク更新後の処理
@@ -89,7 +98,8 @@ const TasksPage = ({ view }) => {
     <div className="relative">
       <TaskList 
         ref={taskListRef}
-        onTaskSelect={handleTaskSelect} 
+        onTaskSelect={handleTaskSelect}
+        onNewTask={handleNewTask} 
         forceRefresh={slideOverOpen} // スライドオーバーの状態をpropsとして渡す
       />
       
@@ -97,6 +107,7 @@ const TasksPage = ({ view }) => {
       <TaskSlideOver 
         isOpen={slideOverOpen}
         task={selectedTask}
+        isNewTask={isNewTask}
         onClose={handleCloseSlideOver}
         onTaskUpdated={handleTaskUpdated}
       />

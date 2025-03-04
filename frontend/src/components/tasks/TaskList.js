@@ -221,8 +221,12 @@ const TaskList = React.forwardRef((props, ref) => {
           <button
             className="bg-primary-600 hover:bg-primary-700 text-white py-2 px-4 rounded-lg transition-colors flex items-center"
             onClick={() => {
-              setSelectedTask(null);
-              setModalOpen(true);
+              if (props.onNewTask) {
+                props.onNewTask();
+              } else {
+                setSelectedTask(null);
+                setModalOpen(true);
+              }
             }}
           >
             <HiOutlinePlus className="mr-2" />
@@ -339,8 +343,12 @@ const TaskList = React.forwardRef((props, ref) => {
           <button
             className="bg-primary-600 hover:bg-primary-700 text-white py-2 px-4 rounded-lg transition-colors inline-flex items-center"
             onClick={() => {
-              setSelectedTask(null);
-              setModalOpen(true);
+              if (props.onNewTask) {
+                props.onNewTask();
+              } else {
+                setSelectedTask(null);
+                setModalOpen(true);
+              }
             }}
           >
             <HiOutlinePlus className="mr-2" />
