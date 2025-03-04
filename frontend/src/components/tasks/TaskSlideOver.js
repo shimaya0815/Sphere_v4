@@ -648,7 +648,17 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                         type="text"
                         className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
                         {...register('title')}
-                        onBlur={() => handleFieldChange('title')}
+                        onChange={(e) => {
+                          // 入力値を直接フォーム状態に設定
+                          setValue('title', e.target.value);
+                        }}
+                        onBlur={(e) => {
+                          // フォーカスが外れたときだけAPIに保存
+                          const currentTitle = isNewTask ? '' : (task?.title || '');
+                          if (e.target.value !== currentTitle) {
+                            handleFieldChange('title');
+                          }
+                        }}
                         disabled={isSubmitting}
                       />
                     </div>
@@ -662,7 +672,18 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                         rows="4"
                         className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
                         {...register('description')}
-                        onBlur={() => handleFieldChange('description')}
+                        onChange={(e) => {
+                          // 入力値を直接フォーム状態に設定
+                          setValue('description', e.target.value);
+                        }}
+                        onBlur={(e) => {
+                          // フォーカスが外れたときだけAPIに保存
+                          const currentDescription = isNewTask ? '' : (task?.description || '');
+                          if (e.target.value !== currentDescription) {
+                            console.log(`Description changed from "${currentDescription}" to "${e.target.value}"`);
+                            handleFieldChange('description');
+                          }
+                        }}
                       />
                     </div>
                     
@@ -998,7 +1019,17 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                               type="text"
                               className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
                               {...register('template_name')}
-                              onBlur={() => handleFieldChange('template_name')}
+                              onChange={(e) => {
+                                // 入力値を直接フォーム状態に設定
+                                setValue('template_name', e.target.value);
+                              }}
+                              onBlur={(e) => {
+                                // フォーカスが外れたときだけAPIに保存
+                                const currentValue = isNewTask ? '' : (task?.template_name || '');
+                                if (e.target.value !== currentValue) {
+                                  handleFieldChange('template_name');
+                                }
+                              }}
                             />
                           </div>
                         )}
