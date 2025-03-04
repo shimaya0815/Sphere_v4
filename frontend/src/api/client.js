@@ -1,11 +1,9 @@
 import axios from 'axios';
 
 // Create axios instance with base URL
-// ブラウザではlocalhostを使用する
-const isServer = typeof window === 'undefined';
-const API_URL = isServer ? 
-                'http://backend:8000/api' : 
-                'http://localhost:8000/api';
+// 開発環境では相対URLを使用して setupProxy.js のプロキシ設定が適用されるようにする
+// 本番環境ではAPIのURL設定を行う
+const API_URL = '/api';
 
 console.log('Using API URL:', API_URL);
 
@@ -16,6 +14,8 @@ const apiClient = axios.create({
   },
   // デフォルトタイムアウトを設定
   timeout: 15000, // 15秒
+  // クロスドメインでCookieを送信する設定
+  withCredentials: true,
 });
 
 // Request interceptor to add auth token
