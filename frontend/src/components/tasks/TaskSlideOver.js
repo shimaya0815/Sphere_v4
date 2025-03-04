@@ -384,12 +384,17 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
         console.log(`Converting ${field} value '${value}' to ${formattedValue} (${typeof formattedValue})`);
       } 
       // 日付変換フィールド
-      else if (field === 'due_date') {
+      else if (['due_date', 'start_date', 'completed_at', 'recurrence_end_date'].includes(field)) {
         formattedValue = value ? value : null; // ISO文字列はバックエンドで処理
       } 
       // 真偽値変換フィールド
-      else if (field === 'is_fiscal_task') {
+      else if (['is_fiscal_task', 'is_recurring', 'is_template'].includes(field)) {
         formattedValue = value === 'true' || value === true;
+      }
+      // text/description フィールド - 明示的に処理
+      else if (['title', 'description', 'template_name'].includes(field)) {
+        formattedValue = value;
+        console.log(`Text field ${field} being updated with: "${value}"`);
       }
       // その他のフィールドはそのまま
       else {
@@ -426,6 +431,8 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
       if (field === 'status') {
         console.log(`Status update result - Raw value: ${updatedTask.status}, ` +
                    `Data object: ${JSON.stringify(updatedTask.status_data)}`);
+      } else if (field === 'description') {
+        console.log(`Description update result: "${updatedTask.description}"`);
       }
       
       // フォームの値を明示的に更新 (応答に基づく)
