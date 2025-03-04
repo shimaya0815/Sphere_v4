@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import TaskList from '../components/tasks/TaskList';
 import TaskDetail from '../components/tasks/TaskDetail';
-import TaskSlideOver from '../components/tasks/TaskSlideOver';
+import TaskEditor from '../components/tasks/asana-style/TaskEditor';
 
 const TasksPage = ({ view }) => {
   const { taskId } = useParams();
@@ -103,14 +103,15 @@ const TasksPage = ({ view }) => {
         forceRefresh={slideOverOpen} // スライドオーバーの状態をpropsとして渡す
       />
       
-      {/* スライドオーバー */}
-      <TaskSlideOver 
-        isOpen={slideOverOpen}
-        task={selectedTask}
-        isNewTask={isNewTask}
-        onClose={handleCloseSlideOver}
-        onTaskUpdated={handleTaskUpdated}
-      />
+      {/* Asana風タスク編集コンポーネント */}
+      {slideOverOpen && (
+        <TaskEditor 
+          task={selectedTask}
+          isNewTask={isNewTask}
+          onClose={handleCloseSlideOver}
+          onTaskUpdated={handleTaskUpdated}
+        />
+      )}
     </div>
   );
 };
