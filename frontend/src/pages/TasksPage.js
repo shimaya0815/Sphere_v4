@@ -103,15 +103,14 @@ const TasksPage = ({ view }) => {
         forceRefresh={slideOverOpen} // スライドオーバーの状態をpropsとして渡す
       />
       
-      {/* Asana風タスク編集コンポーネント */}
-      {slideOverOpen && (
-        <TaskEditor 
-          task={selectedTask}
-          isNewTask={isNewTask}
-          onClose={handleCloseSlideOver}
-          onTaskUpdated={handleTaskUpdated}
-        />
-      )}
+      {/* Asana風タスク編集コンポーネント - 常に存在しておき、表示/非表示を制御 */}
+      <TaskEditor 
+        task={selectedTask}
+        isNewTask={isNewTask}
+        onClose={handleCloseSlideOver}
+        onTaskUpdated={handleTaskUpdated}
+        isOpen={slideOverOpen}
+      />
     </div>
   );
 };
