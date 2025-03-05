@@ -369,7 +369,7 @@ const TaskForm = ({ task, onClose, onTaskSaved }) => {
                 <option value="">担当者を選択</option>
                 {workers.map(worker => (
                   <option key={worker.id} value={worker.id}>
-                    {worker.first_name} {worker.last_name}
+                    {worker.first_name || ''} {worker.last_name || ''} {(!worker.first_name && !worker.last_name) ? worker.username || worker.email || `User ${worker.id}` : ''}
                   </option>
                 ))}
               </select>
@@ -393,7 +393,7 @@ const TaskForm = ({ task, onClose, onTaskSaved }) => {
                 <option value="">レビュアーを選択</option>
                 {reviewers.map(reviewer => (
                   <option key={reviewer.id} value={reviewer.id}>
-                    {reviewer.first_name} {reviewer.last_name}
+                    {reviewer.first_name || ''} {reviewer.last_name || ''} {(!reviewer.first_name && !reviewer.last_name) ? reviewer.username || reviewer.email || `User ${reviewer.id}` : ''}
                   </option>
                 ))}
               </select>
