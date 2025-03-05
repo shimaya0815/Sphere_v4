@@ -9,10 +9,10 @@ const tasksApi = {
     try {
       console.log('🔍🔍🔍 Fetching tasks with filters:', filters);
       
-      // 複数のAPIエンドポイントを試行し、最初に成功したものを使用
+      // API URLは必ず /api プレフィックスを付ける
+      // バックエンドの設定で、認証以外のエンドポイントはすべて /api プレフィックスが必要
       const apiEndpoints = [
-        '/api/tasks/',        // 正しいプレフィックス付きパス
-        '/tasks/',           // プレフィックスなしパス（プロキシルールによって処理）
+        '/api/tasks/',
       ];
       
       let lastError = null;
