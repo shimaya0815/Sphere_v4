@@ -27,14 +27,70 @@ class TaskAttachmentSerializer(serializers.ModelSerializer):
 
 
 class TaskCommentSerializer(serializers.ModelSerializer):
+    user_name = serializers.ReadOnlyField(source='user.get_full_name')
+    mentioned_user_names = serializers.SerializerMethodField()
+    
     class Meta:
         model = TaskComment
-        fields = '__all__'
-        read_only_fields = ('user', 'created_at', 'updated_at')
+        fields = ('id', 'task', 'user', 'user_name', 'content', 'created_at', 'updated_at', 'mentioned_users', 'mentioned_user_names')
+        read_only_fields = ('user', 'created_at', 'updated_at', 'mentioned_users', 'mentioned_user_names')
+
+    def get_mentioned_user_names(self, obj):
+        """メンションされたユーザー名のリストを返す"""
+        return [user.get_full_name() for user in obj.mentioned_users.all()]
 
     def create(self, validated_data):
-        validated_data['user'] = self.context['request'].user
-        return super().create(validated_data)
+        """メンション処理を含むコメント作成"""
+        user = self.context['request'].user
+        content = validated_data.get('content', '')
+        
+        # コメント作成
+        comment = TaskComment.objects.create(
+            task=validated_data['task'],
+            user=user,
+            content=content
+        )
+        
+        # メンション処理
+        self._process_mentions(comment, content)
+        
+        return comment
+        
+    def _process_mentions(self, comment, content):
+        """コメント内のメンションを処理する"""
+        # @ユーザー名 のパターン検出（スペースまたは句読点で区切られたもの）
+        import re
+        mention_pattern = r'@(\w+(?:\s+\w+)*)'
+        mentions = re.findall(mention_pattern, content)
+        
+        User = get_user_model()
+        business_id = comment.user.business_id
+        
+        for mention in mentions:
+            # ユーザー名で検索（名前が一致するビジネス内のユーザーを検索）
+            # first_name + last_name でマッチングを試みる
+            mentioned_users = User.objects.filter(
+                business_id=business_id
+            ).filter(
+                # 複数の名前パターンを試す
+                Q(first_name__icontains=mention) | 
+                Q(last_name__icontains=mention) |
+                Q(username__icontains=mention)
+            ).distinct()
+            
+            # マッチしたユーザーにメンション関連付けと通知作成
+            for mentioned_user in mentioned_users:
+                # 同じユーザーは除外
+                if mentioned_user.id != comment.user.id:
+                    comment.mentioned_users.add(mentioned_user)
+                    
+                    # 通知作成
+                    TaskNotification.objects.create(
+                        user=mentioned_user,
+                        task=comment.task,
+                        notification_type='mention',
+                        content=f'{comment.user.get_full_name()}さんがタスク「{comment.task.title}」のコメントであなたをメンションしました。'
+                    )
 
 
 class TaskTimerSerializer(serializers.ModelSerializer):
@@ -52,10 +108,13 @@ class TaskHistorySerializer(serializers.ModelSerializer):
 
 
 class TaskNotificationSerializer(serializers.ModelSerializer):
+    task_title = serializers.ReadOnlyField(source='task.title')
+    user_name = serializers.ReadOnlyField(source='user.get_full_name')
+    
     class Meta:
         model = TaskNotification
-        fields = '__all__'
-        read_only_fields = ('user', 'task', 'notification_type', 'content', 'created_at', 'read')
+        fields = ('id', 'user', 'user_name', 'task', 'task_title', 'notification_type', 'content', 'created_at', 'read')
+        read_only_fields = ('user', 'task', 'notification_type', 'content', 'created_at')
 
 
 class TaskSerializer(serializers.ModelSerializer):
@@ -65,6 +124,8 @@ class TaskSerializer(serializers.ModelSerializer):
     priority_name = serializers.ReadOnlyField(source='priority.name', default=None)
     creator_name = serializers.ReadOnlyField(source='creator.get_full_name', default=None)
     assignee_name = serializers.ReadOnlyField(source='assignee.get_full_name', default=None)
+    worker_name = serializers.ReadOnlyField(source='worker.get_full_name', default=None)
+    reviewer_name = serializers.ReadOnlyField(source='reviewer.get_full_name', default=None)
     approver_name = serializers.ReadOnlyField(source='approver.get_full_name', default=None)
     client_name = serializers.ReadOnlyField(source='client.name', default=None)
     fiscal_period = serializers.ReadOnlyField(source='fiscal_year.fiscal_period', default=None)
@@ -76,6 +137,8 @@ class TaskSerializer(serializers.ModelSerializer):
     category_data = serializers.SerializerMethodField()
     client_data = serializers.SerializerMethodField()
     fiscal_year_data = serializers.SerializerMethodField()
+    worker_data = serializers.SerializerMethodField()
+    reviewer_data = serializers.SerializerMethodField()
     
     class Meta:
         model = Task
@@ -85,6 +148,8 @@ class TaskSerializer(serializers.ModelSerializer):
             'priority', 'priority_name', 'priority_data',
             'category', 'category_name', 'category_data',
             'creator', 'creator_name', 'assignee', 'assignee_name', 
+            'worker', 'worker_name', 'worker_data',
+            'reviewer', 'reviewer_name', 'reviewer_data',
             'approver', 'approver_name', 'created_at', 'updated_at',
             'due_date', 'start_date', 'completed_at', 'estimated_hours', 
             'client', 'client_name', 'client_data',
@@ -142,6 +207,26 @@ class TaskSerializer(serializers.ModelSerializer):
                 'fiscal_period': obj.fiscal_year.fiscal_period,
                 'start_date': obj.fiscal_year.start_date,
                 'end_date': obj.fiscal_year.end_date
+            }
+        return None
+        
+    def get_worker_data(self, obj):
+        """作業者情報を一貫した形式で返す"""
+        if obj.worker:
+            return {
+                'id': obj.worker.id,
+                'name': obj.worker.get_full_name() or obj.worker.username,
+                'email': obj.worker.email
+            }
+        return None
+        
+    def get_reviewer_data(self, obj):
+        """レビュアー情報を一貫した形式で返す"""
+        if obj.reviewer:
+            return {
+                'id': obj.reviewer.id,
+                'name': obj.reviewer.get_full_name() or obj.reviewer.username,
+                'email': obj.reviewer.email
             }
         return None
 

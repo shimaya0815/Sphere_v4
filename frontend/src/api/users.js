@@ -11,11 +11,11 @@ const usersApi = {
    */
   getUsers: async (params = {}) => {
     try {
-      const response = await apiClient.get('/users/', { params });
+      const response = await apiClient.get('/api/users/', { params });
       return response.data;
     } catch (error) {
       console.error('Error fetching users:', error);
-      throw error;
+      return [];
     }
   },
 
@@ -26,11 +26,11 @@ const usersApi = {
    */
   getUser: async (userId) => {
     try {
-      const response = await apiClient.get(`/users/${userId}/`);
+      const response = await apiClient.get(`/api/users/${userId}/`);
       return response.data;
     } catch (error) {
       console.error(`Error fetching user ${userId}:`, error);
-      throw error;
+      return null;
     }
   },
 
@@ -42,11 +42,12 @@ const usersApi = {
    */
   getBusinessUsers: async (businessId, params = {}) => {
     try {
-      const response = await apiClient.get(`/business/${businessId}/users/`, { params });
+      const queryParams = { business_id: businessId, ...params };
+      const response = await apiClient.get('/api/business/users/', { params: queryParams });
       return response.data;
     } catch (error) {
       console.error(`Error fetching users for business ${businessId}:`, error);
-      throw error;
+      return [];
     }
   },
   
@@ -56,11 +57,53 @@ const usersApi = {
    */
   getCurrentUser: async () => {
     try {
-      const response = await apiClient.get('/auth/users/me/');
+      const response = await apiClient.get('/api/auth/users/me/');
       return response.data;
     } catch (error) {
       console.error('Error fetching current user:', error);
-      throw error;
+      return null;
+    }
+  },
+  
+  /**
+   * 利用可能な担当者（ワーカー）一覧を取得
+   * @returns {Promise<Array>} - 担当者一覧
+   */
+  getAvailableWorkers: async () => {
+    try {
+      // 現在のユーザーが所属するビジネスのユーザーを取得
+      const currentUser = await usersApi.getCurrentUser();
+      if (!currentUser || !currentUser.business) {
+        throw new Error('現在のユーザーまたはビジネス情報が取得できません');
+      }
+      
+      // ビジネスに所属するユーザー一覧を取得
+      const users = await usersApi.getBusinessUsers(currentUser.business);
+      return users;
+    } catch (error) {
+      console.error('Error fetching available workers:', error);
+      return [];
+    }
+  },
+  
+  /**
+   * 利用可能なレビュアー一覧を取得
+   * @returns {Promise<Array>} - レビュアー一覧
+   */
+  getAvailableReviewers: async () => {
+    try {
+      // 現在のユーザーが所属するビジネスのユーザーを取得
+      const currentUser = await usersApi.getCurrentUser();
+      if (!currentUser || !currentUser.business) {
+        throw new Error('現在のユーザーまたはビジネス情報が取得できません');
+      }
+      
+      // ビジネスに所属するユーザー一覧を取得（レビュアーは通常、同じユーザープールから選択）
+      const users = await usersApi.getBusinessUsers(currentUser.business);
+      return users;
+    } catch (error) {
+      console.error('Error fetching available reviewers:', error);
+      return [];
     }
   },
 };

@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import { tasksApi, clientsApi } from '../../api';
+import { tasksApi, clientsApi, usersApi } from '../../api';
 
 const TaskForm = ({ task, onClose, onTaskSaved }) => {
   const [categories, setCategories] = useState([]);
   const [statuses, setStatuses] = useState([]);
   const [priorities, setPriorities] = useState([]);
   const [clients, setClients] = useState([]);
+  const [workers, setWorkers] = useState([]);
+  const [reviewers, setReviewers] = useState([]);
   const [fiscalYears, setFiscalYears] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFiscalTask, setIsFiscalTask] = useState(false);
   const [selectedClient, setSelectedClient] = useState(null);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm();
 
   // Watch client and isFiscalTask fields for dependent dropdowns
@@ -21,14 +24,23 @@ const TaskForm = ({ task, onClose, onTaskSaved }) => {
   useEffect(() => {
     const fetchTaskMetadata = async () => {
       try {
-        const [categoriesData, statusesData, prioritiesData, clientsData] = await Promise.all([
+        setIsLoadingUsers(true);
+        
+        const [
+          categoriesData, 
+          statusesData, 
+          prioritiesData, 
+          clientsData,
+          workersData,
+          reviewersData
+        ] = await Promise.all([
           tasksApi.getCategories(),
           tasksApi.getStatuses(),
           tasksApi.getPriorities(),
           clientsApi.getClients({ contract_status: 'active' }), // Get only active clients
+          usersApi.getAvailableWorkers(),
+          usersApi.getAvailableReviewers()
         ]);
-        
-        console.log('API Responses:', { categoriesData, statusesData, prioritiesData, clientsData });
         
         // Process categories
         if (Array.isArray(categoriesData)) {
@@ -37,7 +49,6 @@ const TaskForm = ({ task, onClose, onTaskSaved }) => {
           setCategories(categoriesData.results);
         } else {
           setCategories([]);
-          console.warn('Categories data is not an array:', categoriesData);
         }
         
         // Process statuses
@@ -47,7 +58,6 @@ const TaskForm = ({ task, onClose, onTaskSaved }) => {
           setStatuses(statusesData.results);
         } else {
           setStatuses([]);
-          console.warn('Statuses data is not an array:', statusesData);
         }
         
         // Process priorities
@@ -57,7 +67,6 @@ const TaskForm = ({ task, onClose, onTaskSaved }) => {
           setPriorities(prioritiesData.results);
         } else {
           setPriorities([]);
-          console.warn('Priorities data is not an array:', prioritiesData);
         }
 
         // Process clients
@@ -67,7 +76,24 @@ const TaskForm = ({ task, onClose, onTaskSaved }) => {
           setClients(clientsData.results);
         } else {
           setClients([]);
-          console.warn('Clients data is not an array:', clientsData);
+        }
+        
+        // Process workers (担当者)
+        if (Array.isArray(workersData)) {
+          setWorkers(workersData);
+        } else if (workersData && Array.isArray(workersData.results)) {
+          setWorkers(workersData.results);
+        } else {
+          setWorkers([]);
+        }
+        
+        // Process reviewers (レビュアー)
+        if (Array.isArray(reviewersData)) {
+          setReviewers(reviewersData);
+        } else if (reviewersData && Array.isArray(reviewersData.results)) {
+          setReviewers(reviewersData.results);
+        } else {
+          setReviewers([]);
         }
       } catch (error) {
         console.error('Error fetching task metadata:', error);
@@ -78,6 +104,10 @@ const TaskForm = ({ task, onClose, onTaskSaved }) => {
         setStatuses([]);
         setPriorities([]);
         setClients([]);
+        setWorkers([]);
+        setReviewers([]);
+      } finally {
+        setIsLoadingUsers(false);
       }
     };
 
@@ -129,6 +159,8 @@ const TaskForm = ({ task, onClose, onTaskSaved }) => {
         client: task.client?.id || '',
         is_fiscal_task: task.is_fiscal_task ? 'true' : 'false',
         fiscal_year: task.fiscal_year?.id || '',
+        worker: task.worker?.id || '',
+        reviewer: task.reviewer?.id || '',
       });
       
       // Update state values
@@ -150,6 +182,8 @@ const TaskForm = ({ task, onClose, onTaskSaved }) => {
         priority: data.priority ? parseInt(data.priority) : null,
         category: data.category ? parseInt(data.category) : null,
         client: data.client ? parseInt(data.client) : null,
+        worker: data.worker ? parseInt(data.worker) : null,
+        reviewer: data.reviewer ? parseInt(data.reviewer) : null,
         // Format date for API
         due_date: data.due_date ? new Date(data.due_date).toISOString() : null,
         // Convert checkbox values
@@ -316,6 +350,57 @@ const TaskForm = ({ task, onClose, onTaskSaved }) => {
               placeholder="タスクの詳細を入力"
               {...register('description')}
             />
+          </div>
+
+          {/* 担当者とレビュアー選択フィールド */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="worker">
+                担当者
+              </label>
+              <select
+                id="worker"
+                className={`appearance-none relative block w-full px-4 py-3 border ${
+                  errors.worker ? 'border-red-300 ring-1 ring-red-300' : 'border-gray-300'
+                } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm`}
+                {...register('worker')}
+                disabled={isLoadingUsers}
+              >
+                <option value="">担当者を選択</option>
+                {workers.map(worker => (
+                  <option key={worker.id} value={worker.id}>
+                    {worker.first_name} {worker.last_name}
+                  </option>
+                ))}
+              </select>
+              {errors.worker && (
+                <p className="mt-1 text-xs text-red-600">{errors.worker.message}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="reviewer">
+                レビュアー
+              </label>
+              <select
+                id="reviewer"
+                className={`appearance-none relative block w-full px-4 py-3 border ${
+                  errors.reviewer ? 'border-red-300 ring-1 ring-red-300' : 'border-gray-300'
+                } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm`}
+                {...register('reviewer')}
+                disabled={isLoadingUsers}
+              >
+                <option value="">レビュアーを選択</option>
+                {reviewers.map(reviewer => (
+                  <option key={reviewer.id} value={reviewer.id}>
+                    {reviewer.first_name} {reviewer.last_name}
+                  </option>
+                ))}
+              </select>
+              {errors.reviewer && (
+                <p className="mt-1 text-xs text-red-600">{errors.reviewer.message}</p>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
