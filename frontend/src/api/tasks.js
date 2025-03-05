@@ -7,37 +7,52 @@ const tasksApi = {
   // タスク一覧を取得
   getTasks: async (filters = {}) => {
     try {
-      console.log('Fetching tasks with filters:', filters);
-      console.log('API URL:', '/api/tasks/');
+      console.log('🔍🔍🔍 Fetching tasks with filters:', filters);
       
-      // ネットワークリクエストをより詳細にデバッグ
-      try {
-        const response = await apiClient.get('/api/tasks/', { params: filters });
-        console.log('Tasks API Response:', response);
-        console.log('Tasks API Data:', response.data);
-        return response.data;
-      } catch (requestError) {
-        console.error('Detailed request error:', requestError);
-        console.error('Request error response:', requestError.response);
-        console.error('Request error message:', requestError.message);
-        console.error('Request error config:', requestError.config);
-        throw requestError;
+      // 複数のAPIエンドポイントを試行し、最初に成功したものを使用
+      const apiEndpoints = [
+        '/api/tasks/',        // 正しいプレフィックス付きパス
+        '/tasks/',           // プレフィックスなしパス（プロキシルールによって処理）
+      ];
+      
+      let lastError = null;
+      
+      // 各エンドポイントを順番に試行
+      for (const endpoint of apiEndpoints) {
+        try {
+          console.log(`🔍🔍🔍 Trying API endpoint: ${endpoint}`);
+          const response = await apiClient.get(endpoint, { 
+            params: filters,
+            timeout: 10000 // 10秒のタイムアウト
+          });
+          console.log(`✅✅✅ Successful response from ${endpoint}:`, response.status);
+          console.log('Tasks API Data:', response.data);
+          return response.data;
+        } catch (endpointError) {
+          console.warn(`❌❌❌ Failed to fetch from ${endpoint}:`, endpointError.message);
+          lastError = endpointError;
+          // 次のエンドポイントを試行
+        }
       }
-    } catch (error) {
-      console.error('Error fetching tasks:', error);
-      // エラーの詳細をログ出力
-      if (error.response) {
-        // サーバーからのレスポンスがある場合
-        console.error('Error Response Data:', error.response.data);
-        console.error('Error Response Status:', error.response.status);
-        console.error('Error Response Headers:', error.response.headers);
-      } else if (error.request) {
-        // リクエストは行われたがレスポンスがない場合
-        console.error('No response received, request details:', error.request);
+      
+      // すべてのエンドポイントが失敗した場合
+      console.error('🛑🛑🛑 All API endpoints failed');
+      
+      // 詳細なエラー情報をログ
+      if (lastError.response) {
+        console.error('Error Response Data:', lastError.response.data);
+        console.error('Error Response Status:', lastError.response.status);
+        console.error('Error Response Headers:', lastError.response.headers);
+      } else if (lastError.request) {
+        console.error('No response received, request details:', lastError.request);
       } else {
-        // リクエスト設定中にエラーが発生した場合
-        console.error('Error during request setup:', error.message);
+        console.error('Error during request setup:', lastError.message);
       }
+      
+      // 例外を投げて呼び出し元に通知
+      throw lastError;
+    } catch (error) {
+      console.error('⚠️⚠️⚠️ Fatal error fetching tasks:', error);
       throw error;
     }
   },
