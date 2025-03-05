@@ -43,7 +43,7 @@ const usersApi = {
   getBusinessUsers: async (businessId, params = {}) => {
     try {
       // 直接すべてのユーザーを取得する（ビジネスIDによるフィルタリングはバックエンドで自動的に行われる）
-      const response = await apiClient.get('/api/users/');
+      const response = await apiClient.get('/api/users/profile/');
       console.log('Users from API:', response.data);
       
       if (Array.isArray(response.data)) {
@@ -90,7 +90,8 @@ const usersApi = {
       // APIを呼び出す（デモユーザーとの比較用）
       console.log('Fetching users for worker selection');
       try {
-        const response = await apiClient.get('/api/users/');
+        // 正しいエンドポイント /api/users/profile/ を使用する
+        const response = await apiClient.get('/api/users/profile/');
         console.log('Worker API response:', response.data);
         
         // レスポンスの形式によって適切に処理
@@ -129,7 +130,8 @@ const usersApi = {
       // APIを呼び出す（デモユーザーとの比較用）
       console.log('Fetching users for reviewer selection');
       try {
-        const response = await apiClient.get('/api/users/');
+        // 正しいエンドポイント /api/users/profile/ を使用する
+        const response = await apiClient.get('/api/users/profile/');
         console.log('Reviewer API response:', response.data);
         
         // レスポンスの形式によって適切に処理
