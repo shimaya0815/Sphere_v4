@@ -7,52 +7,14 @@ const tasksApi = {
   // タスク一覧を取得
   getTasks: async (filters = {}) => {
     try {
-      console.log('🔍🔍🔍 Fetching tasks with filters:', filters);
-      
-      // API URLは必ず /api プレフィックスを付ける
-      // バックエンドの設定で、認証以外のエンドポイントはすべて /api プレフィックスが必要
-      const apiEndpoints = [
-        '/api/tasks/',
-      ];
-      
-      let lastError = null;
-      
-      // 各エンドポイントを順番に試行
-      for (const endpoint of apiEndpoints) {
-        try {
-          console.log(`🔍🔍🔍 Trying API endpoint: ${endpoint}`);
-          const response = await apiClient.get(endpoint, { 
-            params: filters,
-            timeout: 10000 // 10秒のタイムアウト
-          });
-          console.log(`✅✅✅ Successful response from ${endpoint}:`, response.status);
-          console.log('Tasks API Data:', response.data);
-          return response.data;
-        } catch (endpointError) {
-          console.warn(`❌❌❌ Failed to fetch from ${endpoint}:`, endpointError.message);
-          lastError = endpointError;
-          // 次のエンドポイントを試行
-        }
-      }
-      
-      // すべてのエンドポイントが失敗した場合
-      console.error('🛑🛑🛑 All API endpoints failed');
-      
-      // 詳細なエラー情報をログ
-      if (lastError.response) {
-        console.error('Error Response Data:', lastError.response.data);
-        console.error('Error Response Status:', lastError.response.status);
-        console.error('Error Response Headers:', lastError.response.headers);
-      } else if (lastError.request) {
-        console.error('No response received, request details:', lastError.request);
-      } else {
-        console.error('Error during request setup:', lastError.message);
-      }
-      
-      // 例外を投げて呼び出し元に通知
-      throw lastError;
+      // API URLは /api プレフィックスを付ける
+      const response = await apiClient.get('/api/tasks/', { 
+        params: filters,
+        timeout: 10000 // 10秒のタイムアウト
+      });
+      return response.data;
     } catch (error) {
-      console.error('⚠️⚠️⚠️ Fatal error fetching tasks:', error);
+      console.error('Error fetching tasks:', error.message);
       throw error;
     }
   },
@@ -63,7 +25,6 @@ const tasksApi = {
       const response = await apiClient.get(`/api/tasks/${taskId}/`);
       return response.data;
     } catch (error) {
-      console.error(`Error fetching task with id ${taskId}:`, error);
       throw error;
     }
   },
@@ -74,7 +35,6 @@ const tasksApi = {
       const response = await apiClient.post('/api/tasks/', taskData);
       return response.data;
     } catch (error) {
-      console.error('Error creating task:', error);
       throw error;
     }
   },
@@ -85,7 +45,6 @@ const tasksApi = {
       const response = await apiClient.put(`/api/tasks/${taskId}/`, taskData);
       return response.data;
     } catch (error) {
-      console.error(`Error updating task with id ${taskId}:`, error);
       throw error;
     }
   },
@@ -96,7 +55,6 @@ const tasksApi = {
       const response = await apiClient.delete(`/api/tasks/${taskId}/`);
       return response.data;
     } catch (error) {
-      console.error(`Error deleting task with id ${taskId}:`, error);
       throw error;
     }
   },
@@ -107,7 +65,6 @@ const tasksApi = {
       const response = await apiClient.post(`/api/tasks/${taskId}/change-status/`, statusData);
       return response.data;
     } catch (error) {
-      console.error(`Error changing status for task with id ${taskId}:`, error);
       throw error;
     }
   },
@@ -118,7 +75,6 @@ const tasksApi = {
       const response = await apiClient.post(`/api/tasks/${taskId}/mark_complete/`);
       return response.data;
     } catch (error) {
-      console.error(`Error marking task ${taskId} as complete:`, error);
       throw error;
     }
   },
@@ -129,7 +85,6 @@ const tasksApi = {
       const response = await apiClient.get('/api/tasks/templates/');
       return response.data;
     } catch (error) {
-      console.error('Error fetching task templates:', error);
       throw error;
     }
   },
@@ -138,10 +93,8 @@ const tasksApi = {
   getCategories: async () => {
     try {
       const response = await apiClient.get('/api/tasks/categories/');
-      console.log('Categories API Response:', response);
       return response.data;
     } catch (error) {
-      console.error('Error fetching task categories:', error);
       throw error;
     }
   },
@@ -150,10 +103,8 @@ const tasksApi = {
   getStatuses: async () => {
     try {
       const response = await apiClient.get('/api/tasks/statuses/');
-      console.log('Statuses API Response:', response);
       return response.data;
     } catch (error) {
-      console.error('Error fetching task statuses:', error);
       throw error;
     }
   },
@@ -162,10 +113,8 @@ const tasksApi = {
   getPriorities: async () => {
     try {
       const response = await apiClient.get('/api/tasks/priorities/');
-      console.log('Priorities API Response:', response);
       return response.data;
     } catch (error) {
-      console.error('Error fetching task priorities:', error);
       throw error;
     }
   }

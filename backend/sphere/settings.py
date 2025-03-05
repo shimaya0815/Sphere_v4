@@ -27,7 +27,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-2)w6g@_5ta0+kvs^@&4bo
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = ['*']  # For development, accept all hosts
 
 
 # Application definition
@@ -151,15 +151,7 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# Allow all hosts for development
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000", 
-    "http://frontend:3000",
-]
-CORS_ALLOW_CREDENTIALS = True
-# Make sure to add these for file uploads to work
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS設定（この部分は下部に統合しました）
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
@@ -182,14 +174,27 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 10,
 }
 
-# CORS settings
+# CORS設定
+# Dockerとローカル開発の両方に対応するCORS設定
 CORS_ALLOWED_ORIGINS = [
+    # ローカル開発環境
     "http://localhost:3000",
     "http://127.0.0.1:3000", 
+    # Docker環境
     "http://frontend:3000",
+    # バックエンドとの通信（特定のケースでのみ必要）
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://backend:8000",
 ]
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = True  # 開発環境用の設定
+
+# 基本設定
+CORS_ALLOW_CREDENTIALS = True  # 認証情報を含むリクエストを許可
+
+# 開発環境では全てのオリジンを許可（本番環境では無効化すること）
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+
+# 許可するHTTPメソッド
 CORS_ALLOW_METHODS = [
     "DELETE",
     "GET",
@@ -198,6 +203,8 @@ CORS_ALLOW_METHODS = [
     "POST",
     "PUT",
 ]
+
+# 許可するHTTPヘッダー
 CORS_ALLOW_HEADERS = [
     "accept",
     "accept-encoding",

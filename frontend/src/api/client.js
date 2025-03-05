@@ -1,76 +1,71 @@
 import axios from 'axios';
 
-// Create axios instance with base URL
-// フロントエンドの開発サーバーからAPIリクエストを行う場合、
-// setupProxy.js によってリクエストが転送されるので、
-// baseURL は空文字列にする
-const API_URL = '';
+// フロントエンドの開発環境を検出して適切なベースURLを設定
+// 開発モード: setupProxy.js が転送するので空でOK
+// Docker環境: REACT_APP_API_URL を使用（コンテナ名）
+// その他: ローカルホストへのフォールバック
+const getBaseUrl = () => {
+  if (process.env.NODE_ENV === 'development') {
+    return ''; // 開発モードでは空のURLを使用（プロキシが処理）
+  }
+  return process.env.REACT_APP_API_URL || 'http://localhost:8000';
+};
 
-// デバッグ用にAPIのURLをログ出力
-console.log('Using API URL for context:', API_URL);
-console.log('Environment:', process.env.NODE_ENV);
-console.log('REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
-console.log('Using demo token for auth:', '039542700dd3bcf213ff82e652f6b396d2775049');
+const API_URL = getBaseUrl();
+
+// 最小限のログ出力
+console.log('API Configuration:', {
+  baseUrl: API_URL,
+  environment: process.env.NODE_ENV
+});
 
 const apiClient = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  // デフォルトタイムアウトを設定
-  timeout: 60000, // 60秒に延長
-  // クロスドメインでCookieを送信する設定
-  withCredentials: false, // CORS直接通信モードでは無効化
+  timeout: 60000, // 60秒タイムアウト
+  withCredentials: false, // CORSのクッキー送信は無効化
 });
 
-// Request interceptor to add auth token
+// リクエストインターセプター: 認証トークン追加
 apiClient.interceptors.request.use(
   (config) => {
-    // 最新のトークンで更新
-    const demoToken = '039542700dd3bcf213ff82e652f6b396d2775049'; // 実際のトークンに更新
-    // まずローカルストレージから取得、なければデモトークンを使用
+    const demoToken = '039542700dd3bcf213ff82e652f6b396d2775049';
     const token = localStorage.getItem('token') || demoToken;
+    
     if (token) {
       config.headers.Authorization = `Token ${token}`;
-      console.log('Using token for request:', token);
-    } else {
-      console.warn('No authentication token available');
     }
-    // デバッグ用
-    console.log("Sending request with headers:", JSON.stringify(config.headers));
-    console.log("Request URL:", config.url);
-    console.log("Request data:", typeof config.data === 'string' ? config.data : JSON.stringify(config.data));
+    
+    // 開発モードのみ詳細なログを出力
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔍 API Request: ${config.method?.toUpperCase()} ${config.url}`);
+    }
+    
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Response interceptor for error handling
+// レスポンスインターセプター: エラー処理
 apiClient.interceptors.response.use(
   (response) => {
-    console.log("Response received:", response.status, response.data);
-    console.log("Response headers:", response.headers);
-    console.log("Response config:", response.config);
+    // 開発モードのみ詳細なログを出力
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ API Response: ${response.status} for ${response.config.url}`);
+    }
     return response;
   },
   (error) => {
-    console.group("API Error Details:");
-    console.error("API Error Status:", error.response?.status);
-    console.error("API Error Data:", error.response?.data);
-    console.error("API Error Config:", error.config);
-    console.error("API Error Full:", error);
-    if (error.response) {
-      console.error("Response Headers:", error.response.headers);
+    // エラー情報のログ出力（簡潔に）
+    if (process.env.NODE_ENV === 'development') {
+      console.error(`❌ API Error: ${error.response?.status || 'Network Error'} for ${error.config?.url}`, 
+        error.response?.data || error.message);
     }
-    console.groupEnd();
     
-    const { response } = error;
-    
-    if (response && response.status === 401) {
-      // If unauthorized, clear auth data and redirect to login
-      console.warn("Unauthorized access detected - clearing credentials");
+    // 認証エラー処理
+    if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';
