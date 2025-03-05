@@ -46,11 +46,13 @@ function App() {
   return (
     <AuthProvider>
       <Routes>
+        {/* Public routes */}
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         
-        <Route path="/" element={<Layout />}>
+        {/* Protected routes with shared layout */}
+        <Route element={<Layout />}>
           <Route path="/dashboard" element={
             <PrivateRoute>
               <DashboardPage />
@@ -113,6 +115,7 @@ function App() {
           } />
         </Route>
         
+        {/* Catch all for 404 */}
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </AuthProvider>
