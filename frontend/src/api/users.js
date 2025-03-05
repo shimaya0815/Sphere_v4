@@ -42,11 +42,19 @@ const usersApi = {
    */
   getBusinessUsers: async (businessId, params = {}) => {
     try {
-      const queryParams = { business_id: businessId, ...params };
-      const response = await apiClient.get('/api/business/users/', { params: queryParams });
-      return response.data;
+      // 直接すべてのユーザーを取得する（ビジネスIDによるフィルタリングはバックエンドで自動的に行われる）
+      const response = await apiClient.get('/api/users/');
+      console.log('Users from API:', response.data);
+      
+      if (Array.isArray(response.data)) {
+        return response.data;
+      } else if (response.data && Array.isArray(response.data.results)) {
+        return response.data.results;
+      } else {
+        return [];
+      }
     } catch (error) {
-      console.error(`Error fetching users for business ${businessId}:`, error);
+      console.error(`Error fetching users:`, error);
       return [];
     }
   },
