@@ -45,6 +45,20 @@ module.exports = function(app) {
     })
   );
   
+  // APIエンドポイントのデバッグ用に、受信したリクエストを表示するミドルウェアを追加
+  app.use('/api', (req, res, next) => {
+    console.log('[API Proxy Debug] Received request:', {
+      originalUrl: req.originalUrl,
+      url: req.url,
+      method: req.method,
+      headers: {
+        ...req.headers,
+        authorization: req.headers.authorization ? '****REDACTED****' : undefined
+      }
+    });
+    next();
+  });
+
   // 以下のエンドポイントは /api プレフィックスなしでもアクセス可能にするためのプロキシ
   const additionalEndpoints = [
     '/tasks',
@@ -63,15 +77,14 @@ module.exports = function(app) {
         target: 'http://backend:8000',
         changeOrigin: true,
         secure: false,
-        pathRewrite: function(path, req) {
-          // /tasks/categories のようなリクエストを /api/tasks/categories に書き換え
-          return `/api${path}`;
+        pathRewrite: {
+          [`^${endpoint}`]: `/api${endpoint}`,  // /tasks -> /api/tasks のように書き換え
         },
         logLevel: 'debug',
         onProxyReq: function(proxyReq, req, res) {
           const originalPath = req.url;
-          const newPath = proxyReq.path;
-          console.log(`Rewriting path from: ${endpoint}${originalPath} to: /api${endpoint}${originalPath}`);
+          console.log(`Rewriting path from: ${endpoint}${originalPath}`);
+          console.log(`New path after rewrite: ${proxyReq.path}`);
           console.log(`Proxying to: ${this.target}${proxyReq.path}`);
           
           // Add token for development
