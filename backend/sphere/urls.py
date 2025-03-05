@@ -11,6 +11,7 @@ from django.conf.urls.static import static
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
+from users.views import BusinessAuthTokenView
 
 schema_view = get_schema_view(
     openapi.Info(
@@ -33,10 +34,15 @@ urlpatterns = [
     
     # Authentication
     path('api/auth/', include('djoser.urls')),
-    path('api/auth/token/login/', include('users.urls')),  # Override with business-aware login
+    path('api/auth/token/login/', BusinessAuthTokenView.as_view(), name='login-with-business'),  # Override with business-aware login
     path('api/auth/', include('djoser.urls.authtoken')),
     
-    # API endpoints
+    # Add alternative auth endpoints without /api prefix for direct access
+    path('auth/', include('djoser.urls')),
+    path('auth/token/login/', BusinessAuthTokenView.as_view(), name='login-with-business-alt'),
+    path('auth/', include('djoser.urls.authtoken')),
+    
+    # API endpoints with /api prefix
     path('api/users/', include('users.urls')),
     path('api/tasks/', include('tasks.urls')),
     path('api/clients/', include('clients.urls')),
@@ -44,6 +50,11 @@ urlpatterns = [
     path('api/chat/', include('chat.urls')),
     path('api/wiki/', include('wiki.urls')),
     path('api/time-management/', include('time_management.urls')),
+    
+    # Add non-prefixed alternatives for key endpoints to support legacy clients
+    path('tasks/', include('tasks.urls')),
+    path('clients/', include('clients.urls')),
+    path('business/', include('business.urls')),
 ]
 
 # Serve static and media files in development
