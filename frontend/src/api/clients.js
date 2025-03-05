@@ -4,21 +4,31 @@ import apiClient from './client';
 const clientsApi = {
   // Get all clients with optional filters
   getClients: async (filters = {}) => {
-    const response = await apiClient.get('/clients/', { params: filters });
-    return response.data;
+    try {
+      const response = await apiClient.get('/api/clients/', { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+      return { results: [], count: 0 };
+    }
   },
   
   // Get a specific client by ID
   getClient: async (clientId) => {
-    const response = await apiClient.get(`/clients/${clientId}/`);
-    return response.data;
+    try {
+      const response = await apiClient.get(`/api/clients/${clientId}/`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching client ${clientId}:`, error);
+      return null;
+    }
   },
   
   // Create a new client
   createClient: async (clientData) => {
     console.log("Creating client with data:", clientData);
     try {
-      const response = await apiClient.post('/clients/', clientData);
+      const response = await apiClient.post('/api/clients/', clientData);
       console.log("Client created successfully:", response.data);
       return response.data;
     } catch (error) {
@@ -29,19 +39,19 @@ const clientsApi = {
   
   // Update a client
   updateClient: async (clientId, clientData) => {
-    const response = await apiClient.patch(`/clients/${clientId}/`, clientData);
+    const response = await apiClient.patch(`/api/clients/${clientId}/`, clientData);
     return response.data;
   },
   
   // Delete a client
   deleteClient: async (clientId) => {
-    const response = await apiClient.delete(`/clients/${clientId}/`);
+    const response = await apiClient.delete(`/api/clients/${clientId}/`);
     return response.data;
   },
   
   // Get fiscal years for a client
   getFiscalYears: async (clientId) => {
-    const response = await apiClient.get(`/clients/${clientId}/fiscal-years/`);
+    const response = await apiClient.get(`/api/clients/${clientId}/fiscal-years/`);
     return response.data;
   },
   
@@ -49,7 +59,7 @@ const clientsApi = {
   createFiscalYear: async (clientId, fiscalYearData) => {
     console.log(`API - Creating fiscal year for client ${clientId}:`, fiscalYearData);
     try {
-      const response = await apiClient.post(`/clients/${clientId}/fiscal-years/`, fiscalYearData);
+      const response = await apiClient.post(`/api/clients/${clientId}/fiscal-years/`, fiscalYearData);
       console.log('API - Fiscal year created successfully:', response.data);
       return response.data;
     } catch (error) {
@@ -62,7 +72,7 @@ const clientsApi = {
   updateFiscalYear: async (fiscalYearId, fiscalYearData) => {
     console.log(`API - Updating fiscal year ${fiscalYearId}:`, fiscalYearData);
     try {
-      const response = await apiClient.patch(`/clients/fiscal-years/${fiscalYearId}/`, fiscalYearData);
+      const response = await apiClient.patch(`/api/clients/fiscal-years/${fiscalYearId}/`, fiscalYearData);
       console.log('API - Fiscal year updated successfully:', response.data);
       return response.data;
     } catch (error) {
@@ -73,7 +83,7 @@ const clientsApi = {
   
   // Delete fiscal year
   deleteFiscalYear: async (fiscalYearId) => {
-    const response = await apiClient.delete(`/clients/fiscal-years/${fiscalYearId}/`);
+    const response = await apiClient.delete(`/api/clients/fiscal-years/${fiscalYearId}/`);
     return response.data;
   },
   
@@ -81,7 +91,7 @@ const clientsApi = {
   setCurrentFiscalYear: async (fiscalYearId) => {
     console.log(`API - Setting fiscal year ${fiscalYearId} as current`);
     try {
-      const response = await apiClient.post(`/clients/fiscal-years/${fiscalYearId}/set_current/`);
+      const response = await apiClient.post(`/api/clients/fiscal-years/${fiscalYearId}/set_current/`);
       console.log('API - Fiscal year set as current successfully:', response.data);
       return response.data;
     } catch (error) {
@@ -94,7 +104,7 @@ const clientsApi = {
   toggleFiscalYearLock: async (fiscalYearId) => {
     console.log(`API - Toggling lock status for fiscal year ${fiscalYearId}`);
     try {
-      const response = await apiClient.post(`/clients/fiscal-years/${fiscalYearId}/toggle_lock/`);
+      const response = await apiClient.post(`/api/clients/fiscal-years/${fiscalYearId}/toggle_lock/`);
       console.log('API - Fiscal year lock status toggled successfully:', response.data);
       return response.data;
     } catch (error) {
@@ -107,7 +117,7 @@ const clientsApi = {
   getCurrentFiscalYear: async (clientId) => {
     console.log(`API - Getting current fiscal year for client ${clientId}`);
     try {
-      const response = await apiClient.get(`/clients/${clientId}/fiscal-years/`, {
+      const response = await apiClient.get(`/api/clients/${clientId}/fiscal-years/`, {
         params: { is_current: true }
       });
       console.log('API - Current fiscal year fetched successfully:', response.data);
@@ -121,7 +131,7 @@ const clientsApi = {
   
   // Get check settings for a client
   getCheckSettings: async (clientId) => {
-    const response = await apiClient.get(`/clients/${clientId}/check-settings/`);
+    const response = await apiClient.get(`/api/clients/${clientId}/check-settings/`);
     return response.data;
   },
   
@@ -129,7 +139,7 @@ const clientsApi = {
   createCheckSetting: async (clientId, checkSettingData) => {
     console.log(`API - Creating check setting for client ${clientId}:`, checkSettingData);
     try {
-      const response = await apiClient.post(`/clients/${clientId}/check-settings/`, checkSettingData);
+      const response = await apiClient.post(`/api/clients/${clientId}/check-settings/`, checkSettingData);
       console.log('API - Check setting created successfully:', response.data);
       return response.data;
     } catch (error) {
@@ -142,7 +152,7 @@ const clientsApi = {
   updateCheckSetting: async (checkSettingId, checkSettingData) => {
     console.log(`API - Updating check setting ${checkSettingId}:`, checkSettingData);
     try {
-      const response = await apiClient.patch(`/clients/check-settings/${checkSettingId}/`, checkSettingData);
+      const response = await apiClient.patch(`/api/clients/check-settings/${checkSettingId}/`, checkSettingData);
       console.log('API - Check setting updated successfully:', response.data);
       return response.data;
     } catch (error) {
@@ -153,90 +163,84 @@ const clientsApi = {
   
   // Delete check setting
   deleteCheckSetting: async (checkSettingId) => {
-    const response = await apiClient.delete(`/clients/check-settings/${checkSettingId}/`);
+    const response = await apiClient.delete(`/api/clients/check-settings/${checkSettingId}/`);
     return response.data;
   },
   
   // Get all contracts with optional filters
   getContracts: async (filters = {}) => {
-    const response = await apiClient.get('/clients/contracts/', { params: filters });
+    const response = await apiClient.get('/api/clients/contracts/', { params: filters });
     return response.data;
   },
   
   // Get task templates
   getTaskTemplates: async () => {
-    // APIエンドポイントが実装されていない場合、仮のデータを返す
     try {
-      const response = await apiClient.get('/tasks/templates/');
+      const response = await apiClient.get('/api/tasks/templates/');
       return response.data;
     } catch (error) {
-      console.warn('Task templates API not implemented yet, returning mock data');
-      return [
-        { id: 1, title: 'スタンダード月次チェック' },
-        { id: 2, title: '簡易月次チェック' },
-        { id: 3, title: '法人税確定申告' },
-        { id: 4, title: '所得税確定申告' }
-      ];
+      console.error('Error fetching task templates:', error);
+      throw error;
     }
   },
   
   // Get a specific contract by ID
   getContract: async (contractId) => {
-    const response = await apiClient.get(`/clients/contracts/${contractId}/`);
+    const response = await apiClient.get(`/api/clients/contracts/${contractId}/`);
     return response.data;
   },
   
   // Create a new contract
   createContract: async (contractData) => {
-    const response = await apiClient.post('/clients/contracts/', contractData);
+    const response = await apiClient.post('/api/clients/contracts/', contractData);
     return response.data;
   },
   
   // Update a contract
   updateContract: async (contractId, contractData) => {
-    const response = await apiClient.patch(`/clients/contracts/${contractId}/`, contractData);
+    const response = await apiClient.patch(`/api/clients/contracts/${contractId}/`, contractData);
     return response.data;
   },
   
   // Delete a contract
   deleteContract: async (contractId) => {
-    const response = await apiClient.delete(`/clients/contracts/${contractId}/`);
+    const response = await apiClient.delete(`/api/clients/contracts/${contractId}/`);
     return response.data;
   },
   
   // Get all notes with optional filters
   getNotes: async (filters = {}) => {
-    const response = await apiClient.get('/clients/notes/', { params: filters });
+    const response = await apiClient.get('/api/clients/notes/', { params: filters });
     return response.data;
   },
   
   // Create a new note
   createNote: async (noteData) => {
-    const response = await apiClient.post('/clients/notes/', noteData);
+    const response = await apiClient.post('/api/clients/notes/', noteData);
     return response.data;
   },
   
   // Update a note
   updateNote: async (noteId, noteData) => {
-    const response = await apiClient.patch(`/clients/notes/${noteId}/`, noteData);
+    const response = await apiClient.patch(`/api/clients/notes/${noteId}/`, noteData);
     return response.data;
   },
   
   // Delete a note
   deleteNote: async (noteId) => {
-    const response = await apiClient.delete(`/clients/notes/${noteId}/`);
+    const response = await apiClient.delete(`/api/clients/notes/${noteId}/`);
     return response.data;
   },
   
   // Get client tasks
   getTasks: async (clientId) => {
-    const response = await apiClient.get(`/clients/${clientId}/tasks/`);
+    const response = await apiClient.get(`/api/clients/${clientId}/tasks/`);
     return response.data;
   },
   
   // Get client industries (unique list)
   getIndustries: async () => {
-    const response = await apiClient.get('/clients/industries/');
+    const response = await apiClient.get('/api/clients/industries/');
     return response.data;
   },
 };
