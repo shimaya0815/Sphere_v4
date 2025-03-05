@@ -11,9 +11,12 @@ module.exports = function(app) {
     });
   });
 
-  console.log('Setting up API proxy configuration');
+  console.log('Setting up API proxy configuration: backend host = http://backend:8000');
+  // ログ出力を追加して設定を確認
+  console.log('NODE_ENV:', process.env.NODE_ENV);
+  console.log('REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
   
-  // APIリクエスト用プロキシ設定
+  // APIリクエスト用プロキシ設定 (/api/ プレフィックス付き)
   app.use(
     '/api',
     createProxyMiddleware({
@@ -42,6 +45,52 @@ module.exports = function(app) {
     })
   );
   
+  // 以下のエンドポイントは /api プレフィックスなしでもアクセス可能にするためのプロキシ
+  const additionalEndpoints = [
+    '/tasks',
+    '/business',
+    '/clients',
+    '/chat',
+    '/wiki',
+    '/time-management'
+  ];
+  
+  // 各エンドポイントをプロキシ設定
+  additionalEndpoints.forEach(endpoint => {
+    app.use(
+      endpoint,
+      createProxyMiddleware({
+        target: 'http://backend:8000',
+        changeOrigin: true,
+        secure: false,
+        pathRewrite: function(path, req) {
+          // /tasks/categories のようなリクエストを /api/tasks/categories に書き換え
+          return `/api${path}`;
+        },
+        logLevel: 'debug',
+        onProxyReq: function(proxyReq, req, res) {
+          const originalPath = req.url;
+          const newPath = proxyReq.path;
+          console.log(`Rewriting path from: ${endpoint}${originalPath} to: /api${endpoint}${originalPath}`);
+          console.log(`Proxying to: ${this.target}${proxyReq.path}`);
+          
+          // Add token for development
+          const token = '039542700dd3bcf213ff82e652f6b396d2775049';
+          proxyReq.setHeader('Authorization', `Token ${token}`);
+        },
+        onError: function(err, req, res) {
+          console.error(`API Proxy error (${endpoint}):`, err);
+          console.error('Request URL:', req.url);
+          
+          if (res.writeHead && !res.headersSent) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Proxy error', message: err.message }));
+          }
+        }
+      })
+    );
+  });
+  
   // WebSocketサーバー用プロキシ設定
   app.use(
     '/ws',
@@ -65,7 +114,7 @@ module.exports = function(app) {
   app.use(
     ['/favicon.ico', '/logo192.png', '/manifest.json'],
     createProxyMiddleware({
-      target: 'http://frontend:3000',
+      target: 'http://localhost:3000',
       changeOrigin: true,
       pathRewrite: path => path,
       router: {
