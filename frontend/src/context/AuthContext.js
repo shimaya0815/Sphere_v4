@@ -2,8 +2,8 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import apiClient from '../api/client';
 
-// API URLを設定
-const API_URL = 'http://localhost:8000/api';
+// API URLを設定（APIリクエスト用）
+const API_URL = '/api';
 
 const AuthContext = createContext(null);
 
@@ -22,9 +22,14 @@ export const AuthProvider = ({ children }) => {
         try {
           // Set default headers for axios
           axios.defaults.headers.common['Authorization'] = `Token ${token}`;
+          apiClient.defaults.headers.common['Authorization'] = `Token ${token}`;
           
-          // Get user data
+          console.log('Checking auth status with token:', token);
+          
+          // デバッグと同じパターンでユーザーデータを取得
           const response = await axios.get(`${API_URL}/auth/users/me/`);
+          console.log('Auth check response:', response);
+          
           setCurrentUser({
             ...response.data,
             business_id: businessId
@@ -34,6 +39,7 @@ export const AuthProvider = ({ children }) => {
           localStorage.removeItem('token');
           localStorage.removeItem('business_id');
           delete axios.defaults.headers.common['Authorization'];
+          delete apiClient.defaults.headers.common['Authorization'];
         }
       }
       
@@ -57,26 +63,50 @@ export const AuthProvider = ({ children }) => {
         loginData.business_id = businessId;
       }
       
+      console.log('Sending login request to:', `${API_URL}/auth/token/login/`);
+      console.log('Login data:', loginData);
+      
+      // デバッグで成功したエンドポイントと同じURLを使用
+      console.log('デバッグで成功したURLにリクエスト送信');
       const response = await axios.post(`${API_URL}/auth/token/login/`, loginData);
       
+      console.log('Login response:', response);
+      
+      // axios responseはresponse.dataにデータを持つ
+      const responseData = response.data;
+      
       // From our custom login endpoint, we get token directly
-      const { token, business_id } = response.data;
+      const { token, business_id } = responseData;
       localStorage.setItem('token', token);
       localStorage.setItem('business_id', business_id);
       
-      // Set token in axios headers
-      axios.defaults.headers.common['Authorization'] = `Token ${token}`;
+      // Get user data using axios client
+      let userData = {};
+      try {
+        // Set the token for this request
+        const userResponse = await apiClient.get(`${API_URL}/auth/users/me/`, {
+          headers: {
+            'Authorization': `Token ${token}`
+          }
+        });
+        
+        console.log('User data response:', userResponse);
+        userData = userResponse.data;
+      } catch (userError) {
+        console.error('Error fetching user data:', userError);
+        // エラーが発生しても続行し、フォールバックとして部分的なユーザー情報を使用
+        userData = { email: email };
+      }
       
-      // Get user data
-      const userResponse = await axios.get(`${API_URL}/auth/users/me/`);
       setCurrentUser({
-        ...userResponse.data,
+        ...userData,
         business_id  // Add business_id to user data
       });
       
       return true;
     } catch (err) {
-      setError(err.response?.data || 'Login failed');
+      console.error('Login error:', err);
+      setError(err.message || 'Login failed');
       return false;
     }
   };
@@ -85,10 +115,23 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     setError(null);
     try {
-      await axios.post(`${API_URL}/auth/users/`, userData);
+      const response = await fetch(`${API_URL}/auth/users/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(userData)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Registration failed: ${response.status}`);
+      }
+      
       return true;
     } catch (err) {
-      setError(err.response?.data || 'Registration failed');
+      console.error('Registration error:', err);
+      setError(err.message || 'Registration failed');
       return false;
     }
   };

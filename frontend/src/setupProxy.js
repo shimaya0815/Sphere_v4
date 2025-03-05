@@ -1,36 +1,44 @@
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 module.exports = function(app) {
+  // デバッグ用のエンドポイント
+  app.use('/api-debug', (req, res) => {
+    res.send({
+      message: 'API proxy debug endpoint',
+      url: req.url,
+      headers: req.headers,
+      method: req.method
+    });
+  });
+
+  console.log('Setting up API proxy configuration');
+  
   // APIリクエスト用プロキシ設定
   app.use(
     '/api',
     createProxyMiddleware({
-      target: process.env.REACT_APP_API_URL || 'http://backend:8000',
+      target: 'http://backend:8000',
       changeOrigin: true,
       secure: false,
+      // Djangoのルートパスには '/api' が含まれているのでそのまま使用
+      logLevel: 'debug',
       onProxyReq: function(proxyReq, req, res) {
-        // Add a token for development
-        // Note: localStorage is not available in Node.js environment
-        // The real token will be sent from the browser in the request
-        if (req.headers.authorization) {
-          // Pass through existing authorization header
-          proxyReq.setHeader('Authorization', req.headers.authorization);
-        } else {
-          // Set default token for development
-          proxyReq.setHeader('Authorization', 'Token 23724bba110cc61ee5fd048570dac24e27948f32');
-        }
+        console.log(`Proxying request from: ${req.originalUrl}`);
+        console.log(`Proxying request to: ${this.target}${proxyReq.path}`);
+        
+        // Add token for development
+        const token = '039542700dd3bcf213ff82e652f6b396d2775049';
+        proxyReq.setHeader('Authorization', `Token ${token}`);
       },
       onError: function(err, req, res) {
         console.error('API Proxy error:', err);
-        console.error(err.stack || err);
+        console.error('Request URL:', req.url);
         
-        // エラーがあった場合はそれをレスポンスとして返す
         if (res.writeHead && !res.headersSent) {
           res.writeHead(500, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'Proxy error', message: err.message }));
         }
-      },
-      logLevel: 'debug',
+      }
     })
   );
   
@@ -57,7 +65,7 @@ module.exports = function(app) {
   app.use(
     ['/favicon.ico', '/logo192.png', '/manifest.json'],
     createProxyMiddleware({
-      target: 'http://localhost:3000',
+      target: 'http://frontend:3000',
       changeOrigin: true,
       pathRewrite: path => path,
       router: {

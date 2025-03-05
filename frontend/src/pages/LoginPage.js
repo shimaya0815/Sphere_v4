@@ -1,13 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
 
 const LoginPage = () => {
   const { register, handleSubmit, formState: { errors } } = useForm();
   const { login, error } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [debugInfo, setDebugInfo] = useState(null);
   const navigate = useNavigate();
+  
+  // デバッグ用の直接API呼び出し関数
+  const testDirectApiCall = async () => {
+    try {
+      setDebugInfo("API呼び出し中...");
+      const response = await axios.post('/api/auth/token/login/', {
+        email: 'shimaya@smy-cpa.com',
+        password: 'Pu8jbzMG1!',
+        business_id: 's-business-416c756d'
+      }, {
+        timeout: 60000 // Increase timeout to 60 seconds
+      });
+      setDebugInfo(`API呼び出し成功: ${JSON.stringify(response.data)}`);
+    } catch (err) {
+      setDebugInfo(`API呼び出し失敗: ${err.message}\n${JSON.stringify(err.response?.data || {})}`);
+    }
+  };
 
   const onSubmit = async (data) => {
     setIsLoading(true);
@@ -106,9 +125,7 @@ const LoginPage = () => {
                   errors.businessId ? 'border-red-300 ring-1 ring-red-300' : 'border-gray-300'
                 } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm`}
                 placeholder="your-business-id"
-                {...register('businessId', { 
-                  required: 'ビジネスIDは必須です'
-                })}
+                {...register('businessId', { required: 'ビジネスIDは必須です' })}
               />
               {errors.businessId && (
                 <p className="mt-1 text-xs text-red-600">{errors.businessId.message}</p>
@@ -156,6 +173,23 @@ const LoginPage = () => {
                 'ログイン'
               )}
             </button>
+            
+            {/* デバッグボタン */}
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={testDirectApiCall}
+                className="w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-gray-50 hover:bg-gray-100"
+              >
+                デバッグテスト
+              </button>
+              
+              {debugInfo && (
+                <div className="mt-4 p-4 bg-gray-100 rounded-lg text-xs font-mono overflow-auto max-h-40">
+                  <pre>{debugInfo}</pre>
+                </div>
+              )}
+            </div>
           </div>
         </form>
         
