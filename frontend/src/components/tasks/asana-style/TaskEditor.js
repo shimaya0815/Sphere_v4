@@ -899,7 +899,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                         </div>
                       </div>
                       
-                      {/* タイトル (ラベルなし) */}
+                      {/* タイトル (大きく表示) */}
                       <div className="w-2/3 pt-6">
                         <Controller
                           name="title"
@@ -910,7 +910,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                               <input
                                 type="text"
                                 id="title"
-                                className={`shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md ${
+                                className={`shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full text-base font-medium border-gray-300 rounded-md ${
                                   fieldState.error ? 'border-red-300' : ''
                                 }`}
                                 placeholder="タスクのタイトルを入力"
@@ -968,13 +968,13 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                         </button>
                       </div>
                       
-                      {/* 現在の担当者表示 */}
+                      {/* 現在の担当者表示 - 小さく表示 */}
                       {task && task.assignee && (
-                        <div className="mt-2 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200 shadow-sm flex items-center">
-                          <HiUser className="mr-2 text-blue-500 text-lg" />
-                          <div className="flex items-center">
-                            <span className="font-medium text-blue-700 mr-2">現在の担当者:</span>
-                            <span className="text-blue-800 font-bold">{task.assignee_name || (typeof task.assignee === 'object' ? task.assignee.get_full_name || task.assignee.email : '不明')}</span>
+                        <div className="mt-2 bg-blue-50 px-3 py-1 rounded-md border border-blue-200 shadow-sm flex items-center">
+                          <HiUser className="mr-1 text-blue-500" />
+                          <div className="flex items-center text-xs">
+                            <span className="text-blue-700 mr-1">現在の担当者:</span>
+                            <span className="text-blue-800 font-medium">{task.assignee_name || (typeof task.assignee === 'object' ? task.assignee.get_full_name || task.assignee.email : '不明')}</span>
                           </div>
                         </div>
                       )}
@@ -1186,8 +1186,11 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                               </div>
                               
                               {/* 2行目: 見積時間 */}
-                              <div className="flex items-center">
-                                <div className="w-28 text-sm text-gray-700">見積時間:</div>
+                              <div className="flex items-center space-x-3">
+                                <div className="text-sm text-gray-700 flex items-center whitespace-nowrap w-28">
+                                  <span className="font-medium">見積時間</span>
+                                </div>
+                                
                                 <div className="flex items-center space-x-2">
                                   <Controller
                                     name="estimated_hours"
