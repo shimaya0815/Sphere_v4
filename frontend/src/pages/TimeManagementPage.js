@@ -370,9 +370,57 @@ const TimeManagementPage = () => {
     );
   }
   
+  // 時間エントリの編集処理
+  const handleEditTimeEntry = async (entryId, entryData) => {
+    try {
+      const response = await timeManagementApi.updateTimeEntry(entryId, entryData);
+      
+      // 時間エントリのリストを更新
+      const updatedEntries = timeEntries.map(entry => 
+        entry.id === entryId ? response : entry
+      );
+      
+      setTimeEntries(updatedEntries);
+      showToast('時間エントリを更新しました', 'success');
+      
+      // 必要に応じてチャートデータを更新
+      await fetchChartData();
+    } catch (error) {
+      console.error('Error updating time entry:', error);
+      showToast('時間エントリの更新中にエラーが発生しました', 'error');
+    }
+  };
+  
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-6">作業時間管理</h1>
+      
+      {/* Time Entries Table - Moved to top */}
+      <div className="bg-white rounded-lg shadow-md overflow-hidden mb-6">
+        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+            <h2 className="text-lg font-semibold mb-2 md:mb-0">作業時間一覧</h2>
+            <div className="flex space-x-2">
+              <button 
+                className="btn btn-sm btn-outline"
+                onClick={exportToCsv}
+                disabled={loading}
+              >
+                CSV出力
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <TimeEntriesTable 
+          entries={filteredEntries} 
+          onDelete={handleDeleteTimeEntry}
+          onEdit={handleEditTimeEntry}
+          loading={loading}
+          availableTasks={availableTasks}
+          availableClients={availableClients}
+        />
+      </div>
       
       {/* Summary Cards */}
       <TimeSummaryCards summaryData={summaryData} />
@@ -413,30 +461,6 @@ const TimeManagementPage = () => {
         projectChartData={chartData.projectChart}
         COLORS={COLORS}
       />
-      
-      {/* Time Entries Table */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
-            <h2 className="text-lg font-semibold mb-2 md:mb-0">作業時間一覧</h2>
-            <div className="flex space-x-2">
-              <button 
-                className="btn btn-sm btn-outline"
-                onClick={exportToCsv}
-                disabled={loading}
-              >
-                CSV出力
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        <TimeEntriesTable 
-          entries={filteredEntries} 
-          onDelete={handleDeleteTimeEntry}
-          loading={loading} 
-        />
-      </div>
     </div>
   );
 };
