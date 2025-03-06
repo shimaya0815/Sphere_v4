@@ -29,6 +29,17 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
   const [elapsedTime, setElapsedTime] = useState('00:00:00');
   const timeIntervalRef = useRef(null);
   
+  // 時間記録履歴関連
+  const [timeEntries, setTimeEntries] = useState([]);
+  const [isLoadingTimeEntries, setIsLoadingTimeEntries] = useState(false);
+  const [editingTimeEntry, setEditingTimeEntry] = useState(null);
+  const [timeEntryForm, setTimeEntryForm] = useState({
+    start_time: '',
+    end_time: '',
+    description: '',
+    duration_seconds: 0
+  });
+  
   // 保存状態管理
   const [saveState, setSaveState] = useState('idle'); // idle, saving, saved, error
   const [isDirty, setIsDirty] = useState(false);
@@ -147,9 +158,42 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         }
       };
       
+      // アクティブなタイマーをチェック
       checkForActiveTimer();
+      
+      // タスクに関連する全ての時間記録を取得
+      fetchTimeEntries();
     }
   }, [isNewTask, task]);
+  
+  // タスクに関連する時間エントリを取得
+  const fetchTimeEntries = async () => {
+    if (!task || !task.id) return;
+    
+    setIsLoadingTimeEntries(true);
+    try {
+      const entries = await timeManagementApi.getTimeEntries({ task_id: task.id });
+      
+      // 完了した時間エントリ（is_runningがfalseかつend_timeがある）を日付の新しい順に
+      const completedEntries = Array.isArray(entries) 
+        ? entries
+            .filter(entry => 
+              entry.task && 
+              entry.task.id === task.id && 
+              !entry.is_running && 
+              entry.end_time
+            )
+            .sort((a, b) => new Date(b.start_time) - new Date(a.start_time))
+        : [];
+      
+      setTimeEntries(completedEntries);
+    } catch (error) {
+      console.error('Error fetching time entries:', error);
+      toast.error('時間記録の取得に失敗しました');
+    } finally {
+      setIsLoadingTimeEntries(false);
+    }
+  };
   
   // タスク情報設定
   useEffect(() => {
@@ -619,9 +663,106 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       }
       
       toast.success('作業時間を記録しました');
+      
+      // 時間エントリリストを更新
+      fetchTimeEntries();
     } catch (error) {
       console.error('Error stopping time recording:', error);
       toast.error('作業時間の記録停止に失敗しました');
+    }
+  };
+  
+  /**
+   * 時間エントリの編集を開始
+   */
+  const startEditingTimeEntry = (entry) => {
+    setEditingTimeEntry(entry.id);
+    
+    // 日付をフォーム用にフォーマット
+    const formatDateForInput = (dateString) => {
+      if (!dateString) return '';
+      
+      // タイムゾーンを考慮した日時文字列を作成
+      const date = new Date(dateString);
+      return date.toISOString().substring(0, 16); // YYYY-MM-DDThh:mm 形式
+    };
+    
+    setTimeEntryForm({
+      start_time: formatDateForInput(entry.start_time),
+      end_time: formatDateForInput(entry.end_time),
+      description: entry.description || '',
+      duration_seconds: entry.duration_seconds || 0
+    });
+  };
+  
+  /**
+   * 時間エントリの編集をキャンセル
+   */
+  const cancelEditingTimeEntry = () => {
+    setEditingTimeEntry(null);
+    setTimeEntryForm({
+      start_time: '',
+      end_time: '',
+      description: '',
+      duration_seconds: 0
+    });
+  };
+  
+  /**
+   * 時間エントリの編集を保存
+   */
+  const saveTimeEntryEdit = async () => {
+    if (!editingTimeEntry) return;
+    
+    try {
+      // 開始時間と終了時間から新しい所要時間を計算
+      const startTime = new Date(timeEntryForm.start_time);
+      const endTime = new Date(timeEntryForm.end_time);
+      const durationSeconds = Math.floor((endTime - startTime) / 1000);
+      
+      // 時間エントリの更新データ
+      const updateData = {
+        ...timeEntryForm,
+        duration_seconds: durationSeconds > 0 ? durationSeconds : timeEntryForm.duration_seconds
+      };
+      
+      // APIで更新
+      await timeManagementApi.updateTimeEntry(editingTimeEntry, updateData);
+      
+      // 編集モードを終了
+      cancelEditingTimeEntry();
+      
+      // 時間エントリリストを更新
+      fetchTimeEntries();
+      
+      toast.success('時間記録を更新しました');
+    } catch (error) {
+      console.error('Error updating time entry:', error);
+      toast.error('時間記録の更新に失敗しました');
+    }
+  };
+  
+  /**
+   * 時間エントリを削除
+   */
+  const deleteTimeEntry = async (entryId) => {
+    if (!entryId) return;
+    
+    if (!window.confirm('この時間記録を削除してもよろしいですか？')) {
+      return;
+    }
+    
+    try {
+      // APIで削除
+      await timeManagementApi.deleteTimeEntry(entryId);
+      
+      // 時間エントリリストを更新
+      fetchTimeEntries();
+      
+      toast.success('時間記録を削除しました');
+    } catch (error) {
+      console.error('Error deleting time entry:', error);
+      toast.error('時間記録の削除に失敗しました');
     }
   };
   
@@ -988,9 +1129,140 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                               )}
                             </div>
                             
-                            <p className="text-xs text-gray-500 mt-3 text-center">
+                            <p className="text-xs text-gray-500 mt-3 text-center mb-4">
                               開始時間、終了時間、タスク名、ステータス、クライアント、決算期の情報が記録されます
                             </p>
+                            
+                            {/* 作業時間履歴 */}
+                            <div className="mt-2 border-t border-gray-200 pt-4">
+                              <h4 className="text-sm font-medium text-gray-700 mb-2">作業時間履歴</h4>
+                              {isLoadingTimeEntries ? (
+                                <div className="text-center py-3">
+                                  <div className="spinner-border w-6 h-6 border-2 rounded-full animate-spin border-b-transparent inline-block mr-2"></div>
+                                  <span className="text-sm text-gray-600">読み込み中...</span>
+                                </div>
+                              ) : timeEntries.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                  <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                    <thead className="bg-gray-100">
+                                      <tr>
+                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日付</th>
+                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">時間</th>
+                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">作業時間</th>
+                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">説明</th>
+                                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">アクション</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                      {timeEntries.map(entry => (
+                                        <tr key={entry.id} className="hover:bg-gray-50">
+                                          {editingTimeEntry === entry.id ? (
+                                            // 編集モード
+                                            <>
+                                              <td className="px-3 py-2 whitespace-nowrap">
+                                                <input
+                                                  type="datetime-local"
+                                                  value={timeEntryForm.start_time}
+                                                  onChange={(e) => setTimeEntryForm({...timeEntryForm, start_time: e.target.value})}
+                                                  className="w-full text-sm border border-gray-300 rounded-sm px-2 py-1"
+                                                />
+                                              </td>
+                                              <td className="px-3 py-2 whitespace-nowrap">
+                                                <input
+                                                  type="datetime-local"
+                                                  value={timeEntryForm.end_time}
+                                                  onChange={(e) => setTimeEntryForm({...timeEntryForm, end_time: e.target.value})}
+                                                  className="w-full text-sm border border-gray-300 rounded-sm px-2 py-1"
+                                                />
+                                              </td>
+                                              <td className="px-3 py-2 whitespace-nowrap">
+                                                {/* 時間は自動計算 */}
+                                                {(() => {
+                                                  const start = new Date(timeEntryForm.start_time);
+                                                  const end = new Date(timeEntryForm.end_time);
+                                                  const diffSeconds = Math.floor((end - start) / 1000);
+                                                  if (isNaN(diffSeconds) || diffSeconds <= 0) return '-';
+                                                  
+                                                  const hours = Math.floor(diffSeconds / 3600);
+                                                  const minutes = Math.floor((diffSeconds % 3600) / 60);
+                                                  return `${hours}h ${minutes}m`;
+                                                })()}
+                                              </td>
+                                              <td className="px-3 py-2">
+                                                <input
+                                                  type="text"
+                                                  value={timeEntryForm.description}
+                                                  onChange={(e) => setTimeEntryForm({...timeEntryForm, description: e.target.value})}
+                                                  className="w-full text-sm border border-gray-300 rounded-sm px-2 py-1"
+                                                  placeholder="説明"
+                                                />
+                                              </td>
+                                              <td className="px-3 py-2 whitespace-nowrap text-right">
+                                                <button
+                                                  type="button"
+                                                  onClick={saveTimeEntryEdit}
+                                                  className="text-blue-600 hover:text-blue-800 mr-2 text-xs"
+                                                >
+                                                  保存
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={cancelEditingTimeEntry}
+                                                  className="text-gray-600 hover:text-gray-800 text-xs"
+                                                >
+                                                  キャンセル
+                                                </button>
+                                              </td>
+                                            </>
+                                          ) : (
+                                            // 表示モード
+                                            <>
+                                              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                                                {new Date(entry.start_time).toLocaleDateString()}
+                                              </td>
+                                              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                                                {new Date(entry.start_time).toLocaleTimeString()} - {new Date(entry.end_time).toLocaleTimeString()}
+                                              </td>
+                                              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                                                {(() => {
+                                                  const seconds = entry.duration_seconds || 0;
+                                                  const hours = Math.floor(seconds / 3600);
+                                                  const minutes = Math.floor((seconds % 3600) / 60);
+                                                  return `${hours}h ${minutes}m`;
+                                                })()}
+                                              </td>
+                                              <td className="px-3 py-2 text-sm text-gray-900 truncate max-w-[200px]">
+                                                {entry.description || '-'}
+                                              </td>
+                                              <td className="px-3 py-2 whitespace-nowrap text-right text-sm">
+                                                <button
+                                                  type="button"
+                                                  onClick={() => startEditingTimeEntry(entry)}
+                                                  className="text-blue-600 hover:text-blue-800 mr-2 text-xs"
+                                                >
+                                                  編集
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => deleteTimeEntry(entry.id)}
+                                                  className="text-red-600 hover:text-red-800 text-xs"
+                                                >
+                                                  削除
+                                                </button>
+                                              </td>
+                                            </>
+                                          )}
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-gray-500 text-center py-3">
+                                  記録された作業時間がありません
+                                </p>
+                              )}
+                            </div>
                           </div>
                         ) : (
                           <div className="text-center text-sm text-gray-600 py-2">
@@ -1026,60 +1298,34 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                       </div>
                     </div>
                     
-                    {/* カテゴリーと期限日 */}
-                    <div className="grid grid-cols-2 gap-6">
-                      <div>
-                        <label htmlFor="category" className="block text-sm font-medium text-gray-700">
-                          カテゴリー
-                        </label>
-                        <div className="mt-1">
-                          <Controller
-                            name="category"
-                            control={control}
-                            render={({ field }) => (
-                              <select
-                                id="category"
-                                className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                                {...field}
-                                onChange={(e) => {
-                                  field.onChange(e);
-                                  handleFieldChange('category', e.target.value);
-                                }}
-                              >
-                                <option value="">選択してください</option>
-                                {categories.map((category) => (
-                                  <option key={category.id} value={category.id}>
-                                    {category.name}
-                                  </option>
-                                ))}
-                              </select>
-                            )}
-                          />
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <label htmlFor="due_date" className="block text-sm font-medium text-gray-700">
-                          期限日
-                        </label>
-                        <div className="mt-1">
-                          <Controller
-                            name="due_date"
-                            control={control}
-                            render={({ field }) => (
-                              <input
-                                type="date"
-                                id="due_date"
-                                className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                                {...field}
-                                onChange={(e) => {
-                                  field.onChange(e);
-                                  handleFieldChange('due_date', e.target.value);
-                                }}
-                              />
-                            )}
-                          />
-                        </div>
+                    {/* カテゴリー */}
+                    <div>
+                      <label htmlFor="category" className="block text-sm font-medium text-gray-700">
+                        カテゴリー
+                      </label>
+                      <div className="mt-1">
+                        <Controller
+                          name="category"
+                          control={control}
+                          render={({ field }) => (
+                            <select
+                              id="category"
+                              className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                              {...field}
+                              onChange={(e) => {
+                                field.onChange(e);
+                                handleFieldChange('category', e.target.value);
+                              }}
+                            >
+                              <option value="">選択してください</option>
+                              {categories.map((category) => (
+                                <option key={category.id} value={category.id}>
+                                  {category.name}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        />
                       </div>
                     </div>
                     
