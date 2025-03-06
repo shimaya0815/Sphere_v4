@@ -11,7 +11,7 @@ const usersApi = {
    */
   getUsers: async (params = {}) => {
     try {
-      const response = await apiClient.get('/api/users/', { params });
+      const response = await apiClient.get('/api/users/profile/', { params });
       return response.data;
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -26,7 +26,7 @@ const usersApi = {
    */
   getUser: async (userId) => {
     try {
-      const response = await apiClient.get(`/api/users/${userId}/`);
+      const response = await apiClient.get(`/api/users/profile/${userId}/`);
       return response.data;
     } catch (error) {
       console.error(`Error fetching user ${userId}:`, error);
@@ -90,7 +90,7 @@ const usersApi = {
       // APIを呼び出す（デモユーザーとの比較用）
       console.log('Fetching users for worker selection');
       try {
-        // 正しいエンドポイント /api/users/profile/ を使用する
+        // 正しいURLパスを使用する
         const response = await apiClient.get('/api/users/profile/');
         console.log('Worker API response:', response.data);
         
