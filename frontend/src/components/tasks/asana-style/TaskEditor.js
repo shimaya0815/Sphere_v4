@@ -23,6 +23,10 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
   const [isFiscalTask, setIsFiscalTask] = useState(false);
   const [isAssigneeExpanded, setIsAssigneeExpanded] = useState(false);
   
+  // 共通スタイル
+  const inputClassName = "shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-2 border-gray-300 rounded-md hover:border-gray-400";
+  const selectClassName = "shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-2 border-gray-300 rounded-md hover:border-gray-400";
+  
   // 時間記録の状態管理
   const [isRecordingTime, setIsRecordingTime] = useState(false);
   const [timeEntry, setTimeEntry] = useState(null);
@@ -880,7 +884,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                             render={({ field }) => (
                               <select
                                 id="status"
-                                className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                className={selectClassName}
                                 {...field}
                                 onChange={(e) => {
                                   field.onChange(e);
@@ -910,7 +914,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                               <input
                                 type="text"
                                 id="title"
-                                className={`shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full text-lg font-medium border-gray-300 rounded-md ${
+                                className={`${inputClassName} text-lg font-medium ${
                                   fieldState.error ? 'border-red-300' : ''
                                 }`}
                                 placeholder="タスクのタイトルを入力"
@@ -994,7 +998,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                                 render={({ field }) => (
                                   <select
                                     id="worker"
-                                    className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                    className={selectClassName}
                                     {...field}
                                     onChange={(e) => {
                                       field.onChange(e);
@@ -1025,7 +1029,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                                 render={({ field }) => (
                                   <select
                                     id="reviewer"
-                                    className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                    className={selectClassName}
                                     {...field}
                                     onChange={(e) => {
                                       field.onChange(e);
@@ -1062,7 +1066,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                                 <input
                                   type="date"
                                   id="due_date"
-                                  className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                  className={inputClassName}
                                   {...field}
                                   onChange={(e) => {
                                     field.onChange(e);
@@ -1099,7 +1103,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                                   min="1"
                                   max="100"
                                   placeholder="1-100の数値を入力"
-                                  className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                  className={inputClassName}
                                   {...field}
                                   onChange={(e) => {
                                     field.onChange(e);
@@ -1201,7 +1205,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                                         id="estimated_hours"
                                         step="0.5"
                                         min="0"
-                                        className="shadow-sm focus:ring-primary-500 focus:border-primary-500 w-16 sm:text-sm border-gray-300 rounded-md"
+                                        className="shadow-sm focus:ring-primary-500 focus:border-primary-500 w-16 sm:text-sm border-2 border-gray-300 rounded-md hover:border-gray-400"
                                         placeholder="時間"
                                         {...field}
                                         onChange={(e) => {
@@ -1405,7 +1409,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                             <textarea
                               id="description"
                               rows={4}
-                              className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                              className={inputClassName}
                               placeholder="詳細な説明を入力"
                               {...field}
                               onChange={(e) => {
@@ -1430,7 +1434,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                           render={({ field }) => (
                             <select
                               id="category"
-                              className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                              className={selectClassName}
                               {...field}
                               onChange={(e) => {
                                 field.onChange(e);
@@ -1463,7 +1467,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                           render={({ field }) => (
                             <select
                               id="client"
-                              className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                              className={selectClassName}
                               {...field}
                               onChange={(e) => {
                                 field.onChange(e);
@@ -1513,7 +1517,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                             <div className="flex items-center">
                               <select
                                 id="is_fiscal_task"
-                                className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                className={selectClassName}
                                 {...field}
                                 onChange={(e) => {
                                   field.onChange(e);
@@ -1542,7 +1546,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                               render={({ field }) => (
                                 <select
                                   id="fiscal_year"
-                                  className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                  className={selectClassName}
                                   {...field}
                                   onChange={(e) => {
                                     field.onChange(e);
@@ -1616,7 +1620,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                                   render={({ field }) => (
                                     <select
                                       id="recurrence_pattern"
-                                      className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                      className={selectClassName}
                                       {...field}
                                       onChange={(e) => {
                                         field.onChange(e);
@@ -1646,7 +1650,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                                     <input
                                       type="date"
                                       id="recurrence_end_date"
-                                      className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                      className={inputClassName}
                                       {...field}
                                       onChange={(e) => {
                                         field.onChange(e);
@@ -1704,7 +1708,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                                     <input
                                       type="text"
                                       id="template_name"
-                                      className={`shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md ${
+                                      className={`${inputClassName} ${
                                         fieldState.error ? 'border-red-300' : ''
                                       }`}
                                       placeholder="テンプレート名を入力"
@@ -1739,7 +1743,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                                 <input
                                   type="date"
                                   id="start_date"
-                                  className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                  className={inputClassName}
                                   {...field}
                                   onChange={(e) => {
                                     field.onChange(e);
@@ -1763,7 +1767,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                                 <input
                                   type="date"
                                   id="completed_at"
-                                  className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                  className={inputClassName}
                                   {...field}
                                   onChange={(e) => {
                                     field.onChange(e);
