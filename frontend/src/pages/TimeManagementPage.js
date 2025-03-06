@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { timeManagementApi } from '../api';
+import { timeManagementApi, tasksApi, clientsApi, usersApi } from '../api';
 import { useToast } from '../hooks/useToast';
 
 // Components
@@ -51,49 +51,55 @@ const TimeManagementPage = () => {
     setLoading(true);
     try {
       // Fetch all needed data in parallel
-      // APIエンドポイントが存在するもののみをロード
-      // tasksResponse, clientsResponse, usersResponseについては
-      // モックデータを使用（本来はAPIを実装する必要あり）
-      const [entriesResponse, summaryResponse] = await Promise.all([
+      const [entriesResponse, summaryResponse, tasksResponse, clientsResponse, usersResponse] = await Promise.all([
         timeManagementApi.getTimeEntries().catch(err => []),
         timeManagementApi.getDashboardSummary().catch(err => ({
           today: { hours: 0, entry_count: 0 },
           this_week: { hours: 0, entry_count: 0 },
           this_month: { hours: 0, entry_count: 0 },
           has_active_timer: false
-        }))
+        })),
+        tasksApi.getTasks().catch(err => []),
+        clientsApi.getClients().catch(err => []),
+        usersApi.getBusinessUsers().catch(err => [])
       ]);
-      
-      // モックデータ
-      const tasksResponse = [
-        { id: 1, title: "タスク1" },
-        { id: 2, title: "タスク2" }
-      ];
-      
-      const clientsResponse = [
-        { id: 1, name: "クライアント1" }, 
-        { id: 2, name: "クライアント2" }
-      ];
-      
-      const usersResponse = [
-        { id: 1, first_name: "ユーザー", last_name: "1" }
-      ];
       
       setTimeEntries(entriesResponse);
       setSummaryData(summaryResponse);
-      setAvailableTasks(tasksResponse);
-      setAvailableClients(clientsResponse);
-      setUsers(usersResponse);
+      
+      // Format tasks data
+      const formattedTasks = Array.isArray(tasksResponse) 
+        ? tasksResponse 
+        : (tasksResponse?.results || []);
+      setAvailableTasks(formattedTasks);
+      
+      // Format clients data
+      const formattedClients = Array.isArray(clientsResponse) 
+        ? clientsResponse 
+        : (clientsResponse?.results || []);
+      setAvailableClients(formattedClients);
+      
+      // Format users data
+      const formattedUsers = Array.isArray(usersResponse) 
+        ? usersResponse 
+        : (usersResponse?.results || []);
+      setUsers(formattedUsers);
       
       // Check if there's an active timer
-      const activeEntry = entriesResponse.find(entry => entry.is_running);
+      const activeEntry = entriesResponse.find(entry => entry.is_running || !entry.end_time);
       setActiveTimer(activeEntry || null);
       
       // If there's an active timer, check if there's an active break
       if (activeEntry) {
-        const breaksResponse = await timeManagementApi.getBreaks(activeEntry.id);
-        const activeBreakEntry = breaksResponse.find(breakEntry => !breakEntry.end_time);
-        setActiveBreak(activeBreakEntry || null);
+        try {
+          const breaksResponse = await timeManagementApi.getBreaks(activeEntry.id);
+          const activeBreakEntry = Array.isArray(breaksResponse)
+            ? breaksResponse.find(breakEntry => !breakEntry.end_time)
+            : null;
+          setActiveBreak(activeBreakEntry || null);
+        } catch (error) {
+          console.error('Error fetching breaks:', error);
+        }
       }
       
       // Fetch chart data
