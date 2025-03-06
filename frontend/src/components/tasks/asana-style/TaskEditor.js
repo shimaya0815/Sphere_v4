@@ -22,6 +22,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
   const [selectedClient, setSelectedClient] = useState(null);
   // is_fiscal_task関連の状態管理は削除
   const [isAssigneeExpanded, setIsAssigneeExpanded] = useState(false);
+  const [isDateExpanded, setIsDateExpanded] = useState(false);
   
   // 共通スタイル
   const inputClassName = "shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-2 border-gray-300 rounded-md hover:border-gray-400";
@@ -1149,10 +1150,10 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                       )}
                     </div>
                     
-                    {/* 期限日、優先度、開始日、完了日を2行に配置 */}
+                    {/* 期限日と優先度 */}
                     <div className="border-t border-gray-200 pt-4">
                       <div className="grid grid-cols-2 gap-6">
-                        {/* 1行目: 期限日と優先度 */}
+                        {/* 期限日 */}
                         <div>
                           <label htmlFor="due_date" className="block text-sm font-medium text-gray-700">
                             期限日
@@ -1177,6 +1178,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                           </div>
                         </div>
                         
+                        {/* 優先度 */}
                         <div>
                           <label htmlFor="priority_value" className="block text-sm font-medium text-gray-700 flex items-center">
                             優先度
@@ -1213,59 +1215,122 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                             />
                           </div>
                         </div>
-                        
-                        {/* 2行目: 開始日と完了日 */}
-                        <div>
-                          <label htmlFor="start_date" className="block text-sm font-medium text-gray-700">
-                            開始日
-                          </label>
-                          <div className="mt-1">
-                            <Controller
-                              name="start_date"
-                              control={control}
-                              render={({ field }) => (
-                                <input
-                                  type="date"
-                                  id="start_date"
-                                  className={inputClassName}
-                                  {...field}
-                                  onChange={(e) => {
-                                    field.onChange(e);
-                                    handleFieldChange('start_date', e.target.value);
-                                  }}
-                                />
-                              )}
-                            />
-                          </div>
+                      </div>
+                      
+                      {/* 開始日と完了日（折りたたみ可能） */}
+                      <div className="mt-3">
+                        {/* 折りたたみヘッダー */}
+                        <div 
+                          className="flex items-center justify-between cursor-pointer border-t border-gray-100 pt-3"
+                          onClick={() => setIsDateExpanded(!isDateExpanded)}
+                        >
+                          <h4 className="text-sm font-medium text-gray-700 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            詳細日付設定
+                          </h4>
+                          <button 
+                            type="button" 
+                            className="text-gray-500 hover:text-gray-700 focus:outline-none"
+                            aria-expanded={isDateExpanded}
+                          >
+                            {isDateExpanded ? (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                              </svg>
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            )}
+                          </button>
                         </div>
                         
-                        <div>
-                          <label htmlFor="completed_at" className="block text-sm font-medium text-gray-700">
-                            完了日
-                          </label>
-                          <div className="mt-1">
-                            <Controller
-                              name="completed_at"
-                              control={control}
-                              render={({ field }) => (
-                                <input
-                                  type="date"
-                                  id="completed_at"
-                                  className={inputClassName}
-                                  {...field}
-                                  onChange={(e) => {
-                                    field.onChange(e);
-                                    handleFieldChange('completed_at', e.target.value);
-                                  }}
+                        {/* 折りたたみコンテンツ */}
+                        {isDateExpanded && (
+                          <div className="grid grid-cols-2 gap-6 mt-3">
+                            {/* 開始日 */}
+                            <div>
+                              <label htmlFor="start_date" className="block text-sm font-medium text-gray-700">
+                                開始日
+                              </label>
+                              <div className="mt-1">
+                                <Controller
+                                  name="start_date"
+                                  control={control}
+                                  render={({ field }) => (
+                                    <input
+                                      type="date"
+                                      id="start_date"
+                                      className={inputClassName}
+                                      {...field}
+                                      onChange={(e) => {
+                                        field.onChange(e);
+                                        handleFieldChange('start_date', e.target.value);
+                                      }}
+                                    />
+                                  )}
                                 />
-                              )}
-                            />
+                              </div>
+                            </div>
+                            
+                            {/* 完了日 */}
+                            <div>
+                              <label htmlFor="completed_at" className="block text-sm font-medium text-gray-700">
+                                完了日
+                              </label>
+                              <div className="mt-1">
+                                <Controller
+                                  name="completed_at"
+                                  control={control}
+                                  render={({ field }) => (
+                                    <input
+                                      type="date"
+                                      id="completed_at"
+                                      className={inputClassName}
+                                      {...field}
+                                      onChange={(e) => {
+                                        field.onChange(e);
+                                        handleFieldChange('completed_at', e.target.value);
+                                      }}
+                                    />
+                                  )}
+                                />
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     </div>
                     
-                    {/* 作業時間記録セクション */}
+                    {/* 説明 */}
+                    <div className="border-t border-gray-200 pt-4">
+                      <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+                        説明
+                      </label>
+                      <div className="mt-1">
+                        <Controller
+                          name="description"
+                          control={control}
+                          render={({ field }) => (
+                            <textarea
+                              id="description"
+                              rows={4}
+                              className={inputClassName}
+                              placeholder="詳細な説明を入力"
+                              {...field}
+                              onChange={(e) => {
+                                field.onChange(e);
+                                handleFieldChange('description', e.target.value);
+                              }}
+                            />
+                          )}
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* 作業時間記録セクション - 説明の下に移動 */}
                     <div className="border-t border-gray-200 pt-4">
                       <h3 className="text-md font-medium text-gray-700 flex items-center mb-3">
                         <HiOutlineClock className="mr-2 text-gray-500" />
@@ -1543,33 +1608,6 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                         )}
                       </div>
                     </div>
-                    
-                    {/* 説明 */}
-                    <div>
-                      <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                        説明
-                      </label>
-                      <div className="mt-1">
-                        <Controller
-                          name="description"
-                          control={control}
-                          render={({ field }) => (
-                            <textarea
-                              id="description"
-                              rows={4}
-                              className={inputClassName}
-                              placeholder="詳細な説明を入力"
-                              {...field}
-                              onChange={(e) => {
-                                field.onChange(e);
-                                handleFieldChange('description', e.target.value);
-                              }}
-                            />
-                          )}
-                        />
-                      </div>
-                    </div>
-                    
                     
                     {/* 見積時間 - 削除 */}
                     
