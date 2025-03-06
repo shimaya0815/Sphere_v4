@@ -118,13 +118,32 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
             active: true
           });
           
-          if (entries && entries.length > 0) {
-            setTimeEntry(entries[0]);
+          // 進行中のタイマーがあるか確認（end_timeがnullか、is_runningがtrueのもの）
+          const activeEntries = Array.isArray(entries) ? entries.filter(entry => 
+            entry.task && 
+            entry.task.id === task.id && 
+            (entry.is_running === true || entry.end_time === null)
+          ) : [];
+          
+          if (activeEntries && activeEntries.length > 0) {
+            const activeEntry = activeEntries[0];
+            console.log('Active timer found:', activeEntry);
+            setTimeEntry(activeEntry);
             setIsRecordingTime(true);
-            setStartTime(new Date(entries[0].start_time));
+            setStartTime(new Date(activeEntry.start_time));
+          } else {
+            // アクティブなタイマーがない場合はリセット
+            console.log('No active timer found for task ID:', task.id);
+            setTimeEntry(null);
+            setIsRecordingTime(false);
+            setStartTime(null);
           }
         } catch (error) {
           console.error('Error checking for active timer:', error);
+          // エラー時はタイマー状態をリセット
+          setTimeEntry(null);
+          setIsRecordingTime(false);
+          setStartTime(null);
         }
       };
       
@@ -301,15 +320,19 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         setElapsedTime(`${hours}:${minutes}:${seconds}`);
       };
       
+      // 初期表示のために1回実行
       updateElapsedTime();
+      // 1秒ごとに更新
       timeIntervalRef.current = setInterval(updateElapsedTime, 1000);
     } else {
       setElapsedTime('00:00:00');
     }
     
+    // コンポーネントのクリーンアップ時にインターバルをクリア
     return () => {
       if (timeIntervalRef.current) {
         clearInterval(timeIntervalRef.current);
+        timeIntervalRef.current = null;
       }
     };
   }, [isRecordingTime, startTime]);
@@ -523,6 +546,30 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       const clientId = formData.client ? parseInt(formData.client, 10) : null;
       const fiscalYearId = formData.fiscal_year ? parseInt(formData.fiscal_year, 10) : null;
       
+      // 既存のアクティブなタイマーがある場合は警告
+      const activeTimers = await timeManagementApi.getTimeEntries({ active: true });
+      if (Array.isArray(activeTimers) && activeTimers.length > 0) {
+        const otherTaskTimer = activeTimers.find(entry => 
+          entry.task && entry.task.id !== task.id
+        );
+        
+        if (otherTaskTimer) {
+          const confirmStart = window.confirm(
+            `別のタスク「${otherTaskTimer.task?.title || '不明'}」でタイマーが実行中です。\n` +
+            'このタスクのタイマーを開始すると、実行中のタイマーは停止されます。\n' +
+            '続行しますか？'
+          );
+          
+          if (!confirmStart) {
+            return;
+          }
+          
+          // 既存のタイマーを停止
+          await timeManagementApi.stopTimeEntry(otherTaskTimer.id);
+          toast.success('他のタスクのタイマーを停止しました');
+        }
+      }
+      
       // タイマー開始APIコール
       const response = await timeManagementApi.startTimeEntry({
         task_id: task.id,
@@ -530,6 +577,8 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         client_id: clientId,
         fiscal_year_id: fiscalYearId
       });
+      
+      console.log('Timer started:', response);
       
       // 状態更新
       setTimeEntry(response);
@@ -554,12 +603,20 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
     
     try {
       // タイマー停止APIコール
-      await timeManagementApi.stopTimeEntry(timeEntry.id);
+      const stopResult = await timeManagementApi.stopTimeEntry(timeEntry.id);
+      console.log('Timer stopped:', stopResult);
       
       // 状態更新
       setTimeEntry(null);
       setIsRecordingTime(false);
       setStartTime(null);
+      setElapsedTime('00:00:00');
+      
+      // インターバルをクリア
+      if (timeIntervalRef.current) {
+        clearInterval(timeIntervalRef.current);
+        timeIntervalRef.current = null;
+      }
       
       toast.success('作業時間を記録しました');
     } catch (error) {
@@ -883,16 +940,25 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                       <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                         {!isNewTask && task ? (
                           <div className="flex flex-col">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="text-sm text-gray-700">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="text-sm text-gray-700 flex items-center">
                                 {isRecordingTime ? (
-                                  <span className="flex items-center">
-                                    <span className="h-2 w-2 rounded-full bg-red-500 mr-2 animate-pulse"></span>
-                                    記録中...
-                                  </span>
-                                ) : '作業時間を記録'}
+                                  <>
+                                    <span className="h-3 w-3 rounded-full bg-red-500 mr-2 animate-pulse"></span>
+                                    <span className="font-medium">タイマー記録中</span>
+                                    {timeEntry && timeEntry.start_time && (
+                                      <span className="ml-2 text-xs text-gray-500">
+                                        開始: {new Date(timeEntry.start_time).toLocaleTimeString()}
+                                      </span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span className="font-medium">作業時間を記録</span>
+                                )}
                               </div>
-                              <div className="font-mono text-lg">{elapsedTime}</div>
+                              <div className="font-mono text-xl font-semibold bg-white px-3 py-1 rounded-md border border-gray-300 shadow-sm">
+                                {elapsedTime}
+                              </div>
                             </div>
                             
                             <div className="flex justify-center mt-2">
@@ -922,7 +988,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                               )}
                             </div>
                             
-                            <p className="text-xs text-gray-500 mt-2 text-center">
+                            <p className="text-xs text-gray-500 mt-3 text-center">
                               開始時間、終了時間、タスク名、ステータス、クライアント、決算期の情報が記録されます
                             </p>
                           </div>
