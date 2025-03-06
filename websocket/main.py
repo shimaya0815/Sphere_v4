@@ -1,8 +1,8 @@
 import json
 import asyncio
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import logging
 from pydantic import BaseModel
 from datetime import datetime
@@ -55,6 +55,23 @@ manager = ConnectionManager()
 class WebSocketMessage(BaseModel):
     type: str
     data: Dict[str, Any]
+    
+class TaskCommentNotification(BaseModel):
+    type: str
+    task_id: int
+    task_title: str
+    comment_id: int
+    user_name: str
+    content: str
+    created_at: str
+    
+class TaskStatusNotification(BaseModel):
+    type: str
+    task_id: int
+    task_title: str
+    old_status: str
+    new_status: str
+    user_name: str
 
 @app.websocket("/ws/chat/{channel_id}/")
 async def websocket_endpoint(websocket: WebSocket, channel_id: int):
@@ -157,6 +174,54 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+# APIエンドポイント: タスクコメント通知
+@app.post("/api/notify_task_comment")
+async def notify_task_comment(notification: TaskCommentNotification):
+    logger.info(f"Received task comment notification: Task ID {notification.task_id}")
+    
+    # タスク通知をブロードキャスト
+    try:
+        # タスク用WebSocketに通知
+        task_id = notification.task_id
+        if task_id in manager.active_connections:
+            await manager.broadcast({
+                "type": "comment",
+                "data": notification.dict()
+            }, task_id)
+            logger.info(f"Broadcast task comment to {len(manager.active_connections[task_id])} clients")
+        
+        # チャットチャンネル用WebSocketにも通知を送ることができる
+        # ここではタスク通知チャンネルのIDを何らかの方法で特定する必要がある
+        # 簡略化のため、channel_id = task_id + 10000 としているが、実際には適切に取得する必要がある
+        
+        # 通知成功
+        return {"status": "success", "message": "Task comment notification broadcast"}
+    except Exception as e:
+        logger.error(f"Failed to broadcast task comment: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+# APIエンドポイント: タスクステータス変更通知
+@app.post("/api/notify_task_status")
+async def notify_task_status(notification: TaskStatusNotification):
+    logger.info(f"Received task status notification: Task ID {notification.task_id}")
+    
+    # タスク通知をブロードキャスト
+    try:
+        # タスク用WebSocketに通知
+        task_id = notification.task_id
+        if task_id in manager.active_connections:
+            await manager.broadcast({
+                "type": "status_change",
+                "data": notification.dict()
+            }, task_id)
+            logger.info(f"Broadcast task status change to {len(manager.active_connections[task_id])} clients")
+        
+        # 通知成功
+        return {"status": "success", "message": "Task status notification broadcast"}
+    except Exception as e:
+        logger.error(f"Failed to broadcast task status change: {str(e)}")
+        return {"status": "error", "message": str(e)}
 
 if __name__ == "__main__":
     import uvicorn

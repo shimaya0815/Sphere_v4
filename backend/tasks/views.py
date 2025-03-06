@@ -213,6 +213,33 @@ class TaskViewSet(viewsets.ModelViewSet):
                 content=f'タスク「{task.title}」のステータスが「{old_status.name if old_status else "未設定"}」から「{new_status.name}」に変更されました。'
             )
             
+            # WebSocketでステータス変更を通知
+            try:
+                import requests
+                import json
+                
+                # FastAPIサーバーのエンドポイント
+                websocket_url = "http://websocket:8001/api/notify_task_status"
+                
+                # 通知データを作成
+                notification_data = {
+                    "type": "status_change",
+                    "task_id": task.id,
+                    "task_title": task.title,
+                    "old_status": old_status.name if old_status else "未設定",
+                    "new_status": new_status.name,
+                    "user_name": request.user.get_full_name() or request.user.username
+                }
+                
+                # FastAPIサーバーに通知を送信
+                requests.post(
+                    websocket_url,
+                    json=notification_data,
+                    timeout=2
+                )
+            except Exception as e:
+                print(f"WebSocket通知の送信に失敗しました: {str(e)}")
+            
             serializer = self.get_serializer(task)
             return Response(serializer.data)
             
@@ -405,8 +432,36 @@ class TaskCommentViewSet(viewsets.ModelViewSet):
                 content=f'{self.request.user.get_full_name()}さんがタスク「{task.title}」にコメントしました。'
             )
         
-        # コメント作成をWebSocketに通知するロジックを後で追加
-        # FastAPIサーバーへの通知をここに実装
+        # コメント作成をWebSocketに通知
+        try:
+            import requests
+            import json
+            from django.conf import settings
+            
+            # FastAPIサーバーのエンドポイント
+            # 環境変数から取得するか、settings.pyに設定しておくのが理想的だが、
+            # 今回は直接指定する簡易実装
+            websocket_url = "http://websocket:8001/api/notify_task_comment"
+            
+            # 通知データを作成
+            notification_data = {
+                "type": "comment",
+                "task_id": task.id,
+                "task_title": task.title,
+                "comment_id": comment.id,
+                "user_name": self.request.user.get_full_name() or self.request.user.username,
+                "content": comment.content,
+                "created_at": comment.created_at.isoformat()
+            }
+            
+            # FastAPIサーバーに通知を送信
+            requests.post(
+                websocket_url,
+                json=notification_data,
+                timeout=2  # タイムアウト設定
+            )
+        except Exception as e:
+            print(f"WebSocket通知の送信に失敗しました: {str(e)}")
         
         return comment
         
