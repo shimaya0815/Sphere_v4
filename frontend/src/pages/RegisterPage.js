@@ -51,150 +51,163 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-md">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-card">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Create your account
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Or{' '}
-            <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
-              sign in to your existing account
-            </Link>
-          </p>
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-primary-700 mb-2">Sphere</h1>
+            <h2 className="text-2xl font-bold text-gray-900">
+              新規アカウント登録
+            </h2>
+            <p className="mt-2 text-center text-sm text-gray-600">
+              既にアカウントをお持ちの方は{' '}
+              <Link to="/login" className="font-medium text-primary-600 hover:text-primary-500 transition-colors">
+                ログイン
+              </Link>
+            </p>
+          </div>
         </div>
         
         {error && (
-          <div className="alert alert-error">
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm mb-4">
             {typeof error === 'object' 
               ? Object.entries(error).map(([key, value]) => (
-                  <div key={key}>{key}: {Array.isArray(value) ? value.join(', ') : value}</div>
+                  <div key={key} className="mb-1 last:mb-0">{key}: {Array.isArray(value) ? value.join(', ') : value}</div>
                 ))
               : error}
           </div>
         )}
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div className="grid grid-cols-1 gap-4 mb-4">
-              <div>
-                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
-                  First Name
-                </label>
-                <input
-                  id="firstName"
-                  type="text"
-                  className={`appearance-none rounded relative block w-full px-3 py-2 border ${
-                    errors.firstName ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
-                  placeholder="First Name"
-                  {...register('firstName', { 
-                    required: 'First name is required',
-                  })}
-                />
-                {errors.firstName && (
-                  <p className="mt-1 text-xs text-red-600">{errors.firstName.message}</p>
-                )}
-              </div>
-              
-              <div>
-                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
-                  Last Name
-                </label>
-                <input
-                  id="lastName"
-                  type="text"
-                  className={`appearance-none rounded relative block w-full px-3 py-2 border ${
-                    errors.lastName ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
-                  placeholder="Last Name"
-                  {...register('lastName', { 
-                    required: 'Last name is required',
-                  })}
-                />
-                {errors.lastName && (
-                  <p className="mt-1 text-xs text-red-600">{errors.lastName.message}</p>
-                )}
-              </div>
-              
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                  Email Address
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  className={`appearance-none rounded relative block w-full px-3 py-2 border ${
-                    errors.email ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
-                  placeholder="Email Address"
-                  {...register('email', { 
-                    required: 'Email is required',
-                    pattern: {
-                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                      message: 'Invalid email address'
-                    }
-                  })}
-                />
-                {errors.email && (
-                  <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>
-                )}
-              </div>
-              
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                  Password
-                </label>
-                <input
-                  id="password"
-                  type="password"
-                  className={`appearance-none rounded relative block w-full px-3 py-2 border ${
-                    errors.password ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
-                  placeholder="Password"
-                  {...register('password', { 
-                    required: 'Password is required',
-                    minLength: {
-                      value: 8,
-                      message: 'Password must be at least 8 characters'
-                    }
-                  })}
-                />
-                {errors.password && (
-                  <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>
-                )}
-              </div>
-              
-              <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                  Confirm Password
-                </label>
-                <input
-                  id="confirmPassword"
-                  type="password"
-                  className={`appearance-none rounded relative block w-full px-3 py-2 border ${
-                    errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
-                  placeholder="Confirm Password"
-                  {...register('confirmPassword', { 
-                    required: 'Please confirm your password',
-                    validate: value => value === password || 'The passwords do not match'
-                  })}
-                />
-                {errors.confirmPassword && (
-                  <p className="mt-1 text-xs text-red-600">{errors.confirmPassword.message}</p>
-                )}
-              </div>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">名</label>
+              <input
+                id="firstName"
+                type="text"
+                className={`appearance-none relative block w-full px-4 py-3 border ${
+                  errors.firstName ? 'border-red-300 ring-1 ring-red-300' : 'border-gray-300'
+                } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm`}
+                placeholder="例：太郎"
+                {...register('firstName', { 
+                  required: '名を入力してください',
+                })}
+              />
+              {errors.firstName && (
+                <p className="mt-1 text-xs text-red-600">{errors.firstName.message}</p>
+              )}
+            </div>
+            
+            <div>
+              <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">姓</label>
+              <input
+                id="lastName"
+                type="text"
+                className={`appearance-none relative block w-full px-4 py-3 border ${
+                  errors.lastName ? 'border-red-300 ring-1 ring-red-300' : 'border-gray-300'
+                } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm`}
+                placeholder="例：山田"
+                {...register('lastName', { 
+                  required: '姓を入力してください',
+                })}
+              />
+              {errors.lastName && (
+                <p className="mt-1 text-xs text-red-600">{errors.lastName.message}</p>
+              )}
+            </div>
+            
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">メールアドレス</label>
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                className={`appearance-none relative block w-full px-4 py-3 border ${
+                  errors.email ? 'border-red-300 ring-1 ring-red-300' : 'border-gray-300'
+                } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm`}
+                placeholder="your.email@example.com"
+                {...register('email', { 
+                  required: 'メールアドレスは必須です',
+                  pattern: {
+                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                    message: '有効なメールアドレスを入力してください'
+                  }
+                })}
+              />
+              {errors.email && (
+                <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>
+              )}
+            </div>
+            
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">パスワード</label>
+              <input
+                id="password"
+                type="password"
+                autoComplete="new-password"
+                className={`appearance-none relative block w-full px-4 py-3 border ${
+                  errors.password ? 'border-red-300 ring-1 ring-red-300' : 'border-gray-300'
+                } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm`}
+                placeholder="••••••••"
+                {...register('password', { 
+                  required: 'パスワードは必須です',
+                  minLength: {
+                    value: 8,
+                    message: 'パスワードは8文字以上で入力してください'
+                  }
+                })}
+              />
+              {errors.password && (
+                <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>
+              )}
+            </div>
+            
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">パスワード（確認）</label>
+              <input
+                id="confirmPassword"
+                type="password"
+                autoComplete="new-password"
+                className={`appearance-none relative block w-full px-4 py-3 border ${
+                  errors.confirmPassword ? 'border-red-300 ring-1 ring-red-300' : 'border-gray-300'
+                } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm`}
+                placeholder="••••••••"
+                {...register('confirmPassword', { 
+                  required: 'パスワード確認は必須です',
+                  validate: value => value === password || 'パスワードが一致しません'
+                })}
+              />
+              {errors.confirmPassword && (
+                <p className="mt-1 text-xs text-red-600">{errors.confirmPassword.message}</p>
+              )}
             </div>
           </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <input
+                id="agree-terms"
+                name="agree-terms"
+                type="checkbox"
+                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                {...register('agreeTerms', { 
+                  required: '利用規約に同意してください'
+                })}
+              />
+              <label htmlFor="agree-terms" className="ml-2 block text-sm text-gray-700">
+                <Link to="#" className="font-medium text-primary-600 hover:text-primary-500 transition-colors">利用規約</Link>に同意します
+              </label>
+            </div>
+          </div>
+          {errors.agreeTerms && (
+            <p className="mt-1 text-xs text-red-600">{errors.agreeTerms.message}</p>
+          )}
 
           <div>
             <button
               type="submit"
               disabled={isLoading}
-              className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+              className={`w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors ${
                 isLoading ? 'opacity-70 cursor-not-allowed' : ''
               }`}
             >
@@ -204,23 +217,12 @@ const RegisterPage = () => {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Creating account...
+                  アカウント作成中...
                 </span>
               ) : (
-                'Create Account'
+                'アカウント作成'
               )}
             </button>
-          </div>
-          
-          <div className="text-sm text-center text-gray-600">
-            By creating an account, you agree to our{' '}
-            <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
-              Terms of Service
-            </a>{' '}
-            and{' '}
-            <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
-              Privacy Policy
-            </a>
           </div>
         </form>
       </div>

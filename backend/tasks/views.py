@@ -343,10 +343,84 @@ class TaskCommentViewSet(viewsets.ModelViewSet):
     queryset = TaskComment.objects.all()
     serializer_class = TaskCommentSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.SearchFilter, OrderingFilter]
+    search_fields = ['content']
+    ordering_fields = ['created_at']
+    ordering = ['-created_at']
     
     def get_queryset(self):
         """Return comments for tasks in the authenticated user's business."""
-        return TaskComment.objects.filter(task__business=self.request.user.business)
+        queryset = TaskComment.objects.filter(task__business=self.request.user.business)
+        
+        # タスクIDでフィルタリング
+        task_id = self.request.query_params.get('task', None)
+        if task_id:
+            queryset = queryset.filter(task_id=task_id)
+        
+        return queryset
+    
+    def perform_create(self, serializer):
+        """コメント作成と通知処理"""
+        # コメント作成
+        comment = serializer.save(user=self.request.user)
+        task = comment.task
+        
+        # ステータス変更通知の処理
+        current_status = task.status
+        if 'status_change' in comment.content.lower():
+            # コメント内容にステータス変更の記述があれば通知
+            TaskNotification.objects.create(
+                user=task.assignee or task.creator,
+                task=task,
+                notification_type='status_change',
+                content=f'{self.request.user.get_full_name()}さんがタスク「{task.title}」のステータスを変更しました。'
+            )
+        
+        # コメント通知を作成
+        # コメントした人以外のタスク関係者に通知
+        recipients = set()
+        
+        # タスク作成者
+        if task.creator and task.creator != self.request.user:
+            recipients.add(task.creator)
+            
+        # 現在の担当者
+        if task.assignee and task.assignee != self.request.user:
+            recipients.add(task.assignee)
+            
+        # 作業者
+        if task.worker and task.worker != self.request.user:
+            recipients.add(task.worker)
+            
+        # レビュアー
+        if task.reviewer and task.reviewer != self.request.user:
+            recipients.add(task.reviewer)
+            
+        # それぞれに通知を作成
+        for recipient in recipients:
+            TaskNotification.objects.create(
+                user=recipient,
+                task=task,
+                notification_type='comment',
+                content=f'{self.request.user.get_full_name()}さんがタスク「{task.title}」にコメントしました。'
+            )
+        
+        # コメント作成をWebSocketに通知するロジックを後で追加
+        # FastAPIサーバーへの通知をここに実装
+        
+        return comment
+        
+    def perform_destroy(self, instance):
+        """コメント削除時の処理"""
+        # 削除前にコメント情報を取得
+        task = instance.task
+        user = self.request.user
+        
+        # コメントを削除
+        instance.delete()
+        
+        # 必要であれば削除通知を作成
+        # 今回は削除通知はスキップ
 
 
 class TaskAttachmentViewSet(viewsets.ModelViewSet):

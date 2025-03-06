@@ -76,8 +76,54 @@ const chatApi = {
   // User channels
   getUserChannels: () => apiClient.get('/api/chat/my-channels/'),
   
+  // デフォルトワークスペースを取得
+  getDefaultWorkspace: async () => {
+    try {
+      const response = await apiClient.get('/api/business/workspaces/', {
+        params: { is_default: true, limit: 1 }
+      });
+      const workspaces = response.data.results || response.data;
+      return Array.isArray(workspaces) && workspaces.length > 0 ? workspaces[0] : null;
+    } catch (error) {
+      console.error('Error fetching default workspace:', error);
+      return null;
+    }
+  },
+  
+  // ユーザー自身のチャンネル一覧を取得
+  getMyChannels: async () => {
+    try {
+      const response = await apiClient.get('/api/chat/my-channels/');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching my channels:', error);
+      return [];
+    }
+  },
+  
+  // タスク関連チャンネルを検索
+  findTaskChannel: async (taskId) => {
+    try {
+      const channels = await chatApi.getMyChannels();
+      for (const workspace of channels) {
+        const foundChannel = workspace.channels.find(
+          channel => channel.name.startsWith(`task-${taskId}-`)
+        );
+        if (foundChannel) return foundChannel;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error finding task channel:', error);
+      return null;
+    }
+  },
+  
   // Helper methods for compatibility with the mock implementation
-  sendMessage: (channelId, messageData) => {
+  sendMessage: (data) => {
+    // 新しいAPIはチャンネルIDを直接データオブジェクトから取得
+    const channelId = data.channel;
+    const messageData = data;
+    
     if (messageData.files && messageData.files.length > 0) {
       const formData = new FormData();
       formData.append('channel', channelId);
@@ -104,10 +150,7 @@ const chatApi = {
         }
       });
     } else {
-      return apiClient.post('/api/chat/messages/', {
-        ...messageData,
-        channel: channelId
-      });
+      return apiClient.post('/api/chat/messages/', messageData);
     }
   },
   

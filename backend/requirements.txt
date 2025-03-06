@@ -10,3 +10,4 @@ python-decouple==3.8
 dj-database-url==2.1.0
 gunicorn==21.2.0
 whitenoise==6.5.0
+python-dateutil==2.9.0.post0

@@ -459,26 +459,43 @@ const ChatContent = () => {
         {activeChannel && (
           <div className="p-4 border-t border-gray-200 bg-white">
             <form onSubmit={handleSendMessage} className="flex items-center space-x-2">
-              <button type="button" className="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100">
+              <button 
+                type="button" 
+                className="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100"
+                onClick={() => alert('添付機能は準備中です')}
+              >
                 <HiOutlinePaperClip className="w-5 h-5" />
               </button>
               <input
                 type="text"
-                placeholder={`Message ${activeChannel.is_direct_message ? activeChannel.name : `#${activeChannel.name}`}`}
+                placeholder={`${activeChannel.name ? (activeChannel.is_direct_message ? activeChannel.name : `#${activeChannel.name}`) : 'チャンネル'} にメッセージを送信`}
                 className="flex-1 py-2 px-4 bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
                 value={messageText}
                 onChange={(e) => setMessageText(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage(e)}
-                disabled={!isConnected}
+                onKeyDown={(e) => {
+                  // Enterキーでフォーム送信（Shift+Enterは改行）
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (messageText.trim()) {
+                      handleSendMessage(e);
+                    }
+                  }
+                }}
+                // 常に入力可能に（オフライン時もメッセージを書けるようにする）
+                disabled={false}
                 ref={messageInputRef}
               />
-              <button type="button" className="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100">
+              <button 
+                type="button" 
+                className="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100"
+                onClick={() => alert('絵文字機能は準備中です')}
+              >
                 <HiOutlineEmojiHappy className="w-5 h-5" />
               </button>
               <button
                 type="submit"
-                disabled={!messageText.trim() || !isConnected}
-                className={`p-2 rounded-full ${messageText.trim() && isConnected ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-200 text-gray-400'}`}
+                disabled={!messageText.trim()}
+                className={`p-2 rounded-full ${messageText.trim() ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-200 text-gray-400'}`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
@@ -487,8 +504,9 @@ const ChatContent = () => {
             </form>
             
             {!isConnected && (
-              <div className="mt-2 text-xs text-red-600">
-                Connection lost. Messages may not be delivered.
+              <div className="mt-2 text-xs text-red-600 flex items-center">
+                <HiOutlineExclamation className="w-4 h-4 mr-1" />
+                <span>接続が切断されています。メッセージはローカルにのみ保存されます。</span>
               </div>
             )}
           </div>

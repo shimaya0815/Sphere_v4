@@ -111,6 +111,20 @@ The task system has a sophisticated workflow with worker and reviewer roles:
 4. Add URL patterns in `urls.py`
 5. Test with the Swagger UI at `/swagger/`
 
+### Scheduled Commands for Tasks
+
+The tasks app includes several management commands that should be scheduled to run periodically:
+
+```bash
+# タスクの期限チェックと通知作成 (毎日午前9時に実行)
+0 9 * * * cd /path/to/project/backend && python manage.py check_task_deadlines
+
+# 繰り返しタスクの生成 (毎日午前8時に実行)
+0 8 * * * cd /path/to/project/backend && python manage.py generate_recurring_tasks
+```
+
+To set up these scheduled tasks in a production environment, add them to the server's crontab or use a task scheduler like Celery.
+
 ### Adding Frontend Components
 
 1. Create React components in the appropriate directory

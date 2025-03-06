@@ -129,6 +129,96 @@ const tasksApi = {
     } catch (error) {
       throw error;
     }
+  },
+  
+  // タスクコメント関連API
+  
+  // タスクのコメント一覧を取得
+  getComments: async (taskId) => {
+    try {
+      const response = await apiClient.get('/api/tasks/comments/', {
+        params: { task: taskId }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+      throw error;
+    }
+  },
+  
+  // タスクにコメントを追加
+  addComment: async (taskId, commentData) => {
+    try {
+      const data = {
+        task: taskId,
+        content: commentData.content
+      };
+      const response = await apiClient.post('/api/tasks/comments/', data);
+      return response.data;
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      throw error;
+    }
+  },
+  
+  // タスクコメントを削除
+  deleteComment: async (commentId) => {
+    try {
+      const response = await apiClient.delete(`/api/tasks/comments/${commentId}/`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      throw error;
+    }
+  },
+  
+  // タスク通知関連API
+  
+  // 通知一覧を取得
+  getNotifications: async (read = null) => {
+    try {
+      const params = {};
+      if (read !== null) params.read = read;
+      
+      const response = await apiClient.get('/api/tasks/notifications/', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      throw error;
+    }
+  },
+  
+  // 未読通知数を取得
+  getUnreadNotificationCount: async () => {
+    try {
+      const response = await apiClient.get('/api/tasks/notifications/unread-count/');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching unread notification count:', error);
+      throw error;
+    }
+  },
+  
+  // 通知を既読にする
+  markNotificationAsRead: async (notificationId) => {
+    try {
+      const response = await apiClient.post(`/api/tasks/notifications/${notificationId}/mark-read/`);
+      return response.data;
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      throw error;
+    }
+  },
+  
+  // すべての通知を既読にする
+  markAllNotificationsAsRead: async () => {
+    try {
+      const response = await apiClient.post('/api/tasks/notifications/mark-all-read/');
+      return response.data;
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+      throw error;
+    }
   }
 };
 

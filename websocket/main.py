@@ -108,6 +108,48 @@ async def notifications_endpoint(websocket: WebSocket, user_id: int):
     except WebSocketDisconnect:
         logger.info(f"Notification client for user {user_id} disconnected")
 
+@app.websocket("/ws/tasks/{task_id}/")
+async def task_endpoint(websocket: WebSocket, task_id: int):
+    """タスク固有のWebSocket接続 - コメント等の更新をリアルタイム通知"""
+    await websocket.accept()
+    logger.info(f"Client connected to task {task_id} channel")
+    
+    try:
+        while True:
+            # メッセージ受信
+            data = await websocket.receive_text()
+            try:
+                message_data = json.loads(data)
+                message_type = message_data.get("type")
+                
+                # メッセージタイプに応じた処理
+                if message_type == "comment":
+                    # コメント追加の通知をブロードキャスト
+                    await websocket.send_json({
+                        "type": "comment_added",
+                        "data": message_data.get("data", {})
+                    })
+                elif message_type == "status_change":
+                    # ステータス変更の通知をブロードキャスト
+                    await websocket.send_json({
+                        "type": "status_changed",
+                        "data": message_data.get("data", {})
+                    })
+                else:
+                    # タスク関連の通知をブロードキャスト
+                    await websocket.send_json({
+                        "type": "task_update",
+                        "data": message_data
+                    })
+            except json.JSONDecodeError:
+                logger.error("Failed to parse task message as JSON")
+            except Exception as e:
+                logger.error(f"Error processing task message: {str(e)}")
+    except WebSocketDisconnect:
+        logger.info(f"Client disconnected from task {task_id} channel")
+    except Exception as e:
+        logger.error(f"Unexpected error in task socket: {str(e)}")
+
 @app.get("/")
 async def root():
     return {"message": "Sphere WebSocket Server"}

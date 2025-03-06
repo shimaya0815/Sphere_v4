@@ -1770,6 +1770,23 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                       {/* 開始日と完了日は上に移動したので削除 */}
                     </div>
                     
+                    {/* タスクコメント（新規作成時は表示しない） */}
+                    {!isNewTask && task && (
+                      <div className="pt-4 border-t border-gray-200">
+                        <h3 className="text-md font-medium text-gray-700 mb-3">コメント</h3>
+                        {/* TaskCommentsコンポーネントをインポート */}
+                        {task.id && (
+                          <React.Suspense fallback={<div className="text-center py-4">コメントを読み込み中...</div>}>
+                            {/* TaskCommentsコンポーネントの遅延ロード */}
+                            {(() => {
+                              const TaskComments = React.lazy(() => import('../../tasks/TaskComments'));
+                              return <TaskComments taskId={task.id} task={task} onCommentAdded={() => {}} />;
+                            })()}
+                          </React.Suspense>
+                        )}
+                      </div>
+                    )}
+
                     {/* タスク作成日時（新規作成時は表示しない） */}
                     {!isNewTask && task && (
                       <div className="pt-4 border-t border-gray-200">
