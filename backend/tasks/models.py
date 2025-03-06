@@ -192,7 +192,7 @@ class TaskPriority(models.Model):
     name = models.CharField(_('name'), max_length=100)
     color = models.CharField(_('color'), max_length=20, default='#3B82F6')  # Default blue
     description = models.TextField(_('description'), blank=True)
-    priority_value = models.PositiveIntegerField(_('priority value'), default=50)  # Lower number means higher priority (1-100)
+    priority_value = models.PositiveIntegerField(_('priority value'), blank=True, null=True)  # Lower number means higher priority (1-100)
     
     class Meta:
         verbose_name = _('task priority')
