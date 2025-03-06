@@ -84,7 +84,7 @@ const timeManagementApi = {
   // Start a time entry
   startTimeEntry: async (entryData) => {
     try {
-      const response = await apiClient.post('/time-management/entries/start/', entryData);
+      const response = await apiClient.post('/time-management/timer/start/', entryData);
       return response.data;
     } catch (error) {
       console.error('Error starting time entry:', error);
@@ -104,7 +104,7 @@ const timeManagementApi = {
   // Stop a time entry
   stopTimeEntry: async (entryId) => {
     try {
-      const response = await apiClient.post(`/time-management/entries/${entryId}/stop/`);
+      const response = await apiClient.post(`/time-management/timer/${entryId}/stop/`);
       return response.data;
     } catch (error) {
       console.error('Error stopping time entry:', error);

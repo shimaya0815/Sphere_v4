@@ -7,12 +7,13 @@ router.register(r'entries', views.TimeEntryViewSet)
 router.register(r'reports', views.TimeReportViewSet)
 router.register(r'breaks', views.BreakViewSet)
 router.register(r'analytics', views.DailyAnalyticsViewSet)
+router.register(r'timer', views.StartTimeEntryViewSet, basename='timer')
 
 urlpatterns = [
     path('', include(router.urls)),
     path('dashboard/', views.DashboardSummaryView.as_view(), name='dashboard'),
-    path('entries/start/', views.StartTimeEntryView.as_view(), name='start-time-entry'),
-    path('entries/<int:entry_id>/stop/', views.StopTimeEntryView.as_view(), name='stop-time-entry'),
+    path('timer/start/', views.StartTimeEntryViewSet.as_view({'post': 'create'}), name='start-time-entry'),
+    path('timer/<int:entry_id>/stop/', views.StopTimeEntryViewSet.as_view({'post': 'create'}), name='stop-time-entry'),
     path('entries/<int:entry_id>/breaks/start/', views.StartBreakView.as_view(), name='start-break'),
     path('breaks/<int:break_id>/stop/', views.StopBreakView.as_view(), name='stop-break'),
     path('reports/generate/', views.GenerateReportView.as_view(), name='generate-report'),
