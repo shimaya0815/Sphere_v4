@@ -189,6 +189,7 @@ class TaskPriority(models.Model):
         on_delete=models.CASCADE,
         related_name='task_priorities'
     )
+    # 名前フィールドは廃止予定だが、互換性のために維持
     name = models.CharField(_('name'), max_length=100)
     color = models.CharField(_('color'), max_length=20, default='#3B82F6')  # Default blue
     description = models.TextField(_('description'), blank=True)
@@ -197,28 +198,28 @@ class TaskPriority(models.Model):
     class Meta:
         verbose_name = _('task priority')
         verbose_name_plural = _('task priorities')
-        ordering = ['priority_value', 'name']
-        unique_together = ('business', 'name')
+        ordering = ['priority_value']
+        unique_together = ('business', 'priority_value')
     
     def __str__(self):
-        return self.name
+        return str(self.priority_value) if self.priority_value is not None else "未設定"
     
     @classmethod
     def create_defaults(cls, business):
         """Create default priorities for a business."""
         priorities = [
-            {'name': '高', 'color': '#EF4444', 'priority_value': 10, 'description': '緊急の対応が必要なタスク'},
-            {'name': '中', 'color': '#F59E0B', 'priority_value': 50, 'description': '通常の優先度のタスク'},
-            {'name': '低', 'color': '#10B981', 'priority_value': 90, 'description': '時間があれば対応するタスク'},
+            {'name': '10', 'color': '#EF4444', 'priority_value': 10, 'description': '緊急の対応が必要なタスク'},
+            {'name': '50', 'color': '#F59E0B', 'priority_value': 50, 'description': '通常の優先度のタスク'},
+            {'name': '90', 'color': '#10B981', 'priority_value': 90, 'description': '時間があれば対応するタスク'},
         ]
         
         for priority in priorities:
             cls.objects.get_or_create(
                 business=business,
-                name=priority['name'],
+                priority_value=priority['priority_value'],
                 defaults={
+                    'name': priority['name'],
                     'color': priority['color'],
-                    'priority_value': priority['priority_value'],
                     'description': priority['description']
                 }
             )
