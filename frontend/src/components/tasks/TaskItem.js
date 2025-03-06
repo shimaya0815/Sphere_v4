@@ -198,19 +198,14 @@ const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
   const getPriorityName = (priority) => {
     if (!priority) return '未設定';
     
+    // priority_valueがある場合はそれを使用
+    if (priority.priority_value) return String(priority.priority_value);
+    
     // priority_nameがある場合はそれを使用
     if (task.priority_name) return task.priority_name;
     
     // オブジェクトの場合はnameプロパティを使用
     if (typeof priority === 'object' && priority.name) return priority.name;
-    
-    // 数値の場合は優先度レベルからマッピング
-    if (typeof priority === 'number' || !isNaN(Number(priority))) {
-      const level = Number(priority);
-      if (level === 3) return '高';
-      if (level === 2) return '中';
-      if (level === 1) return '低';
-    }
     
     // その他の場合は値をそのまま返す
     return String(priority);

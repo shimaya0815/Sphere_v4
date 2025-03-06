@@ -15,7 +15,7 @@ class AuthTokenWithBusinessSerializer(serializers.Serializer):
         style={'input_type': 'password'},
         trim_whitespace=False
     )
-    business_id = serializers.CharField(label="Business ID")
+    business_id = serializers.CharField(label="Business ID", required=False, allow_blank=True)
 
     def validate(self, attrs):
         email = attrs.get('email')

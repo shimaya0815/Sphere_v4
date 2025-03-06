@@ -7,6 +7,21 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 
+// キャッシュを制御するためのタイムスタンプを生成
+if (process.env.NODE_ENV === 'development') {
+  window.BUILD_TIMESTAMP = new Date().getTime();
+  console.log(`Build timestamp: ${window.BUILD_TIMESTAMP}`);
+}
+
+// 開発モードのデバッグ支援：デモトークンを自動的に設定
+if (process.env.NODE_ENV === 'development') {
+  const demoToken = '039542700dd3bcf213ff82e652f6b396d2775049';
+  if (!localStorage.getItem('token')) {
+    console.log('Setting demo token for development:', demoToken);
+    localStorage.setItem('token', demoToken);
+  }
+}
+
 const queryClient = new QueryClient();
 
 const root = ReactDOM.createRoot(document.getElementById('root'));

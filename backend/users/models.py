@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 
 class UserManager(BaseUserManager):
@@ -103,3 +105,78 @@ class UserPreferences(models.Model):
     
     def __str__(self):
         return f"Preferences for {self.user.email}"
+
+
+@receiver(post_save, sender=User)
+def create_user_preferences(sender, instance, created, **kwargs):
+    """ユーザー作成時に設定を作成"""
+    if created:
+        UserPreferences.objects.get_or_create(user=instance)
+
+
+@receiver(post_save, sender=User)
+def add_user_to_channels(sender, instance, created, **kwargs):
+    """ユーザー作成時に、所属するビジネスのデフォルトワークスペースのチャンネルに追加する"""
+    if created and instance.business:
+        try:
+            # ビジネスのデフォルトワークスペース（最初のワークスペース）を探す
+            from business.models import Workspace
+            default_workspace = Workspace.objects.filter(
+                business=instance.business
+            ).first()
+            
+            if default_workspace:
+                try:
+                    # タスクチャンネルを作成または既存のチャンネルを取得
+                    from chat.models import Channel, ChannelMembership
+                    
+                    # 「タスク」という名前のチャンネルを探す
+                    task_channel = Channel.objects.filter(
+                        workspace=default_workspace,
+                        name='タスク'
+                    ).first()
+                    
+                    # なければ作成
+                    if not task_channel:
+                        task_channel = Channel.objects.create(
+                            name='タスク',
+                            description='タスク関連の通知チャンネルです',
+                            workspace=default_workspace,
+                            channel_type='public',
+                            created_by=instance
+                        )
+                    
+                    # 「全体」という名前のチャンネルを探す
+                    general_channel = Channel.objects.filter(
+                        workspace=default_workspace,
+                        name='全体'
+                    ).first()
+                    
+                    # なければ作成
+                    if not general_channel:
+                        general_channel = Channel.objects.create(
+                            name='全体',
+                            description='全体向けのチャンネルです',
+                            workspace=default_workspace,
+                            channel_type='public',
+                            created_by=instance
+                        )
+                    
+                    # ユーザーをチャンネルに追加
+                    channels = [task_channel, general_channel]
+                    for channel in channels:
+                        # すでにメンバーでなければ追加
+                        if not ChannelMembership.objects.filter(
+                            channel=channel,
+                            user=instance
+                        ).exists():
+                            ChannelMembership.objects.create(
+                                channel=channel,
+                                user=instance
+                            )
+                    
+                    print(f"Added user {instance.email} to default channels")
+                except Exception as e:
+                    print(f"Error adding user to channels: {str(e)}")
+        except Exception as e:
+            print(f"Error setting up channels for user: {str(e)}")

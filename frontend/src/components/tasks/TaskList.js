@@ -427,13 +427,13 @@ const TaskList = React.forwardRef((props, ref) => {
           <table className="table w-full">
             <thead>
               <tr>
-                <th>タイトル</th>
                 <th>ステータス</th>
-                <th>優先度</th>
-                <th>カテゴリー</th>
+                <th>タイトル</th>
                 <th>担当者</th>
                 <th>期限日</th>
+                <th>優先度</th>
                 <th>クライアント</th>
+                <th>カテゴリー</th>
                 <th>操作</th>
               </tr>
             </thead>
@@ -449,9 +449,6 @@ const TaskList = React.forwardRef((props, ref) => {
                     }
                   }}
                 >
-                  <td className="font-medium">
-                    {task.title}
-                  </td>
                   <td>
                     {task.status && (
                       <span className={`badge ${
@@ -463,6 +460,15 @@ const TaskList = React.forwardRef((props, ref) => {
                         {task.status_data?.name || task.status_name || getStatusName(task.status)}
                       </span>
                     )}
+                  </td>
+                  <td className="font-medium">
+                    {task.title}
+                  </td>
+                  <td>
+                    {task.assignee_data?.name || task.assignee_name || (task.assignee?.name || '')}
+                  </td>
+                  <td>
+                    {task.due_date ? new Date(task.due_date).toLocaleDateString() : '-'}
                   </td>
                   <td>
                     {task.priority && (
@@ -477,21 +483,15 @@ const TaskList = React.forwardRef((props, ref) => {
                     )}
                   </td>
                   <td>
+                    {task.client_data?.name || task.client_name || (task.client?.name || '')}
+                    {task.is_fiscal_task && <span className="ml-1 badge badge-xs badge-accent">決算</span>}
+                  </td>
+                  <td>
                     {task.category && (
                       <span className="badge badge-outline badge-primary">
                         {task.category_data?.name || task.category_name || (typeof task.category === 'object' ? task.category.name : task.category)}
                       </span>
                     )}
-                  </td>
-                  <td>
-                    {task.assignee_data?.name || task.assignee_name || (task.assignee?.name || '')}
-                  </td>
-                  <td>
-                    {task.due_date ? new Date(task.due_date).toLocaleDateString() : '-'}
-                  </td>
-                  <td>
-                    {task.client_data?.name || task.client_name || (task.client?.name || '')}
-                    {task.is_fiscal_task && <span className="ml-1 badge badge-xs badge-accent">決算</span>}
                   </td>
                   <td onClick={(e) => e.stopPropagation()}>
                     <div className="flex space-x-1">

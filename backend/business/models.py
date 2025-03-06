@@ -39,15 +39,26 @@ class Business(models.Model):
             unique_id = str(uuid.uuid4())[:8]
             self.business_id = f"{slug}-{unique_id}"
         
+        is_new = self.pk is None
         super().save(*args, **kwargs)
         
-        # Create default workspace if it doesn't exist
-        if not self.workspaces.exists():
-            Workspace.objects.create(
+        # Create default workspace if this is a new business or no workspaces exist
+        if is_new:
+            # 最初の保存時に必ず実行
+            workspace = Workspace.objects.create(
                 business=self,
-                name="Default Workspace",
-                description="Default workspace created automatically"
+                name="デフォルト",
+                description="自動作成されたデフォルトワークスペース"
             )
+            print(f"Created default workspace for business: {self.name}")
+        elif not self.workspaces.exists():
+            # 保存後、ワークスペースが存在しない場合も作成
+            workspace = Workspace.objects.create(
+                business=self,
+                name="デフォルト",
+                description="自動作成されたデフォルトワークスペース"
+            )
+            print(f"Created missing default workspace for business: {self.name}")
 
 
 class Workspace(models.Model):

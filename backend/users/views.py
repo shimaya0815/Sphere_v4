@@ -75,6 +75,22 @@ class BusinessAuthTokenView(APIView):
             
             user.business = business
             user.save()
+            
+            # ビジネスを作成した後、タスク関連のメタデータを作成
+            from tasks.models import TaskCategory, TaskStatus, TaskPriority
+            TaskCategory.create_defaults(business)
+            TaskStatus.create_defaults(business)
+            TaskPriority.create_defaults(business)
+            
+            # Ensure workspace exists
+            from business.models import Workspace
+            if not business.workspaces.exists():
+                Workspace.objects.create(
+                    business=business,
+                    name="Default Workspace",
+                    description="Default workspace created automatically"
+                )
+                print(f"Created workspace for business in login view: {business.name}")
         
         # Generate the token
         token, created = Token.objects.get_or_create(user=user)

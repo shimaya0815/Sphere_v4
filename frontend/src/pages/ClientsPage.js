@@ -13,23 +13,17 @@ const ClientsPage = () => {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [industryFilter, setIndustryFilter] = useState('All');
+  const [entityFilter, setEntityFilter] = useState('All');
 
   // Fetch clients data
   useEffect(() => {
     fetchClients();
-    fetchIndustries();
-  }, [industryFilter]);
+  }, []);
 
   const fetchClients = async () => {
     setLoading(true);
     try {
-      const filters = {};
-      if (industryFilter !== 'All') {
-        filters.industry = industryFilter;
-      }
-      
-      const data = await clientsApi.getClients(filters);
+      const data = await clientsApi.getClients({});
       setClients(data.results || data);
       setError(null);
     } catch (error) {
@@ -41,21 +35,16 @@ const ClientsPage = () => {
     }
   };
 
-  const fetchIndustries = async () => {
-    try {
-      const data = await clientsApi.getIndustries();
-      setIndustries(data);
-    } catch (error) {
-      console.error('Error fetching industries:', error);
-    }
-  };
-
   const filteredClients = clients.filter(client => {
     return (
+      // 検索条件
       (client.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-       client.contact_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-       client.email?.toLowerCase().includes(searchTerm.toLowerCase())) &&
-      (statusFilter === 'All' || true) // No status field in current model, adjust as needed
+       client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+       client.client_code?.toLowerCase().includes(searchTerm.toLowerCase())) &&
+      // ステータスフィルター
+      (statusFilter === 'All' || client.contract_status === statusFilter) &&
+      // 法人/個人フィルター
+      (entityFilter === 'All' || client.corporate_individual === entityFilter)
     );
   });
 
@@ -90,39 +79,37 @@ const ClientsPage = () => {
           <input
             type="text"
             className="input input-bordered w-full"
-            placeholder="名前、担当者、メールで検索..."
+            placeholder="名前、コード、メールで検索..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">ステータス</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">契約状況</label>
           <select
             className="select select-bordered w-full"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            disabled={true} // No status field in current model
           >
-            <option value="All">すべてのステータス</option>
-            <option value="Active">有効</option>
-            <option value="Inactive">無効</option>
+            <option value="All">すべての契約状況</option>
+            <option value="active">契約中</option>
+            <option value="suspended">休止中</option>
+            <option value="terminated">解約</option>
+            <option value="preparing">契約準備中</option>
           </select>
         </div>
-        
+
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">業種</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">法人/個人</label>
           <select
             className="select select-bordered w-full"
-            value={industryFilter}
-            onChange={(e) => setIndustryFilter(e.target.value)}
+            value={entityFilter}
+            onChange={(e) => setEntityFilter(e.target.value)}
           >
-            <option value="All">すべての業種</option>
-            {industries.map(industry => (
-              <option key={industry.industry} value={industry.industry}>
-                {industry.industry} ({industry.count})
-              </option>
-            ))}
+            <option value="All">すべて</option>
+            <option value="corporate">法人</option>
+            <option value="individual">個人</option>
           </select>
         </div>
       </div>
@@ -133,75 +120,75 @@ const ClientsPage = () => {
         </div>
       )}
 
-      {/* Clients Grid */}
+      {/* Clients Table */}
       {!loading && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredClients.map(client => (
-            <div key={client.id} className="bg-white rounded-lg shadow overflow-hidden">
-              <div className="p-5 border-b border-gray-200">
-                <div className="flex justify-between items-start">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">{client.name}</h3>
-                  {/* ステータスの代わりにアカウントマネージャーがいるかどうかを表示 */}
-                  {client.account_manager && (
-                    <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
-                      担当者あり
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-gray-600">{client.industry || '業種未設定'}</p>
-              </div>
-              
-              <div className="p-5">
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">担当者</p>
-                    <p className="mt-1">{client.contact_name || '未設定'}</p>
-                  </div>
-                  
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">メールアドレス</p>
-                    <p className="mt-1">{client.email || '未設定'}</p>
-                  </div>
-                  
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">電話番号</p>
-                    <p className="mt-1">{client.phone || '未設定'}</p>
-                  </div>
-                  
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">決算期</p>
-                    <p className="mt-1">
-                      {client.fiscal_year_end 
-                        ? new Date(client.fiscal_year_end).toLocaleDateString('ja-JP')
-                        : '未設定'
-                      }
-                    </p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="px-5 py-3 bg-gray-50 flex justify-end">
-                <button 
-                  className="text-blue-600 hover:text-blue-800 font-medium text-sm mr-4"
-                  onClick={() => navigate(`/clients/${client.id}`)}
-                >
-                  詳細
-                </button>
-                <button 
-                  className="text-blue-600 hover:text-blue-800 font-medium text-sm"
-                  onClick={() => navigate(`/clients/${client.id}/edit`)}
-                >
-                  編集
-                </button>
-              </div>
-            </div>
-          ))}
-          
-          {!loading && filteredClients.length === 0 && (
-            <div className="col-span-3 p-8 text-center text-gray-500 bg-white rounded-lg shadow">
-              条件に一致するクライアントが見つかりませんでした。
-            </div>
-          )}
+        <div className="overflow-x-auto bg-white rounded-lg shadow">
+          <table className="table w-full">
+            <thead>
+              <tr>
+                <th>クライアント名</th>
+                <th>クライアントコード</th>
+                <th>契約状況</th>
+                <th>法人/個人</th>
+                <th>電話番号</th>
+                <th>メールアドレス</th>
+                <th>決算期</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredClients.length > 0 ? (
+                filteredClients.map(client => (
+                  <tr key={client.id} className="hover">
+                    <td className="font-medium">{client.name}</td>
+                    <td>{client.client_code || '-'}</td>
+                    <td>
+                      <span className={`badge ${
+                        client.contract_status === 'active' ? 'badge-success' :
+                        client.contract_status === 'suspended' ? 'badge-warning' :
+                        client.contract_status === 'terminated' ? 'badge-error' :
+                        'badge-ghost'
+                      }`}>
+                        {client.contract_status_display || client.contract_status || '未設定'}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="badge badge-outline">
+                        {client.corporate_individual_display || 
+                         (client.corporate_individual === 'corporate' ? '法人' : 
+                          client.corporate_individual === 'individual' ? '個人' : '-')}
+                      </span>
+                    </td>
+                    <td>{client.phone || '-'}</td>
+                    <td>{client.email || '-'}</td>
+                    <td>{client.fiscal_year ? `第${client.fiscal_year}期` : '-'}</td>
+                    <td>
+                      <div className="flex space-x-2">
+                        <button 
+                          className="btn btn-xs btn-outline"
+                          onClick={() => navigate(`/clients/${client.id}`)}
+                        >
+                          詳細
+                        </button>
+                        <button 
+                          className="btn btn-xs btn-outline"
+                          onClick={() => navigate(`/clients/${client.id}/edit`)}
+                        >
+                          編集
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="8" className="text-center py-4">
+                    条件に一致するクライアントが見つかりませんでした。
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
