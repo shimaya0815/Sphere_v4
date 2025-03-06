@@ -792,7 +792,9 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                         >
                           <option value="">選択してください</option>
                           {priorities.map(priority => (
-                            <option key={priority.id} value={priority.id}>{priority.name}</option>
+                            <option key={priority.id} value={priority.id}>
+                              {priority.name} {priority.priority_value ? `(${priority.priority_value})` : ''}
+                            </option>
                           ))}
                         </select>
                       </div>

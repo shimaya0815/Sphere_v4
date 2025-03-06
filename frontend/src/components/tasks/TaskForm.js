@@ -438,7 +438,9 @@ const TaskForm = ({ task, onClose, onTaskSaved }) => {
               >
                 <option value="">優先度を選択</option>
                 {priorities.map(priority => (
-                  <option key={priority.id} value={priority.id}>{priority.name}</option>
+                  <option key={priority.id} value={priority.id}>
+                    {priority.name} {priority.priority_value ? `(${priority.priority_value})` : ''}
+                  </option>
                 ))}
               </select>
               {errors.priority && (
