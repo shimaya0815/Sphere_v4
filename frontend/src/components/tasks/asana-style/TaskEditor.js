@@ -910,7 +910,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                               <input
                                 type="text"
                                 id="title"
-                                className={`shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full text-base font-medium border-gray-300 rounded-md ${
+                                className={`shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full text-lg font-medium border-gray-300 rounded-md ${
                                   fieldState.error ? 'border-red-300' : ''
                                 }`}
                                 placeholder="タスクのタイトルを入力"
@@ -968,11 +968,11 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                         </button>
                       </div>
                       
-                      {/* 現在の担当者表示 - 小さく表示 */}
+                      {/* 現在の担当者表示 */}
                       {task && task.assignee && (
-                        <div className="mt-2 bg-blue-50 px-3 py-1 rounded-md border border-blue-200 shadow-sm flex items-center">
-                          <HiUser className="mr-1 text-blue-500" />
-                          <div className="flex items-center text-xs">
+                        <div className="mt-2 bg-blue-50 px-3 py-2 rounded-md border border-blue-200 shadow-sm flex items-center">
+                          <HiUser className="mr-2 text-blue-500" />
+                          <div className="flex items-center text-sm">
                             <span className="text-blue-700 mr-1">現在の担当者:</span>
                             <span className="text-blue-800 font-medium">{task.assignee_name || (typeof task.assignee === 'object' ? task.assignee.get_full_name || task.assignee.email : '不明')}</span>
                           </div>
