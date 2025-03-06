@@ -64,49 +64,79 @@ export const AuthProvider = ({ children }) => {
       }
       
       console.log('Sending login request to:', `${API_URL}/auth/token/login/`);
-      console.log('Login data:', loginData);
       
-      // デバッグで成功したエンドポイントと同じURLを使用
-      console.log('デバッグで成功したURLにリクエスト送信');
-      const response = await axios.post(`${API_URL}/auth/token/login/`, loginData);
+      // リクエスト送信
+      const response = await axios.post(`${API_URL}/auth/token/login/`, loginData, {
+        timeout: 30000 // 30秒タイムアウト
+      });
       
       console.log('Login response:', response);
       
-      // axios responseはresponse.dataにデータを持つ
-      const responseData = response.data;
+      if (!response.data || !response.data.token) {
+        throw new Error('Invalid response from server. Token not found.');
+      }
       
-      // From our custom login endpoint, we get token directly
-      const { token, business_id } = responseData;
+      // レスポンスからデータを取得
+      const { token, business_id, user_id } = response.data;
+      
+      // トークンとビジネスIDを保存
       localStorage.setItem('token', token);
       localStorage.setItem('business_id', business_id);
       
-      // Get user data using axios client
+      // グローバルヘッダーにトークンを設定
+      axios.defaults.headers.common['Authorization'] = `Token ${token}`;
+      apiClient.defaults.headers.common['Authorization'] = `Token ${token}`;
+      
+      // ユーザーデータを取得
       let userData = {};
       try {
-        // Set the token for this request
-        const userResponse = await apiClient.get(`${API_URL}/auth/users/me/`, {
-          headers: {
-            'Authorization': `Token ${token}`
-          }
-        });
-        
+        const userResponse = await apiClient.get(`${API_URL}/auth/users/me/`);
         console.log('User data response:', userResponse);
         userData = userResponse.data;
       } catch (userError) {
         console.error('Error fetching user data:', userError);
-        // エラーが発生しても続行し、フォールバックとして部分的なユーザー情報を使用
-        userData = { email: email };
+        // エラーが発生しても続行し、最低限のユーザー情報をセット
+        userData = { id: user_id, email: email };
       }
       
+      // ユーザー情報をステートに保存
       setCurrentUser({
         ...userData,
-        business_id  // Add business_id to user data
+        business_id // ビジネスIDも含める
       });
       
       return true;
     } catch (err) {
       console.error('Login error:', err);
-      setError(err.message || 'Login failed');
+      
+      // 詳細なエラーメッセージを表示
+      if (err.response) {
+        // サーバーからのレスポンスがあるエラー
+        const errorData = err.response.data;
+        console.error('Error response:', errorData);
+        
+        if (typeof errorData === 'object') {
+          // オブジェクト形式のエラー (APIからのバリデーションエラーなど)
+          const errorMessages = Object.entries(errorData)
+            .map(([key, value]) => {
+              const valueText = Array.isArray(value) ? value.join(', ') : value;
+              return `${key}: ${valueText}`;
+            })
+            .join('\n');
+          
+          setError(errorMessages);
+        } else {
+          // 文字列形式のエラー
+          setError(errorData || `Server error: ${err.response.status}`);
+        }
+      } else if (err.request) {
+        // リクエストは送信されたがレスポンスがないエラー (ネットワークエラーなど)
+        setError('Network error. Please check your internet connection.');
+      } else {
+        // その他のエラー
+        setError(err.message || 'Login failed');
+      }
+      
       return false;
     }
   };

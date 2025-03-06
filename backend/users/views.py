@@ -85,12 +85,17 @@ class BusinessAuthTokenView(APIView):
             # Ensure workspace exists
             from business.models import Workspace
             if not business.workspaces.exists():
-                Workspace.objects.create(
-                    business=business,
-                    name="Default Workspace",
-                    description="Default workspace created automatically"
-                )
-                print(f"Created workspace for business in login view: {business.name}")
+                try:
+                    Workspace.objects.create(
+                        business=business,
+                        name="Default Workspace",
+                        description="Default workspace created automatically"
+                    )
+                    print(f"Created workspace for business in login view: {business.name}")
+                except Exception as e:
+                    print(f"Error creating workspace: {e}")
+                    # 既に存在する場合は無視して続行する
+                    pass
         
         # Generate the token
         token, created = Token.objects.get_or_create(user=user)
