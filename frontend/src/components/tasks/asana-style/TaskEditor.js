@@ -934,8 +934,39 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                       </div>
                       </div>
 
-                      {/* クライアントと決算期 - タイトルの直後に配置 */}
-                      <div className="grid grid-cols-2 gap-6 mt-4">
+                      {/* カテゴリー、クライアント、決算期 - タイトルの直後に配置 */}
+                      <div className="grid grid-cols-3 gap-4 mt-4">
+                        {/* カテゴリー */}
+                        <div>
+                          <label htmlFor="category" className="block text-sm font-medium text-gray-700">
+                            カテゴリー
+                          </label>
+                          <div className="mt-1">
+                            <Controller
+                              name="category"
+                              control={control}
+                              render={({ field }) => (
+                                <select
+                                  id="category"
+                                  className={selectClassName}
+                                  {...field}
+                                  onChange={(e) => {
+                                    field.onChange(e);
+                                    handleFieldChange('category', e.target.value);
+                                  }}
+                                >
+                                  <option value="">選択してください</option>
+                                  {categories.map((category) => (
+                                    <option key={category.id} value={category.id}>
+                                      {category.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+                            />
+                          </div>
+                        </div>
+                        
                         {/* クライアント */}
                         <div>
                           <label htmlFor="client" className="block text-sm font-medium text-gray-700">
@@ -1539,36 +1570,6 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                       </div>
                     </div>
                     
-                    {/* カテゴリー */}
-                    <div>
-                      <label htmlFor="category" className="block text-sm font-medium text-gray-700">
-                        カテゴリー
-                      </label>
-                      <div className="mt-1">
-                        <Controller
-                          name="category"
-                          control={control}
-                          render={({ field }) => (
-                            <select
-                              id="category"
-                              className={selectClassName}
-                              {...field}
-                              onChange={(e) => {
-                                field.onChange(e);
-                                handleFieldChange('category', e.target.value);
-                              }}
-                            >
-                              <option value="">選択してください</option>
-                              {categories.map((category) => (
-                                <option key={category.id} value={category.id}>
-                                  {category.name}
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                        />
-                      </div>
-                    </div>
                     
                     {/* 見積時間 - 削除 */}
                     
