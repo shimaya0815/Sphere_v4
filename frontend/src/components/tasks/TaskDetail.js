@@ -2,28 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import TaskTimerButton from './TaskTimerButton';
 import TaskTimeTracker from './TaskTimeTracker';
+import TaskComments from './TaskComments';
+import { tasksApi } from '../../api';
 import { toast } from 'react-hot-toast';
-
-// Mock API for demonstration
-const mockTaskApi = {
-  getTask: (id) => Promise.resolve({
-    id,
-    title: "年度決算書類の作成",
-    description: "クライアントの年度決算処理を行い、必要な書類を全て作成する。\n\n- 貸借対照表\n- 損益計算書\n- キャッシュフロー計算書\n- 勘定科目内訳書",
-    status: "in_progress",
-    status_name: "進行中",
-    priority: "high",
-    priority_name: "高",
-    due_date: "2025-03-31",
-    assignee_name: "山田太郎",
-    reviewer_name: "佐藤次郎",
-    client_name: "株式会社ABC商事",
-    is_fiscal_task: true,
-    fiscal_period: "15",
-    estimated_hours: 12,
-    created_at: "2025-01-15T09:00:00Z"
-  })
-};
 
 const TaskDetail = () => {
   const { taskId } = useParams();
@@ -36,8 +17,8 @@ const TaskDetail = () => {
     const fetchTask = async () => {
       setLoading(true);
       try {
-        // 実際の実装ではtasksApiを使用
-        const data = await mockTaskApi.getTask(taskId);
+        // 実際のAPIを使用
+        const data = await tasksApi.getTask(taskId);
         setTask(data);
         setError(null);
       } catch (error) {
@@ -116,13 +97,19 @@ const TaskDetail = () => {
         </div>
         
         <div className="flex flex-wrap gap-2 mt-3">
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-            {task.status_name}
-          </span>
+          {task.status_data && (
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
+                style={{backgroundColor: `${task.status_data.color}30`, color: task.status_data.color}}>
+              {task.status_data.name}
+            </span>
+          )}
           
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-            {task.priority_name}
-          </span>
+          {task.priority_data && (
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
+                style={{backgroundColor: `${task.priority_data.color}30`, color: task.priority_data.color}}>
+              {task.priority_data.priority_value}
+            </span>
+          )}
           
           {task.is_fiscal_task && (
             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
@@ -166,7 +153,7 @@ const TaskDetail = () => {
                 <div className="text-sm text-gray-500">クライアント</div>
                 <div className="text-sm font-medium col-span-2">{task.client_name || '未設定'}</div>
                 
-                {task.is_fiscal_task && (
+                {task.is_fiscal_task && task.fiscal_period && (
                   <>
                     <div className="text-sm text-gray-500">決算期タスク</div>
                     <div className="text-sm font-medium col-span-2">
@@ -192,40 +179,17 @@ const TaskDetail = () => {
           </div>
         </div>
         
-        {/* コメントセクション（モックアップ） */}
+        {/* コメントセクション - TaskCommentsコンポーネントを使用 */}
         <div className="mt-8">
           <h2 className="text-lg font-semibold mb-3 text-gray-800">コメント</h2>
           <div className="bg-gray-50 rounded-lg p-4">
-            <div className="border-b pb-4 mb-4">
-              <div className="flex">
-                <div className="rounded-full bg-blue-100 h-10 w-10 flex items-center justify-center text-blue-700 font-bold">
-                  YT
-                </div>
-                <div className="ml-4 flex-1">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-medium">山田太郎</div>
-                    <div className="text-xs text-gray-500">2025年1月20日 14:32</div>
-                  </div>
-                  <div className="mt-1 text-sm">
-                    初期データの収集が完了しました。現在勘定科目の整理をしています。
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            {/* コメント入力フォーム */}
-            <div className="mt-4">
-              <textarea
-                className="w-full border border-gray-300 rounded-md p-2 text-sm"
-                rows="3"
-                placeholder="コメントを入力..."
-              ></textarea>
-              <div className="mt-2 flex justify-end">
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm">
-                  コメントを追加
-                </button>
-              </div>
-            </div>
+            <TaskComments 
+              taskId={task.id} 
+              task={task}
+              onCommentAdded={() => {
+                toast.success('コメントが追加されました');
+              }}
+            />
           </div>
         </div>
       </div>
