@@ -595,15 +595,27 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                     
                     {/* 担当者設定セクション - ステータス/タイトルの直後に移動 */}
                     <div className="border-t border-gray-200 pt-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-md font-medium text-gray-700 flex items-center">
-                          <HiUserGroup className="mr-2 text-gray-500" />
-                          担当者設定
-                        </h3>
+                      <div className="flex flex-wrap items-center gap-4 mb-4">
+                        <div className="flex items-center">
+                          <h3 className="text-md font-medium text-gray-700 flex items-center">
+                            <HiUserGroup className="mr-2 text-gray-500" />
+                            担当者設定
+                          </h3>
+                          
+                          {/* 注意事項をツールチップに変更 */}
+                          <div className="ml-2 group relative inline-block">
+                            <span className="bg-amber-100 text-amber-600 rounded-full w-5 h-5 flex items-center justify-center cursor-help">
+                              ?
+                            </span>
+                            <div className="opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity absolute z-10 w-64 p-3 bg-white border border-gray-200 rounded-lg shadow-lg text-xs text-gray-700 top-full left-0 mt-1">
+                              タスクのステータスによって担当者は自動的に切り替わります。作業者ステータスでは作業担当者が、レビューステータスではレビュー担当者が担当になります。
+                            </div>
+                          </div>
+                        </div>
                         
-                        {/* 現在の担当者表示 - より大きく表示 */}
+                        {/* 現在の担当者表示 - タイトルの横に移動 */}
                         {task && task.assignee && (
-                          <div className="text-md bg-blue-50 px-4 py-2 rounded-lg border border-blue-200 shadow-sm flex items-center">
+                          <div className="text-md bg-blue-50 px-4 py-2 rounded-lg border border-blue-200 shadow-sm flex items-center flex-shrink-0">
                             <HiUser className="mr-2 text-blue-500 text-lg" />
                             <div>
                               <span className="font-medium text-blue-700">現在の担当者</span><br/>
@@ -677,11 +689,6 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                           </div>
                         </div>
                       </div>
-                      
-                      <p className="mt-2 text-sm text-gray-500">
-                        <span className="text-amber-600 font-medium">注意:</span> タスクのステータスによって担当者は自動的に切り替わります。
-                        作業者ステータスでは作業担当者が、レビューステータスではレビュー担当者が担当になります。
-                      </p>
                     </div>
                     
                     {/* 説明 */}
