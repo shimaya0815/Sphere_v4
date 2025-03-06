@@ -530,43 +530,41 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
               <div className="flex-1 py-6 px-4 sm:px-6 overflow-auto">
                 <form onSubmit={handleSubmit(submitTask)}>
                   <div className="space-y-6">
-                    {/* ステータス */}
-                    <div>
-                      <label htmlFor="status" className="block text-sm font-medium text-gray-700">
-                        ステータス
-                      </label>
-                      <div className="mt-1">
-                        <Controller
-                          name="status"
-                          control={control}
-                          render={({ field }) => (
-                            <select
-                              id="status"
-                              className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                              {...field}
-                              onChange={(e) => {
-                                field.onChange(e);
-                                handleFieldChange('status', e.target.value);
-                              }}
-                            >
-                              <option value="">選択してください</option>
-                              {statuses.map((status) => (
-                                <option key={status.id} value={status.id}>
-                                  {status.name}
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                        />
+                    {/* ステータスとタイトルを1行に */}
+                    <div className="flex space-x-3 items-start">
+                      {/* ステータス */}
+                      <div className="w-1/3">
+                        <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+                          ステータス
+                        </label>
+                        <div className="mt-1">
+                          <Controller
+                            name="status"
+                            control={control}
+                            render={({ field }) => (
+                              <select
+                                id="status"
+                                className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                {...field}
+                                onChange={(e) => {
+                                  field.onChange(e);
+                                  handleFieldChange('status', e.target.value);
+                                }}
+                              >
+                                <option value="">選択してください</option>
+                                {statuses.map((status) => (
+                                  <option key={status.id} value={status.id}>
+                                    {status.name}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                          />
+                        </div>
                       </div>
-                    </div>
-                    
-                    {/* タイトル */}
-                    <div>
-                      <label htmlFor="title" className="block text-sm font-medium text-gray-700">
-                        タイトル
-                      </label>
-                      <div className="mt-1">
+                      
+                      {/* タイトル (ラベルなし) */}
+                      <div className="w-2/3 pt-6">
                         <Controller
                           name="title"
                           control={control}
