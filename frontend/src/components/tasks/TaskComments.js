@@ -21,7 +21,8 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
   const commentInputRef = useRef(null);
   const mentionSuggestionsRef = useRef(null);
   
-  // WebSocketの接続と設定
+  // WebSocketの接続と設定 - 一時的に無効化
+  /*
   const { sendMessage } = useWebSocket(
     taskChannel ? `ws://localhost:8001/ws/chat/${taskChannel.id}/` : null,
     {
@@ -36,8 +37,12 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
       onClose: () => console.log('Disconnected from task channel')
     }
   );
+  */
+  // ダミーの関数を定義（エラー回避のため）
+  const sendMessage = () => console.log('WebSocket disabled');
 
-  // タスク用のチャットチャンネルを探すか作成する
+  // タスク用のチャットチャンネルを探すか作成する - 一時的に無効化
+  /*
   useEffect(() => {
     const initializeTaskChannel = async () => {
       if (!taskId || !task) return;
@@ -98,6 +103,7 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
     
     initializeTaskChannel();
   }, [taskId, task]);
+  */
 
   // ビジネス内のユーザー一覧を取得
   useEffect(() => {
@@ -241,7 +247,8 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
       // コメント一覧を再取得
       fetchComments();
       
-      // タスクチャンネルにもメッセージを送信
+      // タスクチャンネルにもメッセージを送信 - 一時的に無効化
+      /*
       if (taskChannel) {
         // WebSocketでメッセージ送信
         sendMessage(JSON.stringify({
@@ -261,6 +268,7 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
           content: `[タスクコメント] ${newComment}`
         });
       }
+      */
       
       // コールバック
       onCommentAdded && onCommentAdded();
@@ -355,7 +363,7 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
 
   return (
     <div>
-      {/* チャンネル情報表示 */}
+      {/* チャンネル情報表示 - 一時的に無効化
       {taskChannel && (
         <div className="mb-4 bg-blue-50 border border-blue-200 rounded-md p-3 text-sm">
           <div className="flex items-center">
@@ -375,6 +383,7 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
           </div>
         </div>
       )}
+      */}
 
       {/* コメント一覧 */}
       <div className="space-y-4 mb-6">
@@ -429,7 +438,7 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
       </div>
 
       {/* コメント入力フォーム */}
-      <form onSubmit={handleSubmit} className="bg-gray-50 rounded-lg p-4">
+      <div className="bg-gray-50 rounded-lg p-4">
         <div className="relative">
           <div className="flex items-start space-x-3">
             <div className="relative flex-1">
@@ -491,7 +500,8 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
               </div>
             </div>
             <button
-              type="submit"
+              type="button"
+              onClick={handleSubmit}
               className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 ${
                 submitting ? 'opacity-75 cursor-not-allowed' : ''
               }`}
@@ -507,7 +517,7 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
         <div className="mt-2 text-xs text-gray-500">
           <p>@で始めてユーザーをメンションできます。メンションされたユーザーには通知が送信されます。</p>
         </div>
-      </form>
+      </div>
     </div>
   );
 };
