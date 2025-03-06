@@ -43,22 +43,22 @@ class Business(models.Model):
         super().save(*args, **kwargs)
         
         # Create default workspace if this is a new business or no workspaces exist
-        if is_new:
-            # 最初の保存時に必ず実行
-            workspace = Workspace.objects.create(
-                business=self,
-                name="デフォルト",
-                description="自動作成されたデフォルトワークスペース"
-            )
-            print(f"Created default workspace for business: {self.name}")
-        elif not self.workspaces.exists():
-            # 保存後、ワークスペースが存在しない場合も作成
-            workspace = Workspace.objects.create(
-                business=self,
-                name="デフォルト",
-                description="自動作成されたデフォルトワークスペース"
-            )
-            print(f"Created missing default workspace for business: {self.name}")
+        if is_new or not self.workspaces.exists():
+            try:
+                # トランザクション内のクエリキャッシュをクリアするために再取得
+                if self.workspaces.exists():
+                    print(f"Workspace already exists for business: {self.name}")
+                    return
+                
+                workspace = Workspace.objects.create(
+                    business=self,
+                    name="デフォルト",
+                    description="自動作成されたデフォルトワークスペース"
+                )
+                print(f"Created default workspace for business: {self.name}")
+            except Exception as e:
+                print(f"Error creating default workspace: {e}")
+                # すでに存在する場合はエラーを無視して続行
 
 
 class Workspace(models.Model):

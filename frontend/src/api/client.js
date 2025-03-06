@@ -31,8 +31,8 @@ const apiClient = axios.create({
 // リクエストインターセプター: 認証トークン追加
 apiClient.interceptors.request.use(
   (config) => {
-    const demoToken = '039542700dd3bcf213ff82e652f6b396d2775049';
-    const token = localStorage.getItem('token') || demoToken;
+    // デモトークンを削除し、実際のトークンのみを使用
+    const token = localStorage.getItem('token');
     
     if (token) {
       config.headers.Authorization = `Token ${token}`;

@@ -64,7 +64,9 @@ const LoginPage = () => {
               ? Object.entries(error).map(([key, value]) => (
                   <div key={key} className="mb-1 last:mb-0">{key}: {value}</div>
                 ))
-              : error}
+              : error.split('\n').map((line, index) => (
+                  <div key={index} className="mb-1 last:mb-0">{line}</div>
+                ))}
           </div>
         )}
         
