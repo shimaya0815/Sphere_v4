@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { HiOutlinePaperAirplane, HiOutlineTrash, HiOutlineAtSymbol, HiOutlinePaperClip } from 'react-icons/hi';
 import toast from 'react-hot-toast';
-import { tasksApi, usersApi, chatApi } from '../../api';
+import { tasksApi, usersApi } from '../../api';
 import useWebSocket from '../../hooks/useWebSocket';
 
 const TaskComments = ({ taskId, task, onCommentAdded }) => {
@@ -15,15 +15,19 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
   const [mentionQueryStart, setMentionQueryStart] = useState(-1);
   const [mentionQuery, setMentionQuery] = useState('');
-  const [cursorPosition, setCursorPosition] = useState(0);
-  const [taskChannel, setTaskChannel] = useState(null);
   
   const commentInputRef = useRef(null);
   const mentionSuggestionsRef = useRef(null);
   
   // WebSocketの接続と設定 - タスク専用WebSocketエンドポイントを使用
+  // プロトコルを自動判定（ブラウザがhttpsなら、wssを使う）
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  const wsHost = process.env.NODE_ENV === 'production' 
+    ? window.location.host
+    : 'localhost:8001';
+    
   const { sendMessage, isConnected } = useWebSocket(
-    taskId ? `ws://localhost:8001/ws/tasks/${taskId}/` : null,
+    taskId ? `${wsProtocol}://${wsHost}/ws/tasks/${taskId}/` : null,
     {
       onOpen: () => {
         console.log(`Connected to task WebSocket for task ID: ${taskId}`);
@@ -145,11 +149,6 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
   }, []);
 
   // コメント一覧を取得
-  useEffect(() => {
-    fetchComments();
-  }, [taskId]);
-
-  // コメント一覧を取得
   const fetchComments = async () => {
     setLoading(true);
     try {
@@ -163,6 +162,14 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
       setLoading(false);
     }
   };
+  
+  // コメント一覧を取得（useEffect用）
+  useEffect(() => {
+    if (taskId) {
+      fetchComments();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskId]);
 
   // メンション候補を処理
   useEffect(() => {
@@ -184,9 +191,8 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
     const value = e.target.value;
     setNewComment(value);
     
-    // カーソル位置を更新
+    // カーソル位置を取得
     const curPos = e.target.selectionStart;
-    setCursorPosition(curPos);
     
     // @が入力されているか確認
     const textUntilCursor = value.substring(0, curPos);
