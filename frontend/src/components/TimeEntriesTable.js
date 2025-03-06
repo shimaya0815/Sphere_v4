@@ -142,11 +142,11 @@ const TimeEntriesTable = ({ entries, onDelete, onEdit, loading, availableTasks =
         <thead className="bg-gray-50">
           <tr>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日付</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">時間</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">作業時間</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">クライアント</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">タスク</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">内容</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">時間</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">作業時間</th>
             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">アクション</th>
           </tr>
         </thead>
@@ -159,9 +159,61 @@ const TimeEntriesTable = ({ entries, onDelete, onEdit, loading, availableTasks =
                   <>
                     <td className="px-6 py-2 whitespace-nowrap">
                       <input 
-                        type="datetime-local"
-                        name="start_time"
-                        value={editForm.start_time}
+                        type="date"
+                        name="start_date"
+                        value={editForm.start_time ? editForm.start_time.split('T')[0] : ''}
+                        onChange={(e) => {
+                          const currentTime = editForm.start_time ? editForm.start_time.split('T')[1] : '00:00';
+                          handleInputChange({
+                            target: {
+                              name: 'start_time',
+                              value: `${e.target.value}T${currentTime}`
+                            }
+                          });
+                        }}
+                        className="border border-gray-300 rounded px-2 py-1 text-sm w-full"
+                      />
+                    </td>
+                    <td className="px-6 py-2 whitespace-nowrap">
+                      <div className="flex space-x-1">
+                        <input 
+                          type="time"
+                          name="start_time_clock"
+                          value={editForm.start_time ? editForm.start_time.split('T')[1] : ''}
+                          onChange={(e) => {
+                            const currentDate = editForm.start_time ? editForm.start_time.split('T')[0] : new Date().toISOString().split('T')[0];
+                            handleInputChange({
+                              target: {
+                                name: 'start_time',
+                                value: `${currentDate}T${e.target.value}`
+                              }
+                            });
+                          }}
+                          className="border border-gray-300 rounded px-2 py-1 text-sm w-full"
+                        />
+                        <span className="self-center">-</span>
+                        <input 
+                          type="time"
+                          name="end_time_clock"
+                          value={editForm.end_time ? editForm.end_time.split('T')[1] : ''}
+                          onChange={(e) => {
+                            const currentDate = editForm.end_time ? editForm.end_time.split('T')[0] : editForm.start_time ? editForm.start_time.split('T')[0] : new Date().toISOString().split('T')[0];
+                            handleInputChange({
+                              target: {
+                                name: 'end_time',
+                                value: `${currentDate}T${e.target.value}`
+                              }
+                            });
+                          }}
+                          className="border border-gray-300 rounded px-2 py-1 text-sm w-full"
+                        />
+                      </div>
+                    </td>
+                    <td className="px-6 py-2 whitespace-nowrap">
+                      <input 
+                        type="time"
+                        name="duration"
+                        value={formatDurationForInput(editForm.duration_seconds)}
                         onChange={handleInputChange}
                         className="border border-gray-300 rounded px-2 py-1 text-sm w-full"
                       />
@@ -206,24 +258,6 @@ const TimeEntriesTable = ({ entries, onDelete, onEdit, loading, availableTasks =
                         placeholder="作業内容"
                       />
                     </td>
-                    <td className="px-6 py-2 whitespace-nowrap">
-                      <input 
-                        type="datetime-local"
-                        name="end_time"
-                        value={editForm.end_time}
-                        onChange={handleInputChange}
-                        className="border border-gray-300 rounded px-2 py-1 text-sm w-full"
-                      />
-                    </td>
-                    <td className="px-6 py-2 whitespace-nowrap">
-                      <input 
-                        type="time"
-                        name="duration"
-                        value={formatDurationForInput(editForm.duration_seconds)}
-                        onChange={handleInputChange}
-                        className="border border-gray-300 rounded px-2 py-1 text-sm w-full"
-                      />
-                    </td>
                     <td className="px-6 py-2 whitespace-nowrap text-right">
                       <div className="flex justify-end space-x-2">
                         <button 
@@ -248,6 +282,12 @@ const TimeEntriesTable = ({ entries, onDelete, onEdit, loading, availableTasks =
                       {formatDate(entry.start_time)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatTime(entry.start_time)} - {entry.end_time ? formatTime(entry.end_time) : '進行中'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {entry.duration_seconds ? formatDurationHM(entry.duration_seconds) : '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {entry.client ? entry.client.name : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -255,12 +295,6 @@ const TimeEntriesTable = ({ entries, onDelete, onEdit, loading, availableTasks =
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
                       {entry.description || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatTime(entry.start_time)} - {entry.end_time ? formatTime(entry.end_time) : '進行中'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {entry.duration_seconds ? formatDurationHM(entry.duration_seconds) : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
