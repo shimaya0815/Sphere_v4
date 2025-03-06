@@ -1042,8 +1042,18 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                         </div>
                         
                         <div>
-                          <label htmlFor="priority_value" className="block text-sm font-medium text-gray-700">
-                            優先度 (1-100, 低いほど優先度高)
+                          <label htmlFor="priority_value" className="block text-sm font-medium text-gray-700 flex items-center">
+                            優先度
+                            <div className="relative ml-2 group">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <div className="absolute left-0 bottom-6 w-52 p-2 bg-gray-800 text-white text-xs rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                                <p>優先度は1〜100の数値で指定します。</p>
+                                <p className="mt-1">数値が小さいほど優先度が高くなります。</p>
+                                <div className="absolute bottom-0 left-3 transform translate-y-full w-2 h-2 bg-gray-800 rotate-45"></div>
+                              </div>
+                            </div>
                           </label>
                           <div className="mt-1">
                             <Controller
@@ -1065,7 +1075,6 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                                 />
                               )}
                             />
-                            <p className="mt-1 text-xs text-gray-500">小さいほど優先度が高くなります</p>
                           </div>
                         </div>
                       </div>
