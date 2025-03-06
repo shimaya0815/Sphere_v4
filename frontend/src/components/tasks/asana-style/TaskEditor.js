@@ -837,7 +837,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         
         {/* スライドパネル */}
         <div className="fixed inset-y-0 right-0 pl-10 max-w-full flex">
-          <div className="relative w-screen max-w-lg transform transition ease-in-out duration-300">
+          <div className="relative w-screen max-w-2xl transform transition ease-in-out duration-300">
             <div className="h-full flex flex-col bg-white shadow-xl overflow-y-auto">
               {/* ヘッダー */}
               <div className="px-4 py-6 bg-white border-b border-gray-200 sm:px-6">
