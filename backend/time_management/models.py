@@ -2,6 +2,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from datetime import timedelta
 
 User = get_user_model()
 
@@ -41,9 +42,21 @@ class TimeEntry(models.Model):
     created_at = models.DateTimeField(_('created at'), auto_now_add=True)
     updated_at = models.DateTimeField(_('updated at'), auto_now=True)
     
+    # Productivity score (0-100)
+    productivity_score = models.IntegerField(_('productivity score'), null=True, blank=True)
+    
     # Optional client link
     client = models.ForeignKey(
         'clients.Client',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='time_entries'
+    )
+    
+    # Optional fiscal year link
+    fiscal_year = models.ForeignKey(
+        'clients.FiscalYear',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -80,6 +93,65 @@ class TimeEntry(models.Model):
             self.end_time = timezone.now()
             self.duration = self.end_time - self.start_time
             self.save()
+    
+    def effective_duration(self):
+        """Calculate effective duration by subtracting breaks."""
+        if not self.duration:
+            return timedelta(0)
+            
+        break_time = timedelta(0)
+        for break_obj in self.breaks.all():
+            if break_obj.duration:
+                break_time += break_obj.duration
+                
+        return self.duration - break_time
+
+
+class DailyAnalytics(models.Model):
+    """Daily time tracking analytics."""
+    
+    business = models.ForeignKey(
+        'business.Business',
+        on_delete=models.CASCADE,
+        related_name='daily_analytics'
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='daily_analytics'
+    )
+    date = models.DateField(_('date'))
+    
+    # Time metrics
+    total_hours = models.FloatField(_('total hours'), default=0)
+    billable_hours = models.FloatField(_('billable hours'), default=0)
+    break_time = models.FloatField(_('break time'), default=0)
+    
+    # Productivity metrics
+    productivity_score = models.FloatField(_('productivity score'), default=0)
+    task_completion_rate = models.FloatField(_('task completion rate'), default=0)
+    
+    # Task metrics
+    tasks_worked = models.IntegerField(_('tasks worked'), default=0)
+    tasks_completed = models.IntegerField(_('tasks completed'), default=0)
+    
+    # JSON data for detailed analytics
+    hourly_data = models.JSONField(_('hourly data'), default=dict, blank=True)
+    task_data = models.JSONField(_('task data'), default=dict, blank=True)
+    tags = models.JSONField(_('tags'), default=dict, blank=True)
+    
+    # Metadata
+    created_at = models.DateTimeField(_('created at'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('updated at'), auto_now=True)
+    
+    class Meta:
+        verbose_name = _('daily analytics')
+        verbose_name_plural = _('daily analytics')
+        unique_together = ('user', 'date', 'business')
+        ordering = ['-date']
+    
+    def __str__(self):
+        return f"Daily Analytics for {self.user.get_full_name()} on {self.date}"
 
 
 class TimeReport(models.Model):
@@ -107,6 +179,24 @@ class TimeReport(models.Model):
     
     # Report data (stored as JSON)
     data = models.JSONField(_('data'), default=dict, blank=True)
+    
+    # Chart type options
+    CHART_TYPES = (
+        ('bar', _('Bar Chart')),
+        ('line', _('Line Chart')),
+        ('pie', _('Pie Chart')),
+        ('table', _('Table')),
+    )
+    chart_type = models.CharField(_('chart type'), max_length=10, choices=CHART_TYPES, default='bar')
+    
+    # Report format options
+    REPORT_FORMATS = (
+        ('daily', _('Daily')),
+        ('weekly', _('Weekly')),
+        ('monthly', _('Monthly')),
+        ('custom', _('Custom')),
+    )
+    report_format = models.CharField(_('report format'), max_length=10, choices=REPORT_FORMATS, default='custom')
     
     # Metadata
     created_at = models.DateTimeField(_('created at'), auto_now_add=True)
