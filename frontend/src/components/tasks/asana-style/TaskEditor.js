@@ -1150,8 +1150,22 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                               )}
                             </div>
                             
-                            <div className="text-xs text-gray-500 mb-4 border-t border-gray-200 pt-2">
-                              開始時間、終了時間、タスク名、ステータス、クライアント、決算期の情報が記録されます
+                            <div className="relative group border-t border-gray-200 pt-2 mb-4">
+                              <div className="flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span className="text-xs text-gray-500 cursor-help">記録される情報</span>
+                              </div>
+                              <div className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-800 text-white text-xs rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                                <ul className="list-disc pl-4 space-y-1">
+                                  <li>開始時間・終了時間</li>
+                                  <li>タスク名・ステータス</li>
+                                  <li>クライアント情報</li>
+                                  <li>決算期情報（該当する場合）</li>
+                                </ul>
+                                <div className="absolute top-full left-3 transform -translate-y-1/2 w-2 h-2 bg-gray-800 rotate-45"></div>
+                              </div>
                             </div>
                             
                             {/* 作業時間履歴（折りたたみ式） */}
