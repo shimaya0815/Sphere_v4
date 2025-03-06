@@ -167,44 +167,74 @@ async def notifications_endpoint(websocket: WebSocket, user_id: int):
 @app.websocket("/ws/tasks/{task_id}/")
 async def task_endpoint(websocket: WebSocket, task_id: int):
     """タスク固有のWebSocket接続 - コメント等の更新をリアルタイム通知"""
-    await websocket.accept()
-    logger.info(f"Client connected to task {task_id} channel")
+    # WebSocketハンドシェイク前にオリジンをログに出力
+    client = f"{websocket.client.host}:{websocket.client.port}"
+    headers = dict(websocket.headers)
+    origin = headers.get('origin', 'unknown')
+    logger.info(f"WebSocket task connection attempt from {client}, Origin: {origin}")
     
+    # マネージャーに接続を登録（コメントのブロードキャスト用）
     try:
-        while True:
-            # メッセージ受信
-            data = await websocket.receive_text()
-            try:
-                message_data = json.loads(data)
-                message_type = message_data.get("type")
+        await manager.connect(websocket, task_id)
+        logger.info(f"Client connected to task {task_id} channel")
+        
+        # 接続確認メッセージを送信
+        try:
+            await websocket.send_json({
+                "type": "connection_established",
+                "data": {
+                    "message": "Connected to task WebSocket server",
+                    "task_id": task_id,
+                    "timestamp": datetime.now().isoformat()
+                }
+            })
+        except Exception as e:
+            logger.error(f"Error sending task welcome message: {str(e)}")
+        
+        # メッセージ受信ループ
+        try:
+            while True:
+                data = await websocket.receive_text()
+                logger.info(f"Received task message from client: {data[:100]}...")
                 
-                # メッセージタイプに応じた処理
-                if message_type == "comment":
-                    # コメント追加の通知をブロードキャスト
-                    await websocket.send_json({
-                        "type": "comment_added",
-                        "data": message_data.get("data", {})
-                    })
-                elif message_type == "status_change":
-                    # ステータス変更の通知をブロードキャスト
-                    await websocket.send_json({
-                        "type": "status_changed",
-                        "data": message_data.get("data", {})
-                    })
-                else:
-                    # タスク関連の通知をブロードキャスト
-                    await websocket.send_json({
-                        "type": "task_update",
-                        "data": message_data
-                    })
-            except json.JSONDecodeError:
-                logger.error("Failed to parse task message as JSON")
-            except Exception as e:
-                logger.error(f"Error processing task message: {str(e)}")
-    except WebSocketDisconnect:
-        logger.info(f"Client disconnected from task {task_id} channel")
+                try:
+                    message_data = json.loads(data)
+                    message_type = message_data.get("type")
+                    
+                    # メッセージタイプに応じた処理
+                    if message_type == "comment":
+                        # コメント追加の通知をブロードキャスト
+                        await manager.broadcast({
+                            "type": "comment_added",
+                            "data": message_data.get("data", {})
+                        }, task_id)
+                        logger.info(f"Broadcast comment update to task {task_id}")
+                    elif message_type == "status_change":
+                        # ステータス変更の通知をブロードキャスト
+                        await manager.broadcast({
+                            "type": "status_changed",
+                            "data": message_data.get("data", {})
+                        }, task_id)
+                        logger.info(f"Broadcast status change to task {task_id}")
+                    else:
+                        # タスク関連の通知をブロードキャスト
+                        await manager.broadcast({
+                            "type": "task_update",
+                            "data": message_data
+                        }, task_id)
+                        logger.info(f"Broadcast generic task update to task {task_id}")
+                except json.JSONDecodeError:
+                    logger.error("Failed to parse task message as JSON")
+                except Exception as e:
+                    logger.error(f"Error processing task message: {str(e)}")
+        except WebSocketDisconnect:
+            logger.info(f"Client disconnected from task {task_id} channel")
+            manager.disconnect(websocket, task_id)
+        except Exception as e:
+            logger.error(f"Unexpected error in task socket: {str(e)}")
+            manager.disconnect(websocket, task_id)
     except Exception as e:
-        logger.error(f"Unexpected error in task socket: {str(e)}")
+        logger.error(f"Failed to establish task WebSocket connection: {str(e)}")
 
 @app.get("/")
 async def root():
@@ -225,17 +255,14 @@ async def notify_task_comment(notification: TaskCommentNotification):
         task_id = notification.task_id
         if task_id in manager.active_connections:
             await manager.broadcast({
-                "type": "comment",
+                "type": "comment_added",
                 "data": notification.dict()
             }, task_id)
             logger.info(f"Broadcast task comment to {len(manager.active_connections[task_id])} clients")
-        
-        # チャットチャンネル用WebSocketにも通知を送ることができる
-        # ここではタスク通知チャンネルのIDを何らかの方法で特定する必要がある
-        # 簡略化のため、channel_id = task_id + 10000 としているが、実際には適切に取得する必要がある
-        
-        # 通知成功
-        return {"status": "success", "message": "Task comment notification broadcast"}
+            return {"status": "success", "message": "Task comment notification broadcast"}
+        else:
+            logger.warning(f"No active connections for task {task_id}")
+            return {"status": "warning", "message": "No active connections for this task"}
     except Exception as e:
         logger.error(f"Failed to broadcast task comment: {str(e)}")
         return {"status": "error", "message": str(e)}
@@ -251,13 +278,14 @@ async def notify_task_status(notification: TaskStatusNotification):
         task_id = notification.task_id
         if task_id in manager.active_connections:
             await manager.broadcast({
-                "type": "status_change",
+                "type": "status_changed",
                 "data": notification.dict()
             }, task_id)
             logger.info(f"Broadcast task status change to {len(manager.active_connections[task_id])} clients")
-        
-        # 通知成功
-        return {"status": "success", "message": "Task status notification broadcast"}
+            return {"status": "success", "message": "Task status notification broadcast"}
+        else:
+            logger.warning(f"No active connections for task {task_id}")
+            return {"status": "warning", "message": "No active connections for this task"}
     except Exception as e:
         logger.error(f"Failed to broadcast task status change: {str(e)}")
         return {"status": "error", "message": str(e)}
