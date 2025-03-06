@@ -18,8 +18,8 @@ const TimeManagementPage = () => {
   const [filteredEntries, setFilteredEntries] = useState([]);
   const [activeTimer, setActiveTimer] = useState(null);
   const [activeBreak, setActiveBreak] = useState(null);
-  const [selectedRange, setSelectedRange] = useState('week');
-  const [userFilter, setUserFilter] = useState('all');
+  const [selectedRange, setSelectedRange] = useState('today'); // デフォルトを本日に変更
+  const [userFilter, setUserFilter] = useState(''); // 空にして後で初期化
   const [clientFilter, setClientFilter] = useState('all');
   const [taskFilter, setTaskFilter] = useState('all');
   const [summaryData, setSummaryData] = useState(null);
@@ -41,6 +41,13 @@ const TimeManagementPage = () => {
   useEffect(() => {
     fetchInitialData();
   }, []);
+  
+  // 現在のユーザーのIDをフィルタに設定
+  useEffect(() => {
+    if (currentUser && currentUser.id) {
+      setUserFilter(currentUser.id.toString());
+    }
+  }, [currentUser]);
   
   // Update filtered entries when filters change
   useEffect(() => {
