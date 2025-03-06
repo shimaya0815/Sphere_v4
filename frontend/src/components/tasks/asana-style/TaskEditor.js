@@ -871,9 +871,9 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                 <form onSubmit={handleSubmit(submitTask)}>
                   <div className="space-y-6">
                     {/* ステータスとタイトルを1行に */}
-                    <div className="flex space-x-3 items-start">
+                    <div className="grid grid-cols-3 gap-4 items-start">
                       {/* ステータス */}
-                      <div className="w-1/3">
+                      <div>
                         <label htmlFor="status" className="block text-sm font-medium text-gray-700">
                           ステータス
                         </label>
@@ -904,33 +904,89 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                       </div>
                       
                       {/* タイトル (大きく表示) */}
-                      <div className="w-2/3 pt-6">
+                      <div className="col-span-2">
+                        <label htmlFor="title" className="block text-sm font-medium text-gray-700">
+                          タイトル
+                        </label>
+                        <div className="mt-1">
+                          <Controller
+                            name="title"
+                            control={control}
+                            rules={{ required: 'タイトルは必須です' }}
+                            render={({ field, fieldState }) => (
+                              <div>
+                                <input
+                                  type="text"
+                                  id="title"
+                                  className={`${inputClassName} text-lg font-medium ${
+                                    fieldState.error ? 'border-red-300' : ''
+                                  }`}
+                                  placeholder="タスクのタイトルを入力"
+                                  {...field}
+                                  onChange={(e) => {
+                                    field.onChange(e);
+                                    handleFieldChange('title', e.target.value);
+                                  }}
+                                />
+                                {fieldState.error && (
+                                  <p className="mt-1 text-sm text-red-600">{fieldState.error.message}</p>
+                                )}
+                              </div>
+                            )}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* クライアント */}
+                    <div>
+                      <label htmlFor="client" className="block text-sm font-medium text-gray-700">
+                        クライアント
+                      </label>
+                      <div className="mt-1">
                         <Controller
-                          name="title"
+                          name="client"
                           control={control}
-                          rules={{ required: 'タイトルは必須です' }}
-                          render={({ field, fieldState }) => (
-                            <div>
-                              <input
-                                type="text"
-                                id="title"
-                                className={`${inputClassName} text-lg font-medium ${
-                                  fieldState.error ? 'border-red-300' : ''
-                                }`}
-                                placeholder="タスクのタイトルを入力"
-                                {...field}
-                                onChange={(e) => {
-                                  field.onChange(e);
-                                  handleFieldChange('title', e.target.value);
-                                }}
-                              />
-                              {fieldState.error && (
-                                <p className="mt-1 text-sm text-red-600">{fieldState.error.message}</p>
-                              )}
-                            </div>
+                          render={({ field }) => (
+                            <select
+                              id="client"
+                              className={selectClassName}
+                              {...field}
+                              onChange={(e) => {
+                                field.onChange(e);
+                                handleFieldChange('client', e.target.value);
+                              }}
+                            >
+                              <option value="">選択してください</option>
+                              {clients.map((client) => (
+                                <option key={client.id} value={client.id}>
+                                  {client.name}
+                                </option>
+                              ))}
+                            </select>
                           )}
                         />
                       </div>
+                      
+                      {/* 選択中のクライアント情報 */}
+                      {selectedClient && (
+                        <div className="mt-2 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                          <div className="text-sm space-y-1">
+                            <div className="bg-white p-2 rounded mb-1">
+                              <span className="font-medium">クライアント名:</span> {selectedClient.name}
+                            </div>
+                            <div className="bg-white p-2 rounded mb-1">
+                              <span className="font-medium">契約状況:</span>{' '}
+                              {selectedClient.contract_status_display || selectedClient.contract_status}
+                            </div>
+                            {selectedClient.fiscal_year && (
+                              <div className="bg-white p-2 rounded">
+                                <span className="font-medium">現在の決算期:</span> 第{selectedClient.fiscal_year}期
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     
                     {/* 担当者設定セクション - ステータス/タイトルの直後に移動 */}
@@ -1454,57 +1510,6 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                     </div>
                     
                     {/* 見積時間 - 削除 */}
-                    
-                    {/* クライアント */}
-                    <div>
-                      <label htmlFor="client" className="block text-sm font-medium text-gray-700">
-                        クライアント
-                      </label>
-                      <div className="mt-1">
-                        <Controller
-                          name="client"
-                          control={control}
-                          render={({ field }) => (
-                            <select
-                              id="client"
-                              className={selectClassName}
-                              {...field}
-                              onChange={(e) => {
-                                field.onChange(e);
-                                handleFieldChange('client', e.target.value);
-                              }}
-                            >
-                              <option value="">選択してください</option>
-                              {clients.map((client) => (
-                                <option key={client.id} value={client.id}>
-                                  {client.name}
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                        />
-                      </div>
-                      
-                      {/* 選択中のクライアント情報 */}
-                      {selectedClient && (
-                        <div className="mt-2 bg-gray-50 p-3 rounded-lg border border-gray-200">
-                          <div className="text-sm space-y-1">
-                            <div className="bg-white p-2 rounded mb-1">
-                              <span className="font-medium">クライアント名:</span> {selectedClient.name}
-                            </div>
-                            <div className="bg-white p-2 rounded mb-1">
-                              <span className="font-medium">契約状況:</span>{' '}
-                              {selectedClient.contract_status_display || selectedClient.contract_status}
-                            </div>
-                            {selectedClient.fiscal_year && (
-                              <div className="bg-white p-2 rounded">
-                                <span className="font-medium">現在の決算期:</span> 第{selectedClient.fiscal_year}期
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
                     
                     
                     {/* タスク種別（決算期関連） */}
