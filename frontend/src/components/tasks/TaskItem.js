@@ -308,18 +308,24 @@ const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
         </div>
         
         <div className="flex items-center flex-wrap gap-2 mt-4">
+          {/* ステータス - 最初に表示 */}
           {task.status && (
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
               {getStatusName(task.status)}
             </span>
           )}
           
-          {task.priority && (
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
-              {getPriorityName(task.priority)}
-            </span>
+          {/* クライアント名の表示 */}
+          {(task.client_name || (task.client && task.client.name)) && (
+            <div className="flex items-center text-xs font-medium bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-full">
+              <HiOutlineOfficeBuilding className="mr-1" />
+              <span className="truncate max-w-[150px]">
+                {task.client_name || (task.client && task.client.name)}
+              </span>
+            </div>
           )}
           
+          {/* カテゴリー */}
           {task.category && (
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
               {typeof task.category === 'object' && task.category.name ? task.category.name : String(task.category)}
@@ -340,6 +346,7 @@ const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
         </div>
         
         <div className="mt-4 pt-4 border-t border-gray-200 flex flex-wrap items-center gap-4 text-sm text-gray-500">
+          {/* 担当者 */}
           {task.assignee && (
             <div className="flex items-center">
               <HiOutlineUserCircle className="mr-1" />
@@ -347,6 +354,7 @@ const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
             </div>
           )}
           
+          {/* 期限日 */}
           {task.due_date && (
             <div className={`flex items-center ${isOverdue() ? 'text-red-600' : ''}`}>
               <HiOutlineCalendar className="mr-1" />
@@ -354,20 +362,20 @@ const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
             </div>
           )}
           
+          {/* 優先度 */}
+          {task.priority && (
+            <div className="flex items-center">
+              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs ${getPriorityColor(task.priority)}`}>
+                優先度: {getPriorityName(task.priority)}
+              </span>
+            </div>
+          )}
+          
+          {/* 見積時間 */}
           {task.estimated_hours && (
             <div className="flex items-center">
               <HiOutlineClock className="mr-1" />
               <span>{task.estimated_hours}時間</span>
-            </div>
-          )}
-          
-          {/* クライアント名の表示 */}
-          {(task.client_name || (task.client && task.client.name)) && (
-            <div className="flex items-center">
-              <HiOutlineOfficeBuilding className="mr-1" />
-              <span className="truncate max-w-[150px]">
-                {task.client_name || (task.client && task.client.name)}
-              </span>
             </div>
           )}
         </div>
