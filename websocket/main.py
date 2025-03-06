@@ -17,7 +17,15 @@ app = FastAPI(title="Sphere Websocket Service")
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, set this to your frontend URL
+    # 開発環境では以下のように明示的にフロントエンドのURLを許可
+    allow_origins=[
+        "http://localhost:3000",  # ローカル開発環境
+        "http://127.0.0.1:3000",
+        "http://frontend:3000",   # Docker内部のサービス名
+        "http://localhost:8000",  # バックエンド
+        "http://backend:8000",    # Docker内部のバックエンド
+        "*"                       # その他すべて（開発のみ）
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

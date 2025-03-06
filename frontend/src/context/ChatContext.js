@@ -20,14 +20,17 @@ export const ChatProvider = ({ children }) => {
     
     console.log('Getting WebSocket URL for channel:', channelId);
     
-    // WebSocketの直接接続（開発環境用）
-    // 注意: 本番環境では適切なURL構成に変更する必要がある
-    if (window.location.hostname === 'localhost') {
-      return `ws://localhost:8001/ws/chat/${channelId}/`;
+    // WebSocketの直接接続（開発環境用）- プロトコルを確認
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    
+    // 開発環境では明示的にWebSocketサーバーに接続（例：localhost:8001）
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return `${protocol}//localhost:8001/ws/chat/${channelId}/`;
     }
     
     // その他の環境ではプロキシを介して接続
-    return `ws://${window.location.host}/ws/chat/${channelId}/`;
+    // Docker環境ではホスト名が違う可能性があるので、パスのみを使用
+    return `${protocol}//${window.location.host}/api/ws/chat/${channelId}/`;
   };
   
   const { 
