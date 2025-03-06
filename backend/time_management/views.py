@@ -387,11 +387,11 @@ class DashboardSummaryView(APIView):
         return Response(serializer.data)
 
 
-class StartTimeEntryView(APIView):
+class StartTimeEntryViewSet(viewsets.ViewSet):
     """API view to start a time entry."""
     permission_classes = [permissions.IsAuthenticated]
     
-    def post(self, request):
+    def create(self, request):
         """Start a time entry."""
         # Validate request data
         serializer = TimerStartSerializer(data=request.data)
@@ -412,7 +412,7 @@ class StartTimeEntryView(APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+            
         # Get task if provided
         task = None
         if serializer.validated_data.get('task_id'):
@@ -478,13 +478,69 @@ class StartTimeEntryView(APIView):
         
         response_serializer = TimeEntrySerializer(time_entry)
         return Response(response_serializer.data)
+    
+    @action(detail=False, methods=['post'])
+    def start_timer(self, request):
+        """Alias for create."""
+        return self.create(request)
+        
+        # Get client if provided
+        client = None
+        if serializer.validated_data.get('client_id'):
+            from clients.models import Client
+            try:
+                client = Client.objects.get(
+                    id=serializer.validated_data['client_id'],
+                    business=request.user.business
+                )
+            except Client.DoesNotExist:
+                return Response(
+                    {'error': 'Invalid client ID'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        # Get fiscal year if provided
+        fiscal_year = None
+        if serializer.validated_data.get('fiscal_year_id'):
+            from clients.models import FiscalYear
+            try:
+                fiscal_year = FiscalYear.objects.get(
+                    id=serializer.validated_data['fiscal_year_id'],
+                    client__business=request.user.business
+                )
+            except FiscalYear.DoesNotExist:
+                return Response(
+                    {'error': 'Invalid fiscal year ID'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        # Create a new time entry
+        entry_data = {
+            'user': request.user,
+            'business': request.user.business,
+            'start_time': timezone.now(),
+            'task': task,
+            'client': client,
+            'description': serializer.validated_data.get('description', '')
+        }
+        
+        # Add fiscal year reference if available in the model
+        from django.db.models import Field
+        time_entry_fields = [f.name for f in TimeEntry._meta.get_fields()]
+        if 'fiscal_year' in time_entry_fields and fiscal_year is not None:
+            entry_data['fiscal_year'] = fiscal_year
+            
+        time_entry = TimeEntry.objects.create(**entry_data)
+        
+        response_serializer = TimeEntrySerializer(time_entry)
+        return Response(response_serializer.data)
 
 
-class StopTimeEntryView(APIView):
+class StopTimeEntryViewSet(viewsets.ViewSet):
     """API view to stop a time entry."""
     permission_classes = [permissions.IsAuthenticated]
     
-    def post(self, request, entry_id):
+    def create(self, request, entry_id):
         """Stop a time entry."""
         time_entry = get_object_or_404(
             TimeEntry,
