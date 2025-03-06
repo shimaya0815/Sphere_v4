@@ -35,15 +35,35 @@ const useWebSocket = (url, options = {}) => {
     
     try {
       console.log(`Connecting to WebSocket: ${url}`);
+      // Create new WebSocket connection with explicit timeout handling
+      const connectionTimeout = setTimeout(() => {
+        console.error('WebSocket connection timeout');
+        if (websocketRef.current && websocketRef.current.readyState === WebSocket.CONNECTING) {
+          websocketRef.current.close();
+          setError(new Error('WebSocket connection timeout'));
+        }
+      }, 5000); // 5秒のタイムアウト
+
       // Create new WebSocket connection
       websocketRef.current = new WebSocket(url);
       
       // Connection opened
       websocketRef.current.onopen = (event) => {
+        clearTimeout(connectionTimeout);
         console.log('WebSocket Connected', event);
         setIsConnected(true);
         setError(null);
         reconnectCount.current = 0;
+        
+        // 接続成功時に Ping メッセージを送信してみる (Optional)
+        try {
+          websocketRef.current.send(JSON.stringify({
+            type: 'ping',
+            data: { timestamp: new Date().toISOString() }
+          }));
+        } catch (e) {
+          console.warn('Failed to send initial ping message', e);
+        }
         
         if (onOpen) onOpen(event);
       };
