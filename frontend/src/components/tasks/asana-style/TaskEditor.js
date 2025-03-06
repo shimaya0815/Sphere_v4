@@ -21,6 +21,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
   const [fiscalYears, setFiscalYears] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
   const [isFiscalTask, setIsFiscalTask] = useState(false);
+  const [isAssigneeExpanded, setIsAssigneeExpanded] = useState(false);
   
   // 時間記録の状態管理
   const [isRecordingTime, setIsRecordingTime] = useState(false);
@@ -930,7 +931,8 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                     
                     {/* 担当者設定セクション - ステータス/タイトルの直後に移動 */}
                     <div className="border-t border-gray-200 pt-4">
-                      <div className="flex flex-wrap items-center gap-4 mb-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2 cursor-pointer"
+                           onClick={() => setIsAssigneeExpanded(!isAssigneeExpanded)}>
                         <div className="flex items-center">
                           <h3 className="text-md font-medium text-gray-700 flex items-center">
                             <HiUserGroup className="mr-2 text-gray-500" />
@@ -938,7 +940,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                           </h3>
                           
                           {/* 注意事項をツールチップに変更 */}
-                          <div className="ml-2 group relative inline-block">
+                          <div className="ml-2 group relative inline-block" onClick={e => e.stopPropagation()}>
                             <span className="bg-amber-100 text-amber-600 rounded-full w-5 h-5 flex items-center justify-center cursor-help">
                               ?
                             </span>
@@ -948,82 +950,101 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                           </div>
                         </div>
                         
-                        {/* 現在の担当者表示 - タイトルの横に移動、1行に変更 */}
-                        {task && task.assignee && (
-                          <div className="text-md bg-blue-50 px-4 py-2 rounded-lg border border-blue-200 shadow-sm flex items-center flex-shrink-0">
-                            <HiUser className="mr-2 text-blue-500 text-lg" />
-                            <div className="flex items-center">
-                              <span className="font-medium text-blue-700 mr-2">現在の担当者:</span>
-                              <span className="text-blue-800 font-bold">{task.assignee_name || (typeof task.assignee === 'object' ? task.assignee.get_full_name || task.assignee.email : '不明')}</span>
-                            </div>
-                          </div>
-                        )}
+                        {/* 折りたたみ展開ボタン */}
+                        <button 
+                          type="button" 
+                          className="text-gray-500 hover:text-gray-700 focus:outline-none"
+                          aria-expanded={isAssigneeExpanded}
+                        >
+                          {isAssigneeExpanded ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                            </svg>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          )}
+                        </button>
                       </div>
                       
-                      {/* 作業者とレビュー担当者 */}
-                      <div className="grid grid-cols-2 gap-4">
-                        {/* 作業者 */}
-                        <div>
-                          <label htmlFor="worker" className="block text-sm font-medium text-gray-700">
-                            作業担当者
-                          </label>
-                          <div className="mt-1">
-                            <Controller
-                              name="worker"
-                              control={control}
-                              render={({ field }) => (
-                                <select
-                                  id="worker"
-                                  className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                                  {...field}
-                                  onChange={(e) => {
-                                    field.onChange(e);
-                                    handleFieldChange('worker', e.target.value);
-                                  }}
-                                >
-                                  <option value="">選択してください</option>
-                                  {users.map((user) => (
-                                    <option key={user.id} value={user.id}>
-                                      {user.get_full_name || user.email}
-                                    </option>
-                                  ))}
-                                </select>
-                              )}
-                            />
+                      {/* 現在の担当者表示 */}
+                      {task && task.assignee && (
+                        <div className="mt-2 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200 shadow-sm flex items-center">
+                          <HiUser className="mr-2 text-blue-500 text-lg" />
+                          <div className="flex items-center">
+                            <span className="font-medium text-blue-700 mr-2">現在の担当者:</span>
+                            <span className="text-blue-800 font-bold">{task.assignee_name || (typeof task.assignee === 'object' ? task.assignee.get_full_name || task.assignee.email : '不明')}</span>
                           </div>
                         </div>
-                        
-                        {/* レビュー担当者 */}
-                        <div>
-                          <label htmlFor="reviewer" className="block text-sm font-medium text-gray-700">
-                            レビュー担当者
-                          </label>
-                          <div className="mt-1">
-                            <Controller
-                              name="reviewer"
-                              control={control}
-                              render={({ field }) => (
-                                <select
-                                  id="reviewer"
-                                  className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                                  {...field}
-                                  onChange={(e) => {
-                                    field.onChange(e);
-                                    handleFieldChange('reviewer', e.target.value);
-                                  }}
-                                >
-                                  <option value="">選択してください</option>
-                                  {users.map((user) => (
-                                    <option key={user.id} value={user.id}>
-                                      {user.get_full_name || user.email}
-                                    </option>
-                                  ))}
-                                </select>
-                              )}
-                            />
+                      )}
+                      
+                      {/* 作業者とレビュー担当者 - 折りたたみ可能 */}
+                      {isAssigneeExpanded && (
+                        <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
+                          {/* 作業者 */}
+                          <div className="flex items-center gap-3">
+                            <label htmlFor="worker" className="block text-sm font-medium text-gray-700 w-24 flex-shrink-0">
+                              作業担当者
+                            </label>
+                            <div className="flex-grow">
+                              <Controller
+                                name="worker"
+                                control={control}
+                                render={({ field }) => (
+                                  <select
+                                    id="worker"
+                                    className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                    {...field}
+                                    onChange={(e) => {
+                                      field.onChange(e);
+                                      handleFieldChange('worker', e.target.value);
+                                    }}
+                                  >
+                                    <option value="">選択してください</option>
+                                    {users.map((user) => (
+                                      <option key={user.id} value={user.id}>
+                                        {user.get_full_name || user.email}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                              />
+                            </div>
+                          </div>
+                          
+                          {/* レビュー担当者 */}
+                          <div className="flex items-center gap-3">
+                            <label htmlFor="reviewer" className="block text-sm font-medium text-gray-700 w-24 flex-shrink-0">
+                              レビュー担当者
+                            </label>
+                            <div className="flex-grow">
+                              <Controller
+                                name="reviewer"
+                                control={control}
+                                render={({ field }) => (
+                                  <select
+                                    id="reviewer"
+                                    className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                    {...field}
+                                    onChange={(e) => {
+                                      field.onChange(e);
+                                      handleFieldChange('reviewer', e.target.value);
+                                    }}
+                                  >
+                                    <option value="">選択してください</option>
+                                    {users.map((user) => (
+                                      <option key={user.id} value={user.id}>
+                                        {user.get_full_name || user.email}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                              />
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                     
                     {/* 期限日と優先度を1行に配置 */}
