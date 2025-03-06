@@ -83,45 +83,76 @@ class TaskStatusNotification(BaseModel):
 
 @app.websocket("/ws/chat/{channel_id}/")
 async def websocket_endpoint(websocket: WebSocket, channel_id: int):
-    await manager.connect(websocket, channel_id)
+    # WebSocketハンドシェイク前にオリジンをログに出力
+    client = f"{websocket.client.host}:{websocket.client.port}"
+    headers = dict(websocket.headers)
+    origin = headers.get('origin', 'unknown')
+    logger.info(f"WebSocket connection attempt from {client}, Origin: {origin}")
+    
+    # 接続を受け付ける（これによりハンドシェイクを完了させる）
     try:
-        while True:
-            data = await websocket.receive_text()
-            try:
-                message_data = json.loads(data)
-                message_obj = WebSocketMessage(**message_data)
+        await manager.connect(websocket, channel_id)
+        logger.info(f"WebSocket connection successful for channel {channel_id}")
+        
+        # 接続確認メッセージを送信
+        try:
+            await websocket.send_json({
+                "type": "connection_established",
+                "data": {
+                    "message": "Connected to WebSocket server",
+                    "channel_id": channel_id,
+                    "timestamp": datetime.now().isoformat()
+                }
+            })
+        except Exception as e:
+            logger.error(f"Error sending welcome message: {str(e)}")
+        
+        # メッセージ受信ループ
+        try:
+            while True:
+                data = await websocket.receive_text()
+                logger.info(f"Received message from client: {data[:100]}...")
                 
-                # Handle different message types
-                if message_obj.type == "chat_message":
-                    # Store message in database (in real implementation)
-                    # For now, we just broadcast it
-                    await manager.broadcast({
-                        "type": "chat_message",
-                        "data": message_obj.data
-                    }, channel_id)
-                elif message_obj.type == "typing":
-                    # Broadcast typing indicator
-                    await manager.broadcast({
-                        "type": "typing",
-                        "data": message_obj.data
-                    }, channel_id)
-                elif message_obj.type == "read_status":
-                    # Broadcast read status update
-                    await manager.broadcast({
-                        "type": "read_status",
-                        "data": message_obj.data
-                    }, channel_id)
-                else:
-                    logger.warning(f"Unknown message type: {message_obj.type}")
-            except json.JSONDecodeError:
-                logger.error("Failed to parse message as JSON")
-            except Exception as e:
-                logger.error(f"Error processing message: {str(e)}")
-    except WebSocketDisconnect:
-        manager.disconnect(websocket, channel_id)
+                try:
+                    message_data = json.loads(data)
+                    message_obj = WebSocketMessage(**message_data)
+                    
+                    # Handle different message types
+                    if message_obj.type == "chat_message":
+                        # Store message in database (in real implementation)
+                        # For now, we just broadcast it
+                        await manager.broadcast({
+                            "type": "chat_message",
+                            "data": message_obj.data
+                        }, channel_id)
+                        logger.info(f"Broadcast chat message to channel {channel_id}")
+                    elif message_obj.type == "typing":
+                        # Broadcast typing indicator
+                        await manager.broadcast({
+                            "type": "typing",
+                            "data": message_obj.data
+                        }, channel_id)
+                    elif message_obj.type == "read_status":
+                        # Broadcast read status update
+                        await manager.broadcast({
+                            "type": "read_status",
+                            "data": message_obj.data
+                        }, channel_id)
+                    else:
+                        logger.warning(f"Unknown message type: {message_obj.type}")
+                except json.JSONDecodeError:
+                    logger.error("Failed to parse message as JSON")
+                except Exception as e:
+                    logger.error(f"Error processing message: {str(e)}")
+        except WebSocketDisconnect:
+            logger.info(f"WebSocket disconnected normally for channel {channel_id}")
+            manager.disconnect(websocket, channel_id)
+        except Exception as e:
+            logger.error(f"Unexpected error in WebSocket communication: {str(e)}")
+            manager.disconnect(websocket, channel_id)
     except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}")
-        manager.disconnect(websocket, channel_id)
+        logger.error(f"Failed to establish WebSocket connection: {str(e)}")
+        # 接続確立に失敗した場合はここで終了
 
 @app.websocket("/ws/notifications/{user_id}/")
 async def notifications_endpoint(websocket: WebSocket, user_id: int):

@@ -18,18 +18,28 @@ export const ChatProvider = ({ children }) => {
   const getWebSocketUrl = (channelId) => {
     if (!channelId) return null;
     
-    console.log('Getting WebSocket URL for channel:', channelId);
+    // Docker環境とラップトップ上での開発を区別
+    const isDocker = process.env.REACT_APP_RUNNING_IN_DOCKER === 'true';
+    const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    
+    console.log(`Getting WebSocket URL for channel: ${channelId}, isDocker: ${isDocker}, isLocalDev: ${isLocalDev}`);
     
     // WebSocketの直接接続（開発環境用）- プロトコルを確認
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     
-    // 開発環境では明示的にWebSocketサーバーに接続（例：localhost:8001）
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    // Docker内でのWebSocket接続
+    if (isDocker) {
+      // Docker内部のサービス名でアクセス
+      return `${protocol}//websocket:8001/ws/chat/${channelId}/`;
+    }
+    
+    // ローカル開発環境（Docker外）の場合
+    if (isLocalDev) {
+      // ホストマシンのIPアドレスで直接アクセス
       return `${protocol}//localhost:8001/ws/chat/${channelId}/`;
     }
     
-    // その他の環境ではプロキシを介して接続
-    // Docker環境ではホスト名が違う可能性があるので、パスのみを使用
+    // その他の環境（本番など）ではプロキシを介して接続
     return `${protocol}//${window.location.host}/api/ws/chat/${channelId}/`;
   };
   
@@ -199,13 +209,16 @@ export const ChatProvider = ({ children }) => {
         });
       });
       
+      // WebSocketの接続状態をコンソールに出力
+      console.log(`WebSocket状態 - Channel: ${channel.id}, 接続状態: ${isConnected ? '接続済み' : '未接続'}`);
+      
       // Send API request to mark channel as read
       try {
         await chatApi.markChannelAsRead(channel.id);
         
         // Also notify other users through WebSocket
         if (isConnected) {
-          sendWebSocketMessage({
+          const success = sendWebSocketMessage({
             type: 'read_status',
             data: {
               user_id: currentUser?.id,
@@ -213,6 +226,26 @@ export const ChatProvider = ({ children }) => {
               timestamp: new Date().toISOString()
             }
           });
+          console.log(`WebSocket送信結果: ${success ? '成功' : '失敗'}`);
+        } else {
+          console.warn('WebSocket未接続のため、read_statusメッセージを送信できません。メッセージは表示されますが、リアルタイム通知は機能しません。');
+          
+          // オフライン状態でも通知メッセージを表示するためのフォールバック
+          // ローカルのみでメッセージを追加（サーバーには送信されない）
+          setMessages(prev => [
+            ...prev,
+            {
+              id: `local-${Date.now()}`,
+              content: "⚠️ WebSocketサーバーに接続できません。メッセージはローカルにのみ保存され、サーバーには送信されません。",
+              user: {
+                id: 0,
+                full_name: "システム",
+              },
+              created_at: new Date().toISOString(),
+              is_system: true,
+              is_local: true
+            }
+          ]);
         }
       } catch (err) {
         console.error("Failed to mark channel as read:", err);
