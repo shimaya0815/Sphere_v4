@@ -936,57 +936,72 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                           />
                         </div>
                       </div>
-                    </div>
-                    
-                    {/* クライアント */}
-                    <div>
-                      <label htmlFor="client" className="block text-sm font-medium text-gray-700">
-                        クライアント
-                      </label>
-                      <div className="mt-1">
-                        <Controller
-                          name="client"
-                          control={control}
-                          render={({ field }) => (
-                            <select
-                              id="client"
-                              className={selectClassName}
-                              {...field}
-                              onChange={(e) => {
-                                field.onChange(e);
-                                handleFieldChange('client', e.target.value);
-                              }}
-                            >
-                              <option value="">選択してください</option>
-                              {clients.map((client) => (
-                                <option key={client.id} value={client.id}>
-                                  {client.name}
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                        />
                       </div>
-                      
-                      {/* 選択中のクライアント情報 */}
-                      {selectedClient && (
-                        <div className="mt-2 bg-gray-50 p-3 rounded-lg border border-gray-200">
-                          <div className="text-sm space-y-1">
-                            <div className="bg-white p-2 rounded mb-1">
-                              <span className="font-medium">クライアント名:</span> {selectedClient.name}
-                            </div>
-                            <div className="bg-white p-2 rounded mb-1">
-                              <span className="font-medium">契約状況:</span>{' '}
-                              {selectedClient.contract_status_display || selectedClient.contract_status}
-                            </div>
-                            {selectedClient.fiscal_year && (
-                              <div className="bg-white p-2 rounded">
-                                <span className="font-medium">現在の決算期:</span> 第{selectedClient.fiscal_year}期
-                              </div>
-                            )}
+
+                      {/* クライアントと決算期 - タイトルの直後に配置 */}
+                      <div className="grid grid-cols-2 gap-6 mt-4">
+                        {/* クライアント */}
+                        <div>
+                          <label htmlFor="client" className="block text-sm font-medium text-gray-700">
+                            クライアント
+                          </label>
+                          <div className="mt-1">
+                            <Controller
+                              name="client"
+                              control={control}
+                              render={({ field }) => (
+                                <select
+                                  id="client"
+                                  className={selectClassName}
+                                  {...field}
+                                  onChange={(e) => {
+                                    field.onChange(e);
+                                    handleFieldChange('client', e.target.value);
+                                  }}
+                                >
+                                  <option value="">選択してください</option>
+                                  {clients.map((client) => (
+                                    <option key={client.id} value={client.id}>
+                                      {client.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+                            />
                           </div>
                         </div>
-                      )}
+                        
+                        {/* 決算期 */}
+                        <div>
+                          <label htmlFor="fiscal_year" className="block text-sm font-medium text-gray-700">
+                            決算期
+                          </label>
+                          <div className="mt-1">
+                            <Controller
+                              name="fiscal_year"
+                              control={control}
+                              render={({ field }) => (
+                                <select
+                                  id="fiscal_year"
+                                  className={selectClassName}
+                                  disabled={!watchedClient}
+                                  {...field}
+                                  onChange={(e) => {
+                                    field.onChange(e);
+                                    handleFieldChange('fiscal_year', e.target.value);
+                                  }}
+                                >
+                                  <option value="">選択してください</option>
+                                  {fiscalYears.map((fiscalYear) => (
+                                    <option key={fiscalYear.id} value={fiscalYear.id}>
+                                      第{fiscalYear.fiscal_period}期
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+                            />
+                          </div>
+                        </div>
                     </div>
                     
                     {/* 担当者設定セクション - ステータス/タイトルの直後に移動 */}
@@ -1510,72 +1525,6 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                     </div>
                     
                     {/* 見積時間 - 削除 */}
-                    
-                    {/* クライアントと決算期 */}
-                    <div className="grid grid-cols-2 gap-6">
-                      {/* クライアント */}
-                      <div>
-                        <label htmlFor="client" className="block text-sm font-medium text-gray-700">
-                          クライアント
-                        </label>
-                        <div className="mt-1">
-                          <Controller
-                            name="client"
-                            control={control}
-                            render={({ field }) => (
-                              <select
-                                id="client"
-                                className={selectClassName}
-                                {...field}
-                                onChange={(e) => {
-                                  field.onChange(e);
-                                  handleFieldChange('client', e.target.value);
-                                }}
-                              >
-                                <option value="">選択してください</option>
-                                {clients.map((client) => (
-                                  <option key={client.id} value={client.id}>
-                                    {client.name}
-                                  </option>
-                                ))}
-                              </select>
-                            )}
-                          />
-                        </div>
-                      </div>
-                      
-                      {/* 決算期 */}
-                      <div>
-                        <label htmlFor="fiscal_year" className="block text-sm font-medium text-gray-700">
-                          決算期
-                        </label>
-                        <div className="mt-1">
-                          <Controller
-                            name="fiscal_year"
-                            control={control}
-                            render={({ field }) => (
-                              <select
-                                id="fiscal_year"
-                                className={selectClassName}
-                                disabled={!watchedClient}
-                                {...field}
-                                onChange={(e) => {
-                                  field.onChange(e);
-                                  handleFieldChange('fiscal_year', e.target.value);
-                                }}
-                              >
-                                <option value="">選択してください</option>
-                                {fiscalYears.map((fiscalYear) => (
-                                  <option key={fiscalYear.id} value={fiscalYear.id}>
-                                    第{fiscalYear.fiscal_period}期
-                                  </option>
-                                ))}
-                              </select>
-                            )}
-                          />
-                        </div>
-                      </div>
-                    </div>
                     
                     {/* タスク種別（決算期関連） */}
                     <div>
