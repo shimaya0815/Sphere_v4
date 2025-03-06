@@ -593,6 +593,93 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                       </div>
                     </div>
                     
+                    {/* 担当者設定セクション - ステータス/タイトルの直後に移動 */}
+                    <div className="border-t border-gray-200 pt-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-md font-medium text-gray-700 flex items-center">
+                          <HiUserGroup className="mr-2 text-gray-500" />
+                          担当者設定
+                        </h3>
+                        
+                        {/* 現在の担当者表示 */}
+                        {task && task.assignee && (
+                          <div className="text-sm text-gray-500 bg-gray-50 px-3 py-1 rounded-full border border-gray-200">
+                            <span className="font-medium">現在の担当者:</span> {task.assignee_name || (typeof task.assignee === 'object' ? task.assignee.get_full_name || task.assignee.email : '不明')}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* 作業者とレビュー担当者 */}
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* 作業者 */}
+                        <div>
+                          <label htmlFor="worker" className="block text-sm font-medium text-gray-700">
+                            作業担当者
+                          </label>
+                          <div className="mt-1">
+                            <Controller
+                              name="worker"
+                              control={control}
+                              render={({ field }) => (
+                                <select
+                                  id="worker"
+                                  className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                  {...field}
+                                  onChange={(e) => {
+                                    field.onChange(e);
+                                    handleFieldChange('worker', e.target.value);
+                                  }}
+                                >
+                                  <option value="">選択してください</option>
+                                  {users.map((user) => (
+                                    <option key={user.id} value={user.id}>
+                                      {user.get_full_name || user.email}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+                            />
+                          </div>
+                        </div>
+                        
+                        {/* レビュー担当者 */}
+                        <div>
+                          <label htmlFor="reviewer" className="block text-sm font-medium text-gray-700">
+                            レビュー担当者
+                          </label>
+                          <div className="mt-1">
+                            <Controller
+                              name="reviewer"
+                              control={control}
+                              render={({ field }) => (
+                                <select
+                                  id="reviewer"
+                                  className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                  {...field}
+                                  onChange={(e) => {
+                                    field.onChange(e);
+                                    handleFieldChange('reviewer', e.target.value);
+                                  }}
+                                >
+                                  <option value="">選択してください</option>
+                                  {users.map((user) => (
+                                    <option key={user.id} value={user.id}>
+                                      {user.get_full_name || user.email}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <p className="mt-2 text-sm text-gray-500">
+                        <span className="text-amber-600 font-medium">注意:</span> タスクのステータスによって担当者は自動的に切り替わります。
+                        作業者ステータスでは作業担当者が、レビューステータスではレビュー担当者が担当になります。
+                      </p>
+                    </div>
+                    
                     {/* 説明 */}
                     <div>
                       <label htmlFor="description" className="block text-sm font-medium text-gray-700">
@@ -787,83 +874,6 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                       )}
                     </div>
                     
-                    {/* 担当者設定セクション */}
-                    <div className="border-t border-gray-200 pt-4 mt-4">
-                      <h3 className="text-md font-medium text-gray-700 mb-3 flex items-center">
-                        <HiUserGroup className="mr-2 text-gray-500" />
-                        担当者設定
-                      </h3>
-                      
-                      {/* 作業者とレビュー担当者 */}
-                      <div className="grid grid-cols-2 gap-4">
-                        {/* 作業者 */}
-                        <div>
-                          <label htmlFor="worker" className="block text-sm font-medium text-gray-700">
-                            作業担当者
-                          </label>
-                          <div className="mt-1">
-                            <Controller
-                              name="worker"
-                              control={control}
-                              render={({ field }) => (
-                                <select
-                                  id="worker"
-                                  className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                                  {...field}
-                                  onChange={(e) => {
-                                    field.onChange(e);
-                                    handleFieldChange('worker', e.target.value);
-                                  }}
-                                >
-                                  <option value="">選択してください</option>
-                                  {users.map((user) => (
-                                    <option key={user.id} value={user.id}>
-                                      {user.get_full_name || user.email}
-                                    </option>
-                                  ))}
-                                </select>
-                              )}
-                            />
-                          </div>
-                        </div>
-                        
-                        {/* レビュー担当者 */}
-                        <div>
-                          <label htmlFor="reviewer" className="block text-sm font-medium text-gray-700">
-                            レビュー担当者
-                          </label>
-                          <div className="mt-1">
-                            <Controller
-                              name="reviewer"
-                              control={control}
-                              render={({ field }) => (
-                                <select
-                                  id="reviewer"
-                                  className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                                  {...field}
-                                  onChange={(e) => {
-                                    field.onChange(e);
-                                    handleFieldChange('reviewer', e.target.value);
-                                  }}
-                                >
-                                  <option value="">選択してください</option>
-                                  {users.map((user) => (
-                                    <option key={user.id} value={user.id}>
-                                      {user.get_full_name || user.email}
-                                    </option>
-                                  ))}
-                                </select>
-                              )}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <p className="mt-2 text-sm text-gray-500">
-                        <span className="text-amber-600 font-medium">注意:</span> タスクのステータスによって担当者は自動的に切り替わります。
-                        作業者ステータスでは作業担当者が、レビューステータスではレビュー担当者が担当になります。
-                      </p>
-                    </div>
                     
                     {/* タスク種別（決算期関連） */}
                     <div>
