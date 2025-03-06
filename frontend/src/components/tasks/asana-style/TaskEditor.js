@@ -1220,164 +1220,165 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                               
                               {/* 作業時間履歴（折りたたみ式） */}
                               <div className="border-t border-gray-200 pt-4 mt-3">
-                              {/* 折りたたみヘッダー */}
-                              <div 
-                                className="flex items-center justify-between cursor-pointer" 
-                                onClick={() => {
-                                  if (timeEntries.length > 0) {
-                                    // 表示中の場合は折りたたむ
-                                    setTimeEntries([]);
-                                  } else {
-                                    // 非表示の場合はキャッシュまたはAPIから取得して表示
-                                    fetchTimeEntries().then(entries => {
-                                      setTimeEntries(entries);
-                                    });
-                                  }
-                                }}
-                              >
-                                <h4 className="text-sm font-medium text-gray-700">
-                                  作業時間履歴 {cachedTimeEntries.length > 0 && `(${cachedTimeEntries.length}件)`}
-                                </h4>
-                                <button 
-                                  type="button" 
-                                  className="text-gray-500 hover:text-gray-700 focus:outline-none"
-                                  aria-expanded={timeEntries.length > 0}
+                                {/* 折りたたみヘッダー */}
+                                <div 
+                                  className="flex items-center justify-between cursor-pointer" 
+                                  onClick={() => {
+                                    if (timeEntries.length > 0) {
+                                      // 表示中の場合は折りたたむ
+                                      setTimeEntries([]);
+                                    } else {
+                                      // 非表示の場合はキャッシュまたはAPIから取得して表示
+                                      fetchTimeEntries().then(entries => {
+                                        setTimeEntries(entries);
+                                      });
+                                    }
+                                  }}
                                 >
-                                  {timeEntries.length > 0 ? (
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                                    </svg>
-                                  ) : (
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                    </svg>
-                                  )}
-                                </button>
-                              </div>
-                              
-                              {/* 折りたたみコンテンツ */}
-                              {isLoadingTimeEntries ? (
-                                <div className="text-center py-3">
-                                  <div className="spinner-border w-6 h-6 border-2 rounded-full animate-spin border-b-transparent inline-block mr-2"></div>
-                                  <span className="text-sm text-gray-600">読み込み中...</span>
+                                  <h4 className="text-sm font-medium text-gray-700">
+                                    作業時間履歴 {cachedTimeEntries.length > 0 && `(${cachedTimeEntries.length}件)`}
+                                  </h4>
+                                  <button 
+                                    type="button" 
+                                    className="text-gray-500 hover:text-gray-700 focus:outline-none"
+                                    aria-expanded={timeEntries.length > 0}
+                                  >
+                                    {timeEntries.length > 0 ? (
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                      </svg>
+                                    ) : (
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                      </svg>
+                                    )}
+                                  </button>
                                 </div>
-                              ) : timeEntries.length > 0 && (
-                                <div className="overflow-x-auto mt-2 transition-all duration-300 ease-in-out">
-                                  <table className="min-w-full divide-y divide-gray-200 text-sm">
-                                    <thead className="bg-gray-100">
-                                      <tr>
-                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日付</th>
-                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">時間</th>
-                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">作業時間</th>
-                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">説明</th>
-                                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">アクション</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody className="bg-white divide-y divide-gray-200">
-                                      {timeEntries.map(entry => (
-                                        <tr key={entry.id} className="hover:bg-gray-50">
-                                          {editingTimeEntry === entry.id ? (
-                                            // 編集モード
-                                            <>
-                                              <td className="px-3 py-2 whitespace-nowrap">
-                                                <input
-                                                  type="datetime-local"
-                                                  value={timeEntryForm.start_time}
-                                                  onChange={(e) => setTimeEntryForm({...timeEntryForm, start_time: e.target.value})}
-                                                  className="w-full text-sm border border-gray-300 rounded-sm px-2 py-1"
-                                                />
-                                              </td>
-                                              <td className="px-3 py-2 whitespace-nowrap">
-                                                <input
-                                                  type="datetime-local"
-                                                  value={timeEntryForm.end_time}
-                                                  onChange={(e) => setTimeEntryForm({...timeEntryForm, end_time: e.target.value})}
-                                                  className="w-full text-sm border border-gray-300 rounded-sm px-2 py-1"
-                                                />
-                                              </td>
-                                              <td className="px-3 py-2 whitespace-nowrap">
-                                                {/* 時間は自動計算 */}
-                                                {(() => {
-                                                  const start = new Date(timeEntryForm.start_time);
-                                                  const end = new Date(timeEntryForm.end_time);
-                                                  const diffSeconds = Math.floor((end - start) / 1000);
-                                                  if (isNaN(diffSeconds) || diffSeconds <= 0) return '-';
-                                                  
-                                                  const hours = Math.floor(diffSeconds / 3600);
-                                                  const minutes = Math.floor((diffSeconds % 3600) / 60);
-                                                  return `${hours}h ${minutes}m`;
-                                                })()}
-                                              </td>
-                                              <td className="px-3 py-2">
-                                                <input
-                                                  type="text"
-                                                  value={timeEntryForm.description}
-                                                  onChange={(e) => setTimeEntryForm({...timeEntryForm, description: e.target.value})}
-                                                  className="w-full text-sm border border-gray-300 rounded-sm px-2 py-1"
-                                                  placeholder="説明"
-                                                />
-                                              </td>
-                                              <td className="px-3 py-2 whitespace-nowrap text-right">
-                                                <button
-                                                  type="button"
-                                                  onClick={saveTimeEntryEdit}
-                                                  className="text-blue-600 hover:text-blue-800 mr-2 text-xs"
-                                                >
-                                                  保存
-                                                </button>
-                                                <button
-                                                  type="button"
-                                                  onClick={cancelEditingTimeEntry}
-                                                  className="text-gray-600 hover:text-gray-800 text-xs"
-                                                >
-                                                  キャンセル
-                                                </button>
-                                              </td>
-                                            </>
-                                          ) : (
-                                            // 表示モード
-                                            <>
-                                              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
-                                                {new Date(entry.start_time).toLocaleDateString()}
-                                              </td>
-                                              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
-                                                {new Date(entry.start_time).toLocaleTimeString()} - {new Date(entry.end_time).toLocaleTimeString()}
-                                              </td>
-                                              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
-                                                {(() => {
-                                                  const seconds = entry.duration_seconds || 0;
-                                                  const hours = Math.floor(seconds / 3600);
-                                                  const minutes = Math.floor((seconds % 3600) / 60);
-                                                  return `${hours}h ${minutes}m`;
-                                                })()}
-                                              </td>
-                                              <td className="px-3 py-2 text-sm text-gray-900 truncate max-w-[200px]">
-                                                {entry.description || '-'}
-                                              </td>
-                                              <td className="px-3 py-2 whitespace-nowrap text-right text-sm">
-                                                <button
-                                                  type="button"
-                                                  onClick={() => startEditingTimeEntry(entry)}
-                                                  className="text-blue-600 hover:text-blue-800 mr-2 text-xs"
-                                                >
-                                                  編集
-                                                </button>
-                                                <button
-                                                  type="button"
-                                                  onClick={() => deleteTimeEntry(entry.id)}
-                                                  className="text-red-600 hover:text-red-800 text-xs"
-                                                >
-                                                  削除
-                                                </button>
-                                              </td>
-                                            </>
-                                          )}
+                                
+                                {/* 折りたたみコンテンツ */}
+                                {isLoadingTimeEntries ? (
+                                  <div className="text-center py-3">
+                                    <div className="spinner-border w-6 h-6 border-2 rounded-full animate-spin border-b-transparent inline-block mr-2"></div>
+                                    <span className="text-sm text-gray-600">読み込み中...</span>
+                                  </div>
+                                ) : timeEntries.length > 0 && (
+                                  <div className="overflow-x-auto mt-2 transition-all duration-300 ease-in-out">
+                                    <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                      <thead className="bg-gray-100">
+                                        <tr>
+                                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日付</th>
+                                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">時間</th>
+                                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">作業時間</th>
+                                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">説明</th>
+                                          <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">アクション</th>
                                         </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              )}
+                                      </thead>
+                                      <tbody className="bg-white divide-y divide-gray-200">
+                                        {timeEntries.map(entry => (
+                                          <tr key={entry.id} className="hover:bg-gray-50">
+                                            {editingTimeEntry === entry.id ? (
+                                              // 編集モード
+                                              <>
+                                                <td className="px-3 py-2 whitespace-nowrap">
+                                                  <input
+                                                    type="datetime-local"
+                                                    value={timeEntryForm.start_time}
+                                                    onChange={(e) => setTimeEntryForm({...timeEntryForm, start_time: e.target.value})}
+                                                    className="w-full text-sm border border-gray-300 rounded-sm px-2 py-1"
+                                                  />
+                                                </td>
+                                                <td className="px-3 py-2 whitespace-nowrap">
+                                                  <input
+                                                    type="datetime-local"
+                                                    value={timeEntryForm.end_time}
+                                                    onChange={(e) => setTimeEntryForm({...timeEntryForm, end_time: e.target.value})}
+                                                    className="w-full text-sm border border-gray-300 rounded-sm px-2 py-1"
+                                                  />
+                                                </td>
+                                                <td className="px-3 py-2 whitespace-nowrap">
+                                                  {/* 時間は自動計算 */}
+                                                  {(() => {
+                                                    const start = new Date(timeEntryForm.start_time);
+                                                    const end = new Date(timeEntryForm.end_time);
+                                                    const diffSeconds = Math.floor((end - start) / 1000);
+                                                    if (isNaN(diffSeconds) || diffSeconds <= 0) return '-';
+                                                    
+                                                    const hours = Math.floor(diffSeconds / 3600);
+                                                    const minutes = Math.floor((diffSeconds % 3600) / 60);
+                                                    return `${hours}h ${minutes}m`;
+                                                  })()}
+                                                </td>
+                                                <td className="px-3 py-2">
+                                                  <input
+                                                    type="text"
+                                                    value={timeEntryForm.description}
+                                                    onChange={(e) => setTimeEntryForm({...timeEntryForm, description: e.target.value})}
+                                                    className="w-full text-sm border border-gray-300 rounded-sm px-2 py-1"
+                                                    placeholder="説明"
+                                                  />
+                                                </td>
+                                                <td className="px-3 py-2 whitespace-nowrap text-right">
+                                                  <button
+                                                    type="button"
+                                                    onClick={saveTimeEntryEdit}
+                                                    className="text-blue-600 hover:text-blue-800 mr-2 text-xs"
+                                                  >
+                                                    保存
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    onClick={cancelEditingTimeEntry}
+                                                    className="text-gray-600 hover:text-gray-800 text-xs"
+                                                  >
+                                                    キャンセル
+                                                  </button>
+                                                </td>
+                                              </>
+                                            ) : (
+                                              // 表示モード
+                                              <>
+                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                                                  {new Date(entry.start_time).toLocaleDateString()}
+                                                </td>
+                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                                                  {new Date(entry.start_time).toLocaleTimeString()} - {new Date(entry.end_time).toLocaleTimeString()}
+                                                </td>
+                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                                                  {(() => {
+                                                    const seconds = entry.duration_seconds || 0;
+                                                    const hours = Math.floor(seconds / 3600);
+                                                    const minutes = Math.floor((seconds % 3600) / 60);
+                                                    return `${hours}h ${minutes}m`;
+                                                  })()}
+                                                </td>
+                                                <td className="px-3 py-2 text-sm text-gray-900 truncate max-w-[200px]">
+                                                  {entry.description || '-'}
+                                                </td>
+                                                <td className="px-3 py-2 whitespace-nowrap text-right text-sm">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => startEditingTimeEntry(entry)}
+                                                    className="text-blue-600 hover:text-blue-800 mr-2 text-xs"
+                                                  >
+                                                    編集
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => deleteTimeEntry(entry.id)}
+                                                    className="text-red-600 hover:text-red-800 text-xs"
+                                                  >
+                                                    削除
+                                                  </button>
+                                                </td>
+                                              </>
+                                            )}
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
                         ) : (
