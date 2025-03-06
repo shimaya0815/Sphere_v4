@@ -174,7 +174,7 @@ class TaskSerializer(serializers.ModelSerializer):
         if obj.priority:
             return {
                 'id': obj.priority.id,
-                'name': obj.priority.name,
+                'name': str(obj.priority.priority_value),  # name フィールドは priority_value の文字列として扱う
                 'color': obj.priority.color,
                 'priority_value': obj.priority.priority_value
             }

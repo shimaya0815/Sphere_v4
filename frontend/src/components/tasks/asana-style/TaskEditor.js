@@ -625,7 +625,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                                 <option value="">選択してください</option>
                                 {priorities.map((priority) => (
                                   <option key={priority.id} value={priority.id}>
-                                    {priority.name} {priority.priority_value ? `(${priority.priority_value})` : ''}
+                                    {priority.priority_value || '未設定'}
                                   </option>
                                 ))}
                               </select>
