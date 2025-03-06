@@ -21,25 +21,47 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
   const commentInputRef = useRef(null);
   const mentionSuggestionsRef = useRef(null);
   
-  // WebSocketの接続と設定 - 一時的に無効化
-  /*
-  const { sendMessage } = useWebSocket(
-    taskChannel ? `ws://localhost:8001/ws/chat/${taskChannel.id}/` : null,
+  // WebSocketの接続と設定 - タスク専用WebSocketエンドポイントを使用
+  const { sendMessage, isConnected } = useWebSocket(
+    taskId ? `ws://localhost:8001/ws/tasks/${taskId}/` : null,
     {
-      onOpen: () => console.log(`Connected to task channel: ${taskChannel?.id}`),
+      onOpen: () => {
+        console.log(`Connected to task WebSocket for task ID: ${taskId}`);
+        toast.success('リアルタイム通知に接続しました', { id: 'ws-connected', duration: 2000 });
+      },
       onMessage: (event) => {
-        const data = JSON.parse(event.data);
-        if (data.type === 'chat_message' && data.data.task_id === taskId) {
-          // リアルタイムコメント更新
-          fetchComments();
+        try {
+          // 文字列の場合はパース
+          const data = typeof event === 'string' ? JSON.parse(event) : 
+                      event.data ? (typeof event.data === 'string' ? JSON.parse(event.data) : event.data) : 
+                      event;
+                      
+          console.log("Received WebSocket message:", data);
+          
+          // コメント追加イベントの場合はコメント一覧を再取得
+          if (data.type === 'comment_added' || data.type === 'connection_established') {
+            console.log(`Received ${data.type} event`);
+            if (data.type === 'comment_added') {
+              fetchComments();
+            }
+          }
+        } catch (error) {
+          console.error("Error handling WebSocket message:", error);
         }
       },
-      onClose: () => console.log('Disconnected from task channel')
+      onClose: () => {
+        console.log('Disconnected from task WebSocket');
+        // 自動的に再接続を試みるのでトーストは表示しない
+      },
+      onError: (error) => {
+        console.error('Task WebSocket error:', error);
+        toast.error('通知サーバーへの接続に問題が発生しました', { id: 'ws-error', duration: 3000 });
+      },
+      // 自動再接続設定
+      reconnectInterval: 2000,
+      reconnectAttempts: 10
     }
   );
-  */
-  // ダミーの関数を定義（エラー回避のため）
-  const sendMessage = () => console.log('WebSocket disabled');
 
   // タスク用のチャットチャンネルを探すか作成する - 一時的に無効化
   /*
@@ -247,28 +269,23 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
       // コメント一覧を再取得
       fetchComments();
       
-      // タスクチャンネルにもメッセージを送信 - 一時的に無効化
-      /*
-      if (taskChannel) {
-        // WebSocketでメッセージ送信
+      // タスク固有のWebSocketにコメント通知を送信
+      if (isConnected) {
         sendMessage(JSON.stringify({
-          type: 'chat_message',
+          type: 'comment',
           data: {
             task_id: taskId,
-            message: newComment,
-            user_id: addedComment.user,
+            task_title: task.title,
+            comment_id: addedComment.id,
             user_name: addedComment.user_name,
-            timestamp: new Date().toISOString()
+            content: newComment,
+            created_at: new Date().toISOString()
           }
         }));
-        
-        // チャットAPIでもメッセージを保存
-        await chatApi.sendMessage({
-          channel: taskChannel.id,
-          content: `[タスクコメント] ${newComment}`
-        });
+        console.log('Task comment WebSocket notification sent');
+      } else {
+        console.warn('WebSocket not connected, cannot send notification');
       }
-      */
       
       // コールバック
       onCommentAdded && onCommentAdded();
