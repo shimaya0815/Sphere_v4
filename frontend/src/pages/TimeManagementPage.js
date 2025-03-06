@@ -402,33 +402,6 @@ const TimeManagementPage = () => {
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-6">作業時間管理</h1>
       
-      {/* Time Entries Table - Moved to top */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden mb-6">
-        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
-            <h2 className="text-lg font-semibold mb-2 md:mb-0">作業時間一覧</h2>
-            <div className="flex space-x-2">
-              <button 
-                className="btn btn-sm btn-outline"
-                onClick={exportToCsv}
-                disabled={loading}
-              >
-                CSV出力
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        <TimeEntriesTable 
-          entries={filteredEntries} 
-          onDelete={handleDeleteTimeEntry}
-          onEdit={handleEditTimeEntry}
-          loading={loading}
-          availableTasks={availableTasks}
-          availableClients={availableClients}
-        />
-      </div>
-      
       {/* Summary Cards */}
       <TimeSummaryCards summaryData={summaryData} />
       
@@ -445,22 +418,52 @@ const TimeManagementPage = () => {
         loading={loading}
       />
       
-      {/* Filters */}
-      <TimeFilters
-        selectedRange={selectedRange}
-        userFilter={userFilter}
-        clientFilter={clientFilter}
-        taskFilter={taskFilter}
-        customDateRange={customDateRange}
-        onRangeChange={setSelectedRange}
-        onUserFilterChange={setUserFilter}
-        onClientFilterChange={setClientFilter}
-        onTaskFilterChange={setTaskFilter}
-        onCustomDateChange={setCustomDateRange}
-        users={users}
-        availableClients={availableClients}
-        availableTasks={availableTasks}
-      />
+      {/* Time Entries Table with Filters above */}
+      <div className="bg-white rounded-lg shadow-md overflow-hidden mb-6">
+        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
+            <h2 className="text-lg font-semibold mb-2 md:mb-0">作業時間一覧</h2>
+            <div className="flex space-x-2">
+              <button 
+                className="btn btn-sm btn-outline"
+                onClick={exportToCsv}
+                disabled={loading}
+              >
+                CSV出力
+              </button>
+            </div>
+          </div>
+          
+          {/* Filters - Moved here */}
+          <div className="bg-white p-3 rounded-md border border-gray-200">
+            <TimeFilters
+              selectedRange={selectedRange}
+              userFilter={userFilter}
+              clientFilter={clientFilter}
+              taskFilter={taskFilter}
+              customDateRange={customDateRange}
+              onRangeChange={setSelectedRange}
+              onUserFilterChange={setUserFilter}
+              onClientFilterChange={setClientFilter}
+              onTaskFilterChange={setTaskFilter}
+              onCustomDateChange={setCustomDateRange}
+              users={users}
+              availableClients={availableClients}
+              availableTasks={availableTasks}
+              compact={true} // コンパクト表示用のプロパティを追加
+            />
+          </div>
+        </div>
+        
+        <TimeEntriesTable 
+          entries={filteredEntries} 
+          onDelete={handleDeleteTimeEntry}
+          onEdit={handleEditTimeEntry}
+          loading={loading}
+          availableTasks={availableTasks}
+          availableClients={availableClients}
+        />
+      </div>
       
       {/* Charts */}
       <TimeCharts
