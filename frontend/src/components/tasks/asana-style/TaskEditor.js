@@ -691,6 +691,63 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                       </div>
                     </div>
                     
+                    {/* 期限日と優先度を1行に配置 */}
+                    <div className="border-t border-gray-200 pt-4">
+                      <div className="grid grid-cols-2 gap-6">
+                        <div>
+                          <label htmlFor="due_date" className="block text-sm font-medium text-gray-700">
+                            期限日
+                          </label>
+                          <div className="mt-1">
+                            <Controller
+                              name="due_date"
+                              control={control}
+                              render={({ field }) => (
+                                <input
+                                  type="date"
+                                  id="due_date"
+                                  className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                  {...field}
+                                  onChange={(e) => {
+                                    field.onChange(e);
+                                    handleFieldChange('due_date', e.target.value);
+                                  }}
+                                />
+                              )}
+                            />
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <label htmlFor="priority_value" className="block text-sm font-medium text-gray-700">
+                            優先度 (1-100, 低いほど優先度高)
+                          </label>
+                          <div className="mt-1">
+                            <Controller
+                              name="priority_value"
+                              control={control}
+                              render={({ field }) => (
+                                <input
+                                  type="number"
+                                  id="priority_value"
+                                  min="1"
+                                  max="100"
+                                  placeholder="1-100の数値を入力"
+                                  className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                  {...field}
+                                  onChange={(e) => {
+                                    field.onChange(e);
+                                    handleFieldChange('priority_value', e.target.value);
+                                  }}
+                                />
+                              )}
+                            />
+                            <p className="mt-1 text-xs text-gray-500">小さいほど優先度が高くなります</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
                     {/* 説明 */}
                     <div>
                       <label htmlFor="description" className="block text-sm font-medium text-gray-700">
@@ -714,38 +771,6 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                             />
                           )}
                         />
-                      </div>
-                    </div>
-                    
-                    {/* 優先度と他の項目 */}
-                    <div className="grid grid-cols-2 gap-6">
-                      
-                      <div>
-                        <label htmlFor="priority_value" className="block text-sm font-medium text-gray-700">
-                          優先度 (1-100, 低いほど優先度高)
-                        </label>
-                        <div className="mt-1">
-                          <Controller
-                            name="priority_value"
-                            control={control}
-                            render={({ field }) => (
-                              <input
-                                type="number"
-                                id="priority_value"
-                                min="1"
-                                max="100"
-                                placeholder="1-100の数値を入力"
-                                className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                                {...field}
-                                onChange={(e) => {
-                                  field.onChange(e);
-                                  handleFieldChange('priority_value', e.target.value);
-                                }}
-                              />
-                            )}
-                          />
-                          <p className="mt-1 text-xs text-gray-500">小さいほど優先度が高くなります</p>
-                        </div>
                       </div>
                     </div>
                     
