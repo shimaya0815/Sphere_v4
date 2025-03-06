@@ -601,10 +601,14 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                           担当者設定
                         </h3>
                         
-                        {/* 現在の担当者表示 */}
+                        {/* 現在の担当者表示 - より大きく表示 */}
                         {task && task.assignee && (
-                          <div className="text-sm text-gray-500 bg-gray-50 px-3 py-1 rounded-full border border-gray-200">
-                            <span className="font-medium">現在の担当者:</span> {task.assignee_name || (typeof task.assignee === 'object' ? task.assignee.get_full_name || task.assignee.email : '不明')}
+                          <div className="text-md bg-blue-50 px-4 py-2 rounded-lg border border-blue-200 shadow-sm flex items-center">
+                            <HiUser className="mr-2 text-blue-500 text-lg" />
+                            <div>
+                              <span className="font-medium text-blue-700">現在の担当者</span><br/>
+                              <span className="text-blue-800 font-bold">{task.assignee_name || (typeof task.assignee === 'object' ? task.assignee.get_full_name || task.assignee.email : '不明')}</span>
+                            </div>
                           </div>
                         )}
                       </div>
