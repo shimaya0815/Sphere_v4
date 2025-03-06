@@ -1102,46 +1102,91 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                       <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                         {!isNewTask && task ? (
                           <div className="flex flex-col">
-                            <div className="flex items-center space-x-3 mb-4">
-                              <div className="text-sm text-gray-700 flex items-center whitespace-nowrap">
+                            <div className="flex flex-wrap items-center gap-3 mb-4">
+                              <div className="flex items-center space-x-3">
+                                <div className="text-sm text-gray-700 flex items-center whitespace-nowrap">
+                                  {isRecordingTime ? (
+                                    <>
+                                      <span className="h-3 w-3 rounded-full bg-red-500 mr-2 animate-pulse"></span>
+                                      <span className="font-medium">タイマー記録中</span>
+                                    </>
+                                  ) : (
+                                    <span className="font-medium">作業時間を記録</span>
+                                  )}
+                                </div>
+                                
+                                <div className="font-mono text-md font-semibold bg-white px-2 py-1 rounded-md border border-gray-300 shadow-sm flex-shrink-0">
+                                  {elapsedTime}
+                                </div>
+                              </div>
+                              
+                              {/* 見積時間を開始ボタンの横に移動 */}
+                              <div className="flex items-center space-x-2">
+                                <span className="text-sm text-gray-500">見積:</span>
+                                <Controller
+                                  name="estimated_hours"
+                                  control={control}
+                                  render={({ field }) => (
+                                    <input
+                                      type="number"
+                                      id="estimated_hours"
+                                      step="0.5"
+                                      min="0"
+                                      className="shadow-sm focus:ring-primary-500 focus:border-primary-500 w-16 sm:text-sm border-gray-300 rounded-md"
+                                      placeholder="時間"
+                                      {...field}
+                                      onChange={(e) => {
+                                        field.onChange(e);
+                                        handleFieldChange('estimated_hours', e.target.value);
+                                      }}
+                                    />
+                                  )}
+                                />
+                                <span className="text-sm text-gray-500">時間</span>
+                              </div>
+                              
+                              <div className="flex items-center space-x-2">
                                 {isRecordingTime ? (
-                                  <>
-                                    <span className="h-3 w-3 rounded-full bg-red-500 mr-2 animate-pulse"></span>
-                                    <span className="font-medium">タイマー記録中</span>
-                                  </>
+                                  <button
+                                    type="button"
+                                    onClick={stopTimeRecording}
+                                    className="flex-shrink-0 px-3 py-1 bg-red-600 text-white text-sm rounded-md flex items-center justify-center hover:bg-red-700 transition-colors"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                                    </svg>
+                                    保存
+                                  </button>
                                 ) : (
-                                  <span className="font-medium">作業時間を記録</span>
+                                  <button
+                                    type="button"
+                                    onClick={startTimeRecording}
+                                    className="flex-shrink-0 px-3 py-1 bg-blue-600 text-white text-sm rounded-md flex items-center justify-center hover:bg-blue-700 transition-colors"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    開始
+                                  </button>
                                 )}
-                              </div>
-                              
-                              <div className="font-mono text-md font-semibold bg-white px-2 py-1 rounded-md border border-gray-300 shadow-sm flex-shrink-0">
-                                {elapsedTime}
-                              </div>
-                              
-                              {isRecordingTime ? (
-                                <button
-                                  type="button"
-                                  onClick={stopTimeRecording}
-                                  className="flex-shrink-0 px-3 py-1 bg-red-600 text-white text-sm rounded-md flex items-center justify-center hover:bg-red-700 transition-colors"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                                
+                                {/* 記録情報ツールチップを横に移動 */}
+                                <div className="relative group">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                   </svg>
-                                  保存
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={startTimeRecording}
-                                  className="flex-shrink-0 px-3 py-1 bg-blue-600 text-white text-sm rounded-md flex items-center justify-center hover:bg-blue-700 transition-colors"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
-                                  開始
-                                </button>
-                              )}
+                                  <div className="absolute right-0 bottom-full mb-2 w-64 p-2 bg-gray-800 text-white text-xs rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                                    <ul className="list-disc pl-4 space-y-1">
+                                      <li>開始時間・終了時間</li>
+                                      <li>タスク名・ステータス</li>
+                                      <li>クライアント情報</li>
+                                      <li>決算期情報（該当する場合）</li>
+                                    </ul>
+                                    <div className="absolute top-full right-0 transform -translate-x-2 -translate-y-1/2 w-2 h-2 bg-gray-800 rotate-45"></div>
+                                  </div>
+                                </div>
+                              </div>
                               
                               {timeEntry && timeEntry.start_time && isRecordingTime && (
                                 <span className="text-xs text-gray-500 ml-auto">
@@ -1150,23 +1195,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                               )}
                             </div>
                             
-                            <div className="relative group border-t border-gray-200 pt-2 mb-4">
-                              <div className="flex items-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                <span className="text-xs text-gray-500 cursor-help">記録される情報</span>
-                              </div>
-                              <div className="absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-800 text-white text-xs rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                                <ul className="list-disc pl-4 space-y-1">
-                                  <li>開始時間・終了時間</li>
-                                  <li>タスク名・ステータス</li>
-                                  <li>クライアント情報</li>
-                                  <li>決算期情報（該当する場合）</li>
-                                </ul>
-                                <div className="absolute top-full left-3 transform -translate-y-1/2 w-2 h-2 bg-gray-800 rotate-45"></div>
-                              </div>
-                            </div>
+                            <div className="border-t border-gray-200 pt-2 mb-4"></div>
                             
                             {/* 作業時間履歴（折りたたみ式） */}
                             <div className="mt-2 border-t border-gray-200 pt-4">
@@ -1395,33 +1424,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                       </div>
                     </div>
                     
-                    {/* 見積時間 */}
-                    <div>
-                      <label htmlFor="estimated_hours" className="block text-sm font-medium text-gray-700">
-                        見積時間（時間）
-                      </label>
-                      <div className="mt-1">
-                        <Controller
-                          name="estimated_hours"
-                          control={control}
-                          render={({ field }) => (
-                            <input
-                              type="number"
-                              id="estimated_hours"
-                              step="0.5"
-                              min="0"
-                              className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                              placeholder="例: 2.5"
-                              {...field}
-                              onChange={(e) => {
-                                field.onChange(e);
-                                handleFieldChange('estimated_hours', e.target.value);
-                              }}
-                            />
-                          )}
-                        />
-                      </div>
-                    </div>
+                    {/* 見積時間 - 削除 */}
                     
                     {/* クライアント */}
                     <div>
