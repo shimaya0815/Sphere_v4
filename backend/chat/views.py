@@ -462,3 +462,35 @@ class UserChannelsView(APIView):
             })
             
         return Response(data)
+
+
+class DefaultWorkspaceView(APIView):
+    """API view to get the default workspace for the current user's business."""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        """Get default workspace for the current user's business."""
+        if not request.user.business:
+            return Response(
+                {'error': 'User does not belong to any business'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        # Get the first workspace (default) for the business
+        workspace = Workspace.objects.filter(
+            business=request.user.business
+        ).first()
+        
+        if not workspace:
+            return Response(
+                {'error': 'No workspace found for your business'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+            
+        return Response({
+            'id': workspace.id,
+            'name': workspace.name,
+            'description': workspace.description,
+            'business_id': workspace.business.id,
+            'business_name': workspace.business.name
+        })
