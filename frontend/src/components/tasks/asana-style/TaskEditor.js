@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { HiOutlineX, HiCheck, HiOutlineClock, HiUser, HiUserGroup } from 'react-icons/hi';
-import { tasksApi, clientsApi, usersApi } from '../../../api';
+import { tasksApi, clientsApi, usersApi, timeManagementApi } from '../../../api';
 import toast from 'react-hot-toast';
 
 /**
@@ -21,6 +21,13 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
   const [fiscalYears, setFiscalYears] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
   const [isFiscalTask, setIsFiscalTask] = useState(false);
+  
+  // 時間記録の状態管理
+  const [isRecordingTime, setIsRecordingTime] = useState(false);
+  const [timeEntry, setTimeEntry] = useState(null);
+  const [startTime, setStartTime] = useState(null);
+  const [elapsedTime, setElapsedTime] = useState('00:00:00');
+  const timeIntervalRef = useRef(null);
   
   // 保存状態管理
   const [saveState, setSaveState] = useState('idle'); // idle, saving, saved, error
@@ -100,6 +107,30 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
     
     loadTaskMetadata();
   }, []);
+  
+  // タスクの既存の時間記録を確認
+  useEffect(() => {
+    if (!isNewTask && task && task.id) {
+      const checkForActiveTimer = async () => {
+        try {
+          const entries = await timeManagementApi.getTimeEntries({ 
+            task_id: task.id,
+            active: true
+          });
+          
+          if (entries && entries.length > 0) {
+            setTimeEntry(entries[0]);
+            setIsRecordingTime(true);
+            setStartTime(new Date(entries[0].start_time));
+          }
+        } catch (error) {
+          console.error('Error checking for active timer:', error);
+        }
+      };
+      
+      checkForActiveTimer();
+    }
+  }, [isNewTask, task]);
   
   // タスク情報設定
   useEffect(() => {
@@ -249,6 +280,39 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
   useEffect(() => {
     setIsFiscalTask(watchedIsFiscalTask === 'true');
   }, [watchedIsFiscalTask]);
+  
+  // 時間記録の経過時間を更新
+  useEffect(() => {
+    // インターバルをクリア
+    if (timeIntervalRef.current) {
+      clearInterval(timeIntervalRef.current);
+      timeIntervalRef.current = null;
+    }
+    
+    if (isRecordingTime && startTime) {
+      const updateElapsedTime = () => {
+        const now = new Date();
+        const diff = Math.floor((now - startTime) / 1000);
+        
+        const hours = Math.floor(diff / 3600).toString().padStart(2, '0');
+        const minutes = Math.floor((diff % 3600) / 60).toString().padStart(2, '0');
+        const seconds = Math.floor(diff % 60).toString().padStart(2, '0');
+        
+        setElapsedTime(`${hours}:${minutes}:${seconds}`);
+      };
+      
+      updateElapsedTime();
+      timeIntervalRef.current = setInterval(updateElapsedTime, 1000);
+    } else {
+      setElapsedTime('00:00:00');
+    }
+    
+    return () => {
+      if (timeIntervalRef.current) {
+        clearInterval(timeIntervalRef.current);
+      }
+    };
+  }, [isRecordingTime, startTime]);
   
   // フォーム変更監視
   useEffect(() => {
@@ -441,6 +505,67 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
     }));
     
     setIsDirty(true);
+  };
+  
+  /**
+   * 作業時間記録開始
+   */
+  const startTimeRecording = async () => {
+    if (!task || isNewTask) {
+      toast.error('先にタスクを保存してください');
+      return;
+    }
+    
+    try {
+      // タスク関連情報を取得
+      const formData = getValues();
+      const statusName = statuses.find(s => s.id.toString() === formData.status)?.name || '';
+      const clientId = formData.client ? parseInt(formData.client, 10) : null;
+      const fiscalYearId = formData.fiscal_year ? parseInt(formData.fiscal_year, 10) : null;
+      
+      // タイマー開始APIコール
+      const response = await timeManagementApi.startTimeEntry({
+        task_id: task.id,
+        description: `Working on: ${formData.title} (${statusName})`,
+        client_id: clientId,
+        fiscal_year_id: fiscalYearId
+      });
+      
+      // 状態更新
+      setTimeEntry(response);
+      setIsRecordingTime(true);
+      setStartTime(new Date(response.start_time));
+      
+      toast.success('作業時間の記録を開始しました');
+    } catch (error) {
+      console.error('Error starting time recording:', error);
+      toast.error('作業時間の記録開始に失敗しました');
+    }
+  };
+  
+  /**
+   * 作業時間記録停止
+   */
+  const stopTimeRecording = async () => {
+    if (!timeEntry || !timeEntry.id) {
+      toast.error('作業時間の記録が開始されていません');
+      return;
+    }
+    
+    try {
+      // タイマー停止APIコール
+      await timeManagementApi.stopTimeEntry(timeEntry.id);
+      
+      // 状態更新
+      setTimeEntry(null);
+      setIsRecordingTime(false);
+      setStartTime(null);
+      
+      toast.success('作業時間を記録しました');
+    } catch (error) {
+      console.error('Error stopping time recording:', error);
+      toast.error('作業時間の記録停止に失敗しました');
+    }
   };
   
   // 保存ステータス表示
@@ -745,6 +870,67 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                             <p className="mt-1 text-xs text-gray-500">小さいほど優先度が高くなります</p>
                           </div>
                         </div>
+                      </div>
+                    </div>
+                    
+                    {/* 作業時間記録セクション */}
+                    <div className="border-t border-gray-200 pt-4">
+                      <h3 className="text-md font-medium text-gray-700 flex items-center mb-3">
+                        <HiOutlineClock className="mr-2 text-gray-500" />
+                        作業時間記録
+                      </h3>
+                      
+                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        {!isNewTask && task ? (
+                          <div className="flex flex-col">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="text-sm text-gray-700">
+                                {isRecordingTime ? (
+                                  <span className="flex items-center">
+                                    <span className="h-2 w-2 rounded-full bg-red-500 mr-2 animate-pulse"></span>
+                                    記録中...
+                                  </span>
+                                ) : '作業時間を記録'}
+                              </div>
+                              <div className="font-mono text-lg">{elapsedTime}</div>
+                            </div>
+                            
+                            <div className="flex justify-center mt-2">
+                              {isRecordingTime ? (
+                                <button
+                                  type="button"
+                                  onClick={stopTimeRecording}
+                                  className="px-4 py-2 bg-red-600 text-white rounded-md flex items-center justify-center hover:bg-red-700 transition-colors w-full"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                                  </svg>
+                                  作業時間を保存
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={startTimeRecording}
+                                  className="px-4 py-2 bg-blue-600 text-white rounded-md flex items-center justify-center hover:bg-blue-700 transition-colors w-full"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  作業時間の記録を開始
+                                </button>
+                              )}
+                            </div>
+                            
+                            <p className="text-xs text-gray-500 mt-2 text-center">
+                              開始時間、終了時間、タスク名、ステータス、クライアント、決算期の情報が記録されます
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="text-center text-sm text-gray-600 py-2">
+                            タスクを保存すると作業時間の記録が可能になります
+                          </div>
+                        )}
                       </div>
                     </div>
                     
