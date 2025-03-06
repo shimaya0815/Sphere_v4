@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { tasksApi, clientsApi } from '../../api';
 import toast from 'react-hot-toast';
+import TaskComments from './TaskComments';
 import { HiOutlineX } from 'react-icons/hi';
 
 const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated }) => {
@@ -1195,6 +1196,23 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                         <div className="flex justify-between text-sm text-gray-500">
                           <span>作成日: {task.created_at ? new Date(task.created_at).toLocaleString() : '-'}</span>
                           <span>更新日: {task.updated_at ? new Date(task.updated_at).toLocaleString() : '-'}</span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* コメントセクション - 新規タスクの場合は表示しない */}
+                    {!isNewTask && task && task.id && (
+                      <div className="mt-6 border-t border-gray-200 pt-6">
+                        <h3 className="text-lg font-medium text-gray-900">コメント</h3>
+                        <div className="mt-4">
+                          <TaskComments 
+                            taskId={task.id} 
+                            task={task}
+                            onCommentAdded={() => {
+                              // コメント追加後に実行する処理
+                              toast.success('コメントが追加されました');
+                            }}
+                          />
                         </div>
                       </div>
                     )}
