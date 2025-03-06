@@ -175,7 +175,8 @@ class TaskSerializer(serializers.ModelSerializer):
             return {
                 'id': obj.priority.id,
                 'name': obj.priority.name,
-                'color': obj.priority.color
+                'color': obj.priority.color,
+                'priority_value': obj.priority.priority_value
             }
         return None
     
