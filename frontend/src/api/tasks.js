@@ -117,6 +117,18 @@ const tasksApi = {
     } catch (error) {
       throw error;
     }
+  },
+  
+  // 指定された優先度値に基づいてタスク優先度を作成または取得
+  createPriorityForValue: async (priorityValue) => {
+    try {
+      const response = await apiClient.post('/api/tasks/priorities/create-for-value/', {
+        priority_value: priorityValue
+      });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
   }
 };
 

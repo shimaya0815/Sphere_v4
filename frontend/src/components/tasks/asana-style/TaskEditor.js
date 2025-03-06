@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { HiOutlineX, HiCheck, HiOutlineClock, HiUser, HiUserGroup } from 'react-icons/hi';
-import { tasksApi, clientsApi, usersApi, businessApi } from '../../../api';
+import { tasksApi, clientsApi, usersApi } from '../../../api';
 import toast from 'react-hot-toast';
 
 /**
@@ -112,7 +112,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
           title: '',
           description: '',
           status: statuses[0]?.id.toString() || '',
-          priority: priorities[0]?.id.toString() || '',
+          priority_value: '',  // 数値入力用フィールド
           category: '',
           due_date: '',
           estimated_hours: '',
@@ -147,7 +147,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
           title: task.title || '',
           description: task.description || '',
           status: getIdAsString(task.status_data?.id || task.status),
-          priority: getIdAsString(task.priority_data?.id || task.priority),
+          priority_value: task.priority_data?.priority_value || '',  // 優先度値をそのまま使用
           category: getIdAsString(task.category_data?.id || task.category),
           client: getIdAsString(task.client_data?.id || task.client),
           worker: getIdAsString(task.worker_data?.id || task.worker),
@@ -187,7 +187,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
     };
     
     // メタデータ読み込み後にタスク設定
-    if (statuses.length > 0 && priorities.length > 0) {
+    if (statuses.length > 0) {
       setupTaskForm();
     }
   }, [task, isNewTask, statuses, priorities, clients, reset]);
@@ -286,8 +286,8 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       setSaveState('saving');
       const formData = getValues();
       
-      // データフォーマット
-      const formattedData = formatDataForApi(formData);
+      // データフォーマット (非同期関数になった)
+      const formattedData = await formatDataForApi(formData);
       
       // 更新実行
       const result = await tasksApi.updateTask(task.id, formattedData);
@@ -321,8 +321,8 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
     try {
       setSaveState('saving');
       
-      // データフォーマット
-      const formattedData = formatDataForApi(data);
+      // データフォーマット (非同期関数になった)
+      const formattedData = await formatDataForApi(data);
       
       let result;
       if (isNewTask) {
@@ -381,12 +381,30 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
   /**
    * データをAPI用にフォーマット
    */
-  const formatDataForApi = (data) => {
+  const formatDataForApi = async (data) => {
+    // 優先度値を直接設定
+    let priorityValue = null;
+    let priorityId = null;
+    
+    if (data.priority_value) {
+      priorityValue = parseInt(data.priority_value, 10);
+      if (!isNaN(priorityValue) && priorityValue >= 1 && priorityValue <= 100) {
+        try {
+          // 優先度値に基づいて優先度レコードを作成または取得
+          const priorityResponse = await tasksApi.createPriorityForValue(priorityValue);
+          priorityId = priorityResponse.id;
+          console.log(`優先度 ${priorityValue} のレコードを取得: ID=${priorityId}`);
+        } catch (error) {
+          console.error('優先度レコードの作成に失敗:', error);
+        }
+      }
+    }
+    
     return {
       ...data,
       // 数値変換
       status: data.status ? parseInt(data.status, 10) : null,
-      priority: data.priority ? parseInt(data.priority, 10) : null,
+      priority: priorityId,  // レコードIDを設定
       category: data.category ? parseInt(data.category, 10) : null,
       client: data.client ? parseInt(data.client, 10) : null,
       worker: data.worker ? parseInt(data.worker, 10) : null,
@@ -605,32 +623,30 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                       </div>
                       
                       <div>
-                        <label htmlFor="priority" className="block text-sm font-medium text-gray-700">
-                          優先度
+                        <label htmlFor="priority_value" className="block text-sm font-medium text-gray-700">
+                          優先度 (1-100, 低いほど優先度高)
                         </label>
                         <div className="mt-1">
                           <Controller
-                            name="priority"
+                            name="priority_value"
                             control={control}
                             render={({ field }) => (
-                              <select
-                                id="priority"
+                              <input
+                                type="number"
+                                id="priority_value"
+                                min="1"
+                                max="100"
+                                placeholder="1-100の数値を入力"
                                 className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
                                 {...field}
                                 onChange={(e) => {
                                   field.onChange(e);
-                                  handleFieldChange('priority', e.target.value);
+                                  handleFieldChange('priority_value', e.target.value);
                                 }}
-                              >
-                                <option value="">選択してください</option>
-                                {priorities.map((priority) => (
-                                  <option key={priority.id} value={priority.id}>
-                                    {priority.priority_value || '未設定'}
-                                  </option>
-                                ))}
-                              </select>
+                              />
                             )}
                           />
+                          <p className="mt-1 text-xs text-gray-500">小さいほど優先度が高くなります</p>
                         </div>
                       </div>
                     </div>

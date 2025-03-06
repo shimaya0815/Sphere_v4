@@ -18,7 +18,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsSameBusiness]
     filter_backends = [SearchFilter, OrderingFilter]
     search_fields = ['title', 'description']
-    ordering_fields = ['created_at', 'due_date', 'status__order', 'priority__level']
+    ordering_fields = ['created_at', 'due_date', 'status__order', 'priority__level', 'assignee__first_name', 'category__name']
     ordering = ['-created_at']
     
     def update(self, request, *args, **kwargs):
@@ -42,6 +42,16 @@ class TaskViewSet(viewsets.ModelViewSet):
         # Create a serialized response with the fully updated task
         response_serializer = self.get_serializer(updated_instance)
         return Response(response_serializer.data)
+        
+    def perform_update(self, serializer):
+        """更新時に必要な関連処理を実行"""
+        # ユーザー情報を保存して、履歴作成などに使用
+        instance = serializer.save(user=self.request.user)
+        
+        # タスクが完了に設定された場合、completed_at を設定
+        if instance.status and instance.status.name == '完了' and not instance.completed_at:
+            instance.completed_at = timezone.now()
+            instance.save()
     
     def get_queryset(self):
         """Return tasks for the authenticated user's business."""
@@ -59,13 +69,37 @@ class TaskViewSet(viewsets.ModelViewSet):
         client = self.request.query_params.get('client', None)
         
         if status:
-            queryset = queryset.filter(status__name__icontains=status)
+            # ステータス名での検索とコード名での検索に対応
+            if status in ['not_started', 'in_progress', 'in_review', 'completed']:
+                # フロントエンドから送られてくるコード名に基づいてフィルタリング
+                status_map = {
+                    'not_started': '未着手',
+                    'in_progress': '作業中',
+                    'in_review': 'レビュー',  # "レビュー中"や"レビュー待ち"にも部分一致
+                    'completed': '完了'
+                }
+                queryset = queryset.filter(status__name__icontains=status_map[status])
+            else:
+                # 直接名前または識別子でフィルタリング
+                queryset = queryset.filter(Q(status__name__icontains=status) | Q(status__id=status if status.isdigit() else 0))
         
         if priority:
-            queryset = queryset.filter(priority__name__icontains=priority)
+            # 優先度名での検索とコード名での検索に対応
+            if priority in ['high', 'medium', 'low']:
+                # フロントエンドから送られてくるコード名に基づいてフィルタリング
+                priority_map = {
+                    'high': '高',
+                    'medium': '中',
+                    'low': '低'
+                }
+                queryset = queryset.filter(priority__name__icontains=priority_map[priority])
+            else:
+                # 直接名前または識別子でフィルタリング
+                queryset = queryset.filter(Q(priority__name__icontains=priority) | Q(priority__id=priority if priority.isdigit() else 0))
             
         if category:
-            queryset = queryset.filter(category__name__icontains=category)
+            # カテゴリ名または識別子でフィルタリング
+            queryset = queryset.filter(Q(category__name__icontains=category) | Q(category__id=category if category.isdigit() else 0))
             
         # 決算期タスクのフィルタリング
         if is_fiscal_task is not None:
@@ -144,6 +178,49 @@ class TaskViewSet(viewsets.ModelViewSet):
         task.mark_complete(user=request.user)
         serializer = self.get_serializer(task)
         return Response(serializer.data)
+        
+    @action(detail=True, methods=['post'], url_path='change-status')
+    def change_status(self, request, pk=None):
+        """タスクのステータスを変更するエンドポイント"""
+        task = self.get_object()
+        status_id = request.data.get('status_id')
+        
+        if not status_id:
+            return Response(
+                {"detail": "status_id is required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        try:
+            new_status = TaskStatus.objects.get(id=status_id, business=request.user.business)
+            old_status = task.status
+            
+            # ステータス変更
+            task.status = new_status
+            task._update_assignee_based_on_status()
+            task.save(user=request.user)
+            
+            # タスク完了ステータスに変更された場合、completed_atを設定
+            if new_status.name == '完了' and not task.completed_at:
+                task.completed_at = timezone.now()
+                task.save(user=request.user)
+            
+            # 通知作成（ステータス変更）
+            TaskNotification.objects.create(
+                user=task.assignee if task.assignee else task.creator,
+                task=task,
+                notification_type='status_change',
+                content=f'タスク「{task.title}」のステータスが「{old_status.name if old_status else "未設定"}」から「{new_status.name}」に変更されました。'
+            )
+            
+            serializer = self.get_serializer(task)
+            return Response(serializer.data)
+            
+        except TaskStatus.DoesNotExist:
+            return Response(
+                {"detail": "Invalid status_id"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
     
     @action(detail=True, methods=['post'], url_path='timers/start')
     def start_timer(self, request, pk=None):
@@ -220,6 +297,46 @@ class TaskPriorityViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         serializer.save(business=self.request.user.business)
+        
+    @action(detail=False, methods=['post'], url_path='create-for-value')
+    def create_for_value(self, request):
+        """指定された優先度値に基づいて新規TaskPriorityレコードを作成する"""
+        priority_value = request.data.get('priority_value')
+        
+        try:
+            priority_value = int(priority_value)
+            if priority_value < 1 or priority_value > 100:
+                return Response(
+                    {"error": "優先度は1から100の間で指定してください"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except (TypeError, ValueError):
+            return Response(
+                {"error": "有効な数値を指定してください"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        # 同じ優先度値のレコードがすでに存在するか確認
+        existing = TaskPriority.objects.filter(
+            business=request.user.business,
+            priority_value=priority_value
+        ).first()
+        
+        if existing:
+            # 既存のレコードを返す
+            serializer = self.get_serializer(existing)
+            return Response(serializer.data)
+        
+        # 新しい優先度レコードを作成
+        new_priority = TaskPriority.objects.create(
+            business=request.user.business,
+            name=str(priority_value),
+            priority_value=priority_value,
+            color='#3B82F6'  # デフォルト色
+        )
+        
+        serializer = self.get_serializer(new_priority)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class TaskCommentViewSet(viewsets.ModelViewSet):
@@ -250,6 +367,41 @@ class TaskTimerViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Return timers for tasks in the authenticated user's business."""
         return TaskTimer.objects.filter(task__business=self.request.user.business)
+
+
+class TaskNotificationViewSet(viewsets.ModelViewSet):
+    queryset = TaskNotification.objects.all()
+    serializer_class = TaskNotificationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [SearchFilter, OrderingFilter]
+    ordering_fields = ['created_at', 'read']
+    ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """Return notifications for the authenticated user."""
+        return TaskNotification.objects.filter(user=self.request.user)
+    
+    @action(detail=False, methods=['post'])
+    def mark_all_as_read(self, request):
+        """すべての通知を既読にする"""
+        notifications = self.get_queryset().filter(read=False)
+        count = notifications.count()
+        notifications.update(read=True)
+        return Response({'status': 'success', 'marked_count': count})
+    
+    @action(detail=True, methods=['post'])
+    def mark_as_read(self, request, pk=None):
+        """特定の通知を既読にする"""
+        notification = self.get_object()
+        notification.read = True
+        notification.save()
+        return Response({'status': 'success'})
+    
+    @action(detail=False, methods=['get'])
+    def unread_count(self, request):
+        """未読通知の数を取得する"""
+        count = self.get_queryset().filter(read=False).count()
+        return Response({'unread_count': count})
 
 
 class TaskTemplateViewSet(viewsets.ModelViewSet):
