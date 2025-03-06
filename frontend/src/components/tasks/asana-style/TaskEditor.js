@@ -1090,57 +1090,57 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                       <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                         {!isNewTask && task ? (
                           <div className="flex flex-col">
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="text-sm text-gray-700 flex items-center">
+                            <div className="flex items-center space-x-3 mb-4">
+                              <div className="text-sm text-gray-700 flex items-center whitespace-nowrap">
                                 {isRecordingTime ? (
                                   <>
                                     <span className="h-3 w-3 rounded-full bg-red-500 mr-2 animate-pulse"></span>
                                     <span className="font-medium">タイマー記録中</span>
-                                    {timeEntry && timeEntry.start_time && (
-                                      <span className="ml-2 text-xs text-gray-500">
-                                        開始: {new Date(timeEntry.start_time).toLocaleTimeString()}
-                                      </span>
-                                    )}
                                   </>
                                 ) : (
                                   <span className="font-medium">作業時間を記録</span>
                                 )}
                               </div>
-                              <div className="font-mono text-xl font-semibold bg-white px-3 py-1 rounded-md border border-gray-300 shadow-sm">
+                              
+                              <div className="font-mono text-md font-semibold bg-white px-2 py-1 rounded-md border border-gray-300 shadow-sm flex-shrink-0">
                                 {elapsedTime}
                               </div>
-                            </div>
-                            
-                            <div className="flex justify-center mt-2">
+                              
                               {isRecordingTime ? (
                                 <button
                                   type="button"
                                   onClick={stopTimeRecording}
-                                  className="px-4 py-2 bg-red-600 text-white rounded-md flex items-center justify-center hover:bg-red-700 transition-colors w-full"
+                                  className="flex-shrink-0 px-3 py-1 bg-red-600 text-white text-sm rounded-md flex items-center justify-center hover:bg-red-700 transition-colors"
                                 >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
                                   </svg>
-                                  作業時間を保存
+                                  保存
                                 </button>
                               ) : (
                                 <button
                                   type="button"
                                   onClick={startTimeRecording}
-                                  className="px-4 py-2 bg-blue-600 text-white rounded-md flex items-center justify-center hover:bg-blue-700 transition-colors w-full"
+                                  className="flex-shrink-0 px-3 py-1 bg-blue-600 text-white text-sm rounded-md flex items-center justify-center hover:bg-blue-700 transition-colors"
                                 >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                   </svg>
-                                  作業時間の記録を開始
+                                  開始
                                 </button>
+                              )}
+                              
+                              {timeEntry && timeEntry.start_time && isRecordingTime && (
+                                <span className="text-xs text-gray-500 ml-auto">
+                                  開始: {new Date(timeEntry.start_time).toLocaleTimeString()}
+                                </span>
                               )}
                             </div>
                             
-                            <p className="text-xs text-gray-500 mt-3 text-center mb-4">
+                            <div className="text-xs text-gray-500 mb-4 border-t border-gray-200 pt-2">
                               開始時間、終了時間、タスク名、ステータス、クライアント、決算期の情報が記録されます
-                            </p>
+                            </div>
                             
                             {/* 作業時間履歴 */}
                             <div className="mt-2 border-t border-gray-200 pt-4">
