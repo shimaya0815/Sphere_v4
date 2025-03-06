@@ -1122,9 +1122,10 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                       )}
                     </div>
                     
-                    {/* 期限日と優先度を1行に配置 */}
+                    {/* 期限日、優先度、開始日、完了日を2行に配置 */}
                     <div className="border-t border-gray-200 pt-4">
                       <div className="grid grid-cols-2 gap-6">
+                        {/* 1行目: 期限日と優先度 */}
                         <div>
                           <label htmlFor="due_date" className="block text-sm font-medium text-gray-700">
                             期限日
@@ -1179,6 +1180,55 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                                   onChange={(e) => {
                                     field.onChange(e);
                                     handleFieldChange('priority_value', e.target.value);
+                                  }}
+                                />
+                              )}
+                            />
+                          </div>
+                        </div>
+                        
+                        {/* 2行目: 開始日と完了日 */}
+                        <div>
+                          <label htmlFor="start_date" className="block text-sm font-medium text-gray-700">
+                            開始日
+                          </label>
+                          <div className="mt-1">
+                            <Controller
+                              name="start_date"
+                              control={control}
+                              render={({ field }) => (
+                                <input
+                                  type="date"
+                                  id="start_date"
+                                  className={inputClassName}
+                                  {...field}
+                                  onChange={(e) => {
+                                    field.onChange(e);
+                                    handleFieldChange('start_date', e.target.value);
+                                  }}
+                                />
+                              )}
+                            />
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <label htmlFor="completed_at" className="block text-sm font-medium text-gray-700">
+                            完了日
+                          </label>
+                          <div className="mt-1">
+                            <Controller
+                              name="completed_at"
+                              control={control}
+                              render={({ field }) => (
+                                <input
+                                  type="date"
+                                  id="completed_at"
+                                  className={inputClassName}
+                                  {...field}
+                                  onChange={(e) => {
+                                    field.onChange(e);
+                                    handleFieldChange('completed_at', e.target.value);
                                   }}
                                 />
                               )}
@@ -1709,56 +1759,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                         )}
                       </div>
                       
-                      {/* 開始日と完了日 */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label htmlFor="start_date" className="block text-sm font-medium text-gray-700">
-                            開始日
-                          </label>
-                          <div className="mt-1">
-                            <Controller
-                              name="start_date"
-                              control={control}
-                              render={({ field }) => (
-                                <input
-                                  type="date"
-                                  id="start_date"
-                                  className={inputClassName}
-                                  {...field}
-                                  onChange={(e) => {
-                                    field.onChange(e);
-                                    handleFieldChange('start_date', e.target.value);
-                                  }}
-                                />
-                              )}
-                            />
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <label htmlFor="completed_at" className="block text-sm font-medium text-gray-700">
-                            完了日
-                          </label>
-                          <div className="mt-1">
-                            <Controller
-                              name="completed_at"
-                              control={control}
-                              render={({ field }) => (
-                                <input
-                                  type="date"
-                                  id="completed_at"
-                                  className={inputClassName}
-                                  {...field}
-                                  onChange={(e) => {
-                                    field.onChange(e);
-                                    handleFieldChange('completed_at', e.target.value);
-                                  }}
-                                />
-                              )}
-                            />
-                          </div>
-                        </div>
-                      </div>
+                      {/* 開始日と完了日は上に移動したので削除 */}
                     </div>
                     
                     {/* タスク作成日時（新規作成時は表示しない） */}
