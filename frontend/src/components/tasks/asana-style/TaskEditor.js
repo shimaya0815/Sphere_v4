@@ -1123,9 +1123,10 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                       <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                         {!isNewTask && task ? (
                           <div className="flex flex-col">
-                            <div className="flex flex-wrap items-center gap-3 mb-4">
+                            <div className="space-y-2">
+                              {/* 1行目: 作業時間を記録 | フォーム | ボタン */}
                               <div className="flex items-center space-x-3">
-                                <div className="text-sm text-gray-700 flex items-center whitespace-nowrap">
+                                <div className="text-sm text-gray-700 flex items-center whitespace-nowrap w-28">
                                   {isRecordingTime ? (
                                     <>
                                       <span className="h-3 w-3 rounded-full bg-red-500 mr-2 animate-pulse"></span>
@@ -1139,34 +1140,9 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                                 <div className="font-mono text-md font-semibold bg-white px-2 py-1 rounded-md border border-gray-300 shadow-sm flex-shrink-0">
                                   {elapsedTime}
                                 </div>
-                              </div>
-                              
-                              {/* 見積時間を開始ボタンの横に移動 */}
-                              <div className="flex items-center space-x-2">
-                                <span className="text-sm text-gray-500">見積:</span>
-                                <Controller
-                                  name="estimated_hours"
-                                  control={control}
-                                  render={({ field }) => (
-                                    <input
-                                      type="number"
-                                      id="estimated_hours"
-                                      step="0.5"
-                                      min="0"
-                                      className="shadow-sm focus:ring-primary-500 focus:border-primary-500 w-16 sm:text-sm border-gray-300 rounded-md"
-                                      placeholder="時間"
-                                      {...field}
-                                      onChange={(e) => {
-                                        field.onChange(e);
-                                        handleFieldChange('estimated_hours', e.target.value);
-                                      }}
-                                    />
-                                  )}
-                                />
-                                <span className="text-sm text-gray-500">時間</span>
-                              </div>
-                              
-                              <div className="flex items-center space-x-2">
+                                
+                                <div className="flex-grow"></div>
+                                
                                 {isRecordingTime ? (
                                   <button
                                     type="button"
@@ -1193,7 +1169,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                                 )}
                                 
                                 {/* 記録情報ツールチップを横に移動 */}
-                                <div className="relative group">
+                                <div className="relative group ml-2">
                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                   </svg>
@@ -1209,17 +1185,41 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                                 </div>
                               </div>
                               
-                              {timeEntry && timeEntry.start_time && isRecordingTime && (
-                                <span className="text-xs text-gray-500 ml-auto">
-                                  開始: {new Date(timeEntry.start_time).toLocaleTimeString()}
-                                </span>
-                              )}
-                            </div>
-                            
-                            <div className="border-t border-gray-200 pt-2 mb-4"></div>
-                            
-                            {/* 作業時間履歴（折りたたみ式） */}
-                            <div className="mt-2 border-t border-gray-200 pt-4">
+                              {/* 2行目: 見積時間 */}
+                              <div className="flex items-center">
+                                <div className="w-28 text-sm text-gray-700">見積時間:</div>
+                                <div className="flex items-center space-x-2">
+                                  <Controller
+                                    name="estimated_hours"
+                                    control={control}
+                                    render={({ field }) => (
+                                      <input
+                                        type="number"
+                                        id="estimated_hours"
+                                        step="0.5"
+                                        min="0"
+                                        className="shadow-sm focus:ring-primary-500 focus:border-primary-500 w-16 sm:text-sm border-gray-300 rounded-md"
+                                        placeholder="時間"
+                                        {...field}
+                                        onChange={(e) => {
+                                          field.onChange(e);
+                                          handleFieldChange('estimated_hours', e.target.value);
+                                        }}
+                                      />
+                                    )}
+                                  />
+                                  <span className="text-sm text-gray-500">時間</span>
+                                </div>
+                                
+                                {timeEntry && timeEntry.start_time && isRecordingTime && (
+                                  <span className="text-xs text-gray-500 ml-auto">
+                                    開始: {new Date(timeEntry.start_time).toLocaleTimeString()}
+                                  </span>
+                                )}
+                              </div>
+                              
+                              {/* 作業時間履歴（折りたたみ式） */}
+                              <div className="border-t border-gray-200 pt-4 mt-3">
                               {/* 折りたたみヘッダー */}
                               <div 
                                 className="flex items-center justify-between cursor-pointer" 
