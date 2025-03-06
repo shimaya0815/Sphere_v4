@@ -613,12 +613,12 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                           </div>
                         </div>
                         
-                        {/* 現在の担当者表示 - タイトルの横に移動 */}
+                        {/* 現在の担当者表示 - タイトルの横に移動、1行に変更 */}
                         {task && task.assignee && (
                           <div className="text-md bg-blue-50 px-4 py-2 rounded-lg border border-blue-200 shadow-sm flex items-center flex-shrink-0">
                             <HiUser className="mr-2 text-blue-500 text-lg" />
-                            <div>
-                              <span className="font-medium text-blue-700">現在の担当者</span><br/>
+                            <div className="flex items-center">
+                              <span className="font-medium text-blue-700 mr-2">現在の担当者:</span>
                               <span className="text-blue-800 font-bold">{task.assignee_name || (typeof task.assignee === 'object' ? task.assignee.get_full_name || task.assignee.email : '不明')}</span>
                             </div>
                           </div>
