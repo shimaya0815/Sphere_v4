@@ -5,7 +5,7 @@ const timeManagementApi = {
   // Get time entries with optional filters
   getTimeEntries: async (filters = {}) => {
     try {
-      const response = await apiClient.get('/api/time-management/entries/', { params: filters });
+      const response = await apiClient.get('/time-management/entries/', { params: filters });
       return response.data.results || response.data;
     } catch (error) {
       console.error('Error fetching time entries:', error);
@@ -40,7 +40,7 @@ const timeManagementApi = {
   // Get a specific time entry by ID
   getTimeEntry: async (entryId) => {
     try {
-      const response = await apiClient.get(`/api/time-management/entries/${entryId}/`);
+      const response = await apiClient.get(`/time-management/entries/${entryId}/`);
       return response.data;
     } catch (error) {
       console.error('Error fetching time entry:', error);
@@ -51,7 +51,7 @@ const timeManagementApi = {
   // Create a new time entry
   createTimeEntry: async (entryData) => {
     try {
-      const response = await apiClient.post('/api/time-management/entries/', entryData);
+      const response = await apiClient.post('/time-management/entries/', entryData);
       return response.data;
     } catch (error) {
       console.error('Error creating time entry:', error);
@@ -62,7 +62,7 @@ const timeManagementApi = {
   // Update a time entry
   updateTimeEntry: async (entryId, entryData) => {
     try {
-      const response = await apiClient.patch(`/api/time-management/entries/${entryId}/`, entryData);
+      const response = await apiClient.patch(`/time-management/entries/${entryId}/`, entryData);
       return response.data;
     } catch (error) {
       console.error('Error updating time entry:', error);
@@ -73,7 +73,7 @@ const timeManagementApi = {
   // Delete a time entry
   deleteTimeEntry: async (entryId) => {
     try {
-      const response = await apiClient.delete(`/api/time-management/entries/${entryId}/`);
+      const response = await apiClient.delete(`/time-management/entries/${entryId}/`);
       return response.data;
     } catch (error) {
       console.error('Error deleting time entry:', error);
@@ -84,7 +84,7 @@ const timeManagementApi = {
   // Start a time entry
   startTimeEntry: async (entryData) => {
     try {
-      const response = await apiClient.post('/api/time-management/entries/start/', entryData);
+      const response = await apiClient.post('/time-management/entries/start/', entryData);
       return response.data;
     } catch (error) {
       console.error('Error starting time entry:', error);
@@ -104,7 +104,7 @@ const timeManagementApi = {
   // Stop a time entry
   stopTimeEntry: async (entryId) => {
     try {
-      const response = await apiClient.post(`/api/time-management/entries/${entryId}/stop/`);
+      const response = await apiClient.post(`/time-management/entries/${entryId}/stop/`);
       return response.data;
     } catch (error) {
       console.error('Error stopping time entry:', error);
@@ -115,7 +115,7 @@ const timeManagementApi = {
   // Get dashboard summary data
   getDashboardSummary: async (params = {}) => {
     try {
-      const response = await apiClient.get('/api/time-management/dashboard/', { params });
+      const response = await apiClient.get('/time-management/dashboard/', { params });
       return response.data;
     } catch (error) {
       console.error('Error fetching dashboard summary:', error);
@@ -142,7 +142,7 @@ const timeManagementApi = {
   // Get breaks for a time entry
   getBreaks: async (entryId) => {
     try {
-      const response = await apiClient.get(`/api/time-management/entries/${entryId}/breaks/`);
+      const response = await apiClient.get(`/time-management/entries/${entryId}/breaks/`);
       return response.data;
     } catch (error) {
       console.error('Error fetching breaks:', error);
@@ -153,7 +153,7 @@ const timeManagementApi = {
   // Start a break
   startBreak: async (entryId, breakData = {}) => {
     try {
-      const response = await apiClient.post(`/api/time-management/entries/${entryId}/breaks/start/`, breakData);
+      const response = await apiClient.post(`/time-management/entries/${entryId}/breaks/start/`, breakData);
       return response.data;
     } catch (error) {
       console.error('Error starting break:', error);
@@ -170,7 +170,7 @@ const timeManagementApi = {
   // Stop a break
   stopBreak: async (breakId) => {
     try {
-      const response = await apiClient.post(`/api/time-management/breaks/${breakId}/stop/`);
+      const response = await apiClient.post(`/time-management/breaks/${breakId}/stop/`);
       return response.data;
     } catch (error) {
       console.error('Error stopping break:', error);
@@ -181,7 +181,7 @@ const timeManagementApi = {
   // Generate a time report
   generateReport: async (reportData) => {
     try {
-      const response = await apiClient.post('/api/time-management/reports/generate/', reportData);
+      const response = await apiClient.post('/time-management/reports/generate/', reportData);
       return response.data;
     } catch (error) {
       console.error('Error generating report:', error);
@@ -199,7 +199,7 @@ const timeManagementApi = {
   // Export a report to CSV
   exportReportToCsv: async (reportId) => {
     try {
-      const response = await apiClient.get(`/api/time-management/reports/${reportId}/export/csv/`, {
+      const response = await apiClient.get(`/time-management/reports/${reportId}/export/csv/`, {
         responseType: 'blob'
       });
       
@@ -222,7 +222,7 @@ const timeManagementApi = {
   // Get chart data
   getChartData: async (type = 'time', period = 'week') => {
     try {
-      const response = await apiClient.get('/api/time-management/analytics/chart-data/', {
+      const response = await apiClient.get('/time-management/analytics/chart-data/', {
         params: { type, period }
       });
       return response.data;

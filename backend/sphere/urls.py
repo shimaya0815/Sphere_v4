@@ -56,6 +56,7 @@ urlpatterns = [
     path('clients/', include('clients.urls')),
     path('business/', include('business.urls')),
     path('users/', include('users.urls')),
+    path('time-management/', include('time_management.urls')),
 ]
 
 # Serve static and media files in development
