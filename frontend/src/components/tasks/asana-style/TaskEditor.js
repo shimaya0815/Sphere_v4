@@ -161,7 +161,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       // アクティブなタイマーをチェック
       checkForActiveTimer();
       
-      // タスクに関連する全ての時間記録を取得
+      // タスクに関連する全ての時間記録を取得（初期状態では折りたたみ表示）
       fetchTimeEntries();
     }
   }, [isNewTask, task]);
@@ -186,10 +186,14 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
             .sort((a, b) => new Date(b.start_time) - new Date(a.start_time))
         : [];
       
-      setTimeEntries(completedEntries);
+      // 取得したエントリを状態として保存するが、表示はしない（空配列を返す）
+      const tempEntries = completedEntries;
+      setTimeEntries([]);
+      return tempEntries;
     } catch (error) {
       console.error('Error fetching time entries:', error);
       toast.error('時間記録の取得に失敗しました');
+      return [];
     } finally {
       setIsLoadingTimeEntries(false);
     }
@@ -1142,16 +1146,41 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                               開始時間、終了時間、タスク名、ステータス、クライアント、決算期の情報が記録されます
                             </div>
                             
-                            {/* 作業時間履歴 */}
+                            {/* 作業時間履歴（折りたたみ式） */}
                             <div className="mt-2 border-t border-gray-200 pt-4">
-                              <h4 className="text-sm font-medium text-gray-700 mb-2">作業時間履歴</h4>
+                              {/* 折りたたみヘッダー */}
+                              <div 
+                                className="flex items-center justify-between cursor-pointer" 
+                                onClick={() => setTimeEntries(prev => prev.length > 0 ? [] : fetchTimeEntries() || [])}
+                              >
+                                <h4 className="text-sm font-medium text-gray-700">
+                                  作業時間履歴 {timeEntries.length > 0 && `(${timeEntries.length}件)`}
+                                </h4>
+                                <button 
+                                  type="button" 
+                                  className="text-gray-500 hover:text-gray-700 focus:outline-none"
+                                  aria-expanded={timeEntries.length > 0}
+                                >
+                                  {timeEntries.length > 0 ? (
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                    </svg>
+                                  ) : (
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                  )}
+                                </button>
+                              </div>
+                              
+                              {/* 折りたたみコンテンツ */}
                               {isLoadingTimeEntries ? (
                                 <div className="text-center py-3">
                                   <div className="spinner-border w-6 h-6 border-2 rounded-full animate-spin border-b-transparent inline-block mr-2"></div>
                                   <span className="text-sm text-gray-600">読み込み中...</span>
                                 </div>
-                              ) : timeEntries.length > 0 ? (
-                                <div className="overflow-x-auto">
+                              ) : timeEntries.length > 0 && (
+                                <div className="overflow-x-auto mt-2 transition-all duration-300 ease-in-out">
                                   <table className="min-w-full divide-y divide-gray-200 text-sm">
                                     <thead className="bg-gray-100">
                                       <tr>
@@ -1266,10 +1295,6 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                                     </tbody>
                                   </table>
                                 </div>
-                              ) : (
-                                <p className="text-sm text-gray-500 text-center py-3">
-                                  記録された作業時間がありません
-                                </p>
                               )}
                             </div>
                           </div>
