@@ -22,12 +22,12 @@ export const ChatProvider = ({ children }) => {
     const isDocker = process.env.REACT_APP_RUNNING_IN_DOCKER === 'true';
     const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     
-    console.log(`Getting WebSocket URL for channel: ${channelId}, isDocker: ${isDocker}, isLocalDev: ${isLocalDev}`);
-    
-    // WebSocketの直接接続（開発環境用）- プロトコルを確認
+    // WebSocketのプロトコルを確認（HTTPSの場合はWSSを使用）
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     
-    // Docker内でのWebSocket接続
+    console.log(`Getting WebSocket URL for channel: ${channelId}, protocol: ${protocol}, isDocker: ${isDocker}, isLocalDev: ${isLocalDev}`);
+    
+    // Docker内でのWebSocket接続（Docker Compose内部での接続）
     if (isDocker) {
       // Docker内部のサービス名でアクセス
       return `${protocol}//websocket:8001/ws/chat/${channelId}/`;
@@ -43,23 +43,97 @@ export const ChatProvider = ({ children }) => {
     return `${protocol}//${window.location.host}/api/ws/chat/${channelId}/`;
   };
   
+  const [wsUrl, setWsUrl] = useState(null);
+  const [connectionAttempts, setConnectionAttempts] = useState(0);
+  
+  // WebSocket URL をチャンネル変更時に更新
+  useEffect(() => {
+    if (activeChannel) {
+      const url = getWebSocketUrl(activeChannel.id);
+      console.log(`Setting WebSocket URL: ${url}`);
+      setWsUrl(url);
+    } else {
+      setWsUrl(null);
+    }
+  }, [activeChannel]);
+  
   const { 
     isConnected,
-    sendMessage: sendWebSocketMessage
+    sendMessage: sendWebSocketMessage,
+    connect
   } = useWebSocket(
-    activeChannel ? getWebSocketUrl(activeChannel.id) : null,
+    wsUrl,
     {
-      automaticOpen: !!activeChannel,
-      onMessage: (data) => {
-        if (data.type === 'chat_message') {
-          handleNewMessage(data.data);
-        } else if (data.type === 'read_status') {
-          // Update read status when other users read messages
-          handleReadStatusUpdate(data.data);
+      automaticOpen: true,
+      onOpen: () => {
+        console.log(`Connected to chat WebSocket for channel ID: ${activeChannel?.id}`);
+        setConnectionAttempts(0);
+        
+        // 定期的なPingを送信するインターバルを設定
+        const pingInterval = setInterval(() => {
+          if (isConnected) {
+            sendWebSocketMessage(JSON.stringify({
+              type: 'ping',
+              data: { timestamp: new Date().toISOString() }
+            }));
+            console.log('Sent ping to chat server');
+          } else {
+            clearInterval(pingInterval);
+          }
+        }, 30000); // 30秒ごとにPing
+        
+        return () => clearInterval(pingInterval);
+      },
+      onMessage: (event) => {
+        try {
+          // 文字列の場合はパース
+          let data;
+          if (typeof event === 'string') {
+            data = JSON.parse(event);
+          } else if (event.data) {
+            data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+          } else {
+            data = event;
+          }
+          
+          console.log("Received chat WebSocket message:", data);
+          
+          if (data.type === 'chat_message') {
+            handleNewMessage(data.data);
+          } else if (data.type === 'read_status') {
+            // Update read status when other users read messages
+            handleReadStatusUpdate(data.data);
+          } else if (data.type === 'pong') {
+            console.log('Received pong from server:', data);
+          }
+        } catch (error) {
+          console.error("Error handling WebSocket message:", error);
         }
-      }
+      },
+      onClose: () => {
+        console.log('Disconnected from chat WebSocket');
+        const newAttempts = connectionAttempts + 1;
+        setConnectionAttempts(newAttempts);
+      },
+      onError: (error) => {
+        console.error('Chat WebSocket error:', error);
+        const newAttempts = connectionAttempts + 1;
+        setConnectionAttempts(newAttempts);
+      },
+      // 自動再接続設定
+      reconnectInterval: 3000,
+      reconnectAttempts: 10
     }
   );
+  
+  // 追加: 明示的な再接続機能
+  const handleReconnect = useCallback(() => {
+    if (!isConnected && wsUrl) {
+      console.log('Manually reconnecting to chat WebSocket');
+      setConnectionAttempts(0);
+      connect();
+    }
+  }, [isConnected, wsUrl, connect]);
   
   // Load channels for the current user's business
   const loadChannels = useCallback(async () => {
@@ -536,13 +610,15 @@ export const ChatProvider = ({ children }) => {
     loading,
     error,
     isConnected,
+    connectionAttempts,
     loadChannels,
     loadMessages,
     selectChannel,
     sendMessage,
     createChannel,
     startDirectMessage,
-    searchMessages
+    searchMessages,
+    handleReconnect
   };
   
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

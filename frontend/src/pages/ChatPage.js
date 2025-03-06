@@ -26,11 +26,13 @@ const ChatContent = () => {
     loading,
     error,
     isConnected,
+    connectionAttempts,
     selectChannel,
     sendMessage,
     createChannel,
     startDirectMessage,
-    loadChannels
+    loadChannels,
+    handleReconnect
   } = useChat();
   
   const { currentUser } = useAuth();
@@ -217,18 +219,32 @@ const ChatContent = () => {
         
         {/* Connection status with refresh button */}
         <div className="px-4 py-2 flex justify-between items-center">
-          <div className={`text-xs font-medium ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
+          <div className={`text-xs font-medium flex items-center ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
             {isConnected ? 'Connected' : 'Disconnected'} 
             <span className={`inline-block w-2 h-2 ml-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
+            
+            {/* 接続が切断されている場合に再接続ボタンを表示 */}
+            {!isConnected && connectionAttempts > 2 && (
+              <button 
+                className="ml-2 text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded hover:bg-red-200"
+                onClick={handleReconnect}
+                title="WebSocket再接続"
+              >
+                再接続
+              </button>
+            )}
           </div>
-          <button 
-            className={`text-gray-500 hover:text-gray-900 p-1 rounded ${isRefreshing ? 'animate-spin' : ''}`}
-            onClick={handleRefreshChannels}
-            disabled={isRefreshing}
-            title="チャンネル一覧を更新"
-          >
-            <HiOutlineRefresh className="w-4 h-4" />
-          </button>
+          
+          <div className="flex items-center space-x-1">
+            <button 
+              className={`text-gray-500 hover:text-gray-900 p-1 rounded ${isRefreshing ? 'animate-spin' : ''}`}
+              onClick={handleRefreshChannels}
+              disabled={isRefreshing}
+              title="チャンネル一覧を更新"
+            >
+              <HiOutlineRefresh className="w-4 h-4" />
+            </button>
+          </div>
         </div>
         
         {/* Channels */}
@@ -504,9 +520,18 @@ const ChatContent = () => {
             </form>
             
             {!isConnected && (
-              <div className="mt-2 text-xs text-red-600 flex items-center">
-                <HiOutlineExclamation className="w-4 h-4 mr-1" />
-                <span>接続が切断されています。メッセージはローカルにのみ保存されます。</span>
+              <div className="mt-2 text-xs text-red-600 flex items-center justify-between">
+                <div className="flex items-center">
+                  <HiOutlineExclamation className="w-4 h-4 mr-1" />
+                  <span>接続が切断されています。メッセージはローカルにのみ保存されます。</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleReconnect}
+                  className="ml-2 px-2 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 transition-colors"
+                >
+                  再接続
+                </button>
               </div>
             )}
           </div>
