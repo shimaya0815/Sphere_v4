@@ -31,6 +31,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
   
   // 時間記録履歴関連
   const [timeEntries, setTimeEntries] = useState([]);
+  const [cachedTimeEntries, setCachedTimeEntries] = useState([]); // キャッシュ用の状態を追加
   const [isLoadingTimeEntries, setIsLoadingTimeEntries] = useState(false);
   const [editingTimeEntry, setEditingTimeEntry] = useState(null);
   const [timeEntryForm, setTimeEntryForm] = useState({
@@ -172,6 +173,11 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
     
     setIsLoadingTimeEntries(true);
     try {
+      // すでにキャッシュにデータがある場合はAPIを呼ばない
+      if (cachedTimeEntries.length > 0) {
+        return cachedTimeEntries;
+      }
+      
       const entries = await timeManagementApi.getTimeEntries({ task_id: task.id });
       
       // 完了した時間エントリ（is_runningがfalseかつend_timeがある）を日付の新しい順に
@@ -186,10 +192,9 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
             .sort((a, b) => new Date(b.start_time) - new Date(a.start_time))
         : [];
       
-      // 取得したエントリを状態として保存するが、表示はしない（空配列を返す）
-      const tempEntries = completedEntries;
-      setTimeEntries([]);
-      return tempEntries;
+      // データをキャッシュに保存
+      setCachedTimeEntries(completedEntries);
+      return completedEntries;
     } catch (error) {
       console.error('Error fetching time entries:', error);
       toast.error('時間記録の取得に失敗しました');
@@ -668,7 +673,8 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       
       toast.success('作業時間を記録しました');
       
-      // 時間エントリリストを更新
+      // キャッシュを空にして再取得を強制する
+      setCachedTimeEntries([]);
       fetchTimeEntries();
     } catch (error) {
       console.error('Error stopping time recording:', error);
@@ -736,7 +742,8 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       // 編集モードを終了
       cancelEditingTimeEntry();
       
-      // 時間エントリリストを更新
+      // キャッシュをクリアして時間エントリリストを更新
+      setCachedTimeEntries([]);
       fetchTimeEntries();
       
       toast.success('時間記録を更新しました');
@@ -760,7 +767,8 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       // APIで削除
       await timeManagementApi.deleteTimeEntry(entryId);
       
-      // 時間エントリリストを更新
+      // キャッシュをクリアして時間エントリリストを更新
+      setCachedTimeEntries([]);
       fetchTimeEntries();
       
       toast.success('時間記録を削除しました');
@@ -1151,10 +1159,20 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                               {/* 折りたたみヘッダー */}
                               <div 
                                 className="flex items-center justify-between cursor-pointer" 
-                                onClick={() => setTimeEntries(prev => prev.length > 0 ? [] : fetchTimeEntries() || [])}
+                                onClick={() => {
+                                  if (timeEntries.length > 0) {
+                                    // 表示中の場合は折りたたむ
+                                    setTimeEntries([]);
+                                  } else {
+                                    // 非表示の場合はキャッシュまたはAPIから取得して表示
+                                    fetchTimeEntries().then(entries => {
+                                      setTimeEntries(entries);
+                                    });
+                                  }
+                                }}
                               >
                                 <h4 className="text-sm font-medium text-gray-700">
-                                  作業時間履歴 {timeEntries.length > 0 && `(${timeEntries.length}件)`}
+                                  作業時間履歴 {cachedTimeEntries.length > 0 && `(${cachedTimeEntries.length}件)`}
                                 </h4>
                                 <button 
                                   type="button" 
