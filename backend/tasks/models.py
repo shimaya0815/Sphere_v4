@@ -192,12 +192,12 @@ class TaskPriority(models.Model):
     name = models.CharField(_('name'), max_length=100)
     color = models.CharField(_('color'), max_length=20, default='#3B82F6')  # Default blue
     description = models.TextField(_('description'), blank=True)
-    level = models.PositiveIntegerField(_('level'), default=0)  # Higher means more important
+    priority_value = models.PositiveIntegerField(_('priority value'), default=50)  # Lower number means higher priority (1-100)
     
     class Meta:
         verbose_name = _('task priority')
         verbose_name_plural = _('task priorities')
-        ordering = ['-level', 'name']
+        ordering = ['priority_value', 'name']
         unique_together = ('business', 'name')
     
     def __str__(self):
@@ -207,9 +207,9 @@ class TaskPriority(models.Model):
     def create_defaults(cls, business):
         """Create default priorities for a business."""
         priorities = [
-            {'name': '高', 'color': '#EF4444', 'level': 3, 'description': '緊急の対応が必要なタスク'},
-            {'name': '中', 'color': '#F59E0B', 'level': 2, 'description': '通常の優先度のタスク'},
-            {'name': '低', 'color': '#10B981', 'level': 1, 'description': '時間があれば対応するタスク'},
+            {'name': '高', 'color': '#EF4444', 'priority_value': 10, 'description': '緊急の対応が必要なタスク'},
+            {'name': '中', 'color': '#F59E0B', 'priority_value': 50, 'description': '通常の優先度のタスク'},
+            {'name': '低', 'color': '#10B981', 'priority_value': 90, 'description': '時間があれば対応するタスク'},
         ]
         
         for priority in priorities:
@@ -218,7 +218,7 @@ class TaskPriority(models.Model):
                 name=priority['name'],
                 defaults={
                     'color': priority['color'],
-                    'level': priority['level'],
+                    'priority_value': priority['priority_value'],
                     'description': priority['description']
                 }
             )
@@ -237,7 +237,9 @@ class Task(models.Model):
     workspace = models.ForeignKey(
         'business.Workspace',
         on_delete=models.CASCADE,
-        related_name='tasks'
+        related_name='tasks',
+        null=True,  # Allow null temporarily to fix existing data
+        blank=True
     )
     status = models.ForeignKey(
         TaskStatus,
@@ -348,6 +350,17 @@ class Task(models.Model):
     )
     recurrence_end_date = models.DateTimeField(_('recurrence end date'), null=True, blank=True)
     
+    # 繰り返しタスクのインスタンス管理のための追加フィールド
+    parent_task = models.ForeignKey(
+        'self', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='recurring_instances'
+    )
+    recurrence_frequency = models.PositiveIntegerField(_('recurrence frequency'), default=1)
+    last_generated_date = models.DateTimeField(_('last generated date'), null=True, blank=True)
+    
     # For template tasks
     is_template = models.BooleanField(_('is template'), default=False)
     template_name = models.CharField(_('template name'), max_length=255, blank=True)
@@ -362,6 +375,22 @@ class Task(models.Model):
     
     def save(self, *args, **kwargs):
         """Override save method to handle status changes and assignee updates."""
+        # Ensure workspace is set if business is provided - 強化版
+        if not self.workspace and self.business:
+            # Get the default workspace for this business
+            default_workspace = self.business.workspaces.first()
+            if default_workspace:
+                self.workspace = default_workspace
+            else:
+                # ワークスペースが見つからない場合、作成する（シグナルで作成されるはず）
+                from business.models import Workspace
+                default_workspace = Workspace.objects.create(
+                    business=self.business,
+                    name='デフォルト',
+                    description='自動作成されたデフォルトワークスペース'
+                )
+                self.workspace = default_workspace
+
         if self.pk:
             # 既存のタスクの場合、ステータス変更を検出
             try:
@@ -425,6 +454,92 @@ class Task(models.Model):
                 self.save(user=user)
                 
                 # 履歴はsaveメソッド内で自動作成されるため、ここでは不要
+    
+    def generate_next_instance(self):
+        """
+        繰り返しタスクの次回インスタンスを生成する
+        """
+        if not self.is_recurring or not self.recurrence_pattern or self.completed_at is None:
+            return None
+            
+        # 繰り返し終了日をチェック
+        if self.recurrence_end_date and timezone.now() > self.recurrence_end_date:
+            return None
+            
+        # 次回の日付を計算
+        if self.due_date:
+            next_due_date = self._calculate_next_date(self.due_date)
+        else:
+            next_due_date = None
+            
+        if self.start_date:
+            next_start_date = self._calculate_next_date(self.start_date)
+        else:
+            next_start_date = None
+            
+        # 新しいタスクインスタンスを作成
+        default_status = TaskStatus.objects.filter(business=self.business, name='未着手').first()
+        
+        # 既存タスクのコピーを作成
+        new_task = Task.objects.create(
+            title=self.title,
+            description=self.description,
+            business=self.business,
+            workspace=self.workspace,
+            status=default_status,
+            priority=self.priority,
+            category=self.category,
+            creator=self.creator,
+            worker=self.worker,
+            reviewer=self.reviewer,
+            approver=self.approver,
+            due_date=next_due_date,
+            start_date=next_start_date,
+            estimated_hours=self.estimated_hours,
+            client=self.client,
+            is_fiscal_task=self.is_fiscal_task,
+            fiscal_year=self.fiscal_year,
+            is_recurring=self.is_recurring,
+            recurrence_pattern=self.recurrence_pattern,
+            recurrence_end_date=self.recurrence_end_date,
+            parent_task=self,
+            recurrence_frequency=self.recurrence_frequency
+        )
+        
+        # 最終生成日を更新
+        self.last_generated_date = timezone.now()
+        self.save(update_fields=['last_generated_date'])
+        
+        return new_task
+    
+    def _calculate_next_date(self, date):
+        """
+        指定された日付から次回の日付を計算する
+        """
+        from datetime import timedelta
+        from dateutil.relativedelta import relativedelta
+        
+        if not date:
+            return None
+            
+        # 日付型に変換
+        if isinstance(date, str):
+            from django.utils.dateparse import parse_datetime
+            date = parse_datetime(date)
+        
+        # 繰り返しパターンと頻度に基づいて次回日付を計算
+        frequency = self.recurrence_frequency or 1
+        
+        if self.recurrence_pattern == 'daily':
+            return date + timedelta(days=frequency)
+        elif self.recurrence_pattern == 'weekly':
+            return date + timedelta(weeks=frequency)
+        elif self.recurrence_pattern == 'monthly':
+            return date + relativedelta(months=frequency)
+        elif self.recurrence_pattern == 'yearly':
+            return date + relativedelta(years=frequency)
+        
+        return None
 
 
 class TaskComment(models.Model):
