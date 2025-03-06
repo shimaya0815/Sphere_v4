@@ -20,7 +20,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
   const [businessId, setBusinessId] = useState(null);
   const [fiscalYears, setFiscalYears] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
-  const [isFiscalTask, setIsFiscalTask] = useState(false);
+  // is_fiscal_task関連の状態管理は削除
   const [isAssigneeExpanded, setIsAssigneeExpanded] = useState(false);
   
   // 共通スタイル
@@ -79,7 +79,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
   
   // 監視対象のフィールド
   const watchedClient = watch('client');
-  const watchedIsFiscalTask = watch('is_fiscal_task');
+  // is_fiscal_task監視は削除
   const watchedIsRecurring = watch('is_recurring');
   const watchedIsTemplate = watch('is_template');
   
@@ -262,8 +262,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
           reviewer: getIdAsString(task.reviewer_data?.id || task.reviewer),
           due_date: task.due_date ? task.due_date.substring(0, 10) : '',
           estimated_hours: task.estimated_hours || '',
-          is_fiscal_task: task.is_fiscal_task ? 'true' : 'false',
-          fiscal_year: getIdAsString(task.fiscal_year_data?.id || task.fiscal_year),
+          // is_fiscal_task, fiscal_year関連フィールドは削除
           is_recurring: task.is_recurring ? 'true' : 'false',
           recurrence_pattern: task.recurrence_pattern || '',
           recurrence_end_date: task.recurrence_end_date ? task.recurrence_end_date.substring(0, 10) : '',
@@ -277,7 +276,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         reset(formValues);
         
         // その他の状態設定
-        setIsFiscalTask(task.is_fiscal_task);
+        // setIsFiscalTask削除
         
         // クライアント情報設定
         if (task.client) {
@@ -353,10 +352,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
     };
   }, [watchedClient, clients]);
   
-  // 決算期タスクフラグ監視
-  useEffect(() => {
-    setIsFiscalTask(watchedIsFiscalTask === 'true');
-  }, [watchedIsFiscalTask]);
+  // 決算期タスクフラグ監視は削除
   
   // 時間記録の経過時間を更新
   useEffect(() => {
@@ -554,10 +550,10 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       client: data.client ? parseInt(data.client, 10) : null,
       worker: data.worker ? parseInt(data.worker, 10) : null,
       reviewer: data.reviewer ? parseInt(data.reviewer, 10) : null,
-      fiscal_year: data.fiscal_year ? parseInt(data.fiscal_year, 10) : null,
+      // fiscal_year関連のフィールドは削除
       
       // 真偽値変換
-      is_fiscal_task: data.is_fiscal_task === 'true',
+      // is_fiscal_task関連のフィールドは削除
       is_recurring: data.is_recurring === 'true',
       is_template: data.is_template === 'true',
       
@@ -1576,34 +1572,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                     
                     {/* 見積時間 - 削除 */}
                     
-                    {/* タスク種別（決算期関連） */}
-                    <div>
-                      <div className="flex items-center">
-                        <Controller
-                          name="is_fiscal_task"
-                          control={control}
-                          render={({ field }) => (
-                            <div className="flex items-center">
-                              <select
-                                id="is_fiscal_task"
-                                className={selectClassName}
-                                {...field}
-                                onChange={(e) => {
-                                  field.onChange(e);
-                                  handleFieldChange('is_fiscal_task', e.target.value);
-                                }}
-                                disabled={!watchedClient}
-                              >
-                                <option value="false">通常タスク</option>
-                                <option value="true">決算期関連タスク</option>
-                              </select>
-                            </div>
-                          )}
-                        />
-                      </div>
-                      
-                      {/* 決算期タスクの場合の追加フィールドは不要に */}
-                    </div>
+                    {/* タスク種別（決算期関連）セクションは削除 */}
                     
                     {/* 追加設定（繰り返し、テンプレート） */}
                     <div className="border-t border-gray-200 pt-4">
