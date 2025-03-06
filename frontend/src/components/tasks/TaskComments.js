@@ -25,13 +25,37 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
   const wsHost = process.env.NODE_ENV === 'production' 
     ? window.location.host
     : 'localhost:8001';
-    
-  const { sendMessage, isConnected } = useWebSocket(
-    taskId ? `${wsProtocol}://${wsHost}/ws/tasks/${taskId}/` : null,
+  
+  const wsUrl = taskId ? `${wsProtocol}://${wsHost}/ws/tasks/${taskId}/` : null;
+  console.log(`WebSocket URL: ${wsUrl}`);
+  
+  const [connectionAttempts, setConnectionAttempts] = useState(0);
+  const [connectionError, setConnectionError] = useState(false);
+  
+  const { sendMessage, isConnected, connect } = useWebSocket(
+    wsUrl,
     {
       onOpen: () => {
         console.log(`Connected to task WebSocket for task ID: ${taskId}`);
+        setConnectionError(false);
+        setConnectionAttempts(0);
         toast.success('リアルタイム通知に接続しました', { id: 'ws-connected', duration: 2000 });
+        
+        // 定期的なPingを送信するインターバルを設定
+        const pingInterval = setInterval(() => {
+          if (isConnected) {
+            sendMessage(JSON.stringify({
+              type: 'ping',
+              data: { timestamp: new Date().toISOString() }
+            }));
+            console.log('Sent ping to server');
+          } else {
+            clearInterval(pingInterval);
+          }
+        }, 30000); // 30秒ごとにPing
+        
+        // コンポーネントのクリーンアップ時にインターバルをクリア
+        return () => clearInterval(pingInterval);
       },
       onMessage: (event) => {
         try {
@@ -48,6 +72,9 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
             if (data.type === 'comment_added') {
               fetchComments();
             }
+          } else if (data.type === 'pong') {
+            console.log('Received pong from server:', data);
+            // Pongメッセージは特に処理しない、接続確認用
           }
         } catch (error) {
           console.error("Error handling WebSocket message:", error);
@@ -55,17 +82,39 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
       },
       onClose: () => {
         console.log('Disconnected from task WebSocket');
-        // 自動的に再接続を試みるのでトーストは表示しない
+        // 自動的に再接続を試みる
+        const newAttempts = connectionAttempts + 1;
+        setConnectionAttempts(newAttempts);
+        
+        if (newAttempts >= 5) {
+          setConnectionError(true);
+          toast.error('通知サーバーへの接続に問題が発生しました', { id: 'ws-error', duration: 3000 });
+        }
       },
       onError: (error) => {
         console.error('Task WebSocket error:', error);
-        toast.error('通知サーバーへの接続に問題が発生しました', { id: 'ws-error', duration: 3000 });
+        setConnectionError(true);
+        
+        if (connectionAttempts >= 2) {
+          toast.error('通知サーバーへの接続に問題が発生しました', { id: 'ws-error', duration: 3000 });
+        }
       },
       // 自動再接続設定
-      reconnectInterval: 2000,
-      reconnectAttempts: 10
+      reconnectInterval: 3000,
+      reconnectAttempts: 10,
+      automaticOpen: true, // 自動接続を有効に
     }
   );
+  
+  // 明示的な再接続機能
+  const handleReconnect = () => {
+    if (!isConnected && connectionError) {
+      connect();
+      toast.info('通知サーバーに再接続しています...', { id: 'ws-reconnect' });
+      setConnectionAttempts(0);
+      setConnectionError(false);
+    }
+  };
 
   // タスク用のチャットチャンネルを探すか作成する - 一時的に無効化
   /*
@@ -386,27 +435,35 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
 
   return (
     <div>
-      {/* チャンネル情報表示 - 一時的に無効化
-      {taskChannel && (
-        <div className="mb-4 bg-blue-50 border border-blue-200 rounded-md p-3 text-sm">
+      {/* WebSocket接続状態の表示 */}
+      {connectionError && (
+        <div className="mb-4 bg-red-50 border border-red-200 rounded-md p-3 text-sm">
           <div className="flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
-            <span className="font-medium text-blue-800">チャットチャンネル: </span>
-            <span className="ml-1 text-blue-600">{taskChannel.name}</span>
-            <a 
-              href={`/chat/channel/${taskChannel.id}`} 
-              className="ml-auto text-blue-600 hover:text-blue-800 underline text-xs"
-              target="_blank"
-              rel="noopener noreferrer"
+            <span className="font-medium text-red-800">通知サーバーへの接続に問題があります</span>
+            <button 
+              onClick={handleReconnect} 
+              className="ml-auto bg-red-600 text-white px-3 py-1 rounded-md text-xs hover:bg-red-700 transition-colors"
             >
-              チャットで開く
-            </a>
+              再接続
+            </button>
           </div>
         </div>
       )}
-      */}
+      
+      {/* 接続成功時の表示 (オプション) */}
+      {isConnected && !connectionError && (
+        <div className="mb-4 bg-green-50 border border-green-200 rounded-md p-2 text-sm hidden md:block">
+          <div className="flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <span className="text-green-800 text-xs">リアルタイム通知に接続されています</span>
+          </div>
+        </div>
+      )}
 
       {/* コメント一覧 */}
       <div className="space-y-4 mb-6">

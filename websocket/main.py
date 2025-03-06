@@ -94,18 +94,33 @@ async def websocket_endpoint(websocket: WebSocket, channel_id: int):
         await manager.connect(websocket, channel_id)
         logger.info(f"WebSocket connection successful for channel {channel_id}")
         
-        # 接続確認メッセージを送信
-        try:
-            await websocket.send_json({
-                "type": "connection_established",
-                "data": {
-                    "message": "Connected to WebSocket server",
-                    "channel_id": channel_id,
-                    "timestamp": datetime.now().isoformat()
-                }
-            })
-        except Exception as e:
-            logger.error(f"Error sending welcome message: {str(e)}")
+        # 接続確認メッセージを送信 - キープアライブを追加
+        for attempt in range(3):  # 3回までリトライ
+            try:
+                # 接続状態の確認
+                if websocket.client_state == websocket.application_state == 1:  # OPEN状態の確認
+                    await websocket.send_json({
+                        "type": "connection_established",
+                        "data": {
+                            "message": "Connected to WebSocket server",
+                            "channel_id": channel_id,
+                            "timestamp": datetime.now().isoformat()
+                        }
+                    })
+                    logger.info(f"Welcome message sent to channel {channel_id}")
+                    break  # 成功したらループを抜ける
+                else:
+                    logger.warning(f"WebSocket not in OPEN state, retrying... (attempt {attempt+1}/3)")
+                    await asyncio.sleep(0.1)  # 少し待機
+            except Exception as e:
+                logger.error(f"Error sending welcome message (attempt {attempt+1}/3): {str(e)}")
+                if attempt < 2:  # 最後の試行以外は待機して再試行
+                    await asyncio.sleep(0.2)
+                else:
+                    # 最後の試行の場合は、接続が生きているか確認
+                    if websocket.client_state != 1 or websocket.application_state != 1:
+                        logger.error("WebSocket connection appears to be closed or in invalid state")
+                    break
         
         # メッセージ受信ループ
         try:
@@ -138,6 +153,16 @@ async def websocket_endpoint(websocket: WebSocket, channel_id: int):
                             "type": "read_status",
                             "data": message_obj.data
                         }, channel_id)
+                    elif message_obj.type == "ping":
+                        # クライアントからのPingには応答するだけ
+                        await websocket.send_json({
+                            "type": "pong",
+                            "data": {
+                                "timestamp": datetime.now().isoformat(),
+                                "server_received": message_obj.data.get("timestamp", "unknown")
+                            }
+                        })
+                        logger.info(f"Responded to ping from client")
                     else:
                         logger.warning(f"Unknown message type: {message_obj.type}")
                 except json.JSONDecodeError:
@@ -178,18 +203,33 @@ async def task_endpoint(websocket: WebSocket, task_id: int):
         await manager.connect(websocket, task_id)
         logger.info(f"Client connected to task {task_id} channel")
         
-        # 接続確認メッセージを送信
-        try:
-            await websocket.send_json({
-                "type": "connection_established",
-                "data": {
-                    "message": "Connected to task WebSocket server",
-                    "task_id": task_id,
-                    "timestamp": datetime.now().isoformat()
-                }
-            })
-        except Exception as e:
-            logger.error(f"Error sending task welcome message: {str(e)}")
+        # 接続確認メッセージを送信 - キープアライブを追加
+        for attempt in range(3):  # 3回までリトライ
+            try:
+                # 接続状態の確認
+                if websocket.client_state == websocket.application_state == 1:  # OPEN状態の確認
+                    await websocket.send_json({
+                        "type": "connection_established",
+                        "data": {
+                            "message": "Connected to task WebSocket server",
+                            "task_id": task_id,
+                            "timestamp": datetime.now().isoformat()
+                        }
+                    })
+                    logger.info(f"Welcome message sent to task {task_id}")
+                    break  # 成功したらループを抜ける
+                else:
+                    logger.warning(f"Task WebSocket not in OPEN state, retrying... (attempt {attempt+1}/3)")
+                    await asyncio.sleep(0.1)  # 少し待機
+            except Exception as e:
+                logger.error(f"Error sending task welcome message (attempt {attempt+1}/3): {str(e)}")
+                if attempt < 2:  # 最後の試行以外は待機して再試行
+                    await asyncio.sleep(0.2)
+                else:
+                    # 最後の試行の場合は、接続が生きているか確認
+                    if websocket.client_state != 1 or websocket.application_state != 1:
+                        logger.error("Task WebSocket connection appears to be closed or in invalid state")
+                    break
         
         # メッセージ受信ループ
         try:
@@ -216,6 +256,16 @@ async def task_endpoint(websocket: WebSocket, task_id: int):
                             "data": message_data.get("data", {})
                         }, task_id)
                         logger.info(f"Broadcast status change to task {task_id}")
+                    elif message_type == "ping":
+                        # クライアントからのpingメッセージに応答
+                        await websocket.send_json({
+                            "type": "pong",
+                            "data": {
+                                "timestamp": datetime.now().isoformat(),
+                                "task_id": task_id
+                            }
+                        })
+                        logger.info(f"Responded to ping from task {task_id} client")
                     else:
                         # タスク関連の通知をブロードキャスト
                         await manager.broadcast({
