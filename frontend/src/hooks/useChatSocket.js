@@ -19,10 +19,8 @@ const useChatSocket = (options = {}) => {
   
   // オプション
   const {
-    // 接続URL - 環境変数またはデフォルト値を使用
-    url = process.env.REACT_APP_WS_URL || 
-          process.env.REACT_APP_SOCKET_URL || 
-          window.location.protocol + '//' + window.location.hostname + ':8001',
+    // 接続URL - useSocketIOの処理に任せる
+    url = undefined, // 未設定のままにして、useSocketIOのgetOptimalSocketUrlを使用
     
     // 通知を表示するかどうか
     showNotifications = true,
