@@ -234,6 +234,13 @@ const ChatContent = () => {
       .then(() => {
         // Focus back on input after sending
         messageInputRef.current?.focus();
+        
+        // 少し遅延させてスクロール（チャンネル更新後のスクロール）
+        setTimeout(() => {
+          if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 100);
       })
       .catch(error => {
         console.error('Failed to send message:', error);

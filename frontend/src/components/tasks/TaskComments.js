@@ -367,7 +367,13 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
       toast.success('コメントが追加されました');
       
       // コメント一覧を再取得
-      fetchComments();
+      await fetchComments();
+      
+      // 少し遅延させてコメント入力欄にスクロールする
+      setTimeout(() => {
+        commentInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        commentInputRef.current?.focus();
+      }, 100);
       
       // タスク固有のWebSocketにコメント通知を送信
       try {
@@ -536,7 +542,8 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
             まだコメントはありません
           </div>
         ) : (
-          comments.map(comment => (
+          // コメントを反転して表示（新しいコメントが下に来るように）
+          [...comments].reverse().map(comment => (
             <div key={comment.id} className="bg-gray-50 rounded-lg p-4">
               <div className="flex justify-between items-start">
                 <div className="flex items-center">
