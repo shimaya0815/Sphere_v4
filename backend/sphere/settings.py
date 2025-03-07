@@ -89,6 +89,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'business.middleware.BusinessSeparationMiddleware',  # Business separation middleware
+    'users.middleware.SignalInspectionMiddleware',  # Signal inspection middleware
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]

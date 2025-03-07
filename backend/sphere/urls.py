@@ -42,8 +42,9 @@ urlpatterns = [
     path('auth/', include('djoser.urls')),
     path('auth/token/login/', BusinessAuthTokenView.as_view(), name='login-with-business-alt'),
     path('auth/', include('djoser.urls.authtoken')),
-    # Override user registration endpoint
-    path('auth/users/', users_views.UserCreateView.as_view(), name='user-create'),
+    # URL上書きの順序が重要：まず先にカスタムユーザー作成エンドポイントを登録
+    path('api/custom/users/', users_views.UserCreateView.as_view(), name='custom-user-create'),
+    path('custom/users/', users_views.UserCreateView.as_view(), name='custom-user-create-alt'),
     
     # API endpoints with /api prefix
     path('api/users/', include('users.urls')),
