@@ -27,39 +27,100 @@ app.add_middleware(
 # WebSocket connection manager
 class ConnectionManager:
     def __init__(self):
+        # 接続管理を改善 - 新規作成
         self.active_connections: Dict[int, List[WebSocket]] = {}
-        # デバッグ用の接続履歴
-        self.connection_history = []
-
+        # 接続IDでWebSocketを追跡
+        self.connection_ids = {}
+        # チャンネルごとの最新接続を追跡
+        self.latest_connections = {}
+        
+    async def register_connection(self, websocket: WebSocket, channel_id: int) -> str:
+        """
+        新しい接続を登録し、他の古い接続を切断
+        """
+        # 一意の接続IDを生成
+        conn_id = f"{channel_id}-{id(websocket)}-{datetime.now().timestamp()}"
+        
+        # 既存の接続を管理
+        if channel_id in self.active_connections:
+            # このチャンネルの古い接続を全て閉じる（現在の接続が最新）
+            if channel_id in self.latest_connections:
+                old_conn_id = self.latest_connections[channel_id]
+                # 古い接続と異なる場合のみクリーンアップ
+                if old_conn_id != conn_id:
+                    logger.info(f"🧹 Cleaning up old connections for channel {channel_id}")
+                    # 古い接続の配列をコピー
+                    old_connections = self.active_connections[channel_id].copy()
+                    # 新しい接続配列を作成
+                    self.active_connections[channel_id] = []
+                    
+                    # 古い接続を切断
+                    for old_ws in old_connections:
+                        try:
+                            old_ws_id = id(old_ws)
+                            # この接続と違う接続なら閉じる
+                            if old_ws_id != id(websocket):
+                                logger.info(f"🔌 Closing old connection {old_ws_id} for channel {channel_id}")
+                                await old_ws.close(code=1000, reason="New connection established")
+                        except Exception as e:
+                            logger.error(f"Error closing old connection: {str(e)}")
+        else:
+            # 新しいチャンネル用の配列を初期化
+            self.active_connections[channel_id] = []
+            
+        # 接続を追加
+        self.active_connections[channel_id].append(websocket)
+        self.connection_ids[id(websocket)] = conn_id
+        self.latest_connections[channel_id] = conn_id
+        
+        logger.info(f"📊 Channel {channel_id} now has {len(self.active_connections[channel_id])} connections")
+        return conn_id
+            
     async def connect(self, websocket: WebSocket, channel_id: int):
-        """
-        この関数は直接使わない - 代わりにwebsocket_endpoint内で接続を管理
-        """
-        logger.warning("⚠️ connect method called directly - this is deprecated")
-        return False
+        """互換性のために残す"""
+        logger.warning("⚠️ connect method called directly - use register_connection instead")
+        await self.register_connection(websocket, channel_id)
+        return True
 
     def disconnect(self, websocket: WebSocket, channel_id: int):
         try:
+            # 接続IDを記録
+            ws_id = id(websocket)
+            conn_id = self.connection_ids.get(ws_id, "unknown")
+            
             if channel_id in self.active_connections:
                 # 接続がリストにある場合に削除
                 if websocket in self.active_connections[channel_id]:
                     self.active_connections[channel_id].remove(websocket)
-                    logger.info(f"Client disconnected from channel {channel_id}. Active connections: {len(self.active_connections[channel_id])}")
+                    logger.info(f"🔌 Client disconnected from channel {channel_id} (conn_id: {conn_id})")
                 else:
-                    logger.warning(f"Attempted to disconnect a WebSocket that was not in channel {channel_id}")
+                    logger.warning(f"⚠️ Attempted to disconnect a WebSocket that was not in channel {channel_id}")
                 
                 # チャンネルが空になった場合、辞書からキーを削除
                 if not self.active_connections[channel_id]:
                     del self.active_connections[channel_id]
-                    logger.info(f"Channel {channel_id} has no more connections, removed from active channels")
+                    if channel_id in self.latest_connections:
+                        del self.latest_connections[channel_id]
+                    logger.info(f"📦 Channel {channel_id} has no more connections, removed from tracking")
             else:
-                logger.warning(f"Attempted to disconnect from non-existent channel {channel_id}")
+                logger.warning(f"⚠️ Attempted to disconnect from non-existent channel {channel_id}")
+            
+            # 接続IDを削除
+            if ws_id in self.connection_ids:
+                del self.connection_ids[ws_id]
+                
         except Exception as e:
-            logger.error(f"Error in disconnect method: {str(e)}")
+            logger.error(f"❌ Error in disconnect method: {str(e)}")
             
         # 全体のアクティブ接続数をログに記録
         total_connections = sum(len(connections) for connections in self.active_connections.values()) if self.active_connections else 0
-        logger.info(f"Total active connections across all channels: {total_connections}")
+        logger.info(f"📊 Total active connections across all channels: {total_connections}")
+        
+        # 残っている接続IDの数も記録
+        logger.info(f"📊 Tracked connection IDs: {len(self.connection_ids)}")
+        
+        # 管理されているチャンネル数も記録
+        logger.info(f"📊 Active channels: {len(self.active_connections)}")
 
     async def broadcast(self, message: Dict[str, Any], channel_id: int):
         if channel_id in self.active_connections:
@@ -108,57 +169,42 @@ class TaskStatusNotification(BaseModel):
 
 @app.websocket("/ws/chat/{channel_id}/")
 async def websocket_endpoint(websocket: WebSocket, channel_id: int):
-    # WebSocketハンドシェイク前にオリジンをログに出力（接続デバッグ用）
+    # 接続情報を記録
     client = f"{websocket.client.host}:{websocket.client.port}"
     headers = dict(websocket.headers)
     origin = headers.get('origin', 'unknown')
     logger.info(f"⚡ WebSocket connection attempt from {client}, Origin: {origin}")
     
-    # より詳細なリクエスト情報を出力
-    logger.info(f"⚡ Headers: {headers}")
-    logger.info(f"⚡ Connection attempt for channel: {channel_id}")
-    
-    # 接続を受け付ける（これによりハンドシェイクを完了させる）
     try:
-        # より安全な接続ロジック
+        # 明示的にWebSocket接続を受け入れる
+        await websocket.accept()
+        logger.info(f"✅ WebSocket connection handshake accepted for channel {channel_id}")
+        
+        # 新しい管理メソッドで接続を登録（古い接続は自動的に閉じられる）
+        conn_id = await manager.register_connection(websocket, channel_id)
+        logger.info(f"📝 Registered connection {conn_id} for channel {channel_id}")
+        
+        # 確認メッセージを送信 - クライアントが接続確立を認識するため
         try:
-            # 明示的なaccept呼び出し
-            await websocket.accept()
-            logger.info(f"✅ WebSocket connection accepted for channel {channel_id}")
-            
-            # 接続をマネージャーに登録
-            if channel_id not in manager.active_connections:
-                manager.active_connections[channel_id] = []
-            manager.active_connections[channel_id].append(websocket)
-            
-            logger.info(f"👥 Client connected to channel {channel_id}. Active connections: {len(manager.active_connections[channel_id])}")
-            connection_success = True
-        except Exception as accept_err:
-            logger.error(f"❌ Error accepting connection: {str(accept_err)}")
-            connection_success = False
-        
-        if not connection_success:
-            logger.error(f"❌ Failed to establish connection for channel {channel_id}")
-            return
-        
-        logger.info(f"✅ WebSocket connection successful for channel {channel_id}")
-        
-        # 接続確認メッセージを送信
-        try:
-            # メッセージを小さなJSONオブジェクトに簡素化
             await websocket.send_json({
                 "type": "connection_established",
-                "message": "Connected to server",
-                "channel_id": channel_id
+                "status": "connected",
+                "channel_id": channel_id,
+                "connection_id": conn_id,
+                "timestamp": datetime.now().isoformat()
             })
             logger.info(f"📨 Welcome message sent to channel {channel_id}")
+            
+            # 即座にpingも送信して接続をテスト
+            await websocket.send_json({
+                "type": "ping",
+                "status": "active",
+                "timestamp": datetime.now().isoformat()
+            })
+            logger.info(f"🏓 Initial ping sent to channel {channel_id}")
         except Exception as e:
-            logger.error(f"❌ Error sending welcome message: {str(e)}")
-            # 接続に問題がある場合は早期終了
-            try:
-                manager.disconnect(websocket, channel_id)
-            except Exception as disc_err:
-                logger.error(f"❌ Error during disconnect: {str(disc_err)}")
+            logger.error(f"❌ Error in initial communication: {str(e)}")
+            manager.disconnect(websocket, channel_id)
             return
         
         # メッセージ受信ループ

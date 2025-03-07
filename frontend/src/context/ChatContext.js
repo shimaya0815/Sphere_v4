@@ -283,22 +283,30 @@ export const ChatProvider = ({ children }) => {
         } else {
           console.warn('WebSocket未接続のため、read_statusメッセージを送信できません。メッセージは表示されますが、リアルタイム通知は機能しません。');
           
-          // オフライン状態でも通知メッセージを表示するためのフォールバック
-          // ローカルのみでメッセージを追加（サーバーには送信されない）
-          setMessages(prev => [
-            ...prev,
-            {
-              id: `local-${Date.now()}`,
-              content: "⚠️ WebSocketサーバーに接続できません。メッセージはローカルにのみ保存され、サーバーには送信されません。",
-              user: {
-                id: 0,
-                full_name: "システム",
-              },
-              created_at: new Date().toISOString(),
-              is_system: true,
-              is_local: true
+          // 接続状態をより積極的にチェック
+          // WebSocket接続を明示的に試みる
+          handleReconnect();
+          
+          // 1秒後に再度接続状態をチェック
+          setTimeout(() => {
+            if (!isConnected) {
+              // それでも接続できない場合のみ警告表示
+              setMessages(prev => [
+                ...prev,
+                {
+                  id: `local-${Date.now()}`,
+                  content: "⚠️ WebSocketサーバーに接続できません。メッセージはローカルにのみ保存され、サーバーには送信されません。再接続を行います。",
+                  user: {
+                    id: 0,
+                    full_name: "システム",
+                  },
+                  created_at: new Date().toISOString(),
+                  is_system: true,
+                  is_local: true
+                }
+              ]);
             }
-          ]);
+          }, 1000);
         }
       } catch (err) {
         console.error("Failed to mark channel as read:", err);

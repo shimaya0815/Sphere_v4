@@ -152,19 +152,78 @@ const useWebSocket = (url, options = {}) => {
               // 接続確立メッセージを処理（サーバー側の形式に合わせて修正）
               if (data.type === 'connection_established') {
                 console.log('🎉 Connection established message from server:', data);
+                // UI状態を更新
                 setIsConnected(true);
                 setError(null);
-                // 追加の接続確認メッセージをすぐに送信（接続テスト用）
+                
+                // 明示的にUIにもメッセージを表示
+                setMessages(prevMessages => [
+                  ...prevMessages, 
+                  {
+                    id: `system-${Date.now()}`,
+                    type: 'system',
+                    content: 'WebSocket接続が確立されました',
+                    timestamp: new Date().toISOString()
+                  }
+                ]);
+                
+                // グローバルステータスイベントをトリガー
+                try {
+                  // カスタムイベントを発行（他のコンポーネントが監視できるように）
+                  const event = new CustomEvent('websocket-connected', { 
+                    detail: { connectionId: data.connection_id || 'unknown' } 
+                  });
+                  window.dispatchEvent(event);
+                  console.log('✅ Triggered websocket-connected event');
+                } catch (evtErr) {
+                  console.warn('❌ Failed to dispatch connection event:', evtErr);
+                }
+                
+                // 確認応答を返信
                 try {
                   if (websocketRef.current && websocketRef.current.readyState === WebSocket.OPEN) {
                     websocketRef.current.send(JSON.stringify({
-                      type: 'ping',
-                      data: { timestamp: new Date().toISOString(), client_info: 'connection_test' }
+                      type: 'connection_ack',
+                      data: { 
+                        timestamp: new Date().toISOString(), 
+                        status: 'received',
+                        client_info: { 
+                          url: window.location.href,
+                          userAgent: navigator.userAgent,
+                          timestamp: new Date().toISOString()
+                        }
+                      }
                     }));
-                    console.log('✅ Sent follow-up ping after connection established');
+                    console.log('✅ Sent connection acknowledgement');
                   }
                 } catch (err) {
-                  console.warn('❌ Failed to send follow-up ping:', err);
+                  console.warn('❌ Failed to send connection acknowledgement:', err);
+                }
+              }
+              
+              // pingメッセージへの応答
+              if (data.type === 'ping') {
+                console.log('🏓 Ping received from server:', data);
+                
+                // 接続状態を更新
+                setIsConnected(true);
+                setError(null);
+                
+                // Pongで応答
+                try {
+                  if (websocketRef.current && websocketRef.current.readyState === WebSocket.OPEN) {
+                    websocketRef.current.send(JSON.stringify({
+                      type: 'pong',
+                      data: { 
+                        timestamp: new Date().toISOString(),
+                        received: data.timestamp,
+                        client_status: 'healthy'
+                      }
+                    }));
+                    console.log('✅ Replied with pong');
+                  }
+                } catch (err) {
+                  console.warn('❌ Failed to send pong:', err);
                 }
               }
               
