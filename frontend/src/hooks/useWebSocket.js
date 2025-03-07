@@ -29,14 +29,9 @@ const useWebSocket = (url, options = {}) => {
       return;
     }
     
-    // URLを処理して適切なWebSocketアドレスに変換
+    // URLをそのまま使用（プロキシ設定がsetupProxy.jsで行われているので変更不要）
     let wsUrl = url;
-    // Dockerコンテナ内で実行されている場合、localhostではなくwebsocketサービス名を使用
-    if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
-      // Dockerコンテナの内外に関わらず接続できるようにする
-      wsUrl = url.replace('localhost:8001', 'websocket:8001');
-      console.log(`Modified WebSocket URL for Docker compatibility: ${wsUrl}`);
-    }
+    console.log(`Using WebSocket URL: ${wsUrl}`);
     
     console.log(`Connecting to WebSocket URL: ${wsUrl}`);
     
