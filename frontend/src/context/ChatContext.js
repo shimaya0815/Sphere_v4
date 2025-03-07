@@ -154,31 +154,70 @@ export const ChatProvider = ({ children }) => {
       const response = await chatApi.getChannelMessages(channelId, options);
       
       // レスポンスの形式を確認
-      if (response && response.data) {
-        console.log(`チャンネル ${channelId} のメッセージ ${response.data.results?.length || 0} 件を読み込みました`);
-        
+      console.log(`チャンネル ${channelId} のメッセージ レスポンス:`, response);
+      
+      // APIからのレスポンスを統一形式に変換（Socket.IO互換形式に）
+      let messages = [];
+      let count = 0;
+      
+      if (response && response.data && response.data.results) {
         // 標準的なAPIレスポンス形式
-        return {
-          results: response.data.results || [],
-          count: response.data.count || 0
-        };
+        messages = response.data.results.map(msg => ({
+          message_id: msg.id,
+          channel_id: String(channelId),
+          content: msg.content,
+          user: msg.user,
+          timestamp: msg.created_at,
+          ...msg // その他の項目も保持
+        }));
+        count = response.data.count || messages.length;
+        console.log(`チャンネル ${channelId} のメッセージ ${messages.length} 件を読み込みました`);
       } else if (response && Array.isArray(response.results)) {
-        console.log(`チャンネル ${channelId} のメッセージ ${response.results.length} 件を読み込みました`);
-        
         // 別の形式
-        return {
-          results: response.results,
-          count: response.count || response.results.length
-        };
+        messages = response.results.map(msg => ({
+          message_id: msg.id,
+          channel_id: String(channelId),
+          content: msg.content,
+          user: msg.user,
+          timestamp: msg.created_at,
+          ...msg // その他の項目も保持
+        }));
+        count = response.count || messages.length;
+        console.log(`チャンネル ${channelId} のメッセージ ${messages.length} 件を読み込みました`);
+      } else if (response && Array.isArray(response)) {
+        // 配列形式
+        messages = response.map(msg => ({
+          message_id: msg.id,
+          channel_id: String(channelId),
+          content: msg.content,
+          user: msg.user,
+          timestamp: msg.created_at,
+          ...msg // その他の項目も保持
+        }));
+        count = messages.length;
+        console.log(`チャンネル ${channelId} のメッセージ ${messages.length} 件を読み込みました`);
       } else {
-        console.log(`チャンネル ${channelId} のメッセージレスポンス:`, response);
-        
-        // フォールバック
-        return {
-          results: response?.results || response?.data?.results || [],
-          count: response?.count || response?.data?.count || 0
-        };
+        // それ以外のフォールバック
+        console.warn(`不明な形式のメッセージレスポンス:`, response);
+        if (response && typeof response === 'object') {
+          messages = Object.values(response).filter(item => 
+            item && typeof item === 'object' && item.content
+          ).map(msg => ({
+            message_id: msg.id || `msg-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+            channel_id: String(channelId),
+            content: msg.content || '',
+            user: msg.user || { id: 0, name: 'Unknown' },
+            timestamp: msg.created_at || msg.timestamp || new Date().toISOString(),
+            ...msg
+          }));
+          count = messages.length;
+        }
       }
+      
+      return {
+        results: messages,
+        count: count
+      };
     } catch (err) {
       console.error('メッセージ読み込みエラー:', err);
       
@@ -234,8 +273,16 @@ export const ChatProvider = ({ children }) => {
       
       // メッセージ履歴に基づいてメッセージを表示
       if (messageHistory && messageHistory.results) {
-        // Socket.IOのメッセージリストとAPIから取得したメッセージを統合
+        // Socket.IOのメッセージをメッセージリストに設定
         console.log(`チャンネル ${channel.id} のメッセージを設定: ${messageHistory.results.length} 件`);
+        
+        // メッセージをuseChatSocketに渡す - 初期メッセージとして設定
+        try {
+          // メッセージ一覧をSocketのメッセージリストとして設定（直接インポート）
+          setMessages(messageHistory.results);
+        } catch (setErr) {
+          console.error('メッセージリスト設定エラー:', setErr);
+        }
       }
       
       // Socket.IO経由でチャンネルを選択（API処理の後に行う）
