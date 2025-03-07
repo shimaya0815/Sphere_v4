@@ -75,6 +75,15 @@ module.exports = function(app) {
     timeout: 60000,
     // WebSocketリソースの割り当てを増やす
     maxSockets: 1000,
+    // HeadersをDocker環境に適したものに調整
+    headers: {
+      'Origin': SOCKET_HOST,
+      'Access-Control-Allow-Origin': '*'
+    },
+    // パスの書き換えを無効化（Socket.IOのパス解決に影響するため）
+    pathRewrite: {
+      '^/socket.io': '/socket.io'
+    },
     onProxyReq: (proxyReq, req, res) => {
       const isWebSocket = req.headers.upgrade && req.headers.upgrade.toLowerCase() === 'websocket';
       console.log(`→ Socket.IO: ${req.method} ${req.url} -> ${SOCKET_HOST}${proxyReq.path} ${isWebSocket ? '(WebSocket)' : '(HTTP)'}`);
@@ -84,6 +93,10 @@ module.exports = function(app) {
         proxyReq.setHeader('Connection', 'Upgrade');
         proxyReq.setHeader('Upgrade', 'websocket');
       }
+
+      // Docker環境のために追加のヘッダーを設定
+      proxyReq.setHeader('Origin', SOCKET_HOST);
+      proxyReq.setHeader('Host', new URL(SOCKET_HOST).host);
     },
     onProxyRes: (proxyRes, req, res) => {
       console.log(`← Socket.IO: ${proxyRes.statusCode} ${req.method} ${req.url}`);
