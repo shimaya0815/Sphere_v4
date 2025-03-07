@@ -517,19 +517,28 @@ const ChatContent = () => {
               </button>
             </form>
             
-            {!isConnected && (
+            {!isConnected ? (
               <div className="mt-2 text-xs text-red-600 flex items-center justify-between">
                 <div className="flex items-center">
                   <HiOutlineExclamation className="w-4 h-4 mr-1" />
-                  <span>接続が切断されています。メッセージはローカルにのみ保存されます。</span>
+                  <span>WebSocket接続中... しばらくお待ちください</span>
                 </div>
                 <button
                   type="button"
                   onClick={handleReconnect}
-                  className="ml-2 px-2 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 transition-colors"
+                  className="ml-2 px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 transition-colors"
                 >
-                  再接続
+                  接続する
                 </button>
+              </div>
+            ) : (
+              <div className="mt-2 text-xs text-green-600 flex items-center justify-between">
+                <div className="flex items-center">
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                  <span>リアルタイム通信接続中</span>
+                </div>
               </div>
             )}
           </div>
