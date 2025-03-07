@@ -55,13 +55,14 @@ const axiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000, // より長いタイムアウト：30秒
+  timeout: 45000, // より長いタイムアウト：45秒（Socket.IOと一致）
   withCredentials: false, // CORSのクッキー送信は無効化
   
-  // リクエスト制限
-  maxContentLength: 5000000, // 最大5MB
+  // リクエスト制限を緩和
+  maxContentLength: 10000000, // 最大10MB
   maxRedirects: 5,
-  maxBodyLength: 5000000,
+  maxBodyLength: 10000000,
+  retryConfig: { retries: 2 },  // 失敗時に自動リトライ
 });
 
 // axiosインスタンスのメソッドをapiClientにコピー
