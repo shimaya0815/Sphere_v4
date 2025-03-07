@@ -66,29 +66,34 @@ const useWebSocket = (url, options = {}) => {
     // 複数の接続方法を準備（優先度順）
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     
-    // 代替接続URLのリスト（優先順位順）- Docker環境用に最適化
-    const directUrls = [
-      // host.docker.internalを使用 - Docker内からホストIPにアクセス
-      `${protocol}//host.docker.internal:8001/ws/${resourceType}/${channelId}/`,
-      // WebSocketサーバーのホスト名を直接指定（Docker内部ネットワーク用）
-      `${protocol}//websocket:8001/ws/${resourceType}/${channelId}/`,
-      // ループバックアドレスで試行（開発環境用）
-      `${protocol}//localhost:8001/ws/${resourceType}/${channelId}/`,
-      // IPアドレスで直接接続
-      `${protocol}//127.0.0.1:8001/ws/${resourceType}/${channelId}/`
-    ];
-    
+    // 代替接続URLのリスト - 優先順位をプロキシ経由に変更
     const proxyUrls = [
-      // URLがws://またはwss://で始まる場合
-      wsUrl.startsWith('ws://') || wsUrl.startsWith('wss://') ? wsUrl : null,
+      // フルパスを構築（/wsプレフィックスなし）- 最も信頼性の高い方法
+      `${protocol}//${window.location.host}/${resourceType}/${channelId}/`,
+      
       // フルパスを構築（/ws/プレフィックス付き）- プロキシ経由
       `${protocol}//${window.location.host}/ws/${resourceType}/${channelId}/`,
-      // フルパスを構築（/wsプレフィックスなし）
-      `${protocol}//${window.location.host}/${resourceType}/${channelId}/`
+      
+      // URLがws://またはwss://で始まる場合
+      wsUrl.startsWith('ws://') || wsUrl.startsWith('wss://') ? wsUrl : null
     ].filter(Boolean); // nullの項目を除外
     
-    // Docker環境では直接接続を優先
-    const fallbackUrls = [...directUrls, ...proxyUrls];
+    const directUrls = [
+      // WebSocketサーバーのホスト名を直接指定（Docker内部ネットワーク用）
+      `${protocol}//websocket:8001/ws/${resourceType}/${channelId}/`,
+      
+      // ループバックアドレスで試行（開発環境用）
+      `${protocol}//localhost:8001/ws/${resourceType}/${channelId}/`,
+      
+      // IPアドレスで直接接続
+      `${protocol}//127.0.0.1:8001/ws/${resourceType}/${channelId}/`,
+      
+      // host.docker.internalを使用 - Docker内からホストIPにアクセス
+      `${protocol}//host.docker.internal:8001/ws/${resourceType}/${channelId}/`
+    ];
+    
+    // プロキシ経由の接続を優先 - より信頼性が高いため
+    const fallbackUrls = [...proxyUrls, ...directUrls];
     
     // 重複しているURLを除外
     const uniqueFallbackUrls = [...new Set(fallbackUrls)];
@@ -201,20 +206,22 @@ const useWebSocket = (url, options = {}) => {
               // フォールバックURLを順番に試す - 優先順位を変更
               try {
                 if (window.wsConnectionOptions && window.wsConnectionOptions.fallbacks) {
-                  // 優先順位を変更：直接接続を優先
+                  // 優先順位を変更：プロキシ経由接続を優先
                   const fallbacks = [...window.wsConnectionOptions.fallbacks];
                   
-                  // WebSocketサーバーへの直接接続を優先する
-                  const directConnections = fallbacks.filter(url => 
-                    url.includes('localhost:8001') || url.includes('127.0.0.1:8001')
-                  );
-                  
+                  // プロキシ経由の接続を優先する（最も信頼性が高い）
                   const proxyConnections = fallbacks.filter(url => 
-                    !url.includes('localhost:8001') && !url.includes('127.0.0.1:8001')
+                    url.includes(window.location.host) && 
+                    !url.includes('localhost:8001') && 
+                    !url.includes('127.0.0.1:8001')
                   );
                   
-                  // 直接接続を優先的に並べ替え
-                  const reorderedFallbacks = [...directConnections, ...proxyConnections];
+                  const directConnections = fallbacks.filter(url => 
+                    !url.includes(window.location.host)
+                  );
+                  
+                  // プロキシ接続を優先的に並べ替え
+                  const reorderedFallbacks = [...proxyConnections, ...directConnections];
                   
                   // 接続試行回数に基づいてURLを選択
                   const fallbackIndex = reconnectCount.current % reorderedFallbacks.length;
@@ -421,22 +428,24 @@ const useWebSocket = (url, options = {}) => {
           if (reconnectCount.current < reconnectAttempts) {
             reconnectCount.current += 1;
             
-            // フォールバックURLを試す - 優先順位を変更：直接接続を優先
+            // フォールバックURLを試す - 優先順位を変更：プロキシ経由接続を優先
             try {
               if (window.wsConnectionOptions && window.wsConnectionOptions.fallbacks) {
                 const fallbacks = [...window.wsConnectionOptions.fallbacks];
                 
-                // WebSocketサーバーへの直接接続を優先する
-                const directConnections = fallbacks.filter(url => 
-                  url.includes('localhost:8001') || url.includes('127.0.0.1:8001')
-                );
-                
+                // プロキシ経由の接続を優先する（最も信頼性が高い）
                 const proxyConnections = fallbacks.filter(url => 
-                  !url.includes('localhost:8001') && !url.includes('127.0.0.1:8001')
+                  url.includes(window.location.host) && 
+                  !url.includes('localhost:8001') && 
+                  !url.includes('127.0.0.1:8001')
                 );
                 
-                // 直接接続を優先的に並べ替え
-                const reorderedFallbacks = [...directConnections, ...proxyConnections];
+                const directConnections = fallbacks.filter(url => 
+                  !url.includes(window.location.host)
+                );
+                
+                // プロキシ接続を優先的に並べ替え
+                const reorderedFallbacks = [...proxyConnections, ...directConnections];
                 
                 // 接続試行回数に基づいてURLを選択
                 const fallbackIndex = reconnectCount.current % reorderedFallbacks.length;
