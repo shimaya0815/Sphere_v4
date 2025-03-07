@@ -63,20 +63,37 @@ module.exports = function(app) {
   // 認証用URLパターンのプロキシ設定
   app.use('/auth', createApiProxy('/auth'));
   
-  // Socket.IOプロキシ設定 - シンプルな設定で確実に動作させる
+  // Socket.IOプロキシ設定 - CORS問題に対応した設定
   app.use('/socket.io', createProxyMiddleware({
     target: SOCKET_HOST,
     changeOrigin: true,
     ws: true, // WebSocketをサポート
     logLevel: 'debug',
+    secure: false,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+      "Access-Control-Allow-Headers": "X-Requested-With, Content-Type, Authorization"
+    },
     onProxyReq: (proxyReq, req, res) => {
       console.log(`[Socket.IO Proxy] → ${req.method} ${req.url} to ${SOCKET_HOST}`);
     },
     onProxyRes: (proxyRes, req, res) => {
+      // CORSヘッダーを追加
+      proxyRes.headers['Access-Control-Allow-Origin'] = '*';
       console.log(`[Socket.IO Proxy] ← ${proxyRes.statusCode} ${req.method} ${req.url}`);
     },
     onError: (err, req, res) => {
       console.error(`[Socket.IO Proxy] Error: ${err.message}`);
+      
+      // エラー時にもCORSヘッダーを設定して応答
+      if (!res.headersSent) {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Authorization');
+        res.writeHead(500, {'Content-Type': 'application/json'});
+        res.end(JSON.stringify({error: 'Proxy Error', message: err.message}));
+      }
     }
   }));
 };
