@@ -1,6 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 
+// グローバルなSocket.IO接続管理 - 複数の接続試行を防止
+const GLOBAL_CONNECTION = {
+  socket: null,
+  isConnecting: false,
+  connectionId: null,
+  lastAttempt: 0,
+  clients: 0
+};
+
 /**
  * 最適な Socket.IO 接続 URL を取得する
  * Docker や開発環境など、さまざまな環境に対応
@@ -107,52 +116,83 @@ const useSocketIO = (options = {}) => {
   }, [debug]);
   
   /**
-   * Socket.IO接続を確立する
+   * Socket.IO接続を確立する - グローバル接続状態を活用した最適化版
    */
   const connect = useCallback(() => {
-    // すでに接続中なら処理しない
-    if (socket && isConnected) {
-      log('すでに接続中です');
+    // すでに接続中またはグローバル接続があれば再利用
+    if (GLOBAL_CONNECTION.socket && (GLOBAL_CONNECTION.socket.connected || GLOBAL_CONNECTION.isConnecting)) {
+      log('既存のグローバル接続を再利用します');
+      setSocket(GLOBAL_CONNECTION.socket);
+      
+      // 既に接続済みなら接続状態を更新
+      if (GLOBAL_CONNECTION.socket.connected) {
+        log(`既存のSocket.IO接続を再利用: ${GLOBAL_CONNECTION.socket.id}`);
+        setIsConnected(true);
+        setError(null);
+        
+        // 接続確立コールバック
+        if (onConnect) {
+          onConnect(GLOBAL_CONNECTION.socket);
+        }
+      }
+      
+      GLOBAL_CONNECTION.clients++;
       return;
     }
     
-    // 既存のソケットがある場合、完全にクリーンアップ
-    if (socket) {
-      try {
-        log('既存のSocket接続をクリーンアップ');
-        socket.removeAllListeners();
-        socket.disconnect();
-        // cleanup timeout
-        if (reconnectTimerRef.current) {
-          clearTimeout(reconnectTimerRef.current);
-          reconnectTimerRef.current = null;
-        }
-      } catch (err) {
-        console.warn('[Socket.IO] 既存接続のクリーンアップエラー:', err);
-      }
+    // 前回の接続試行から3秒以内または切断から1.5秒以内は試行しない（レート制限）
+    const now = Date.now();
+    if (now - GLOBAL_CONNECTION.lastAttempt < 3000) {
+      log('接続試行間隔が短すぎます。スキップします');
+      return;
     }
+    
+    // 前回の切断から十分な時間が経っていない場合は待機
+    if (GLOBAL_CONNECTION.lastDisconnect && now - GLOBAL_CONNECTION.lastDisconnect < 1500) {
+      const waitTime = 1500 - (now - GLOBAL_CONNECTION.lastDisconnect);
+      log(`前回の切断から十分な時間が経っていません。${waitTime}ms後に再試行します`);
+      
+      setTimeout(() => {
+        connect();
+      }, waitTime);
+      return;
+    }
+    
+    GLOBAL_CONNECTION.lastAttempt = now;
+    GLOBAL_CONNECTION.isConnecting = true;
+    GLOBAL_CONNECTION.clients++;
     
     try {
       // 接続URLを確認
       const finalUrl = typeof url === 'function' ? url() : url;
-      log(`Socket.IO接続開始: ${finalUrl}`);
+      log(`Socket.IO接続開始: ${finalUrl} (クライアント数: ${GLOBAL_CONNECTION.clients})`);
       
       // Socket.IOオプションの確認と設定
       const finalOptions = {
         ...socketOptions,
-        // 直近の接続問題に対応するため、パスを明示
         path: '/socket.io/',
+        reconnectionDelay: 3000,          // 再接続の間隔(ms)
+        reconnectionDelayMax: 5000,       // 最大再接続間隔(ms)
+        reconnectionAttempts: 5,          // 再接続の試行回数
+        timeout: 20000,                   // 接続タイムアウト(ms)
+        autoConnect: true,                // 自動接続を有効に
+        transports: ['websocket', 'polling'], // WebSocketを優先するが、ポーリングもフォールバックとして許可
       };
       
-      // 新しいSocket.IOインスタンスを作成
+      // グローバル共有のSocket.IOインスタンスを作成
       const newSocket = io(finalUrl, finalOptions);
       
-      // イベントハンドラーを設定
+      // イベントハンドラーを設定 - シンプル化
       newSocket.on('connect', () => {
         log(`接続成功 - Socket ID: ${newSocket.id}`);
         setIsConnected(true);
         setError(null);
         reconnectAttemptRef.current = 0;
+        
+        // グローバル接続状態を更新
+        GLOBAL_CONNECTION.socket = newSocket;
+        GLOBAL_CONNECTION.isConnecting = false;
+        GLOBAL_CONNECTION.connectionId = newSocket.id;
         
         // 接続確立コールバック
         if (onConnect) {
@@ -164,48 +204,38 @@ const useSocketIO = (options = {}) => {
         log('接続エラー:', err.message);
         setError(err);
         
-        // 最初のトランスポート設定がwebsocketの場合、pollingにフォールバック
-        if (newSocket.io.opts.transports[0] === 'websocket' && 
-            reconnectAttemptRef.current === 2) {
-          log('WebSocketトランスポートでの接続に失敗しました。Polling方式に切り替えます...');
-          newSocket.io.opts.transports = ['polling', 'websocket'];
-        }
-        
-        // 再接続を試行
+        // シンプルな再接続ロジック
         if (reconnectAttemptRef.current < maxReconnectAttempts) {
           reconnectAttemptRef.current++;
           
-          // 既存のタイマーをクリア
+          // 増加する再接続間隔で再試行 (指数バックオフ)
+          const retryDelay = Math.min(3000 * Math.pow(1.5, reconnectAttemptRef.current - 1), 10000);
+          
+          log(`接続エラー後の再接続を試みます (${reconnectAttemptRef.current}/${maxReconnectAttempts}) - ${retryDelay}ms後`);
+          
+          // タイマークリア
           if (reconnectTimerRef.current) {
             clearTimeout(reconnectTimerRef.current);
           }
           
-          // 指数バックオフで再接続間隔を計算
-          const backoffTime = Math.min(
-            reconnectInterval * Math.pow(1.5, reconnectAttemptRef.current - 1),
-            10000 // 最大10秒まで
-          );
-          
-          log(`再接続を試みます (${reconnectAttemptRef.current}/${maxReconnectAttempts}) - ${backoffTime}ms後`);
-          
-          // 再接続タイマーを設定
+          // 再接続タイマー
           reconnectTimerRef.current = setTimeout(() => {
-            if (newSocket.connected) return; // すでに接続されていれば何もしない
+            // グローバル状態リセット
+            GLOBAL_CONNECTION.isConnecting = false;
             
-            log('再接続処理実行');
-            
-            // すでに接続試行中でなければ、再接続試行
-            if (!newSocket.connecting) {
-              newSocket.connect();
-            }
-          }, backoffTime);
+            // 新しい接続試行
+            log('接続エラー後の再接続実行');
+            connect();
+          }, retryDelay);
         } else {
+          // 最大試行回数に達したらグローバル状態をリセット
           log('最大再接続試行回数に達しました');
-        }
-        
-        // エラーコールバック
-        if (onError) {
-          onError(err);
+          GLOBAL_CONNECTION.isConnecting = false;
+          
+          // エラーコールバック
+          if (onError) {
+            onError(err);
+          }
         }
       });
       
@@ -243,6 +273,15 @@ const useSocketIO = (options = {}) => {
         }
       });
       
+      // ping/pongイベントをリッスン
+      newSocket.on('ping', () => {
+        log('Pingメッセージ受信');
+      });
+      
+      newSocket.on('pong', () => {
+        log('Pongメッセージ受信');
+      });
+      
       // ソケットインスタンスを状態にセット
       setSocket(newSocket);
       
@@ -259,26 +298,79 @@ const useSocketIO = (options = {}) => {
           clearTimeout(reconnectTimerRef.current);
           reconnectTimerRef.current = null;
         }
-        
-        // Socket.IOの自動クリーンアップに任せる
       };
     } catch (err) {
       console.error('[Socket.IO] 接続作成エラー:', err);
       setError(err);
       setIsConnected(false);
+      
+      // グローバル状態をリセット
+      GLOBAL_CONNECTION.isConnecting = false;
     }
-  }, [url, socketOptions, socket, isConnected, log, maxReconnectAttempts, reconnectInterval, onConnect, onDisconnect, onError, onReconnect]);
+  }, [url, socketOptions, log, maxReconnectAttempts, onConnect, onDisconnect, onError, onReconnect]);
   
   /**
-   * Socket.IO接続を切断する
+   * Socket.IO接続を切断する - グローバル接続を考慮
    */
   const disconnect = useCallback(() => {
+    // クライアント数を減らす
+    if (GLOBAL_CONNECTION.clients > 0) {
+      GLOBAL_CONNECTION.clients--;
+    }
+    
+    // まだ他のクライアントが接続を使用中の場合、ローカル状態のみクリア
+    if (GLOBAL_CONNECTION.clients > 0) {
+      log(`他のクライアントが接続を使用中 (残り: ${GLOBAL_CONNECTION.clients})。ローカル状態のみクリア`);
+      setIsConnected(false);
+      
+      // タイマーをクリア
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+      
+      return;
+    }
+    
+    // 最後のクライアントの場合、実際に切断
     if (!socket) return;
     
-    log('Socket.IO接続を切断');
-    socket.disconnect();
+    try {
+      log('最後のクライアント。Socket.IO接続を切断');
+      
+      // イベントリスナーを全て手動で解除（メモリリーク防止）
+      if (socket.hasListeners('chat_message')) {
+        log('イベントリスナー解除: chat_message');
+        socket.off('chat_message');
+      }
+      if (socket.hasListeners('typing')) {
+        log('イベントリスナー解除: typing');
+        socket.off('typing');
+      }
+      if (socket.hasListeners('user_joined')) {
+        log('イベントリスナー解除: user_joined');
+        socket.off('user_joined');
+      }
+      if (socket.hasListeners('user_left')) {
+        log('イベントリスナー解除: user_left');
+        socket.off('user_left');
+      }
+      
+      // 切断
+      socket.disconnect();
+      
+      // グローバル接続状態をリセット
+      GLOBAL_CONNECTION.socket = null;
+      GLOBAL_CONNECTION.isConnecting = false;
+      GLOBAL_CONNECTION.connectionId = null;
+      
+      // 最終切断時間を記録（再接続クールダウン）
+      GLOBAL_CONNECTION.lastDisconnect = Date.now();
+    } catch (error) {
+      console.error('Socket切断中にエラーが発生しました:', error);
+    }
     
-    // 再接続タイマーをクリア
+    // タイマーをクリア
     if (reconnectTimerRef.current) {
       clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
@@ -363,25 +455,42 @@ const useSocketIO = (options = {}) => {
     let mounted = true;
     
     if (autoConnect && mounted) {
-      // 少し遅延を入れて接続することで、
-      // 短時間での接続/切断サイクルを防止
-      const timer = setTimeout(() => {
-        if (mounted) {
-          connect();
+      // グローバル接続があれば再利用、なければ新規接続
+      if (GLOBAL_CONNECTION.socket && 
+          (GLOBAL_CONNECTION.socket.connected || GLOBAL_CONNECTION.isConnecting)) {
+        log('既存のグローバル接続を検出。再利用します');
+        
+        // 接続状態を更新
+        if (GLOBAL_CONNECTION.socket.connected) {
+          setSocket(GLOBAL_CONNECTION.socket);
+          setIsConnected(true);
+          GLOBAL_CONNECTION.clients++;
+          
+          // 接続確立コールバック
+          if (onConnect) {
+            onConnect(GLOBAL_CONNECTION.socket);
+          }
+        } else {
+          // 接続中の場合は、状態のみ更新
+          GLOBAL_CONNECTION.clients++;
         }
-      }, 100);
+      } else {
+        // タイマーなしで即時接続
+        connect();
+      }
       
+      // コンポーネントのアンマウント時に切断
       return () => {
         mounted = false;
-        clearTimeout(timer);
-        // 切断処理は行わない - Socket.IOのクリーンアップに任せる
+        // 明示的に切断処理を呼ぶ - グローバル接続状態が適切に管理される
+        disconnect();
       };
     }
     
     return () => {
       mounted = false;
     };
-  }, [autoConnect, connect]);
+  }, [autoConnect, connect, disconnect, log, onConnect]);
   
   // 公開インターフェース
   return {
