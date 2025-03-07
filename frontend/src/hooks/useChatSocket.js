@@ -409,14 +409,12 @@ const useChatSocket = (options = {}) => {
     };
   }, [isConnected, on, activeChannel, currentUser, debug, showNotifications]);
   
-  // コンポーネントアンマウント時にチャンネルから退出
+  // コンポーネントアンマウント時の処理
   useEffect(() => {
-    return () => {
-      if (isConnected && activeChannel) {
-        leaveChannel(activeChannel.id).catch(() => {});
-      }
-    };
-  }, [isConnected, activeChannel, leaveChannel]);
+    // 明示的な切断処理を行わない（リソース枯渇問題を防ぐ）
+    // Socket.IOの自動切断に任せる
+    return () => {};
+  }, []);
   
   // 公開インターフェース
   return {
