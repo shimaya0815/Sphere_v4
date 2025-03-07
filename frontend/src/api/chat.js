@@ -40,17 +40,57 @@ const chatApi = {
   
   // Channel messages
   getChannelMessages: async (channelId, params) => {
+    // リクエストキャンセル用のトークン
+    const source = apiClient.CancelToken.source();
+    
+    // 10秒後に自動キャンセル
+    const timeoutId = setTimeout(() => {
+      source.cancel('Request timeout');
+    }, 10000);
+    
     try {
-      // APIプレフィックスなしのエンドポイントを試す
+      // まずAPI prefixありで試す（より信頼性が高い）
       try {
-        return await apiClient.get(`/chat/channels/${channelId}/messages/`, { params });
+        const response = await apiClient.get(`/api/chat/channels/${channelId}/messages/`, { 
+          params,
+          cancelToken: source.token,
+          // リクエストタイムアウト設定
+          timeout: 8000
+        });
+        clearTimeout(timeoutId);
+        return response;
       } catch (firstError) {
-        console.log('Trying messages with API prefix after first attempt failed');
-        return await apiClient.get(`/api/chat/channels/${channelId}/messages/`, { params });
+        // リクエストがキャンセルされた場合
+        if (apiClient.isCancel(firstError)) {
+          console.log('Request cancelled:', firstError.message);
+          return { results: [], count: 0 };
+        }
+        
+        console.log('Trying without API prefix after first attempt failed');
+        
+        // バックアップとしてAPI prefixなしで試す
+        const response = await apiClient.get(`/chat/channels/${channelId}/messages/`, { 
+          params,
+          cancelToken: source.token,
+          timeout: 8000
+        });
+        clearTimeout(timeoutId);
+        return response;
       }
     } catch (error) {
+      // リクエストがキャンセルされた場合
+      if (apiClient.isCancel(error)) {
+        console.log('Request cancelled:', error.message);
+        return { results: [], count: 0 };
+      }
+      
+      // その他のエラー
       console.error('Error fetching channel messages:', error);
-      throw error;
+      // スタックトレースではなく簡易なメッセージのみをスロー
+      const simpleError = new Error(error.message || 'Failed to fetch messages');
+      throw simpleError;
+    } finally {
+      clearTimeout(timeoutId);
     }
   },
   

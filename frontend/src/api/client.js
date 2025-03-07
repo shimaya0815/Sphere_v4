@@ -19,13 +19,48 @@ console.log('API Configuration:', {
   environment: process.env.NODE_ENV
 });
 
+// CancelTokenをエクスポートするために追加
+export const { CancelToken } = axios;
+export const isCancel = axios.isCancel;
+
+// エラーレート制限を追加
+let activeRequests = 0;
+const MAX_CONCURRENT_REQUESTS = 5;
+const requestQueue = [];
+
+// リクエストスロットリング関数
+const executeQueuedRequests = () => {
+  while (requestQueue.length > 0 && activeRequests < MAX_CONCURRENT_REQUESTS) {
+    const { config, resolve, reject } = requestQueue.shift();
+    activeRequests++;
+    
+    axios(config)
+      .then(response => {
+        activeRequests--;
+        executeQueuedRequests();
+        resolve(response);
+      })
+      .catch(error => {
+        activeRequests--;
+        executeQueuedRequests();
+        reject(error);
+      });
+  }
+};
+
+// スロットリングと追加設定のあるAPIクライアント
 const apiClient = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 60000, // 60秒タイムアウト
+  timeout: 15000, // より短いタイムアウト：15秒
   withCredentials: false, // CORSのクッキー送信は無効化
+  
+  // リクエスト制限
+  maxContentLength: 5000000, // 最大5MB
+  maxRedirects: 5,
+  maxBodyLength: 5000000,
 });
 
 // リクエストインターセプター: 認証トークン追加
