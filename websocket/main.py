@@ -692,4 +692,17 @@ async def notify_task_status(notification: TaskStatusNotification):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    # ホスト名やループバックアドレスの複数の指定で対応し、すべてのインターフェースで待ち受け
+    logger.info("Starting WebSocket server on all interfaces (0.0.0.0:8001)")
+    # 詳細なログ設定
+    uvicorn.run(
+        app, 
+        host="0.0.0.0", 
+        port=8001,
+        log_level="debug",
+        access_log=True,
+        # 接続数の制限を上げる
+        limit_concurrency=1000,
+        # タイムアウト設定
+        timeout_keep_alive=120
+    )
