@@ -79,19 +79,39 @@ export const ChatProvider = ({ children }) => {
         const allChannels = [];
         const allDirectMessages = [];
         
-        response.forEach(workspace => {
-          workspace.channels.forEach(channel => {
-            const enrichedChannel = {
-              ...channel,
-              workspace: workspace.workspace
-            };
-            
-            if (channel.is_direct_message) {
-              allDirectMessages.push(enrichedChannel);
-            } else {
-              allChannels.push(enrichedChannel);
-            }
-          });
+        // レスポンスチェック - 配列かどうか確認
+        const workspaces = Array.isArray(response) ? response : 
+                         Array.isArray(response.data) ? response.data : [];
+        
+        // ここでさらにデバッグログを出力
+        console.log('ワークスペースデータ:', workspaces);
+        
+        if (workspaces.length === 0) {
+          console.log('ワークスペースデータが空か配列ではありません。デフォルトを使用します。');
+          // デフォルトを使用するので、ここで早期リターン
+          return;
+        }
+        
+        workspaces.forEach(workspace => {
+          // workspace.channelsが配列かどうか確認
+          if (workspace && Array.isArray(workspace.channels)) {
+            workspace.channels.forEach(channel => {
+              if (!channel) return; // nullチェック
+              
+              const enrichedChannel = {
+                ...channel,
+                workspace: workspace.workspace || { id: 1, name: 'デフォルト' }
+              };
+              
+              if (channel.is_direct_message) {
+                allDirectMessages.push(enrichedChannel);
+              } else {
+                allChannels.push(enrichedChannel);
+              }
+            });
+          } else {
+            console.warn('このワークスペースのチャンネルデータが無効です:', workspace);
+          }
         });
         
         // 取得データがある場合のみ更新

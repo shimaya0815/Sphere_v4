@@ -19,9 +19,10 @@ console.log('API Configuration:', {
   environment: process.env.NODE_ENV
 });
 
-// CancelTokenをエクスポートするために追加
-export const { CancelToken } = axios;
-export const isCancel = axios.isCancel;
+// CancelTokenとisCancel関数をクライアントに直接追加
+const apiClient = {};
+apiClient.CancelToken = axios.CancelToken;
+apiClient.isCancel = axios.isCancel;
 
 // エラーレート制限を追加
 let activeRequests = 0;
@@ -48,8 +49,8 @@ const executeQueuedRequests = () => {
   }
 };
 
-// スロットリングと追加設定のあるAPIクライアント
-const apiClient = axios.create({
+// axiosインスタンスをapiClientに拡張
+const axiosInstance = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
@@ -62,6 +63,10 @@ const apiClient = axios.create({
   maxRedirects: 5,
   maxBodyLength: 5000000,
 });
+
+// axiosインスタンスのメソッドをapiClientにコピー
+Object.setPrototypeOf(apiClient, axiosInstance);
+Object.assign(apiClient, axiosInstance);
 
 // リクエストインターセプター: 認証トークン追加
 apiClient.interceptors.request.use(

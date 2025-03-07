@@ -40,23 +40,36 @@ const chatApi = {
   
   // Channel messages
   getChannelMessages: async (channelId, params) => {
-    // リクエストキャンセル用のトークン
-    const source = apiClient.CancelToken.source();
+    // CancelTokenが利用可能か確認
+    let source = null;
+    let timeoutId = null;
     
-    // 10秒後に自動キャンセル
-    const timeoutId = setTimeout(() => {
-      source.cancel('Request timeout');
-    }, 10000);
+    try {
+      // CancelTokenが利用可能な場合のみ使用
+      if (apiClient.CancelToken) {
+        source = apiClient.CancelToken.source();
+        
+        // 10秒後に自動キャンセル
+        timeoutId = setTimeout(() => {
+          if (source) source.cancel('Request timeout');
+        }, 10000);
+      }
     
     try {
       // まずAPI prefixありで試す（より信頼性が高い）
       try {
-        const response = await apiClient.get(`/api/chat/channels/${channelId}/messages/`, { 
+        const requestConfig = { 
           params,
-          cancelToken: source.token,
           // リクエストタイムアウト設定
           timeout: 8000
-        });
+        };
+        
+        // CancelTokenがある場合のみ追加
+        if (source) {
+          requestConfig.cancelToken = source.token;
+        }
+        
+        const response = await apiClient.get(`/api/chat/channels/${channelId}/messages/`, requestConfig);
         clearTimeout(timeoutId);
         return response;
       } catch (firstError) {
@@ -69,17 +82,23 @@ const chatApi = {
         console.log('Trying without API prefix after first attempt failed');
         
         // バックアップとしてAPI prefixなしで試す
-        const response = await apiClient.get(`/chat/channels/${channelId}/messages/`, { 
+        const requestConfig = { 
           params,
-          cancelToken: source.token,
           timeout: 8000
-        });
+        };
+        
+        // CancelTokenがある場合のみ追加
+        if (source) {
+          requestConfig.cancelToken = source.token;
+        }
+        
+        const response = await apiClient.get(`/chat/channels/${channelId}/messages/`, requestConfig);
         clearTimeout(timeoutId);
         return response;
       }
     } catch (error) {
       // リクエストがキャンセルされた場合
-      if (apiClient.isCancel(error)) {
+      if (apiClient.isCancel && apiClient.isCancel(error)) {
         console.log('Request cancelled:', error.message);
         return { results: [], count: 0 };
       }
@@ -90,7 +109,14 @@ const chatApi = {
       const simpleError = new Error(error.message || 'Failed to fetch messages');
       throw simpleError;
     } finally {
-      clearTimeout(timeoutId);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    }
+    } catch (outerError) {
+      console.error('Error in message fetching setup:', outerError);
+      // 完全なフォールバック
+      return { results: [], count: 0 };
     }
   },
   
