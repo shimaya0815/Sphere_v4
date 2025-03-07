@@ -294,6 +294,11 @@ class UserCreateView(APIView):
                 
                 # ユーザーと関連オブジェクトを最新状態に再取得
                 user.refresh_from_db()
+                logger.info(f"USER CREATED SUCCESSFULLY: {user.email} (ID: {user.id})")
+                if user.business:
+                    logger.info(f"BUSINESS: {user.business.name} (ID: {user.business.id})")
+                else:
+                    logger.info("BUSINESS: No business assigned to user")
                 
                 # 同一トランザクション内でチャンネルを作成
                 # チャンネルとメンバーシップの作成
@@ -304,7 +309,14 @@ class UserCreateView(APIView):
                     if not workspace:
                         workspace = user.business.workspaces.first()
                         
-                    logger.info(f"Found workspace to create channels: {workspace.id if workspace else 'None'}")
+                    if workspace:
+                        logger.info(f"WORKSPACE FOUND: {workspace.name} (ID: {workspace.id}, Business: {workspace.business.id})")
+                        
+                        # データベース内の既存チャンネルを確認
+                        existing_channels = Channel.objects.filter(workspace=workspace).all()
+                        logger.info(f"EXISTING CHANNELS: {[(c.name, c.id) for c in existing_channels]}")
+                    else:
+                        logger.error(f"NO WORKSPACE FOUND for user {user.email}")
                     
                     if workspace:
                         # すべてのチャンネル作成をチェック
@@ -322,13 +334,21 @@ class UserCreateView(APIView):
                             # 各チャンネルに対して独立したトランザクションを使用
                             with transaction.atomic():
                                 try:
-                                    logger.info(f"Processing channel '{channel_name}'")
+                                    # この処理を各チャンネルごとに独立して実行
+                                    logger.info(f"START PROCESSING CHANNEL: {channel_name}")
                                     
-                                    # 既存のチャンネルを検索（大文字小文字を区別しない）
+                                    # 既存のチャンネルを検索（完全一致）
                                     channel = Channel.objects.filter(
                                         workspace=workspace,
-                                        name__iexact=channel_name
+                                        name=channel_name
                                     ).first()
+                                    
+                                    # 大文字小文字を区別せずに検索
+                                    if not channel:
+                                        channel = Channel.objects.filter(
+                                            workspace=workspace,
+                                            name__iexact=channel_name
+                                        ).first()
                                     
                                     # レコードがあるかログに記録
                                     if channel:
@@ -337,27 +357,66 @@ class UserCreateView(APIView):
                                     else:
                                         logger.info(f"No existing channel found with name '{channel_name}'")
                                         
-                                        # なければget_or_createで作成（重複を防止）
+                                        # なければ直接のSQLで作成（重複を完全に避けるため）
                                         try:
-                                            channel, created = Channel.objects.get_or_create(
-                                                workspace=workspace,
-                                                name=channel_name,
-                                                defaults={
-                                                    'description': description,
-                                                    'channel_type': 'public',
-                                                    'created_by': user,
-                                                    'is_direct_message': False
-                                                }
-                                            )
-                                            
-                                            if created:
-                                                logger.info(f"Created channel: {channel.name} (ID: {channel.id})")
-                                            else:
-                                                logger.info(f"Found existing channel during creation: {channel.name} (ID: {channel.id})")
+                                            # まずORMでのcreateを試みる
+                                            try:
+                                                channel = Channel.objects.create(
+                                                    workspace=workspace,
+                                                    name=channel_name,
+                                                    description=description,
+                                                    channel_type='public',
+                                                    created_by=user,
+                                                    is_direct_message=False
+                                                )
+                                                logger.info(f"Created channel via ORM: {channel.name} (ID: {channel.id})")
+                                            except Exception as orm_error:
+                                                logger.error(f"ORM error creating channel '{channel_name}': {str(orm_error)}")
                                                 
+                                                # SQLで直接作成を試みる（最後の手段）
+                                                from django.db import connection
+                                                
+                                                # まず同名チャンネルが存在するかSQL直接検索
+                                                channel_id = None
+                                                with connection.cursor() as cursor:
+                                                    cursor.execute(
+                                                        """
+                                                        SELECT id FROM chat_channel 
+                                                        WHERE workspace_id = %s AND name = %s
+                                                        """,
+                                                        [workspace.id, channel_name]
+                                                    )
+                                                    result = cursor.fetchone()
+                                                    if result:
+                                                        channel_id = result[0]
+                                                
+                                                if channel_id:
+                                                    # 存在していた場合は取得
+                                                    channel = Channel.objects.get(id=channel_id)
+                                                    logger.info(f"Found channel via SQL: {channel.name} (ID: {channel.id})")
+                                                else:
+                                                    # 存在しなければ作成
+                                                    with connection.cursor() as cursor:
+                                                        cursor.execute(
+                                                            """
+                                                            INSERT INTO chat_channel 
+                                                            (name, description, workspace_id, channel_type, created_by_id, created_at, updated_at, is_direct_message) 
+                                                            VALUES (%s, %s, %s, %s, %s, NOW(), NOW(), false)
+                                                            RETURNING id
+                                                            """,
+                                                            [channel_name, description, workspace.id, 'public', user.id]
+                                                        )
+                                                        new_channel_id = cursor.fetchone()[0]
+                                                    
+                                                    # 作成されたチャンネルを取得
+                                                    channel = Channel.objects.get(id=new_channel_id)
+                                                    logger.info(f"Created channel via SQL: {channel.name} (ID: {channel.id})")
+                                            
+                                            # チャンネルをリストに追加
                                             created_channels.append(channel)
                                         except Exception as create_error:
                                             logger.error(f"Error creating channel '{channel_name}': {str(create_error)}")
+                                            logger.info(f"FINISHED CHANNEL CREATION for '{channel_name}' with ERROR")
                                             # エラーがあっても次のチャンネルに進むため、continueはしない
                                     
                                     # チャンネルが正常に取得/作成された場合のみ、メンバーシップを処理
@@ -383,8 +442,13 @@ class UserCreateView(APIView):
                                     # 一つのチャンネルでエラーが発生しても他のチャンネルの処理を続行
                         
                         # ウェルカムメッセージの送信（チャンネルが作成されていれば）
-                        # 作成されたチャンネルをログに記録
-                        logger.info(f"Created channels: {[c.name for c in created_channels]}")
+                        # 作成されたチャンネルをログに記録（詳細版）
+                        logger.info(f"CREATED CHANNELS SUMMARY: {[c.name for c in created_channels]}")
+                        logger.info(f"DETAILED CHANNELS: {[(c.name, c.id, c.workspace_id) for c in created_channels]}")
+                        
+                        # 最終的なデータベースの状態を確認
+                        final_channels = Channel.objects.filter(workspace=workspace).all()
+                        logger.info(f"FINAL DB CHANNELS: {[(c.name, c.id) for c in final_channels]}")
                         
                         # generalチャンネルにウェルカムメッセージを送信（独立したトランザクション）
                         with transaction.atomic():
