@@ -59,24 +59,25 @@ const useSocketIO = (options = {}) => {
     // 自動接続するかどうか
     autoConnect = true,
     
-    // 最大再接続試行回数
-    maxReconnectAttempts = 15,
+    // 最大再接続試行回数 - 少なくして無駄な試行を防止
+    maxReconnectAttempts = 3,
     
-    // 再接続間隔 (ミリ秒)
-    reconnectInterval = 2000,
+    // 再接続間隔 (ミリ秒) - 短くして早く諦める
+    reconnectInterval = 1000,
     
-    // Socket.IOオプション
+    // Socket.IOオプション - リソース不足エラー回避のため設定変更
     socketOptions = {
-      transports: ['websocket', 'polling'],  // WebSocketを優先
+      transports: ['polling', 'websocket'],  // Pollingを優先
       reconnection: true,
-      reconnectionAttempts: 15,
+      reconnectionAttempts: 3, // 少なく
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      randomizationFactor: 0.5,
-      timeout: 25000,
+      reconnectionDelayMax: 3000, // 短く
+      randomizationFactor: 0.3,
+      timeout: 10000, // 短く
       autoConnect: false, // 手動で接続管理するため
       forceNew: true,     // 常に新しい接続を作成
       withCredentials: false,
+      upgrade: false, // WebSocketへのアップグレードを無効化
       path: '/socket.io/', // パスを明示的に指定
     },
     
