@@ -484,47 +484,81 @@ const useSocketIO = (options = {}) => {
     };
   }, [socket, log]);
   
-  // 自動接続が有効な場合、コンポーネントマウント時に接続
+  // 安定した接続状態を維持する
   useEffect(() => {
     let mounted = true;
+    let connectionCheckTimer = null;
     
+    // autoConnectが有効な場合は接続処理を実行
     if (autoConnect && mounted) {
-      // グローバル接続があれば再利用、なければ新規接続
-      if (GLOBAL_CONNECTION.socket && 
-          (GLOBAL_CONNECTION.socket.connected || GLOBAL_CONNECTION.isConnecting)) {
-        log('既存のグローバル接続を検出。再利用します');
-        
-        // 接続状態を更新
-        if (GLOBAL_CONNECTION.socket.connected) {
-          setSocket(GLOBAL_CONNECTION.socket);
-          setIsConnected(true);
-          GLOBAL_CONNECTION.clients++;
+      // 既存の接続状態をチェック
+      const checkAndRestoreConnection = () => {
+        // グローバル接続があれば再利用、なければ新規接続
+        if (GLOBAL_CONNECTION.socket && 
+            (GLOBAL_CONNECTION.socket.connected || GLOBAL_CONNECTION.isConnecting)) {
+          log('既存のグローバル接続を検出。再利用します');
           
-          // 接続確立コールバック
-          if (onConnect) {
-            onConnect(GLOBAL_CONNECTION.socket);
+          // 接続状態を更新
+          if (GLOBAL_CONNECTION.socket.connected) {
+            setSocket(GLOBAL_CONNECTION.socket);
+            setIsConnected(true);
+            GLOBAL_CONNECTION.clients++;
+            
+            // 接続確立コールバック
+            if (onConnect) {
+              onConnect(GLOBAL_CONNECTION.socket);
+            }
+          } else {
+            // 接続中の場合は、状態のみ更新
+            GLOBAL_CONNECTION.clients++;
           }
         } else {
-          // 接続中の場合は、状態のみ更新
-          GLOBAL_CONNECTION.clients++;
+          // 新規接続を試みる
+          connect();
         }
-      } else {
-        // タイマーなしで即時接続
-        connect();
-      }
+      };
       
-      // コンポーネントのアンマウント時に切断
+      // コンポーネントマウント時に接続確認
+      checkAndRestoreConnection();
+      
+      // 定期的に接続状態を確認（接続が切れた場合に再接続）
+      connectionCheckTimer = setInterval(() => {
+        if (mounted && !isConnected && !GLOBAL_CONNECTION.isConnecting) {
+          log('接続監視: 切断状態を検出。再接続を試みます');
+          checkAndRestoreConnection();
+        }
+      }, 10000); // 10秒ごとに確認
+      
+      // コンポーネントのアンマウント時に切断・クリーンアップ
       return () => {
+        log('コンポーネントアンマウント - 接続管理クリーンアップ');
         mounted = false;
-        // 明示的に切断処理を呼ぶ - グローバル接続状態が適切に管理される
-        disconnect();
+        
+        // 監視タイマーをクリア
+        if (connectionCheckTimer) {
+          clearInterval(connectionCheckTimer);
+        }
+        
+        // グローバル状態に基づいて明示的に切断処理を呼ぶ
+        if (GLOBAL_CONNECTION.clients <= 1) {
+          log('最後のクライアントが終了。接続を切断します');
+          disconnect();
+        } else {
+          log(`他のクライアント(${GLOBAL_CONNECTION.clients - 1})が残っているため、切断せずにクライアントカウントを減らします`);
+          if (GLOBAL_CONNECTION.clients > 0) {
+            GLOBAL_CONNECTION.clients--;
+          }
+        }
       };
     }
     
     return () => {
       mounted = false;
+      if (connectionCheckTimer) {
+        clearInterval(connectionCheckTimer);
+      }
     };
-  }, [autoConnect, connect, disconnect, log, onConnect]);
+  }, [autoConnect, connect, disconnect, log, onConnect, isConnected]);
   
   // 公開インターフェース
   return {
