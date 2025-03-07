@@ -528,6 +528,7 @@ const useChatSocket = (options = {}) => {
     isConnected,
     activeChannel,
     messages,
+    setMessages,  // メッセージリストを直接設定する関数をエクスポート
     typingUsers,
     error,
     

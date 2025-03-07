@@ -24,6 +24,7 @@ export const ChatProvider = ({ children }) => {
     isConnected,
     activeChannel,
     messages,
+    setMessages,  // setMessages関数を追加
     typingUsers,
     selectChannel: selectChannelSocket,
     sendMessage: sendMessageSocket,
