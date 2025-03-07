@@ -6,33 +6,41 @@ import { io } from 'socket.io-client';
  * Docker や開発環境など、さまざまな環境に対応
  */
 const getOptimalSocketUrl = () => {
-  // 1. まずウィンドウの環境変数オブジェクトをチェック (Docker用)
+  console.log('現在の環境:', {
+    protocol: window.location.protocol,
+    hostname: window.location.hostname,
+    port: window.location.port,
+    env: process.env.NODE_ENV
+  });
+  
+  // 開発環境でソケットサーバーに直接接続
+  if (process.env.NODE_ENV === 'development') {
+    // プロキシではなく直接接続することで問題を回避
+    const directUrl = window.location.protocol + '//' + window.location.hostname + ':8001';
+    console.log('開発環境: WebSocketサーバーに直接接続', directUrl);
+    return directUrl;
+  }
+  
+  // Docker環境
   if (window.ENV && window.ENV.REACT_APP_WS_URL) {
-    console.log('Using window.ENV.REACT_APP_WS_URL:', window.ENV.REACT_APP_WS_URL);
+    console.log('Docker環境: window.ENV.REACT_APP_WS_URL使用:', window.ENV.REACT_APP_WS_URL);
     return window.ENV.REACT_APP_WS_URL;
   }
   
-  // 2. 次にReactの環境変数をチェック
+  // 環境変数をチェック
   if (process.env.REACT_APP_WS_URL) {
-    console.log('Using process.env.REACT_APP_WS_URL:', process.env.REACT_APP_WS_URL);
+    console.log('環境変数: process.env.REACT_APP_WS_URL使用:', process.env.REACT_APP_WS_URL);
     return process.env.REACT_APP_WS_URL;
   }
   
   if (process.env.REACT_APP_SOCKET_URL) {
-    console.log('Using process.env.REACT_APP_SOCKET_URL:', process.env.REACT_APP_SOCKET_URL);
+    console.log('環境変数: process.env.REACT_APP_SOCKET_URL使用:', process.env.REACT_APP_SOCKET_URL);
     return process.env.REACT_APP_SOCKET_URL;
   }
   
-  // 3. 相対パスを使用 (プロキシ経由)
-  const useRelativePath = true; // または設定から取得
-  if (useRelativePath) {
-    console.log('Using relative path for Socket.IO');
-    return '/socket.io'; // プロキシ経由でリクエストを転送
-  }
-  
-  // 4. フォールバックオプション：同一オリジンの8001ポート
+  // 最終フォールバック: 同一オリジンにポート8001で接続
   const wsUrl = window.location.protocol + '//' + window.location.hostname + ':8001';
-  console.log('Using fallback Socket.IO URL:', wsUrl);
+  console.log('フォールバック: Socketサーバーに直接接続:', wsUrl);
   return wsUrl;
 };
 
@@ -65,20 +73,18 @@ const useSocketIO = (options = {}) => {
     // 再接続間隔 (ミリ秒) - 短くして早く諦める
     reconnectInterval = 1000,
     
-    // Socket.IOオプション - 接続の信頼性向上のための設定
+    // Socket.IOオプション - 最小限の設定で接続問題を回避
     socketOptions = {
-      transports: ['polling'],  // polllingのみを使用し安定性を向上
+      transports: ['polling', 'websocket'],  // 両方のトランスポートを許可
       reconnection: true,
-      reconnectionAttempts: 2, // 少なく
-      reconnectionDelay: 2000,
+      reconnectionAttempts: 3,
+      reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
-      randomizationFactor: 0.5,
-      timeout: 15000, // 長めに設定
-      autoConnect: false, // 手動で接続管理するため
-      forceNew: false,    // 既存の接続を再利用
+      timeout: 20000,
+      autoConnect: false,
+      forceNew: true,  // 確実に新しい接続を作成
       withCredentials: false,
-      upgrade: false, // WebSocketへのアップグレードを無効化
-      path: '/socket.io/', // パスを明示的に指定
+      path: '/socket.io/', // パスはデフォルトのまま
     },
     
     // イベントハンドラー
