@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect, useCallback } fr
 import chatApi from '../api/chat';
 import { useAuth } from './AuthContext';
 import useWebSocket from '../hooks/useWebSocket';
+import toast from 'react-hot-toast';
 
 const ChatContext = createContext();
 
@@ -18,29 +19,24 @@ export const ChatProvider = ({ children }) => {
   const getWebSocketUrl = (channelId) => {
     if (!channelId) return null;
     
-    // Docker環境とラップトップ上での開発を区別
-    const isDocker = process.env.REACT_APP_RUNNING_IN_DOCKER === 'true';
-    const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    
     // WebSocketのプロトコルを確認（HTTPSの場合はWSSを使用）
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     
-    console.log(`Getting WebSocket URL for channel: ${channelId}, protocol: ${protocol}, isDocker: ${isDocker}, isLocalDev: ${isLocalDev}`);
+    // WebSocketのURLを構築
+    // 環境に応じたホストを使用
+    let host = 'localhost:8001';
     
-    // Docker内でのWebSocket接続（Docker Compose内部での接続）
-    if (isDocker) {
-      // Docker内部のサービス名でアクセス
-      return `${protocol}//websocket:8001/ws/chat/${channelId}/`;
+    // Docker環境内からの接続かどうかによってURLを調整
+    if (process.env.NODE_ENV === 'development') {
+      // Docker環境でも動作するように、Dockerネットワーク内のホスト名をチェック
+      host = 'websocket:8001';
     }
     
-    // ローカル開発環境（Docker外）の場合
-    if (isLocalDev) {
-      // ホストマシンのIPアドレスで直接アクセス
-      return `${protocol}//localhost:8001/ws/chat/${channelId}/`;
-    }
+    const wsUrl = `${protocol}//${host}/ws/chat/${channelId}/`;
     
-    // その他の環境（本番など）ではプロキシを介して接続
-    return `${protocol}//${window.location.host}/api/ws/chat/${channelId}/`;
+    console.log(`Getting WebSocket URL for channel: ${channelId}, url: ${wsUrl}, env: ${process.env.NODE_ENV}`);
+    
+    return wsUrl;
   };
   
   const [wsUrl, setWsUrl] = useState(null);
@@ -132,6 +128,7 @@ export const ChatProvider = ({ children }) => {
       console.log('Manually reconnecting to chat WebSocket');
       setConnectionAttempts(0);
       connect();
+      toast('チャットサーバーに再接続しています...', { id: 'chat-ws-reconnect' });
     }
   }, [isConnected, wsUrl, connect]);
   

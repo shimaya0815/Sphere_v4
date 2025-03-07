@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { HiOutlinePaperAirplane, HiOutlineTrash, HiOutlineAtSymbol, HiOutlinePaperClip } from 'react-icons/hi';
 import toast from 'react-hot-toast';
-import { tasksApi, usersApi } from '../../api';
+import { tasksApi, usersApi, chatApi } from '../../api';
 import useWebSocket from '../../hooks/useWebSocket';
 
 const TaskComments = ({ taskId, task, onCommentAdded }) => {
@@ -22,12 +22,23 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
   // WebSocketの接続と設定 - タスク専用WebSocketエンドポイントを使用
   // プロトコルを自動判定（ブラウザがhttpsなら、wssを使う）
   const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  const wsHost = process.env.NODE_ENV === 'production' 
-    ? window.location.host
-    : 'localhost:8001';
   
-  const wsUrl = taskId ? `${wsProtocol}://${wsHost}/ws/tasks/${taskId}/` : null;
-  console.log(`WebSocket URL: ${wsUrl}`);
+  // WebSocketのURLを構築
+  let wsUrl = null;
+  if (taskId) {
+    // 環境に応じたホスト名を使用
+    let wsHost = 'localhost:8001';
+    
+    // Docker環境の場合はサービス名を使用
+    if (process.env.NODE_ENV === 'development') {
+      wsHost = 'websocket:8001';
+    }
+    
+    wsUrl = `${wsProtocol}://${wsHost}/ws/tasks/${taskId}/`;
+    
+    console.log(`Environment: ${process.env.NODE_ENV}, Protocol: ${wsProtocol}, Host: ${wsHost}`);
+  }
+  console.log(`WebSocket URL for task ${taskId}: ${wsUrl}`);
   
   const [connectionAttempts, setConnectionAttempts] = useState(0);
   const [connectionError, setConnectionError] = useState(false);
@@ -40,6 +51,17 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
         setConnectionError(false);
         setConnectionAttempts(0);
         toast.success('リアルタイム通知に接続しました', { id: 'ws-connected', duration: 2000 });
+        
+        // 初回Pingは即時送信
+        setTimeout(() => {
+          if (isConnected) {
+            sendMessage(JSON.stringify({
+              type: 'ping',
+              data: { timestamp: new Date().toISOString() }
+            }));
+            console.log('Sent initial ping to server');
+          }
+        }, 500);
         
         // 定期的なPingを送信するインターバルを設定
         const pingInterval = setInterval(() => {
@@ -59,22 +81,29 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
       },
       onMessage: (event) => {
         try {
-          // 文字列の場合はパース
-          const data = typeof event === 'string' ? JSON.parse(event) : 
-                      event.data ? (typeof event.data === 'string' ? JSON.parse(event.data) : event.data) : 
-                      event;
-                      
+          // データの正規化（文字列・オブジェクトの両方に対応）
+          const data = typeof event === 'string' ? JSON.parse(event) : event;
+          
           console.log("Received WebSocket message:", data);
           
+          // 接続確立メッセージを受信した場合は接続エラーをクリア
+          if (data.type === 'connection_established') {
+            console.log('Connection established with server for task', taskId);
+            setConnectionError(false);
+            setConnectionAttempts(0);
+          }
           // コメント追加イベントの場合はコメント一覧を再取得
-          if (data.type === 'comment_added' || data.type === 'connection_established') {
-            console.log(`Received ${data.type} event`);
-            if (data.type === 'comment_added') {
-              fetchComments();
-            }
-          } else if (data.type === 'pong') {
+          else if (data.type === 'comment_added') {
+            console.log('Comment added notification received');
+            fetchComments();
+          }
+          // Pingへの応答
+          else if (data.type === 'pong') {
             console.log('Received pong from server:', data);
-            // Pongメッセージは特に処理しない、接続確認用
+            // 接続が生きていることを確認（エラー状態をクリア）
+            if (connectionError) {
+              setConnectionError(false);
+            }
           }
         } catch (error) {
           console.error("Error handling WebSocket message:", error);
@@ -88,16 +117,18 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
         
         if (newAttempts >= 5) {
           setConnectionError(true);
-          toast.error('通知サーバーへの接続に問題が発生しました', { id: 'ws-error', duration: 3000 });
+          // エラーメッセージは開発中なので非表示
+          // toast.error('通知サーバーへの接続に問題が発生しました', { id: 'ws-error', duration: 3000 });
         }
       },
       onError: (error) => {
         console.error('Task WebSocket error:', error);
         setConnectionError(true);
         
-        if (connectionAttempts >= 2) {
-          toast.error('通知サーバーへの接続に問題が発生しました', { id: 'ws-error', duration: 3000 });
-        }
+        // エラーメッセージは開発中なので非表示
+        // if (connectionAttempts >= 2) {
+        //   toast.error('通知サーバーへの接続に問題が発生しました', { id: 'ws-error', duration: 3000 });
+        // }
       },
       // 自動再接続設定
       reconnectInterval: 3000,
@@ -108,77 +139,84 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
   
   // 明示的な再接続機能
   const handleReconnect = () => {
-    if (!isConnected && connectionError) {
-      connect();
-      toast.info('通知サーバーに再接続しています...', { id: 'ws-reconnect' });
+    // 接続状態に関わらず強制的に再接続を試みる
+    console.log('Reconnect button clicked. Current connection state:', isConnected ? 'Connected' : 'Disconnected');
+    
+    // 現在のWebSocketを明示的に閉じて、新しい接続を作成
+    if (wsUrl) {
+      connect();  // useWebSocket hookのconnect関数を呼び出し
+      console.log('Manual reconnection initiated');
+      
+      // 開発中はユーザーへの通知を無効化
+      // toast('通知サーバーに再接続しています...', { id: 'ws-reconnect' });
+      
       setConnectionAttempts(0);
       setConnectionError(false);
+    } else {
+      console.warn('Cannot reconnect: WebSocket URL not set');
+      // toast.error('接続先が設定されていません', { id: 'ws-error-no-url' });
     }
   };
 
-  // タスク用のチャットチャンネルを探すか作成する - 一時的に無効化
-  /*
+  // 共通のタスクチャンネルを確認・作成する
   useEffect(() => {
-    const initializeTaskChannel = async () => {
+    const checkTaskChannel = async () => {
       if (!taskId || !task) return;
       
       try {
-        // タスク名をチャンネル名として使用するためのプレフィックス
-        const channelPrefix = `task-${taskId}-`;
+        console.log('Checking for common task channel');
         
-        // 既存のタスクチャンネルを探す
+        // 共通のtaskチャンネルを探す
         const myChannels = await chatApi.getMyChannels();
-        let taskChan = null;
+        let taskChannel = null;
         
-        for (const workspaceChannels of myChannels) {
-          const foundChannel = workspaceChannels.channels.find(
-            c => c.name.startsWith(channelPrefix)
+        // 既存のチャンネルから「task」を検索（大文字小文字を区別せず）
+        for (const workspace of myChannels) {
+          const foundChannel = workspace.channels.find(
+            c => c.name.toLowerCase() === 'task'
           );
           
           if (foundChannel) {
-            taskChan = foundChannel;
+            taskChannel = foundChannel;
+            console.log('Found existing task channel:', taskChannel);
             break;
           }
         }
         
-        if (!taskChan) {
+        if (!taskChannel) {
+          console.log('No task channel found, creating a common one');
           // タスクチャンネルがなければ作成
           const workspace = await chatApi.getDefaultWorkspace();
           
           if (workspace) {
-            // チャンネル名は "task-{タスクID}-{タスクタイトル}" の形式
-            const channelName = `${channelPrefix}${task.title.substring(0, 30)}`;
-            
-            taskChan = await chatApi.createChannel({
-              name: channelName,
-              description: `タスク「${task.title}」の連携チャンネル`,
-              workspace: workspace.id,
-              channel_type: 'private'
-            });
-            
-            // タスクの担当者をメンバーに追加
-            if (task.worker_data && task.worker_data.id) {
-              await chatApi.addChannelMember(taskChan.id, task.worker_data.id);
+            try {
+              taskChannel = await chatApi.createChannel({
+                name: 'task',
+                description: 'タスク関連の通知や議論のための共通チャンネルです',
+                workspace: workspace.id,
+                channel_type: 'public'
+              });
+              
+              console.log('Common task channel created:', taskChannel);
+              toast.success('タスク用チャンネルを作成しました');
+            } catch (createError) {
+              console.error('Error creating task channel:', createError);
+              // エラーはコンソールに記録するだけで、ユーザーには表示しない
             }
-            
-            if (task.reviewer_data && task.reviewer_data.id) {
-              await chatApi.addChannelMember(taskChan.id, task.reviewer_data.id);
-            }
-            
-            console.log('タスクチャンネルを作成しました:', taskChan);
+          } else {
+            console.error('No default workspace found for task channel creation');
           }
         }
-        
-        setTaskChannel(taskChan);
-        
       } catch (error) {
-        console.error('タスクチャンネルの初期化エラー:', error);
+        console.error('Error checking task channel:', error);
       }
     };
     
-    initializeTaskChannel();
+    // タスクIDとタスクデータがある場合、チャンネル確認を実行
+    if (taskId && task) {
+      checkTaskChannel();
+    }
   }, [taskId, task]);
-  */
 
   // ビジネス内のユーザー一覧を取得
   useEffect(() => {
@@ -318,6 +356,7 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
     try {
       // APIでコメント追加
       const addedComment = await tasksApi.addComment(taskId, { content: newComment });
+      const savedComment = newComment; // 送信前にコメントを保存
       setNewComment('');
       toast.success('コメントが追加されました');
       
@@ -325,21 +364,40 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
       fetchComments();
       
       // タスク固有のWebSocketにコメント通知を送信
-      if (isConnected) {
-        sendMessage(JSON.stringify({
-          type: 'comment',
-          data: {
-            task_id: taskId,
-            task_title: task.title,
-            comment_id: addedComment.id,
-            user_name: addedComment.user_name,
-            content: newComment,
-            created_at: new Date().toISOString()
+      try {
+        if (isConnected) {
+          const wsSuccess = sendMessage(JSON.stringify({
+            type: 'comment',
+            data: {
+              task_id: taskId,
+              task_title: task?.title || 'タスク',
+              comment_id: addedComment.id,
+              user_name: addedComment.user_name,
+              content: savedComment,
+              created_at: new Date().toISOString()
+            }
+          }));
+          
+          if (wsSuccess) {
+            console.log('Task comment WebSocket notification sent successfully');
+          } else {
+            console.warn('Failed to send WebSocket notification, but comment was saved to API');
+            // 自動的に再接続を試みる
+            if (connectionAttempts < 2) {
+              setConnectionAttempts(prev => prev + 1);
+              setTimeout(() => {
+                console.log('Attempting to reconnect WebSocket after send failure...');
+                connect();
+              }, 1000);
+            }
           }
-        }));
-        console.log('Task comment WebSocket notification sent');
-      } else {
-        console.warn('WebSocket not connected, cannot send notification');
+        } else {
+          console.warn('WebSocket not connected, cannot send notification');
+          setConnectionError(true);
+        }
+      } catch (wsError) {
+        console.error('Error sending WebSocket notification:', wsError);
+        // WebSocketエラーはAPIのコメント保存には影響しない
       }
       
       // コールバック
@@ -435,14 +493,14 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
 
   return (
     <div>
-      {/* WebSocket接続状態の表示 */}
-      {connectionError && (
+      {/* WebSocket接続状態表示は非表示（開発中） */}
+      {false && connectionError && (
         <div className="mb-4 bg-red-50 border border-red-200 rounded-md p-3 text-sm">
           <div className="flex items-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
-            <span className="font-medium text-red-800">通知サーバーへの接続に問題があります</span>
+            <span className="font-medium text-red-800">リアルタイム更新は現在利用できません</span>
             <button 
               onClick={handleReconnect} 
               className="ml-auto bg-red-600 text-white px-3 py-1 rounded-md text-xs hover:bg-red-700 transition-colors"
@@ -453,8 +511,8 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
         </div>
       )}
       
-      {/* 接続成功時の表示 (オプション) */}
-      {isConnected && !connectionError && (
+      {/* 接続成功時の表示（現在は非表示） */}
+      {false && isConnected && !connectionError && (
         <div className="mb-4 bg-green-50 border border-green-200 rounded-md p-2 text-sm hidden md:block">
           <div className="flex items-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -573,7 +631,7 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
                   type="button"
                   className="hover:text-primary-500 focus:outline-none"
                   title="ファイルを添付"
-                  onClick={() => toast.info('ファイル添付機能は開発中です')}
+                  onClick={() => toast('ファイル添付機能は開発中です')}
                 >
                   <HiOutlinePaperClip className="h-5 w-5" />
                 </button>

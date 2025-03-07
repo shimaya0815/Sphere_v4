@@ -15,7 +15,7 @@ User = get_user_model()
 @receiver(post_save, sender=TaskComment)
 def send_comment_to_task_channel(sender, instance, created, **kwargs):
     """
-    タスクコメントが作成されたとき、タスク通知チャンネルにメッセージを送信する
+    タスクコメントが作成されたとき、タスク通知チャンネルとタスク固有チャンネルにメッセージを送信する
     """
     try:
         if created:
@@ -29,7 +29,7 @@ def send_comment_to_task_channel(sender, instance, created, **kwargs):
                 logger.warning(f"No workspace found for business {business.name}")
                 return
             
-            # タスク通知チャンネルを取得
+            # 1. タスク通知チャンネルを取得または作成
             task_channel = Channel.objects.filter(
                 workspace=workspace,
                 name='タスク通知'
@@ -61,7 +61,7 @@ def send_comment_to_task_channel(sender, instance, created, **kwargs):
                         }
                     )
             
-            # チャンネルにメッセージを送信
+            # 全体通知チャンネルにメッセージを送信
             task_title = instance.task.title
             user_name = instance.user.get_full_name() or instance.user.username
             
@@ -73,13 +73,32 @@ def send_comment_to_task_channel(sender, instance, created, **kwargs):
                 content=message_content
             )
             logger.info(f"Task comment notification message created: {message.id}")
+            
+            # 2. 共通のtaskチャンネルにも送信（もし存在すれば、大文字小文字を区別せず）
+            task_channel_common = Channel.objects.filter(
+                workspace=workspace
+            ).filter(name__iexact='task').first()
+            
+            if task_channel_common:
+                # 共通のtaskチャンネルにもメッセージを送信
+                task_message_content = f"💬 **タスクコメント**\n\n**タスク**: {task_title}\n**コメント者**: {user_name}\n\n{instance.content}"
+                
+                task_message = Message.objects.create(
+                    channel=task_channel_common,
+                    user=instance.user,
+                    content=task_message_content
+                )
+                logger.info(f"Comment sent to common task channel")
+            else:
+                logger.info(f"No common task channel found")
+                
     except Exception as e:
         logger.error(f"Error in send_comment_to_task_channel signal: {str(e)}")
 
 @receiver(post_save, sender=TaskNotification)
 def send_notification_to_task_channel(sender, instance, created, **kwargs):
     """
-    タスク通知が作成されたとき、通知の種類に応じてタスク通知チャンネルにメッセージを送信する
+    タスク通知が作成されたとき、通知の種類に応じてタスク通知チャンネルとタスク固有チャンネルにメッセージを送信する
     """
     try:
         if created and instance.notification_type in ['status_change', 'assignment']:
@@ -93,7 +112,7 @@ def send_notification_to_task_channel(sender, instance, created, **kwargs):
                 logger.warning(f"No workspace found for business {business.name}")
                 return
             
-            # タスク通知チャンネルを取得
+            # 1. タスク通知チャンネルを取得または作成
             task_channel = Channel.objects.filter(
                 workspace=workspace,
                 name='タスク通知'
@@ -125,7 +144,7 @@ def send_notification_to_task_channel(sender, instance, created, **kwargs):
                         }
                     )
             
-            # チャンネルにメッセージを送信
+            # 全体のタスク通知チャンネルにメッセージを送信
             task_title = instance.task.title
             
             emoji = "🔄" if instance.notification_type == 'status_change' else "👤"
@@ -143,5 +162,24 @@ def send_notification_to_task_channel(sender, instance, created, **kwargs):
                 content=message_content
             )
             logger.info(f"Task status notification message created: {message.id}")
+            
+            # 2. 共通のtaskチャンネルにも送信（もし存在すれば、大文字小文字を区別せず）
+            task_channel_common = Channel.objects.filter(
+                workspace=workspace
+            ).filter(name__iexact='task').first()
+            
+            if task_channel_common:
+                # 共通のtaskチャンネルにもメッセージを送信
+                notification_type = "ステータス変更" if instance.notification_type == 'status_change' else "担当者変更"
+                task_message_content = f"{emoji} **タスク{notification_type}**\n\n**タスク**: {task_title}\n\n{instance.content}"
+                
+                task_message = Message.objects.create(
+                    channel=task_channel_common,
+                    user=sender_user,
+                    content=task_message_content
+                )
+                logger.info(f"Status change notification sent to common task channel")
+            else:
+                logger.info(f"No common task channel found")
     except Exception as e:
         logger.error(f"Error in send_notification_to_task_channel signal: {str(e)}")
