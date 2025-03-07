@@ -22,30 +22,18 @@ const useSocketIO = (options = {}) => {
   
   // Get the Socket.IO server URL based on environment
   const getSocketServer = useCallback(() => {
-    const isProduction = process.env.NODE_ENV === 'production';
+    // Logging for debugging
+    console.log('Environment:', process.env.NODE_ENV);
+    console.log('Location:', window.location.hostname);
     
-    if (process.env.REACT_APP_SOCKET_URL) {
-      return process.env.REACT_APP_SOCKET_URL;
+    // For Docker environment - direct connection
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      // Direct connection to Socket.IO server - this avoids proxy issues
+      return 'http://localhost:8001';
     }
     
-    // Development proxy by default
-    const port = process.env.REACT_APP_SOCKET_PORT || '8001';
-    
-    // Check if we're running in Docker
-    const isDocker = window.location.hostname === 'localhost' || 
-                     window.location.hostname === '127.0.0.1';
-    
-    // In Docker dev environment, try multiple connection strategies
-    if (!isProduction && isDocker) {
-      // Proxy through React's dev server is most reliable
-      return '/'; // This will use the proxy in setupProxy.js
-    }
-    
-    // Production or custom server
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.hostname;
-    
-    return `${protocol}//${host}:${port}`;
+    // For production - use the current host with socket.io path
+    return window.location.origin;
   }, []);
 
   // Connect to Socket.IO server

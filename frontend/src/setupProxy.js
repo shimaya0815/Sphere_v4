@@ -64,13 +64,18 @@ module.exports = function(app) {
   // 認証用URLパターンのプロキシ設定
   app.use('/auth', createApiProxy('/auth'));
 
-  // Socket.IOプロキシ設定
+  // Socket.IOプロキシ設定の改善
   app.use('/socket.io', createProxyMiddleware({
     target: SOCKET_HOST,
     changeOrigin: true,
     ws: true,
     secure: false,
     logLevel: 'debug',
+    // Socket.IOが正しく動作するために必要なオプション
+    // Pingのタイムアウトを延長
+    socketTimeoutMs: 60000,
+    // WebSocketの再試行を無効化
+    wsReconnectDelay: -1,
     onProxyReq: (proxyReq, req, res) => {
       const isWebSocket = req.headers.upgrade && req.headers.upgrade.toLowerCase() === 'websocket';
       console.log(`🔌 Socket.IOプロキシ: ${req.method} ${req.url} → ${SOCKET_HOST}${proxyReq.path} ${isWebSocket ? '(WebSocket)' : '(HTTP)'}`);

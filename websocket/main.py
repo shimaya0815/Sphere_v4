@@ -50,14 +50,18 @@ app.add_middleware(
     max_age=600,  # 10分キャッシュ（オプション検証を減らす）
 )
 
-# Create Socket.IO Server
+# Create Socket.IO Server with enhanced settings
 sio = socketio.AsyncServer(
     async_mode='asgi',
-    cors_allowed_origins='*',
+    cors_allowed_origins=['*', 'http://localhost:3000', 'http://frontend:3000'],
     logger=True,
     engineio_logger=True,
-    ping_timeout=60,
-    ping_interval=25
+    ping_timeout=60000,
+    ping_interval=25000,
+    # JSON serialization/deserialization
+    json=json,
+    # Allow all transports
+    transports=['websocket', 'polling']
 )
 
 # Create the ASGI app
