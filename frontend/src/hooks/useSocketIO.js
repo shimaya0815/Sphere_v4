@@ -2,6 +2,41 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 
 /**
+ * 最適な Socket.IO 接続 URL を取得する
+ * Docker や開発環境など、さまざまな環境に対応
+ */
+const getOptimalSocketUrl = () => {
+  // 1. まずウィンドウの環境変数オブジェクトをチェック (Docker用)
+  if (window.ENV && window.ENV.REACT_APP_WS_URL) {
+    console.log('Using window.ENV.REACT_APP_WS_URL:', window.ENV.REACT_APP_WS_URL);
+    return window.ENV.REACT_APP_WS_URL;
+  }
+  
+  // 2. 次にReactの環境変数をチェック
+  if (process.env.REACT_APP_WS_URL) {
+    console.log('Using process.env.REACT_APP_WS_URL:', process.env.REACT_APP_WS_URL);
+    return process.env.REACT_APP_WS_URL;
+  }
+  
+  if (process.env.REACT_APP_SOCKET_URL) {
+    console.log('Using process.env.REACT_APP_SOCKET_URL:', process.env.REACT_APP_SOCKET_URL);
+    return process.env.REACT_APP_SOCKET_URL;
+  }
+  
+  // 3. 相対パスを使用 (プロキシ経由)
+  const useRelativePath = true; // または設定から取得
+  if (useRelativePath) {
+    console.log('Using relative path for Socket.IO');
+    return '/socket.io'; // プロキシ経由でリクエストを転送
+  }
+  
+  // 4. フォールバックオプション：同一オリジンの8001ポート
+  const wsUrl = window.location.protocol + '//' + window.location.hostname + ':8001';
+  console.log('Using fallback Socket.IO URL:', wsUrl);
+  return wsUrl;
+};
+
+/**
  * Socket.IOクライアント接続を管理するカスタムフック
  * @param {Object} options - 設定オプション
  * @returns {Object} Socket.IO関連の状態と関数
@@ -18,10 +53,8 @@ const useSocketIO = (options = {}) => {
   
   // オプション
   const {
-    // 接続URL - 環境変数またはデフォルト値を使用
-    url = process.env.REACT_APP_WS_URL || 
-          process.env.REACT_APP_SOCKET_URL || 
-          window.location.protocol + '//' + window.location.hostname + ':8001',
+    // 接続URL - さまざまなソースから最適なURLを取得
+    url = getOptimalSocketUrl(),
     
     // 自動接続するかどうか
     autoConnect = true,
@@ -44,6 +77,7 @@ const useSocketIO = (options = {}) => {
       autoConnect: false, // 手動で接続管理するため
       forceNew: true,     // 常に新しい接続を作成
       withCredentials: false,
+      path: '/socket.io/', // パスを明示的に指定
     },
     
     // イベントハンドラー

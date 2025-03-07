@@ -11,4 +11,9 @@ COPY . .
 
 EXPOSE 3000
 
+# 起動前に環境変数を注入するスクリプトを追加
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["npm", "start"]
