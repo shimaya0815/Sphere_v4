@@ -39,10 +39,28 @@ const useWebSocket = (url, options = {}) => {
     // window.location.protocolに応じてプロトコルを調整
     const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     
-    // localhost:8001 に直接接続
-    wsUrl = `${wsProtocol}://localhost:8001/ws/chat/${url.split('/').pop()}`;
+    // URL末尾からチャンネルIDを取得し、必ず値があることを確認
+    let channelId = '1'; // デフォルト値として1を設定
     
-    console.log(`🔌 WebSocket接続: ${originalUrl} -> ${wsUrl}`);
+    try {
+      // URLから末尾の数字部分を取得
+      const urlParts = url.split('/');
+      const lastPart = urlParts[urlParts.length - 1];
+      
+      // 末尾が数字の場合のみ使用
+      if (lastPart && /^\d+\/?$/.test(lastPart)) {
+        channelId = lastPart.replace('/', '');
+      } else {
+        console.warn('🔴 チャンネルIDが正しく取得できません。デフォルト値を使用します:', url);
+      }
+    } catch (e) {
+      console.error('🔴 URL解析エラー:', e);
+    }
+    
+    // 必ずチャンネルIDを含む完全なURLを構築
+    wsUrl = `${wsProtocol}://localhost:8001/ws/chat/${channelId}/`;
+    
+    console.log(`🔌 WebSocket接続: ${originalUrl} -> ${wsUrl}（チャンネルID: ${channelId}）`);
     
     console.log(`Connecting to WebSocket URL: ${wsUrl}`);
     

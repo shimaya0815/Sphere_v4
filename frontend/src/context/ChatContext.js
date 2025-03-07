@@ -37,10 +37,20 @@ export const ChatProvider = ({ children }) => {
   // WebSocket URL をチャンネル変更時に更新
   useEffect(() => {
     if (activeChannel) {
-      const url = getWebSocketUrl(activeChannel.id);
-      console.log(`Setting WebSocket URL: ${url}`);
+      // チャンネルIDが確実に数値であることを確認
+      const channelId = activeChannel.id || 1;
+      const url = getWebSocketUrl(channelId);
+      
+      // 詳細なログ出力
+      console.log(`🔄 WebSocket URL設定: チャンネル=${JSON.stringify(activeChannel)}, ID=${channelId}, URL=${url}`);
+      
+      // 接続URL更新
       setWsUrl(url);
+      
+      // 接続再試行回数もリセット
+      setConnectionAttempts(0);
     } else {
+      console.warn('⚠️ アクティブチャンネルがありません - WebSocket接続を中断します');
       setWsUrl(null);
     }
   }, [activeChannel]);
