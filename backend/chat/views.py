@@ -82,7 +82,11 @@ class ChannelViewSet(viewsets.ModelViewSet):
                 channel=channel,
                 user=self.request.user,
                 is_admin=True
-        )
+            )
+            logger.info(f"Channel membership created for user: {self.request.user.id}")
+        except Exception as e:
+            logger.error(f"Error in perform_create: {str(e)}")
+            raise
     
     @action(detail=True, methods=['get'])
     def messages(self, request, pk=None):
