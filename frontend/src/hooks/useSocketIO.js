@@ -18,26 +18,32 @@ const useSocketIO = (options = {}) => {
   
   // オプション
   const {
-    // 接続URL
-    url = 'http://localhost:8001',  // 開発環境のデフォルト値
+    // 接続URL - 環境変数またはデフォルト値を使用
+    url = process.env.REACT_APP_WS_URL || 
+          process.env.REACT_APP_SOCKET_URL || 
+          window.location.protocol + '//' + window.location.hostname + ':8001',
     
     // 自動接続するかどうか
     autoConnect = true,
     
     // 最大再接続試行回数
-    maxReconnectAttempts = 10,
+    maxReconnectAttempts = 15,
     
     // 再接続間隔 (ミリ秒)
-    reconnectInterval = 3000,
+    reconnectInterval = 2000,
     
     // Socket.IOオプション
     socketOptions = {
-      transports: ['polling', 'websocket'],  // pollingを優先して互換性を確保
+      transports: ['websocket', 'polling'],  // WebSocketを優先
       reconnection: true,
-      reconnectionAttempts: 10,
+      reconnectionAttempts: 15,
       reconnectionDelay: 1000,
-      timeout: 20000,
+      reconnectionDelayMax: 5000,
+      randomizationFactor: 0.5,
+      timeout: 25000,
       autoConnect: false, // 手動で接続管理するため
+      forceNew: true,     // 常に新しい接続を作成
+      withCredentials: false,
     },
     
     // イベントハンドラー
@@ -63,17 +69,42 @@ const useSocketIO = (options = {}) => {
    * Socket.IO接続を確立する
    */
   const connect = useCallback(() => {
-    // 既存のソケットがある場合は切断
+    // すでに接続中なら処理しない
+    if (socket && isConnected) {
+      log('すでに接続中です');
+      return;
+    }
+    
+    // 既存のソケットがある場合、完全にクリーンアップ
     if (socket) {
-      log('既存のSocket接続を切断');
-      socket.disconnect();
+      try {
+        log('既存のSocket接続をクリーンアップ');
+        socket.removeAllListeners();
+        socket.disconnect();
+        // cleanup timeout
+        if (reconnectTimerRef.current) {
+          clearTimeout(reconnectTimerRef.current);
+          reconnectTimerRef.current = null;
+        }
+      } catch (err) {
+        console.warn('[Socket.IO] 既存接続のクリーンアップエラー:', err);
+      }
     }
     
     try {
-      log(`Socket.IO接続開始: ${url}`);
+      // 接続URLを確認
+      const finalUrl = typeof url === 'function' ? url() : url;
+      log(`Socket.IO接続開始: ${finalUrl}`);
+      
+      // Socket.IOオプションの確認と設定
+      const finalOptions = {
+        ...socketOptions,
+        // 直近の接続問題に対応するため、パスを明示
+        path: '/socket.io/',
+      };
       
       // 新しいSocket.IOインスタンスを作成
-      const newSocket = io(url, socketOptions);
+      const newSocket = io(finalUrl, finalOptions);
       
       // イベントハンドラーを設定
       newSocket.on('connect', () => {
@@ -92,6 +123,13 @@ const useSocketIO = (options = {}) => {
         log('接続エラー:', err.message);
         setError(err);
         
+        // 最初のトランスポート設定がwebsocketの場合、pollingにフォールバック
+        if (newSocket.io.opts.transports[0] === 'websocket' && 
+            reconnectAttemptRef.current === 2) {
+          log('WebSocketトランスポートでの接続に失敗しました。Polling方式に切り替えます...');
+          newSocket.io.opts.transports = ['polling', 'websocket'];
+        }
+        
         // 再接続を試行
         if (reconnectAttemptRef.current < maxReconnectAttempts) {
           reconnectAttemptRef.current++;
@@ -101,13 +139,25 @@ const useSocketIO = (options = {}) => {
             clearTimeout(reconnectTimerRef.current);
           }
           
-          log(`再接続を試みます (${reconnectAttemptRef.current}/${maxReconnectAttempts})`);
+          // 指数バックオフで再接続間隔を計算
+          const backoffTime = Math.min(
+            reconnectInterval * Math.pow(1.5, reconnectAttemptRef.current - 1),
+            10000 // 最大10秒まで
+          );
+          
+          log(`再接続を試みます (${reconnectAttemptRef.current}/${maxReconnectAttempts}) - ${backoffTime}ms後`);
           
           // 再接続タイマーを設定
           reconnectTimerRef.current = setTimeout(() => {
+            if (newSocket.connected) return; // すでに接続されていれば何もしない
+            
             log('再接続処理実行');
-            newSocket.connect();
-          }, reconnectInterval);
+            
+            // すでに接続試行中でなければ、再接続試行
+            if (!newSocket.connecting) {
+              newSocket.connect();
+            }
+          }, backoffTime);
         } else {
           log('最大再接続試行回数に達しました');
         }
@@ -137,28 +187,46 @@ const useSocketIO = (options = {}) => {
         }
       });
       
+      newSocket.on('reconnect_error', (err) => {
+        log(`再接続エラー: ${err.message}`);
+      });
+      
+      newSocket.on('reconnect_failed', () => {
+        log('再接続失敗: 再接続試行を停止します');
+      });
+      
+      newSocket.on('error', (err) => {
+        log(`エラー: ${err.message}`);
+        if (onError) {
+          onError(err);
+        }
+      });
+      
       // ソケットインスタンスを状態にセット
       setSocket(newSocket);
       
       // 接続開始
-      newSocket.connect();
+      if (!newSocket.connected && !newSocket.connecting) {
+        newSocket.connect();
+      }
       
       return () => {
         // クリーンアップ処理
         log('ソケット接続のクリーンアップ');
-        newSocket.disconnect();
         
         if (reconnectTimerRef.current) {
           clearTimeout(reconnectTimerRef.current);
           reconnectTimerRef.current = null;
         }
+        
+        // Socket.IOの自動クリーンアップに任せる
       };
     } catch (err) {
       console.error('[Socket.IO] 接続作成エラー:', err);
       setError(err);
       setIsConnected(false);
     }
-  }, [url, socketOptions, socket, log, maxReconnectAttempts, reconnectInterval, onConnect, onDisconnect, onError, onReconnect]);
+  }, [url, socketOptions, socket, isConnected, log, maxReconnectAttempts, reconnectInterval, onConnect, onDisconnect, onError, onReconnect]);
   
   /**
    * Socket.IO接続を切断する
