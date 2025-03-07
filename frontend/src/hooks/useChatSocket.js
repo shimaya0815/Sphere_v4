@@ -433,11 +433,40 @@ const useChatSocket = (options = {}) => {
     const handleChatMessage = (data) => {
       if (debug) console.log('メッセージ受信:', data);
       
+      // データの検証
+      if (!data || !data.message_id || !data.content) {
+        console.warn('無効なメッセージを受信しました:', data);
+        return;
+      }
+      
+      // 現在のチャンネルに対するメッセージかどうか確認
+      if (activeChannel && String(activeChannel.id) !== String(data.channel_id)) {
+        console.log(`別のチャンネル(${data.channel_id})宛のメッセージを受信しました。現在のチャンネル: ${activeChannel.id}`);
+        return;
+      }
+      
       // メッセージをメッセージリストに追加（重複チェック）
       setMessages(prev => {
+        // NULL/undefined検証
+        if (!Array.isArray(prev)) {
+          console.warn('messages状態が配列ではありません:', prev);
+          return [data];
+        }
+        
         // 既に同じIDのメッセージがあるかチェック
-        const exists = prev.some(msg => msg.message_id === data.message_id);
-        if (exists) return prev;
+        const exists = prev.some(msg => 
+          msg && msg.message_id && msg.message_id === data.message_id
+        );
+        
+        if (exists) {
+          console.log('重複メッセージを無視します:', data.message_id);
+          return prev;
+        }
+        
+        // 新しいメッセージを追加し、ブラウザイベントとして通知
+        window.dispatchEvent(new CustomEvent('new-message-received', { 
+          detail: { message: data } 
+        }));
         
         return [...prev, data];
       });

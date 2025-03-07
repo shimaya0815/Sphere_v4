@@ -164,11 +164,12 @@ const ChatContent = () => {
     }
   }, [activeChannel, messages]);
   
-  // メッセージロード完了イベントを監視
+  // メッセージイベントを監視
   useEffect(() => {
+    // メッセージロード完了イベント
     const handleMessagesLoaded = (event) => {
       console.log('メッセージロード完了イベント検知:', event.detail);
-      // メッセージの表示状態を確認
+      // メッセージの表示状態を確認し、スクロール
       setTimeout(() => {
         if (messagesEndRef.current) {
           messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -176,11 +177,38 @@ const ChatContent = () => {
       }, 100);
     };
     
+    // 新規メッセージ受信イベント
+    const handleNewMessage = (event) => {
+      console.log('新規メッセージ受信イベント検知:', event.detail);
+      // 新規メッセージ受信時にもスクロール
+      setTimeout(() => {
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    };
+    
+    // イベントリスナー登録
     window.addEventListener('messages-loaded', handleMessagesLoaded);
+    window.addEventListener('new-message-received', handleNewMessage);
+    
+    // クリーンアップ
     return () => {
       window.removeEventListener('messages-loaded', handleMessagesLoaded);
+      window.removeEventListener('new-message-received', handleNewMessage);
     };
   }, []);
+  
+  // 初回レンダリング後、メッセージがあれば強制的に表示を確認
+  useEffect(() => {
+    if (messages.length > 0 && messagesEndRef.current) {
+      // 次のレンダリングサイクルでスクロール
+      setTimeout(() => {
+        messagesEndRef.current.scrollIntoView({ behavior: 'auto' });
+        console.log('メッセージが存在するため、強制的に表示位置を調整');
+      }, 500);
+    }
+  }, [messages.length]);
   
   // Handler to refresh channels
   const handleRefreshChannels = useCallback(() => {
