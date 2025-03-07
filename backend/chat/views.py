@@ -61,6 +61,23 @@ class ChannelViewSet(viewsets.ModelViewSet):
             logger.error(f"Channel validation errors: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
+        # 重複チェック - チャンネルが既に存在する場合はそれを返す
+        try:
+            workspace_id = serializer.validated_data.get('workspace').id
+            channel_name = serializer.validated_data.get('name')
+            
+            existing_channel = Channel.objects.filter(
+                workspace_id=workspace_id, 
+                name__iexact=channel_name
+            ).first()
+            
+            if existing_channel:
+                logger.info(f"Channel already exists, returning: {existing_channel.name} (ID: {existing_channel.id})")
+                serializer = self.get_serializer(existing_channel)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error during duplicate check: {str(e)}")
+        
         # 作成処理を通常通り実行
         return super().create(request, *args, **kwargs)
 
