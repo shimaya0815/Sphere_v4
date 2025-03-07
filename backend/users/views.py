@@ -191,104 +191,114 @@ class UserCreateView(APIView):
     
     def post(self, request, *args, **kwargs):
         from djoser.serializers import UserCreateSerializer
+        from django.db import transaction
         
         # Djoserシリアライザーを使用してユーザーを作成
         serializer = UserCreateSerializer(data=request.data)
         if serializer.is_valid():
-            user = serializer.save()
-            logger.info(f"User created successfully: {user.email}")
-            
-            # ビジネスとワークスペースが設定されているか確認
-            if not user.business:
-                # ビジネスがなければ新規作成
-                business_name = f"{user.get_full_name()}'s Business"
-                if not business_name.strip():
-                    business_name = f"{user.email.split('@')[0]}'s Business"
-                    
-                # ビジネスとワークスペースの作成を直接SQLで実行して確実に作成
-                try:
-                    business = Business.objects.create(
-                        name=business_name,
-                        owner=user
-                    )
-                    
-                    user.business = business
-                    user.save()
-                    logger.info(f"Created business for user: {business.name} (ID: {business.id})")
-                    
-                    # タスク関連のメタデータを作成
-                    from tasks.models import TaskCategory, TaskStatus, TaskPriority
-                    TaskCategory.create_defaults(business)
-                    TaskStatus.create_defaults(business)
-                    TaskPriority.create_defaults(business)
-                    
-                    # ビジネスのsave()メソッドでワークスペースが自動作成されるはずだが、
-                    # 念のため明示的に作成も試みる
-                    from business.models import Workspace
-                    
-                    # 既存のワークスペースを確認
-                    existing_workspace = Workspace.objects.filter(business=business).first()
-                    if existing_workspace:
-                        workspace = existing_workspace
-                        logger.info(f"Found existing workspace: {workspace.name} (ID: {workspace.id})")
-                    else:
-                        # 明示的に作成
-                        workspace = Workspace.objects.create(
-                            business=business,
-                            name="Default Workspace",
-                            description="Default workspace created automatically"
-                        )
-                        logger.info(f"Created workspace for business: {workspace.name} (ID: {workspace.id})")
-                except Exception as e:
-                    logger.error(f"Error creating business or workspace: {str(e)}")
-                    # エラーが発生した場合は、SQL直接実行を試みる
+            # トランザクションを使用して、すべてのデータベース操作を確実にコミットする
+            with transaction.atomic():
+                user = serializer.save()
+                logger.info(f"User created successfully: {user.email}")
+                
+                # ビジネスとワークスペースが設定されているか確認
+                workspace = None
+                if not user.business:
+                    # ビジネスがなければ新規作成
+                    business_name = f"{user.get_full_name()}'s Business"
+                    if not business_name.strip():
+                        business_name = f"{user.email.split('@')[0]}'s Business"
+                        
+                    # ビジネスとワークスペースの作成を直接SQLで実行して確実に作成
                     try:
-                        from django.db import connection
+                        business = Business.objects.create(
+                            name=business_name,
+                            owner=user
+                        )
                         
-                        # ビジネスを作成
-                        with connection.cursor() as cursor:
-                            cursor.execute(
-                                """
-                                INSERT INTO business_business 
-                                (name, description, owner_id, created_at, updated_at, business_id, address, phone, email, website) 
-                                VALUES (%s, %s, %s, NOW(), NOW(), %s, '', '', '', '')
-                                RETURNING id
-                                """,
-                                [business_name, "", user.id, f"{slugify(business_name)}-{uuid.uuid4().hex[:8]}"]
-                            )
-                            business_id = cursor.fetchone()[0]
-                            
-                            # ユーザーにビジネスを関連付け
-                            cursor.execute(
-                                """
-                                UPDATE users_user
-                                SET business_id = %s
-                                WHERE id = %s
-                                """,
-                                [business_id, user.id]
-                            )
-                            
-                            # ワークスペースを作成
-                            cursor.execute(
-                                """
-                                INSERT INTO business_workspace
-                                (business_id, name, description, created_at, updated_at)
-                                VALUES (%s, %s, %s, NOW(), NOW())
-                                RETURNING id
-                                """,
-                                [business_id, "Default Workspace", "Default workspace created automatically"]
-                            )
-                            workspace_id = cursor.fetchone()[0]
+                        user.business = business
+                        user.save()
+                        logger.info(f"Created business for user: {business.name} (ID: {business.id})")
                         
-                        # エンティティを再取得
-                        business = Business.objects.get(id=business_id)
-                        workspace = Workspace.objects.get(id=workspace_id)
-                        logger.info(f"Created business and workspace via SQL: Business ID {business_id}, Workspace ID {workspace_id}")
-                    except Exception as sql_error:
-                        logger.error(f"SQL error creating business or workspace: {str(sql_error)}")
-                        raise
+                        # タスク関連のメタデータを作成
+                        from tasks.models import TaskCategory, TaskStatus, TaskPriority
+                        TaskCategory.create_defaults(business)
+                        TaskStatus.create_defaults(business)
+                        TaskPriority.create_defaults(business)
+                        
+                        # ビジネスのsave()メソッドでワークスペースが自動作成されるはずだが、
+                        # 念のため明示的に作成も試みる
+                        from business.models import Workspace
+                        
+                        # 既存のワークスペースを確認
+                        existing_workspace = Workspace.objects.filter(business=business).first()
+                        if existing_workspace:
+                            workspace = existing_workspace
+                            logger.info(f"Found existing workspace: {workspace.name} (ID: {workspace.id})")
+                        else:
+                            # 明示的に作成
+                            workspace = Workspace.objects.create(
+                                business=business,
+                                name="Default Workspace",
+                                description="Default workspace created automatically"
+                            )
+                            logger.info(f"Created workspace for business: {workspace.name} (ID: {workspace.id})")
+                    except Exception as e:
+                        logger.error(f"Error creating business or workspace: {str(e)}")
+                        # エラーが発生した場合は、SQL直接実行を試みる
+                        try:
+                            from django.db import connection
+                            
+                            # ビジネスを作成
+                            with connection.cursor() as cursor:
+                                cursor.execute(
+                                    """
+                                    INSERT INTO business_business 
+                                    (name, description, owner_id, created_at, updated_at, business_id, address, phone, email, website) 
+                                    VALUES (%s, %s, %s, NOW(), NOW(), %s, '', '', '', '')
+                                    RETURNING id
+                                    """,
+                                    [business_name, "", user.id, f"{slugify(business_name)}-{uuid.uuid4().hex[:8]}"]
+                                )
+                                business_id = cursor.fetchone()[0]
+                                
+                                # ユーザーにビジネスを関連付け
+                                cursor.execute(
+                                    """
+                                    UPDATE users_user
+                                    SET business_id = %s
+                                    WHERE id = %s
+                                    """,
+                                    [business_id, user.id]
+                                )
+                                
+                                # ワークスペースを作成
+                                cursor.execute(
+                                    """
+                                    INSERT INTO business_workspace
+                                    (business_id, name, description, created_at, updated_at)
+                                    VALUES (%s, %s, %s, NOW(), NOW())
+                                    RETURNING id
+                                    """,
+                                    [business_id, "Default Workspace", "Default workspace created automatically"]
+                                )
+                                workspace_id = cursor.fetchone()[0]
+                            
+                            # エンティティを再取得
+                            business = Business.objects.get(id=business_id)
+                            workspace = Workspace.objects.get(id=workspace_id)
+                            logger.info(f"Created business and workspace via SQL: Business ID {business_id}, Workspace ID {workspace_id}")
+                        except Exception as sql_error:
+                            logger.error(f"SQL error creating business or workspace: {str(sql_error)}")
+                            raise
+                
+                # トランザクションをコミットし、明示的にデータベースに永続化
+                transaction.commit()
+                
+                # ユーザーと関連オブジェクトを最新状態に再取得
+                user.refresh_from_db()
             
-            # チャンネルを作成（シグナルが動作しない場合の対策）
+            # トランザクション外でチャンネルを作成（前のトランザクションが確実にコミットされた後）
             try:
                 from chat.models import Channel, ChannelMembership
                 from users.signals import create_default_channels
@@ -297,8 +307,10 @@ class UserCreateView(APIView):
                 create_default_channels(sender=User, instance=user, created=True)
                 logger.info(f"Explicitly called create_default_channels for user: {user.email}")
                 
-                # ビジネスのデフォルトワークスペースを取得
-                workspace = user.business.workspaces.first()
+                # ワークスペースがすでに取得済みでない場合は取得
+                if not workspace:
+                    workspace = user.business.workspaces.first()
+                    
                 logger.info(f"Found workspace to create channels: {workspace.id if workspace else 'None'}")
                 
                 if workspace:

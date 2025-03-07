@@ -20,16 +20,43 @@ def create_default_channels(sender, instance, created, **kwargs):
     4. random チャンネル
     """
     try:
+        from django.db import transaction
+        
         logger.info(f"User signal triggered for {instance.email}, created={created}")
         
         if created and instance.business:
             logger.info(f"Creating default channels for new user {instance.email}")
             
+            # データベースから最新の状態を取得
+            from django.contrib.auth import get_user_model
+            from business.models import Business, Workspace
+            User = get_user_model()
+            
+            # 念のためユーザーとビジネスを再取得
+            user = User.objects.get(pk=instance.pk)
+            business = Business.objects.get(pk=user.business.pk)
+            
             # ビジネスのデフォルトワークスペースを取得
-            workspace = instance.business.workspaces.first()
+            workspace = business.workspaces.first()
             if not workspace:
-                logger.warning(f"No workspace found for business {instance.business.name}")
-                return
+                logger.warning(f"No workspace found for business {business.name}")
+                
+                # トランザクションを使って明示的にワークスペースを作成
+                with transaction.atomic():
+                    try:
+                        workspace = Workspace.objects.create(
+                            business=business,
+                            name="デフォルト",
+                            description="自動作成されたデフォルトワークスペース"
+                        )
+                        logger.info(f"Created default workspace for business in signal: {business.name} (ID: {workspace.id})")
+                        # 明示的にコミット
+                        transaction.commit()
+                    except Exception as e:
+                        logger.error(f"Error creating workspace in signal: {str(e)}")
+                        return
+            
+            logger.info(f"Using workspace: {workspace.name} (ID: {workspace.id}) for channel creation")
             
             # 1. タスク通知チャンネルの作成・参加
             task_channel = Channel.objects.filter(

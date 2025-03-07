@@ -44,21 +44,29 @@ class Business(models.Model):
         
         # Create default workspace if this is a new business or no workspaces exist
         if is_new or not self.workspaces.exists():
-            try:
-                # トランザクション内のクエリキャッシュをクリアするために再取得
-                if self.workspaces.exists():
-                    print(f"Workspace already exists for business: {self.name}")
-                    return
-                
-                workspace = Workspace.objects.create(
-                    business=self,
-                    name="デフォルト",
-                    description="自動作成されたデフォルトワークスペース"
-                )
-                print(f"Created default workspace for business: {self.name}")
-            except Exception as e:
-                print(f"Error creating default workspace: {e}")
-                # すでに存在する場合はエラーを無視して続行
+            from django.db import transaction
+            
+            # トランザクションを使用して確実にコミットを行う
+            with transaction.atomic():
+                try:
+                    # トランザクション内のクエリキャッシュをクリアするために再取得
+                    refreshed_business = Business.objects.get(pk=self.pk)
+                    if refreshed_business.workspaces.exists():
+                        print(f"Workspace already exists for business: {self.name}")
+                        return
+                    
+                    workspace = Workspace.objects.create(
+                        business=self,
+                        name="デフォルト",
+                        description="自動作成されたデフォルトワークスペース"
+                    )
+                    print(f"Created default workspace for business: {self.name} (ID: {workspace.id})")
+                    
+                    # 明示的にコミット
+                    transaction.commit()
+                except Exception as e:
+                    print(f"Error creating default workspace: {e}")
+                    # すでに存在する場合はエラーを無視して続行
 
 
 class Workspace(models.Model):
