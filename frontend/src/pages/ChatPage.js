@@ -147,12 +147,19 @@ const ChatContent = () => {
     }
   }, [channels, activeChannel, selectChannel, isConnected, handleReconnect]);
   
-  // Focus input field when channel changes
+  // Focus input field when channel changes and debug messages
   useEffect(() => {
     if (activeChannel && messageInputRef.current) {
       messageInputRef.current.focus();
     }
-  }, [activeChannel]);
+    
+    // メッセージデータのデバッグ
+    console.log('ChatPage: messages状態', {
+      count: messages.length,
+      messages: messages,
+      activeChannel
+    });
+  }, [activeChannel, messages]);
   
   // Handler to refresh channels
   const handleRefreshChannels = useCallback(() => {
@@ -411,11 +418,16 @@ const ChatContent = () => {
             </div>
           ) : (
             <div className="space-y-6">
-              {messages.length > 0 ? (
+              {Array.isArray(messages) && messages.length > 0 ? (
                 messages.map(msg => {
-                  // Generate a stable key even for temporary messages
-                  const messageKey = msg.id || `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                  const isCurrentUser = safe(() => msg.user.id) === currentUser?.id;
+                  if (!msg) return null; // nullメッセージをスキップ
+                  
+                  // メッセージキーの生成 (id, message_id, または一時的なキー)
+                  const messageKey = msg.id || msg.message_id || `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                  
+                  // ユーザー情報の安全な取得
+                  const userId = safe(() => msg.user?.id || (msg.user ? msg.user : null));
+                  const isCurrentUser = userId === currentUser?.id;
                   const isSelected = selectedMessage?.id === msg.id;
                   
                   return (
@@ -447,15 +459,19 @@ const ChatContent = () => {
                               : 'bg-gray-100 text-gray-800'
                           }`}
                         >
-                          {/* 引用メッセージの特別な表示（> で始まる行は引用表示） */}
-                          {msg.content?.split('\n').map((line, i) => 
-                            line.startsWith('>') ? (
-                              <div key={i} className="pl-2 border-l-2 border-gray-400 italic text-gray-500 dark:text-gray-400">
-                                {line.substring(1)}
-                              </div>
-                            ) : (
-                              <div key={i}>{line || ' '}</div>
+                          {/* メッセージ内容の表示（コンテンツが存在する場合のみ） */}
+                          {msg.content ? (
+                            msg.content.split('\n').map((line, i) => 
+                              line.startsWith('>') ? (
+                                <div key={i} className="pl-2 border-l-2 border-gray-400 italic text-gray-500 dark:text-gray-400">
+                                  {line.substring(1)}
+                                </div>
+                              ) : (
+                                <div key={i}>{line || ' '}</div>
+                              )
                             )
+                          ) : (
+                            <div className="italic text-gray-400">[空のメッセージ]</div>
                           )}
                         </div>
                         {isCurrentUser && (
