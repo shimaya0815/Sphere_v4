@@ -15,7 +15,7 @@ export const ChatProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
-  // Socket.IO connection
+  // Socket.IO connection with custom options
   const {
     isConnected,
     emit,
@@ -23,6 +23,9 @@ export const ChatProvider = ({ children }) => {
     connect,
     disconnect
   } = useSocketIO({
+    // 接続URLを明示的に指定して強制
+    socketUrl: 'http://localhost:8001',
+    
     onConnect: (socket) => {
       console.log('Connected to chat Socket.IO server');
       
