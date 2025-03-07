@@ -19,8 +19,10 @@ const useChatSocket = (options = {}) => {
   
   // オプション
   const {
-    // 接続URL
-    url = 'http://localhost:8001',
+    // 接続URL - 環境変数またはデフォルト値を使用
+    url = process.env.REACT_APP_WS_URL || 
+          process.env.REACT_APP_SOCKET_URL || 
+          window.location.protocol + '//' + window.location.hostname + ':8001',
     
     // 通知を表示するかどうか
     showNotifications = true,
@@ -39,16 +41,20 @@ const useChatSocket = (options = {}) => {
   } = useSocketIO({
     url,
     debug,
-    // 自動接続しない（チャンネル選択時に接続するため）
-    autoConnect: false,
+    // 自動接続する - 一度だけSocket.IO接続を確立（複数接続を防止）
+    autoConnect: true,
     
     // 接続イベントハンドラ
     onConnect: (socket) => {
       if (debug) console.log('チャットサーバーに接続しました');
       
-      // 接続成功時にアクティブなチャンネルに参加
+          // 接続成功時にアクティブなチャンネルに参加
       if (activeChannel && currentUser) {
-        joinChannel(activeChannel.id);
+        // 少し遅延を入れて参加を実行
+        setTimeout(() => {
+          joinChannel(activeChannel.id)
+            .catch(err => console.warn('自動チャンネル参加エラー:', err));
+        }, 500);
       }
       
       if (showNotifications) {
@@ -257,35 +263,47 @@ const useChatSocket = (options = {}) => {
    */
   const selectChannel = useCallback(async (channel) => {
     try {
-      // 現在のチャンネルから退出
-      if (activeChannel && isConnected) {
-        await leaveChannel(activeChannel.id);
-      }
-      
-      // 新しいチャンネルを設定
-      setActiveChannel(channel);
-      
-      // メッセージリストをクリア
+      // メッセージリストをクリア（即時反応）
       setMessages([]);
       
       // タイピングユーザー情報をクリア
       setTypingUsers({});
       
-      // 接続していない場合は接続
-      if (!isConnected) {
-        connect();
-      } else if (channel) {
-        // 接続済みの場合は新しいチャンネルに参加
-        await joinChannel(channel.id);
+      // 新しいチャンネルを設定
+      setActiveChannel(channel);
+      
+      // 現在のチャンネルから退出（エラーが発生しても続行）
+      if (activeChannel && isConnected) {
+        try {
+          await leaveChannel(activeChannel.id);
+        } catch (leaveErr) {
+          console.warn('前のチャンネルからの退出に失敗しました:', leaveErr);
+          // エラーを無視して続行
+        }
       }
       
-      // 既読ステータスを送信
-      if (isConnected && channel) {
-        sendReadStatus();
+      // 接続とチャンネル参加
+      if (channel) {
+        // 接続済みの場合は新しいチャンネルに参加
+        if (isConnected) {
+          try {
+            await joinChannel(channel.id);
+            
+            // 既読ステータスを送信
+            sendReadStatus();
+          } catch (joinErr) {
+            console.warn('チャンネル参加に失敗しました:', joinErr);
+            // エラーを無視して続行
+          }
+        } else {
+          // 接続と参加は useEffect で自動的に行われる
+          // 新しいチャンネルが選択されたので、次の useEffect で参加処理が行われる
+        }
       }
       
       return true;
     } catch (err) {
+      console.error('チャンネル選択処理中のエラー:', err);
       setError(`チャンネル選択エラー: ${err.message}`);
       
       if (showNotifications) {
@@ -294,7 +312,7 @@ const useChatSocket = (options = {}) => {
       
       return false;
     }
-  }, [activeChannel, isConnected, leaveChannel, connect, joinChannel, sendReadStatus, showNotifications]);
+  }, [activeChannel, isConnected, leaveChannel, joinChannel, sendReadStatus, showNotifications]);
   
   // Socket.IOイベントリスナーを設定
   useEffect(() => {

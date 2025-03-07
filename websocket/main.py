@@ -16,10 +16,16 @@ logger = logging.getLogger(__name__)
 # FastAPIアプリケーションの作成
 app = FastAPI(title="Sphere Chat WebSocket Server")
 
-# CORS設定 - すべてのオリジンからのアクセスを許可
+# CORS設定
+cors_origins = os.environ.get("CORS_ORIGINS", "*")
+if cors_origins != "*":
+    cors_origins = cors_origins.split(",")
+else:
+    cors_origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -28,11 +34,13 @@ app.add_middleware(
 # Socket.IOサーバー作成
 sio = socketio.AsyncServer(
     async_mode='asgi',
-    cors_allowed_origins='*',
+    cors_allowed_origins=cors_origins,
     logger=True,
     engineio_logger=True,
-    ping_timeout=60000,
-    ping_interval=25000
+    ping_timeout=60000,     # 60秒のping timeout
+    ping_interval=25000,    # 25秒のping間隔
+    max_http_buffer_size=1000000,  # 1MBのバッファサイズ
+    always_connect=True,    # 認証エラーがあっても接続を許可
 )
 
 # ASGIアプリケーション作成
@@ -71,20 +79,41 @@ class ReadStatusData(BaseModel):
 @sio.event
 async def connect(sid, environ, auth):
     """クライアント接続時の処理"""
-    logger.info(f"Client connected: {sid}")
-    connected_clients[sid] = {
-        'connected_at': datetime.now().isoformat(),
-        'channels': set(),
-    }
-    
-    # 接続確認メッセージ送信
-    await sio.emit('connection_status', {
-        'status': 'connected',
-        'sid': sid,
-        'timestamp': datetime.now().isoformat()
-    }, to=sid)
-    
-    return True
+    try:
+        # ヘッダーとトランスポート情報をログ出力
+        transport = environ.get('asgi.scope', {}).get('type', 'unknown')
+        headers = {k.decode('utf-8'): v.decode('utf-8') 
+                  for k, v in environ.get('asgi.scope', {}).get('headers', [])
+                  if k.decode('utf-8').lower() in ['origin', 'user-agent', 'x-forwarded-for']}
+        
+        logger.info(f"Client connected: {sid} via {transport}")
+        logger.info(f"Headers: {headers}")
+        
+        # クライアント情報を保存
+        connected_clients[sid] = {
+            'connected_at': datetime.now().isoformat(),
+            'channels': set(),
+            'transport': transport,
+            'ip': headers.get('x-forwarded-for', 'unknown'),
+            'user_agent': headers.get('user-agent', 'unknown'),
+            'origin': headers.get('origin', 'unknown')
+        }
+        
+        # 接続確認メッセージ送信
+        await sio.emit('connection_status', {
+            'status': 'connected',
+            'sid': sid,
+            'server_time': datetime.now().isoformat(),
+            'transport': transport,
+            'connection_count': len(connected_clients)
+        }, to=sid)
+        
+        logger.info(f"Active connections: {len(connected_clients)}")
+        return True
+    except Exception as e:
+        logger.error(f"Error during connection handling: {str(e)}")
+        # エラーがあっても接続は許可
+        return True
 
 @sio.event
 async def disconnect(sid):
@@ -336,6 +365,31 @@ async def health_check():
         "status": "healthy",
         "connections": len(connected_clients),
         "timestamp": datetime.now().isoformat()
+    }
+
+@app.get("/debug/connections")
+async def debug_connections():
+    """デバッグ用の接続情報エンドポイント"""
+    return {
+        "active_connections": len(connected_clients),
+        "channel_count": len(channel_members),
+        "channels": {
+            channel_id: list(sids)
+            for channel_id, sids in channel_members.items()
+        },
+        "clients": {
+            sid: {
+                "connected_at": client.get("connected_at"),
+                "channels": list(client.get("channels", [])),
+                "user_id": client.get("user_info", {}).get("id") if client.get("user_info") else None
+            }
+            for sid, client in connected_clients.items()
+        },
+        "server_info": {
+            "start_time": datetime.now().isoformat(),
+            "socketio_version": socketio.__version__,
+            "cors_origins": cors_origins
+        }
     }
 
 # チャンネル情報取得API
