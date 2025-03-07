@@ -45,6 +45,8 @@ class Business(models.Model):
         # Create default workspace if this is a new business or no workspaces exist
         if is_new or not self.workspaces.exists():
             from django.db import transaction
+            import logging
+            logger = logging.getLogger(__name__)
             
             # トランザクションを使用して確実にコミットを行う
             with transaction.atomic():
@@ -52,7 +54,9 @@ class Business(models.Model):
                     # トランザクション内のクエリキャッシュをクリアするために再取得
                     refreshed_business = Business.objects.get(pk=self.pk)
                     if refreshed_business.workspaces.exists():
-                        print(f"Workspace already exists for business: {self.name}")
+                        logger.info(f"WORKSPACE ALREADY EXISTS for business: {self.name}")
+                        workspace = refreshed_business.workspaces.first()
+                        logger.info(f"EXISTING WORKSPACE: {workspace.name} (ID: {workspace.id})")
                         return
                     
                     workspace = Workspace.objects.create(
@@ -60,12 +64,38 @@ class Business(models.Model):
                         name="デフォルト",
                         description="自動作成されたデフォルトワークスペース"
                     )
-                    print(f"Created default workspace for business: {self.name} (ID: {workspace.id})")
+                    logger.info(f"CREATED WORKSPACE: {workspace.name} (ID: {workspace.id}) for business: {self.name}")
                     
                     # 明示的にコミット
                     transaction.commit()
+                    
+                    # デフォルトチャンネルの作成
+                    try:
+                        from chat.models import Channel
+                        from django.contrib.auth import get_user_model
+                        User = get_user_model()
+                        
+                        # ビジネスオーナーを取得
+                        owner = self.owner
+                        
+                        if owner and workspace:
+                            # 必須チャンネルを作成
+                            task_channel, created = Channel.objects.get_or_create(
+                                workspace=workspace,
+                                name="task",
+                                defaults={
+                                    'description': "タスク関連の通知や議論のための共通チャンネルです",
+                                    'channel_type': 'public',
+                                    'created_by': owner,
+                                    'is_direct_message': False
+                                }
+                            )
+                            logger.info(f"BUSINESS SAVE: TASK CHANNEL {'CREATED' if created else 'EXISTS'}: {task_channel.id}")
+                    except Exception as channel_error:
+                        logger.error(f"Error creating default channels in business save: {str(channel_error)}")
+                    
                 except Exception as e:
-                    print(f"Error creating default workspace: {e}")
+                    logger.error(f"Error creating default workspace: {e}")
                     # すでに存在する場合はエラーを無視して続行
 
 
