@@ -23,18 +23,31 @@ if cors_origins != "*":
 else:
     cors_origins = ["*"]
 
+# 開発環境用に明示的にlocalhostを追加
+specific_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://frontend:3000",
+    "http://localhost:8000",
+    "http://backend:8000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
+    allow_origins=specific_origins + (cors_origins if isinstance(cors_origins, list) else [cors_origins]),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# 許可するオリジンを明示的に指定
+allowed_origins = specific_origins + ["*"]
+logger.info(f"Allowed CORS origins: {allowed_origins}")
+
 # Socket.IOサーバー作成
 sio = socketio.AsyncServer(
     async_mode='asgi',
-    cors_allowed_origins=['*'],  # すべてのオリジンを許可
+    cors_allowed_origins=allowed_origins,
     logger=True,
     engineio_logger=True,
     ping_timeout=60000,     # 60秒のping timeout
