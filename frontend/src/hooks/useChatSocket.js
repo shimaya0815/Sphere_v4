@@ -72,8 +72,10 @@ const useChatSocket = (options = {}) => {
         }, 1500); // 1.5秒に延長
       }
       
-      if (showNotifications) {
-        toast.success('チャットサーバーに接続しました');
+      // 通知は初回接続時のみ表示する
+      if (showNotifications && !window._hasShownSocketConnectedToast) {
+        window._hasShownSocketConnectedToast = true;
+        toast.success('チャットサーバーに接続しました', { id: 'socket-connected' });
       }
     },
     
@@ -81,8 +83,11 @@ const useChatSocket = (options = {}) => {
     onDisconnect: (reason) => {
       if (debug) console.log(`チャットサーバーから切断されました: ${reason}`);
       
-      if (showNotifications && reason !== 'io client disconnect') {
-        toast.error('チャットサーバーから切断されました');
+      // 通知はユーザーが意図しない切断時のみ表示
+      if (showNotifications && 
+          reason !== 'io client disconnect' && 
+          reason !== 'transport close') {
+        toast.error('チャットサーバーから切断されました', { id: 'socket-disconnected' });
       }
     },
     

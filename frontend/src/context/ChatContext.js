@@ -148,14 +148,36 @@ export const ChatProvider = ({ children }) => {
     setLoading(true);
     
     try {
+      console.log(`チャンネル ${channelId} のメッセージを読み込み中...`, options);
+      
       // APIからメッセージ履歴を取得
       const response = await chatApi.getChannelMessages(channelId, options);
       
-      if (options.before_id) {
-        // 過去メッセージを読み込む場合（ページング）
-        return response;
+      // レスポンスの形式を確認
+      if (response && response.data) {
+        console.log(`チャンネル ${channelId} のメッセージ ${response.data.results?.length || 0} 件を読み込みました`);
+        
+        // 標準的なAPIレスポンス形式
+        return {
+          results: response.data.results || [],
+          count: response.data.count || 0
+        };
+      } else if (response && Array.isArray(response.results)) {
+        console.log(`チャンネル ${channelId} のメッセージ ${response.results.length} 件を読み込みました`);
+        
+        // 別の形式
+        return {
+          results: response.results,
+          count: response.count || response.results.length
+        };
       } else {
-        return response;
+        console.log(`チャンネル ${channelId} のメッセージレスポンス:`, response);
+        
+        // フォールバック
+        return {
+          results: response?.results || response?.data?.results || [],
+          count: response?.count || response?.data?.count || 0
+        };
       }
     } catch (err) {
       console.error('メッセージ読み込みエラー:', err);
@@ -188,6 +210,8 @@ export const ChatProvider = ({ children }) => {
     if (!channel) return;
     
     try {
+      console.log(`チャンネル選択: ${channel.name} (ID: ${channel.id})`);
+      
       // 未読カウントをリセット
       setChannels(prevChannels => {
         return prevChannels.map(ch => {
@@ -208,10 +232,17 @@ export const ChatProvider = ({ children }) => {
       // 過去メッセージを読み込む
       const messageHistory = await loadMessages(channel.id);
       
+      // メッセージ履歴に基づいてメッセージを表示
+      if (messageHistory && messageHistory.results) {
+        // Socket.IOのメッセージリストとAPIから取得したメッセージを統合
+        console.log(`チャンネル ${channel.id} のメッセージを設定: ${messageHistory.results.length} 件`);
+      }
+      
       // Socket.IO経由でチャンネルを選択（API処理の後に行う）
-      // エラーが発生してもメッセージは表示できるようにする
       try {
-        await selectChannelSocket(channel);
+        console.log('Socket.IO経由でチャンネルを選択:', channel.id);
+        const socketResult = await selectChannelSocket(channel);
+        console.log('Socket.IO経由のチャンネル選択結果:', socketResult);
       } catch (socketErr) {
         console.error('Socket.IO経由のチャンネル選択エラー:', socketErr);
         // エラーは表示しない（メッセージ表示を優先）
@@ -237,11 +268,9 @@ export const ChatProvider = ({ children }) => {
     const { files, parentMessageId, mentionedUserIds } = options;
     
     try {
-      // Socket.IO経由でメッセージを送信
-      const socketResult = await sendMessageSocket(content);
+      // APIに先にメッセージを保存して永続化を確実にする
+      let apiResult = null;
       
-      // ファイルがある場合やAPIに永続化が必要な場合は、
-      // REST APIでもメッセージを送信
       if (files && files.length > 0) {
         try {
           const formData = new FormData();
@@ -263,9 +292,10 @@ export const ChatProvider = ({ children }) => {
           });
           
           // APIでメッセージを保存
-          await chatApi.createMessage(formData);
+          apiResult = await chatApi.createMessage(formData);
+          console.log('APIでメッセージを保存しました:', apiResult);
         } catch (apiErr) {
-          console.warn('APIでのメッセージ保存に失敗しましたが、Socket.IOでの送信は成功しました', apiErr);
+          console.error('APIでのメッセージ保存に失敗しました:', apiErr);
         }
       } else {
         // 通常のテキストメッセージの場合
@@ -284,13 +314,40 @@ export const ChatProvider = ({ children }) => {
           }
           
           // APIでメッセージを保存
-          await chatApi.createMessage(messageData);
+          apiResult = await chatApi.createMessage(messageData);
+          console.log('APIでメッセージを保存しました:', apiResult);
         } catch (apiErr) {
-          console.warn('APIでのメッセージ保存に失敗しましたが、Socket.IOでの送信は成功しました', apiErr);
+          console.error('APIでのメッセージ保存に失敗しました:', apiErr);
         }
       }
       
-      return socketResult;
+      // APIでの保存が成功したら、Socket.IOでもメッセージを送信して即時反映
+      if (apiResult && apiResult.data) {
+        // API保存成功時はソケットで通知
+        try {
+          const socketResult = await sendMessageSocket(content);
+          return {
+            ...socketResult,
+            apiSuccess: true,
+            message: apiResult.data
+          };
+        } catch (socketErr) {
+          console.warn('Socket.IOでの送信に失敗しましたが、APIでの保存は成功しました:', socketErr);
+          return {
+            status: 'partial_success',
+            apiSuccess: true,
+            message: apiResult.data
+          };
+        }
+      } else {
+        // API保存失敗時はSocket.IOのみで送信を試みる
+        try {
+          const socketResult = await sendMessageSocket(content);
+          return socketResult;
+        } catch (socketErr) {
+          throw new Error('APIとSocket.IOの両方でメッセージ送信に失敗しました');
+        }
+      }
     } catch (err) {
       console.error('メッセージ送信エラー:', err);
       setError(`メッセージの送信中にエラーが発生しました: ${err.message}`);
