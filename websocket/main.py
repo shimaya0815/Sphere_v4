@@ -1,5 +1,6 @@
 import json
 import asyncio
+import os
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Dict, Any, Optional
@@ -14,14 +15,38 @@ logger = logging.getLogger(__name__)
 # Create FastAPI app
 app = FastAPI(title="Sphere Websocket Service")
 
-# Add CORS middleware
+# CORS設定を改善（Dockerネットワーク用）
+def get_cors_origins():
+    # 環境変数からCORSオリジンを取得（カンマ区切り）
+    cors_origins_env = os.environ.get("CORS_ORIGINS", "*")
+    
+    # 環境変数が設定されている場合は分割してリストに変換
+    if cors_origins_env != "*":
+        origins = cors_origins_env.split(",")
+        logger.info(f"CORS origins from env: {origins}")
+        return origins
+    
+    # デフォルトのオリジン（すべて許可する "*" に加えて明示的なオリジンも設定）
+    default_origins = [
+        "*",  # すべてのオリジンを許可
+        "http://localhost:3000",  # ローカル開発用
+        "http://frontend:3000",   # Docker内のフロントエンド
+        "http://localhost:8000",  # ローカルのバックエンド
+        "http://backend:8000",    # Docker内のバックエンド
+    ]
+    logger.info(f"Using default CORS origins: {default_origins}")
+    return default_origins
+
+# Add CORS middleware with improved settings
 app.add_middleware(
     CORSMiddleware,
-    # すべてのオリジンを許可（開発環境用）
-    allow_origins=["*"],
+    allow_origins=get_cors_origins(),
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS", "DELETE", "PUT", "PATCH"],
+    allow_headers=["X-Requested-With", "X-HTTP-Method-Override", "Content-Type", 
+                  "Accept", "Authorization", "X-CSRF-Token"],
+    expose_headers=["Content-Disposition"],
+    max_age=600,  # 10分キャッシュ（オプション検証を減らす）
 )
 
 # WebSocket connection manager
