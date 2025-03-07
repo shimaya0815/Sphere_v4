@@ -7,10 +7,12 @@ from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model, authenticate
+from django.utils.text import slugify
+import uuid
+import logging
 from .models import UserPreferences
 from .serializers import UserSerializer, UserPreferencesSerializer
 from business.models import Business
-import logging
 
 # ロギング設定
 logger = logging.getLogger(__name__)
@@ -203,29 +205,88 @@ class UserCreateView(APIView):
                 if not business_name.strip():
                     business_name = f"{user.email.split('@')[0]}'s Business"
                     
-                business = Business.objects.create(
-                    name=business_name,
-                    owner=user
-                )
-                
-                user.business = business
-                user.save()
-                logger.info(f"Created business for user: {business.name}")
-                
-                # タスク関連のメタデータを作成
-                from tasks.models import TaskCategory, TaskStatus, TaskPriority
-                TaskCategory.create_defaults(business)
-                TaskStatus.create_defaults(business)
-                TaskPriority.create_defaults(business)
-                
-                # ワークスペースを作成
-                from business.models import Workspace
-                workspace = Workspace.objects.create(
-                    business=business,
-                    name="Default Workspace",
-                    description="Default workspace created automatically"
-                )
-                logger.info(f"Created workspace for business: {workspace.name}")
+                # ビジネスとワークスペースの作成を直接SQLで実行して確実に作成
+                try:
+                    business = Business.objects.create(
+                        name=business_name,
+                        owner=user
+                    )
+                    
+                    user.business = business
+                    user.save()
+                    logger.info(f"Created business for user: {business.name} (ID: {business.id})")
+                    
+                    # タスク関連のメタデータを作成
+                    from tasks.models import TaskCategory, TaskStatus, TaskPriority
+                    TaskCategory.create_defaults(business)
+                    TaskStatus.create_defaults(business)
+                    TaskPriority.create_defaults(business)
+                    
+                    # ビジネスのsave()メソッドでワークスペースが自動作成されるはずだが、
+                    # 念のため明示的に作成も試みる
+                    from business.models import Workspace
+                    
+                    # 既存のワークスペースを確認
+                    existing_workspace = Workspace.objects.filter(business=business).first()
+                    if existing_workspace:
+                        workspace = existing_workspace
+                        logger.info(f"Found existing workspace: {workspace.name} (ID: {workspace.id})")
+                    else:
+                        # 明示的に作成
+                        workspace = Workspace.objects.create(
+                            business=business,
+                            name="Default Workspace",
+                            description="Default workspace created automatically"
+                        )
+                        logger.info(f"Created workspace for business: {workspace.name} (ID: {workspace.id})")
+                except Exception as e:
+                    logger.error(f"Error creating business or workspace: {str(e)}")
+                    # エラーが発生した場合は、SQL直接実行を試みる
+                    try:
+                        from django.db import connection
+                        
+                        # ビジネスを作成
+                        with connection.cursor() as cursor:
+                            cursor.execute(
+                                """
+                                INSERT INTO business_business 
+                                (name, description, owner_id, created_at, updated_at, business_id, address, phone, email, website) 
+                                VALUES (%s, %s, %s, NOW(), NOW(), %s, '', '', '', '')
+                                RETURNING id
+                                """,
+                                [business_name, "", user.id, f"{slugify(business_name)}-{uuid.uuid4().hex[:8]}"]
+                            )
+                            business_id = cursor.fetchone()[0]
+                            
+                            # ユーザーにビジネスを関連付け
+                            cursor.execute(
+                                """
+                                UPDATE users_user
+                                SET business_id = %s
+                                WHERE id = %s
+                                """,
+                                [business_id, user.id]
+                            )
+                            
+                            # ワークスペースを作成
+                            cursor.execute(
+                                """
+                                INSERT INTO business_workspace
+                                (business_id, name, description, created_at, updated_at)
+                                VALUES (%s, %s, %s, NOW(), NOW())
+                                RETURNING id
+                                """,
+                                [business_id, "Default Workspace", "Default workspace created automatically"]
+                            )
+                            workspace_id = cursor.fetchone()[0]
+                        
+                        # エンティティを再取得
+                        business = Business.objects.get(id=business_id)
+                        workspace = Workspace.objects.get(id=workspace_id)
+                        logger.info(f"Created business and workspace via SQL: Business ID {business_id}, Workspace ID {workspace_id}")
+                    except Exception as sql_error:
+                        logger.error(f"SQL error creating business or workspace: {str(sql_error)}")
+                        raise
             
             # チャンネルを作成（シグナルが動作しない場合の対策）
             try:
@@ -238,6 +299,8 @@ class UserCreateView(APIView):
                 
                 # ビジネスのデフォルトワークスペースを取得
                 workspace = user.business.workspaces.first()
+                logger.info(f"Found workspace to create channels: {workspace.id if workspace else 'None'}")
+                
                 if workspace:
                     # すべてのチャンネル作成をチェック
                     channels_to_create = [
@@ -247,34 +310,104 @@ class UserCreateView(APIView):
                         ('random', '雑談のためのチャンネルです')
                     ]
                     
+                    # 各チャンネルについてORMでの作成と直接SQLでの作成の両方を用意
                     for channel_name, description in channels_to_create:
-                        # 既存のチャンネルを検索
-                        channel = Channel.objects.filter(
-                            workspace=workspace,
-                            name=channel_name
-                        ).first()
-                        
-                        # なければ作成
-                        if not channel:
-                            logger.info(f"Creating channel in view: {channel_name}")
-                            channel = Channel.objects.create(
-                                name=channel_name,
-                                description=description,
+                        try:
+                            # 既存のチャンネルを検索（大文字小文字を区別せず）
+                            # まずは完全一致で
+                            channel = Channel.objects.filter(
                                 workspace=workspace,
-                                channel_type='public',
-                                created_by=user
-                            )
-                            logger.info(f"Created channel: {channel.name} (ID: {channel.id})")
-                        
-                        # ユーザーをメンバーに追加
-                        ChannelMembership.objects.get_or_create(
-                            channel=channel,
-                            user=user,
-                            defaults={
-                                'is_admin': user == channel.created_by
-                            }
-                        )
-                        logger.info(f"Added user to channel: {channel.name}")
+                                name=channel_name
+                            ).first()
+                            
+                            # 次に大文字小文字を区別せずに検索
+                            if not channel:
+                                channel = Channel.objects.filter(
+                                    workspace=workspace
+                                ).filter(name__iexact=channel_name).first()
+                            
+                            # レコードがあるかログに記録
+                            if channel:
+                                logger.info(f"Found existing channel: {channel.name} (ID: {channel.id})")
+                            else:
+                                logger.info(f"No existing channel found with name '{channel_name}'")
+                                
+                            # なければ作成
+                            if not channel:
+                                try:
+                                    # まずORMで試す
+                                    logger.info(f"Creating channel via ORM: {channel_name}")
+                                    channel = Channel.objects.create(
+                                        name=channel_name,
+                                        description=description,
+                                        workspace=workspace,
+                                        channel_type='public',
+                                        created_by=user
+                                    )
+                                    logger.info(f"Created channel via ORM: {channel.name} (ID: {channel.id})")
+                                except Exception as orm_error:
+                                    logger.error(f"ORM error creating channel '{channel_name}': {str(orm_error)}")
+                                    
+                                    # SQLで直接作成を試みる
+                                    try:
+                                        from django.db import connection
+                                        logger.info(f"Creating channel via SQL: {channel_name}")
+                                        
+                                        with connection.cursor() as cursor:
+                                            cursor.execute(
+                                                """
+                                                INSERT INTO chat_channel 
+                                                (name, description, workspace_id, channel_type, created_by_id, created_at, updated_at, is_direct_message) 
+                                                VALUES (%s, %s, %s, %s, %s, NOW(), NOW(), false)
+                                                RETURNING id
+                                                """,
+                                                [channel_name, description, workspace.id, 'public', user.id]
+                                            )
+                                            channel_id = cursor.fetchone()[0]
+                                        
+                                        # 作成したチャンネルを取得
+                                        channel = Channel.objects.get(id=channel_id)
+                                        logger.info(f"Created channel via SQL: {channel.name} (ID: {channel.id})")
+                                    except Exception as sql_error:
+                                        logger.error(f"SQL error creating channel '{channel_name}': {str(sql_error)}")
+                                        continue  # 次のチャンネルへ
+                            
+                            # ユーザーをメンバーに追加
+                            if channel:
+                                try:
+                                    membership, created = ChannelMembership.objects.get_or_create(
+                                        channel=channel,
+                                        user=user,
+                                        defaults={
+                                            'is_admin': user == channel.created_by
+                                        }
+                                    )
+                                    if created:
+                                        logger.info(f"Added user to channel: {channel.name}")
+                                    else:
+                                        logger.info(f"User already a member of channel: {channel.name}")
+                                except Exception as membership_error:
+                                    logger.error(f"Error adding user to channel '{channel_name}': {str(membership_error)}")
+                                    
+                                    # SQLで直接メンバーシップを作成
+                                    try:
+                                        from django.db import connection
+                                        with connection.cursor() as cursor:
+                                            cursor.execute(
+                                                """
+                                                INSERT INTO chat_channelmembership (channel_id, user_id, is_admin, muted, joined_at, last_read_at)
+                                                VALUES (%s, %s, true, false, NOW(), NOW())
+                                                ON CONFLICT (channel_id, user_id) DO NOTHING
+                                                """,
+                                                [channel.id, user.id]
+                                            )
+                                        logger.info(f"Added user to channel via SQL: {channel.name}")
+                                    except Exception as sql_mem_error:
+                                        logger.error(f"SQL error adding user to channel '{channel_name}': {str(sql_mem_error)}")
+                        except Exception as channel_error:
+                            logger.error(f"Unexpected error processing channel '{channel_name}': {str(channel_error)}")
+                else:
+                    logger.error(f"No workspace found for user {user.email} to create channels")
             
             except Exception as e:
                 logger.error(f"Error creating channels for user: {str(e)}")
