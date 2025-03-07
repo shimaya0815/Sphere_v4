@@ -429,14 +429,13 @@ class UserChannelsView(APIView):
             members=request.user
         )
         
-        # Add unread message counts
+        # Add unread message counts - using standard Django filters
         channels = channels.annotate(
             unread_count=Count(
                 'messages',
                 filter=Q(
-                    messages__created_at__gt=F('memberships__user__last_login'),
-                    messages__user__ne=request.user
-                )
+                    messages__created_at__gt=F('memberships__user__last_login')
+                ) & ~Q(messages__user=request.user)  # `ne` はサポートされていないので `~Q()` を使用
             )
         )
         
