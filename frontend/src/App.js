@@ -18,6 +18,7 @@ import ProfilePage from './pages/ProfilePage';
 import NotFoundPage from './pages/NotFoundPage';
 import PrivateRoute from './components/PrivateRoute';
 import Layout from './components/Layout';
+import SocketDebug from './components/debug/SocketDebug';
 
 // Placeholder components for initial setup
 const PlaceholderComponent = ({ title }) => (
@@ -50,6 +51,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/debug/socket" element={<SocketDebug />} />
         
         {/* Protected routes with shared layout */}
         <Route element={<Layout />}>

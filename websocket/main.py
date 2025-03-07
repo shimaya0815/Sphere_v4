@@ -116,6 +116,16 @@ async def connect(sid, environ, auth):
         return True
 
 @sio.event
+async def ping(sid):
+    """Pingイベントに対するPong応答"""
+    logger.info(f"Ping received from {sid}")
+    await sio.emit('pong', {
+        'time': datetime.now().isoformat(),
+        'sid': sid
+    }, to=sid)
+    return {'status': 'ok', 'message': 'pong'}
+
+@sio.event
 async def disconnect(sid):
     """クライアント切断時の処理"""
     logger.info(f"Client disconnected: {sid}")
