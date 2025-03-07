@@ -73,16 +73,16 @@ const useSocketIO = (options = {}) => {
     // 再接続間隔 (ミリ秒) - 短くして早く諦める
     reconnectInterval = 1000,
     
-    // Socket.IOオプション - 最小限の設定で接続問題を回避
+    // Socket.IOオプション - タイムアウト問題解決のための最適化
     socketOptions = {
-      transports: ['polling', 'websocket'],  // 両方のトランスポートを許可
+      transports: ['polling'],  // 安定性のためpollingのみを使用
       reconnection: true,
-      reconnectionAttempts: 3,
-      reconnectionDelay: 1000,
+      reconnectionAttempts: 2,  // 少なく
+      reconnectionDelay: 3000,  // 長めのディレイ
       reconnectionDelayMax: 5000,
-      timeout: 20000,
+      timeout: 45000,  // 十分長いタイムアウト
       autoConnect: false,
-      forceNew: true,  // 確実に新しい接続を作成
+      forceNew: false,  // 既存の接続を再利用
       withCredentials: false,
       path: '/socket.io/', // パスはデフォルトのまま
     },
