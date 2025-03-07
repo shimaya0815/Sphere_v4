@@ -15,20 +15,42 @@ export const ChatProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
-  // Websocket connection for the active channel
+  // Websocket connection for the active channel - 複数の接続オプションを試す
   const getWebSocketUrl = (channelId) => {
-    if (!channelId) return null;
+    if (!channelId) {
+      console.error('❌ チャンネルIDがありません');
+      return null;
+    }
     
-    // 直接WebSocketサーバーのアドレスを使用
     // HTTPSの場合はWSSを使用
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     
-    // 最も単純な形式で直接接続
-    const directWsUrl = `${protocol}//localhost:8001/ws/chat/${channelId}/`;
+    // 3つの異なる接続方法を定義（優先度順）
+    const connectionOptions = [
+      // 1. プロキシ経由で接続する方法 (webpack dev serverの設定を使用)
+      `${protocol}//${window.location.host}/ws/chat/${channelId}/`,
+      
+      // 2. 直接WebSocketサーバーに接続する方法
+      `${protocol}//localhost:8001/ws/chat/${channelId}/`,
+      
+      // 3. フォールバックとしてWebSocketサーバーのIPアドレスを直接指定
+      `${protocol}//127.0.0.1:8001/ws/chat/${channelId}/`
+    ];
     
-    console.log(`🔌 WebSocket直接接続 channel: ${channelId}, url: ${directWsUrl}`);
+    // 最初のオプションを使用（他のオプションはフック内の接続エラー時に自動試行）
+    const selectedUrl = connectionOptions[0];
     
-    return directWsUrl;
+    // WebSocket接続URLとチャンネル情報をグローバル変数に保存（デバッグ用）
+    window.wsConnectionInfo = {
+      channelId,
+      selectedUrl,
+      allOptions: connectionOptions,
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log(`🔌 WebSocket接続設定:`, window.wsConnectionInfo);
+    
+    return selectedUrl;
   };
   
   const [wsUrl, setWsUrl] = useState(null);
