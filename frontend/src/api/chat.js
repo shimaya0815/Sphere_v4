@@ -26,8 +26,17 @@ const chatApi = {
   deleteChannel: (id) => apiClient.delete(`/api/chat/channels/${id}/`),
   
   // Mark channel as read
-  markChannelAsRead: (channelId) => 
-    apiClient.post('/api/chat/messages/mark_read/', { channel_id: channelId }),
+  markChannelAsRead: (channelId) => {
+    // FormDataを使用してMultipart/form-dataリクエストを送信
+    const formData = new FormData();
+    formData.append('channel_id', channelId);
+    
+    return apiClient.post('/api/chat/messages/mark_read/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      }
+    });
+  },
   
   // Channel messages
   getChannelMessages: async (channelId, params) => {
