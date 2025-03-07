@@ -57,30 +57,62 @@ def create_default_channels(sender, instance, created, **kwargs):
             )
             logger.info(f"User {instance.email} {'added to' if created1 else 'already in'} task notification channel")
             
-            # 2. taskチャンネル（大文字小文字を区別せずに検索）
-            task_common_channel = Channel.objects.filter(
-                workspace=workspace
-            ).filter(name__iexact='task').first()
+            # 2. taskチャンネル（明示的に検索とロギング）
+            logger.info(f"Searching for task channel in workspace {workspace.name}")
+            try:
+                # まず正確な名前で検索
+                task_common_channel = Channel.objects.filter(
+                    workspace=workspace, 
+                    name='task'
+                ).first()
+                
+                if task_common_channel:
+                    logger.info(f"Found task channel with exact name: {task_common_channel.id}")
+                else:
+                    # 次に大文字小文字を区別せずに検索（念のため）
+                    task_common_channel = Channel.objects.filter(
+                        workspace=workspace
+                    ).filter(name__iexact='task').first()
+                    
+                    if task_common_channel:
+                        logger.info(f"Found task channel with case-insensitive search: {task_common_channel.id}")
+                    else:
+                        logger.info("No task channel found, creating new one")
+            except Exception as e:
+                logger.error(f"Error searching for task channel: {str(e)}")
+                task_common_channel = None
             
             if not task_common_channel:
                 logger.info(f"Creating task channel in workspace {workspace.name}")
-                task_common_channel = Channel.objects.create(
-                    name='task',
-                    description='タスク関連の通知や議論のための共通チャンネルです',
-                    workspace=workspace,
-                    channel_type='public',
-                    created_by=instance
-                )
+                try:
+                    task_common_channel = Channel.objects.create(
+                        name='task',
+                        description='タスク関連の通知や議論のための共通チャンネルです',
+                        workspace=workspace,
+                        channel_type='public',
+                        created_by=instance
+                    )
+                    logger.info(f"Successfully created task channel with ID: {task_common_channel.id}")
+                except Exception as e:
+                    logger.error(f"Error creating task channel: {str(e)}")
+                    # エラーが発生した場合でも続行するために、空のオブジェクトを使用せず、関数を終了
+                    return
             
             # 新規ユーザーをチャンネルのメンバーとして追加
-            membership2, created2 = ChannelMembership.objects.get_or_create(
-                channel=task_common_channel,
-                user=instance,
-                defaults={
-                    'is_admin': instance == task_common_channel.created_by
-                }
-            )
-            logger.info(f"User {instance.email} {'added to' if created2 else 'already in'} task channel")
+            if task_common_channel:
+                try:
+                    membership2, created2 = ChannelMembership.objects.get_or_create(
+                        channel=task_common_channel,
+                        user=instance,
+                        defaults={
+                            'is_admin': instance == task_common_channel.created_by
+                        }
+                    )
+                    logger.info(f"User {instance.email} {'added to' if created2 else 'already in'} task channel")
+                except Exception as e:
+                    logger.error(f"Error adding user to task channel: {str(e)}")
+            else:
+                logger.error("Cannot add user to task channel because channel creation failed")
             
             # 3. general チャンネル
             general_channel = Channel.objects.filter(

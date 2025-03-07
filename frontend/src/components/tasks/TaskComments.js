@@ -171,16 +171,22 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
         let taskChannel = null;
         
         // 既存のチャンネルから「task」を検索（大文字小文字を区別せず）
-        for (const workspace of myChannels) {
-          const foundChannel = workspace.channels.find(
-            c => c.name.toLowerCase() === 'task'
-          );
-          
-          if (foundChannel) {
-            taskChannel = foundChannel;
-            console.log('Found existing task channel:', taskChannel);
-            break;
+        if (Array.isArray(myChannels)) {
+          for (const workspace of myChannels) {
+            if (workspace && Array.isArray(workspace.channels)) {
+              const foundChannel = workspace.channels.find(
+                c => c && c.name && c.name.toLowerCase() === 'task'
+              );
+              
+              if (foundChannel) {
+                taskChannel = foundChannel;
+                console.log('Found existing task channel:', taskChannel);
+                break;
+              }
+            }
           }
+        } else {
+          console.log('Channels data structure is not as expected:', myChannels);
         }
         
         if (!taskChannel) {
