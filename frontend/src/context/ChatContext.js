@@ -280,7 +280,19 @@ export const ChatProvider = ({ children }) => {
         // メッセージをuseChatSocketに渡す - 初期メッセージとして設定
         try {
           // メッセージ一覧をSocketのメッセージリストとして設定（直接インポート）
-          setMessages(messageHistory.results);
+          // ディープコピーして確実に新しい参照を作成
+          const messagesCopy = JSON.parse(JSON.stringify(messageHistory.results));
+          console.log('メッセージ設定前状態確認:', {
+            現在のメッセージ数: messages.length,
+            設定するメッセージ数: messagesCopy.length
+          });
+          
+          // 明示的に空配列を設定してから新しいメッセージを設定 (強制的な更新)
+          setMessages([]);
+          setTimeout(() => {
+            setMessages(messagesCopy);
+            console.log('メッセージが正常に設定されました:', messagesCopy.length);
+          }, 10);
         } catch (setErr) {
           console.error('メッセージリスト設定エラー:', setErr);
         }

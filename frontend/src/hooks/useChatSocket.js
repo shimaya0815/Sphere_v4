@@ -17,6 +17,11 @@ const useChatSocket = (options = {}) => {
   const [typingUsers, setTypingUsers] = useState({});
   const [error, setError] = useState(null);
   
+  // デバッグ用 - メッセージ更新監視
+  useEffect(() => {
+    console.log(`useChatSocket: メッセージが更新されました (${messages.length}件)`);
+  }, [messages]);
+  
   // オプション
   const {
     // 接続URL - useSocketIOの処理に任せる
