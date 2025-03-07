@@ -144,7 +144,13 @@ const chatApi = {
         }
       });
     }
-    return apiClient.post('/api/chat/messages/', data);
+    
+    // 明示的にJSONコンテンツタイプを指定
+    return apiClient.post('/api/chat/messages/', data, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
   },
   
   updateMessage: (id, data) => apiClient.patch(`/api/chat/messages/${id}/`, data),
