@@ -181,13 +181,30 @@ async def disconnect(sid):
 async def join_channel(sid, data):
     """チャンネル参加処理"""
     try:
-        # データバリデーション
-        join_data = ChannelJoinData(**data)
-        channel_id = join_data.channel_id
-        user_info = join_data.user_info
+        # データバリデーションをより寛容に
+        channel_id = None
+        user_info = {}
+        
+        # データ形式チェック - 辞書/オブジェクト
+        if isinstance(data, dict):
+            channel_id = data.get('channel_id')
+            user_info = data.get('user_info', {})
+        
+        # データバリデーション失敗時のフォールバック
+        if not channel_id:
+            logger.warning(f"Invalid channel join data: {data}")
+            return {
+                'status': 'error',
+                'message': 'Invalid channel data: channel_id is required'
+            }
+            
+        # チャンネルIDを文字列に変換
+        channel_id = str(channel_id)
         
         # チャンネルルームに参加
-        sio.enter_room(sid, f'channel_{channel_id}')
+        room_name = f'channel_{channel_id}'
+        sio.enter_room(sid, room_name)
+        logger.info(f"SID {sid} entered room: {room_name}")
         
         # チャンネルメンバー管理に追加
         if channel_id not in channel_members:
@@ -198,34 +215,51 @@ async def join_channel(sid, data):
         if sid in connected_clients:
             connected_clients[sid]['channels'].add(channel_id)
             connected_clients[sid]['user_info'] = user_info
+            logger.info(f"Updated client info for SID {sid}: {connected_clients[sid]}")
+        else:
+            # 接続情報がない場合は新規作成
+            connected_clients[sid] = {
+                'connected_at': datetime.now().isoformat(),
+                'channels': {channel_id},
+                'user_info': user_info
+            }
+            logger.info(f"Created new client info for SID {sid}")
         
         # 参加者数
         member_count = len(channel_members[channel_id])
         
         # 参加成功通知
-        await sio.emit('channel_joined', {
+        join_response = {
             'channel_id': channel_id,
             'timestamp': datetime.now().isoformat(),
             'active_members': member_count
-        }, to=sid)
+        }
+        await sio.emit('channel_joined', join_response, to=sid)
         
         # 他のメンバーに新しいユーザーの参加を通知
-        await sio.emit('user_joined', {
+        user_joined_notification = {
             'channel_id': channel_id,
             'user_info': user_info,
             'timestamp': datetime.now().isoformat(),
             'active_members': member_count
-        }, room=f'channel_{channel_id}', skip_sid=sid)
+        }
+        await sio.emit('user_joined', user_joined_notification, room=room_name, skip_sid=sid)
         
-        logger.info(f"User {user_info.get('id')} joined channel {channel_id}")
+        user_id = user_info.get('id', 'unknown')
+        logger.info(f"User {user_id} joined channel {channel_id} with {member_count} active members")
         
         return {
             'status': 'success',
             'message': f'Joined channel {channel_id}',
-            'active_members': member_count
+            'active_members': member_count,
+            'channel_id': channel_id,
+            'sid': sid
         }
     except Exception as e:
         logger.error(f"Error joining channel: {str(e)}")
+        # スタックトレースも出力
+        import traceback
+        logger.error(traceback.format_exc())
         return {
             'status': 'error',
             'message': f'Failed to join channel: {str(e)}'

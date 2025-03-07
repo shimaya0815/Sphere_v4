@@ -120,20 +120,39 @@ const useChatSocket = (options = {}) => {
     if (!isConnected) {
       if (debug) console.log('未接続状態でチャンネル参加が要求されました。接続を試みます...');
       
-      // 接続を試みた後、再度参加を試みる
+      // 接続を試みた後、再度参加を試みる - タイミングを改善
       return new Promise((resolve, reject) => {
+        // 明示的に接続を開始
         connect();
         
-        // 接続を待ってから再度参加を試みる
-        setTimeout(() => {
-          if (isConnected && currentUser) {
-            joinChannel(channelId)
-              .then(resolve)
-              .catch(reject);
-          } else {
-            reject(new Error('接続試行後も未接続状態です'));
+        // 接続を確認する関数
+        const checkConnection = (retries = 0) => {
+          if (retries > 5) {
+            // 最大試行回数に達したらエラー
+            console.warn(`チャンネル参加: 最大リトライ回数(${retries})に達しました`);
+            return resolve({ status: 'error', message: '接続タイムアウト' });
           }
-        }, 2000); // 接続のための十分な時間
+          
+          if (isConnected && currentUser) {
+            console.log(`チャンネル参加: 接続確認OK (試行回数: ${retries})`);
+            // 接続済みの場合は少し待ってからチャンネルに参加
+            setTimeout(() => {
+              joinChannel(channelId)
+                .then(resolve)
+                .catch(err => {
+                  console.warn(`チャンネル参加エラー: ${err.message}, 再試行します`);
+                  setTimeout(() => checkConnection(retries + 1), 1000);
+                });
+            }, 500);
+          } else {
+            console.log(`チャンネル参加: 接続待機中... (試行回数: ${retries})`);
+            // まだ接続していない場合は再試行
+            setTimeout(() => checkConnection(retries + 1), 1000);
+          }
+        };
+        
+        // 接続確認を開始
+        checkConnection();
       });
     }
     
