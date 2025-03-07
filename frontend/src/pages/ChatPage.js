@@ -419,8 +419,12 @@ const ChatContent = () => {
           ) : (
             <div className="space-y-6">
               {Array.isArray(messages) && messages.length > 0 ? (
+                console.log('メッセージ描画:', messages) || 
                 messages.map(msg => {
-                  if (!msg) return null; // nullメッセージをスキップ
+                  if (!msg) {
+                    console.warn('空のメッセージをスキップ');
+                    return null; // nullメッセージをスキップ
+                  }
                   
                   // メッセージキーの生成 (id, message_id, または一時的なキー)
                   const messageKey = msg.id || msg.message_id || `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
