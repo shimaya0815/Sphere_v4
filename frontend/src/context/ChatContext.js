@@ -1,7 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import chatApi from '../api/chat';
 import { useAuth } from './AuthContext';
-import useWebSocket from '../hooks/useWebSocket';
+import useSocketIO from '../hooks/useSocketIO';
 import toast from 'react-hot-toast';
 
 const ChatContext = createContext();
@@ -15,146 +15,66 @@ export const ChatProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
-  // Websocket connection for the active channel - 複数の接続オプションを試す
-  const getWebSocketUrl = (channelId) => {
-    if (!channelId) {
-      console.error('❌ チャンネルIDがありません');
-      return null;
-    }
-    
-    // HTTPSの場合はWSSを使用
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    
-    // 3つの異なる接続方法を定義（優先度順）
-    const connectionOptions = [
-      // 1. プロキシ経由で接続する方法 (webpack dev serverの設定を使用)
-      `${protocol}//${window.location.host}/ws/chat/${channelId}/`,
-      
-      // 2. 直接WebSocketサーバーに接続する方法
-      `${protocol}//localhost:8001/ws/chat/${channelId}/`,
-      
-      // 3. フォールバックとしてWebSocketサーバーのIPアドレスを直接指定
-      `${protocol}//127.0.0.1:8001/ws/chat/${channelId}/`
-    ];
-    
-    // 最初のオプションを使用（他のオプションはフック内の接続エラー時に自動試行）
-    const selectedUrl = connectionOptions[0];
-    
-    // WebSocket接続URLとチャンネル情報をグローバル変数に保存（デバッグ用）
-    window.wsConnectionInfo = {
-      channelId,
-      selectedUrl,
-      allOptions: connectionOptions,
-      timestamp: new Date().toISOString()
-    };
-    
-    console.log(`🔌 WebSocket接続設定:`, window.wsConnectionInfo);
-    
-    return selectedUrl;
-  };
-  
-  const [wsUrl, setWsUrl] = useState(null);
-  const [connectionAttempts, setConnectionAttempts] = useState(0);
-  
-  // WebSocket URL をチャンネル変更時に更新
-  useEffect(() => {
-    if (activeChannel) {
-      // チャンネルIDが確実に数値であることを確認
-      const channelId = activeChannel.id || 1;
-      const url = getWebSocketUrl(channelId);
-      
-      // 詳細なログ出力
-      console.log(`🔄 WebSocket URL設定: チャンネル=${JSON.stringify(activeChannel)}, ID=${channelId}, URL=${url}`);
-      
-      // 接続URL更新
-      setWsUrl(url);
-      
-      // 接続再試行回数もリセット
-      setConnectionAttempts(0);
-    } else {
-      console.warn('⚠️ アクティブチャンネルがありません - WebSocket接続を中断します');
-      setWsUrl(null);
-    }
-  }, [activeChannel]);
-  
-  const { 
+  // Socket.IO connection
+  const {
     isConnected,
-    sendMessage: sendWebSocketMessage,
-    connect
-  } = useWebSocket(
-    wsUrl,
-    {
-      automaticOpen: true,
-      onOpen: () => {
-        console.log(`Connected to chat WebSocket for channel ID: ${activeChannel?.id}`);
-        setConnectionAttempts(0);
-        
-        // 定期的なPingを送信するインターバルを設定
-        const pingInterval = setInterval(() => {
-          if (isConnected) {
-            sendWebSocketMessage(JSON.stringify({
-              type: 'ping',
-              data: { timestamp: new Date().toISOString() }
-            }));
-            console.log('Sent ping to chat server');
-          } else {
-            clearInterval(pingInterval);
-          }
-        }, 30000); // 30秒ごとにPing
-        
-        return () => clearInterval(pingInterval);
-      },
-      onMessage: (event) => {
-        try {
-          // 文字列の場合はパース
-          let data;
-          if (typeof event === 'string') {
-            data = JSON.parse(event);
-          } else if (event.data) {
-            data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-          } else {
-            data = event;
-          }
-          
-          console.log("Received chat WebSocket message:", data);
-          
-          if (data.type === 'chat_message') {
-            handleNewMessage(data.data);
-          } else if (data.type === 'read_status') {
-            // Update read status when other users read messages
-            handleReadStatusUpdate(data.data);
-          } else if (data.type === 'pong') {
-            console.log('Received pong from server:', data);
-          }
-        } catch (error) {
-          console.error("Error handling WebSocket message:", error);
-        }
-      },
-      onClose: () => {
-        console.log('Disconnected from chat WebSocket');
-        const newAttempts = connectionAttempts + 1;
-        setConnectionAttempts(newAttempts);
-      },
-      onError: (error) => {
-        console.error('Chat WebSocket error:', error);
-        const newAttempts = connectionAttempts + 1;
-        setConnectionAttempts(newAttempts);
-      },
-      // 自動再接続設定
-      reconnectInterval: 3000,
-      reconnectAttempts: 10
+    emit,
+    on,
+    connect,
+    disconnect
+  } = useSocketIO({
+    onConnect: (socket) => {
+      console.log('Connected to chat Socket.IO server');
+      
+      // Join active channel if exists
+      if (activeChannel && currentUser) {
+        joinChannel(activeChannel.id);
+      }
+    },
+    onDisconnect: (reason) => {
+      console.log(`Disconnected from chat Socket.IO server: ${reason}`);
+    },
+    onError: (err) => {
+      console.error('Chat Socket.IO error:', err);
+    },
+    onReconnect: () => {
+      console.log('Reconnected to chat Socket.IO server');
+      
+      // Rejoin active channel on reconnect
+      if (activeChannel && currentUser) {
+        joinChannel(activeChannel.id);
+      }
     }
-  );
+  });
   
-  // 追加: 明示的な再接続機能
-  const handleReconnect = useCallback(() => {
-    if (!isConnected && wsUrl) {
-      console.log('Manually reconnecting to chat WebSocket');
-      setConnectionAttempts(0);
-      connect();
-      toast('チャットサーバーに再接続しています...', { id: 'chat-ws-reconnect' });
-    }
-  }, [isConnected, wsUrl, connect]);
+  // Join a channel via Socket.IO
+  const joinChannel = useCallback((channelId) => {
+    if (!isConnected || !currentUser) return;
+    
+    console.log(`Joining channel ${channelId} via Socket.IO`);
+    
+    emit('join_channel', {
+      channel_id: channelId,
+      user_info: {
+        id: currentUser.id,
+        name: currentUser.get_full_name ? currentUser.get_full_name() : 'User',
+        email: currentUser.email
+      }
+    }, (response) => {
+      console.log('Join channel response:', response);
+    });
+  }, [isConnected, currentUser, emit]);
+  
+  // Leave a channel via Socket.IO
+  const leaveChannel = useCallback((channelId) => {
+    if (!isConnected) return;
+    
+    console.log(`Leaving channel ${channelId} via Socket.IO`);
+    
+    emit('leave_channel', {
+      channel_id: channelId
+    });
+  }, [isConnected, emit]);
   
   // Load channels for the current user's business
   const loadChannels = useCallback(async () => {
@@ -279,9 +199,85 @@ export const ChatProvider = ({ children }) => {
     }
   }, []);
   
+  // Set up Socket.IO event listeners
+  useEffect(() => {
+    if (!isConnected) return;
+    
+    // Handle incoming chat messages
+    const unsubscribeMessage = on('chat_message', (data) => {
+      console.log('Received chat message:', data);
+      
+      // Only process messages for the active channel
+      if (activeChannel && data.channel_id === activeChannel.id.toString()) {
+        const enhancedMessage = {
+          id: data.id,
+          content: data.content,
+          user: {
+            id: data.user.id,
+            full_name: data.user.name || 'Unknown User'
+          },
+          created_at: data.timestamp,
+          channel: parseInt(data.channel_id)
+        };
+        
+        setMessages(prevMessages => {
+          // Check if message already exists (avoid duplicates)
+          const exists = prevMessages.some(m => m.id === enhancedMessage.id);
+          if (exists) return prevMessages;
+          return [...prevMessages, enhancedMessage];
+        });
+      } else {
+        // If message is for another channel, increment unread count
+        setChannels(prevChannels => {
+          return prevChannels.map(ch => {
+            if (ch.id.toString() === data.channel_id) {
+              return {
+                ...ch,
+                unread_count: (ch.unread_count || 0) + 1
+              };
+            }
+            return ch;
+          });
+        });
+      }
+    });
+    
+    // Handle typing indicators
+    const unsubscribeTyping = on('typing', (data) => {
+      console.log('Typing indicator:', data);
+      // We could implement typing indicator UI here
+    });
+    
+    // Handle read status updates
+    const unsubscribeReadStatus = on('read_status', (data) => {
+      console.log('Read status update:', data);
+      // We could update read receipts UI here
+    });
+    
+    // Handle user joined notifications
+    const unsubscribeUserJoined = on('user_joined', (data) => {
+      console.log('User joined channel:', data);
+      // We could show a notification that a user joined
+    });
+    
+    // Clean up event listeners on unmount or when connection status changes
+    return () => {
+      unsubscribeMessage();
+      unsubscribeTyping();
+      unsubscribeReadStatus();
+      unsubscribeUserJoined();
+    };
+  }, [isConnected, on, activeChannel]);
+  
   // Set active channel and load its messages
   const selectChannel = useCallback(async (channel) => {
+    // Leave previous channel if exists
+    if (activeChannel && isConnected) {
+      leaveChannel(activeChannel.id);
+    }
+    
     setActiveChannel(channel);
+    
     if (channel) {
       await loadMessages(channel.id);
       
@@ -295,109 +291,34 @@ export const ChatProvider = ({ children }) => {
         });
       });
       
-      // WebSocketの接続状態をコンソールに出力
-      console.log(`WebSocket状態 - Channel: ${channel.id}, 接続状態: ${isConnected ? '接続済み' : '未接続'}`);
+      // Join the new channel via Socket.IO
+      if (isConnected) {
+        joinChannel(channel.id);
+      }
       
       // Send API request to mark channel as read
       try {
         await chatApi.markChannelAsRead(channel.id);
         
-        // Also notify other users through WebSocket
+        // Also notify other users through Socket.IO
         if (isConnected) {
-          const success = sendWebSocketMessage({
-            type: 'read_status',
-            data: {
-              user_id: currentUser?.id,
-              channel_id: channel.id,
-              timestamp: new Date().toISOString()
-            }
+          emit('read_status', {
+            channel_id: channel.id,
+            timestamp: new Date().toISOString()
           });
-          console.log(`WebSocket送信結果: ${success ? '成功' : '失敗'}`);
         } else {
-          console.warn('WebSocket未接続のため、read_statusメッセージを送信できません。メッセージは表示されますが、リアルタイム通知は機能しません。');
+          console.warn('Socket.IO not connected, read status will not be broadcast in real-time');
           
-          // 接続状態をより積極的にチェック
-          // WebSocket接続を明示的に試みる
-          handleReconnect();
-          
-          // 1秒後に再度接続状態をチェック
-          setTimeout(() => {
-            if (!isConnected) {
-              // それでも接続できない場合のみ警告表示
-              setMessages(prev => [
-                ...prev,
-                {
-                  id: `local-${Date.now()}`,
-                  content: "⚠️ WebSocketサーバーに接続できません。メッセージはローカルにのみ保存され、サーバーには送信されません。再接続を行います。",
-                  user: {
-                    id: 0,
-                    full_name: "システム",
-                  },
-                  created_at: new Date().toISOString(),
-                  is_system: true,
-                  is_local: true
-                }
-              ]);
-            }
-          }, 1000);
+          // Try to reconnect Socket.IO
+          connect();
         }
       } catch (err) {
         console.error("Failed to mark channel as read:", err);
       }
     }
-  }, [loadMessages, currentUser, isConnected, sendWebSocketMessage]);
+  }, [loadMessages, isConnected, activeChannel, joinChannel, leaveChannel, emit, connect]);
   
-  // Handle new message (from WebSocket or after sending)
-  const handleNewMessage = useCallback((message) => {
-    console.log('Handling new message:', message);
-    
-    // Add mock user data if not present
-    const enhancedMessage = { 
-      ...message,
-      // Ensure message has necessary properties
-      id: message.id || Math.floor(Math.random() * 1000000),
-      user: message.user || {
-        id: currentUser?.id || 1,
-        full_name: currentUser?.get_full_name() || 'Current User',
-      },
-      created_at: message.created_at || new Date().toISOString()
-    };
-    
-    setMessages(prevMessages => {
-      // Check if message already exists
-      const exists = prevMessages.some(m => m.id === enhancedMessage.id);
-      if (exists) return prevMessages;
-      return [...prevMessages, enhancedMessage];
-    });
-    
-    // If message is from another user and in a different channel than active one
-    // increment unread count for that channel
-    if (message.user?.id !== currentUser?.id && 
-        message.channel !== activeChannel?.id) {
-      setChannels(prevChannels => {
-        return prevChannels.map(ch => {
-          if (ch.id === message.channel) {
-            return {
-              ...ch,
-              unread_count: (ch.unread_count || 0) + 1
-            };
-          }
-          return ch;
-        });
-      });
-    }
-  }, [currentUser, activeChannel]);
-  
-  // Handle read status updates from other users
-  const handleReadStatusUpdate = useCallback((data) => {
-    if (!data || !data.user_id || !data.channel_id) return;
-    
-    // We don't need to update our own UI when others read messages
-    // This is primarily for syncing read receipts in the future
-    console.log(`User ${data.user_id} read messages in channel ${data.channel_id}`);
-  }, []);
-  
-  // Send a message to the current channel - works both online and offline
+  // Send a message to the current channel
   const sendMessage = useCallback(async (content, options = {}) => {
     if (!activeChannel) return null;
     
@@ -423,96 +344,101 @@ export const ChatProvider = ({ children }) => {
       };
       
       // Add the message to the UI immediately for better responsiveness
-      handleNewMessage(messageObj);
+      setMessages(prevMessages => {
+        const exists = prevMessages.some(m => m.id === messageObj.id);
+        if (exists) return prevMessages;
+        return [...prevMessages, messageObj];
+      });
       
-      // Always try to send via WebSocket for real-time updates, if connected
+      // Send via Socket.IO if connected
       if (isConnected) {
-        try {
-          console.log('Sending via WebSocket:', messageObj);
-          const sent = sendWebSocketMessage({
-            type: 'chat_message',
-            data: messageObj
+        emit('chat_message', {
+          channel_id: activeChannel.id,
+          content,
+          id: tempId
+        });
+      } else {
+        console.warn('Socket.IO not connected, message saved locally only');
+        
+        // Try to reconnect
+        connect();
+      }
+      
+      // Also save to API for persistence
+      try {
+        // Prepare message data for API
+        const messageData = {
+          content,
+          channel: activeChannel.id
+        };
+        
+        if (parentMessageId) {
+          messageData.parent_message = parentMessageId;
+        }
+        
+        if (mentionedUserIds && mentionedUserIds.length > 0) {
+          messageData.mentioned_user_ids = mentionedUserIds;
+        }
+        
+        if (files && files.length > 0) {
+          // For files, use FormData
+          const formData = new FormData();
+          formData.append('channel', activeChannel.id);
+          formData.append('content', content);
+          
+          if (parentMessageId) {
+            formData.append('parent_message', parentMessageId);
+          }
+          
+          if (mentionedUserIds && mentionedUserIds.length > 0) {
+            mentionedUserIds.forEach(id => {
+              formData.append('mentioned_user_ids', id);
+            });
+          }
+          
+          files.forEach(file => {
+            formData.append('files', file);
           });
           
-          if (!sent) {
-            console.warn('WebSocket message send failed - connection may be lost');
-          }
-        } catch (wsError) {
-          console.error('WebSocket send error:', wsError);
-        }
-      } else {
-        console.warn('WebSocket not connected, message saved locally only');
-      }
-      
-      // Prepare message data for API
-      const messageData = {
-        content,
-        channel: activeChannel.id
-      };
-      
-      if (parentMessageId) {
-        messageData.parent_message = parentMessageId;
-      }
-      
-      if (mentionedUserIds && mentionedUserIds.length > 0) {
-        messageData.mentioned_user_ids = mentionedUserIds;
-      }
-      
-      // Only try to save to API if we've had a successful connection
-      if (isConnected) {
-        // Try to send via API (in the background)
-        try {
-          if (files && files.length > 0) {
-            const formData = new FormData();
-            formData.append('channel', activeChannel.id);
-            formData.append('content', content);
-            
-            if (parentMessageId) {
-              formData.append('parent_message', parentMessageId);
-            }
-            
-            if (mentionedUserIds && mentionedUserIds.length > 0) {
-              mentionedUserIds.forEach(id => {
-                formData.append('mentioned_user_ids', id);
-              });
-            }
-            
-            files.forEach(file => {
-              formData.append('files', file);
+          // Send API request but don't block UI
+          chatApi.createMessage(formData)
+            .then(response => {
+              console.log('Message saved to API:', response.data);
+            })
+            .catch(err => {
+              console.warn('Could not save message to API:', err);
             });
-            
-            // Send API request but don't block UI
-            chatApi.createMessage(formData)
-              .then(response => {
-                console.log('Message saved to API:', response.data);
-              })
-              .catch(err => {
-                console.warn('Could not save message to API, but WebSocket delivery was attempted', err);
-              });
-          } else {
-            // Regular JSON message - send but don't block UI
-            chatApi.createMessage(messageData)
-              .then(response => {
-                console.log('Message saved to API:', response.data);
-              })
-              .catch(err => {
-                console.warn('Could not save message to API, but WebSocket delivery was attempted', err);
-              });
-          }
-        } catch (apiError) {
-          console.error('API Error when sending message:', apiError);
-          // Already added message to UI and attempted WebSocket delivery
+        } else {
+          // Regular JSON message - send but don't block UI
+          chatApi.createMessage(messageData)
+            .then(response => {
+              console.log('Message saved to API:', response.data);
+            })
+            .catch(err => {
+              console.warn('Could not save message to API:', err);
+            });
         }
+      } catch (apiError) {
+        console.error('API Error when sending message:', apiError);
       }
       
-      // Always return the message object that was added to the UI
       return messageObj;
     } catch (err) {
       console.error('Error sending message:', err);
       setError('Failed to send message');
       return null;
     }
-  }, [activeChannel, isConnected, sendWebSocketMessage, handleNewMessage, currentUser]);
+  }, [activeChannel, isConnected, currentUser, emit, connect]);
+  
+  // Send typing indicator
+  const sendTypingIndicator = useCallback((isTyping = true) => {
+    if (!activeChannel || !isConnected) return;
+    
+    emit('typing_indicator', {
+      channel_id: activeChannel.id,
+      is_typing: isTyping
+    });
+  }, [activeChannel, isConnected, emit]);
   
   // Create a new channel
   const createChannel = useCallback(async (channelData) => {
@@ -562,7 +488,7 @@ export const ChatProvider = ({ children }) => {
     }
   }, []);
   
-  // Load channels on initial mount and handle defaults if API fails
+  // Load channels on initial mount and when user changes
   useEffect(() => {
     if (currentUser) {
       console.log('🔄 チャンネル読み込み開始 - ユーザー:', currentUser);
@@ -595,9 +521,8 @@ export const ChatProvider = ({ children }) => {
       
       // APIからのデータ取得を試みる
       loadChannels()
-        .then(apiChannels => {
-          console.log('✅ APIからのチャンネル取得成功:', apiChannels);
-          // APIデータがない場合はデフォルトのままでOK
+        .then(() => {
+          console.log('✅ APIからのチャンネル取得成功');
         })
         .catch(err => {
           console.error('❌ APIチャンネル取得エラー、デフォルトチャンネルを維持:', err);
@@ -606,39 +531,18 @@ export const ChatProvider = ({ children }) => {
     }
   }, [currentUser, loadChannels]);
   
-  // チャンネル選択時に自動的にWebSocket接続を確立
-  const forceConnectToChannel = useCallback((channel) => {
-    if (!channel || !channel.id) {
-      console.warn('❌ 有効なチャンネルがありません');
-      return;
-    }
-    
-    console.log('🔌 チャンネル接続開始:', channel);
-    
-    // 強制的にWebSocket接続を確立
-    try {
-      // チャンネルを選択
-      selectChannel(channel);
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Leave active channel
+      if (activeChannel && isConnected) {
+        leaveChannel(activeChannel.id);
+      }
       
-      // WebSocket接続のためにタイマーを設定
-      setTimeout(() => {
-        try {
-          if (channel && channel.id) {
-            // useWebSocket.jsのconnect関数を直接呼び出す
-            connect();
-            console.log('🔄 WebSocket接続を強制的に試行:', channel.id);
-          }
-        } catch (err) {
-          console.error('❌ WebSocket接続試行エラー:', err);
-        }
-      }, 500);
-    } catch (err) {
-      console.error('❌ チャンネル選択エラー:', err);
-    }
-  }, [selectChannel, connect]);
-  
-  // デフォルトチャンネルの作成は不要
-  // サインアップ時にバックエンドでtaskとgeneralのチャンネルが自動的に作成されるため
+      // Disconnect Socket.IO
+      disconnect();
+    };
+  }, [activeChannel, isConnected, leaveChannel, disconnect]);
   
   const value = {
     channels,
@@ -648,17 +552,15 @@ export const ChatProvider = ({ children }) => {
     loading,
     error,
     isConnected,
-    connectionAttempts,
     loadChannels,
     loadMessages,
     selectChannel,
     sendMessage,
+    sendTypingIndicator,
     createChannel,
     startDirectMessage,
     searchMessages,
-    handleReconnect,
-    forceConnectToChannel, // 新しい関数を公開
-    connect // WebSocket接続関数も直接公開
+    connect
   };
   
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
