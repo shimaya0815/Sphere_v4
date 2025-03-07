@@ -29,27 +29,20 @@ const useWebSocket = (url, options = {}) => {
       return;
     }
     
-    // URLをそのまま使用
-    let wsUrl = url;
-    console.log(`Attempting direct WebSocket connection to: ${wsUrl}`);
+    // WebSocket接続URLの調整 - 直接localhost:8001に接続
+    const originalUrl = url;
     
-    // 試験的コード: WebSocketの接続先を直接確認
-    try {
-      const testSocket = new WebSocket(wsUrl);
-      testSocket.onopen = () => console.log('🟢 Test connection successful!');
-      testSocket.onerror = (e) => console.error('🔴 Test connection failed:', e);
-      setTimeout(() => {
-        try {
-          if (testSocket && testSocket.readyState !== WebSocket.CLOSED) {
-            testSocket.close();
-          }
-        } catch (e) {
-          console.warn('Error closing test socket:', e);
-        }
-      }, 2000);
-    } catch (e) {
-      console.error('Error creating test socket:', e);
-    }
+    // 常に直接WebSocketサーバーに接続するようにURLを調整
+    let wsUrl = url;
+    
+    // どのような環境でも直接接続できるように、すべての接続はlocalhost:8001に向ける
+    // window.location.protocolに応じてプロトコルを調整
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    
+    // localhost:8001 に直接接続
+    wsUrl = `${wsProtocol}://localhost:8001/ws/chat/${url.split('/').pop()}`;
+    
+    console.log(`🔌 WebSocket接続: ${originalUrl} -> ${wsUrl}`);
     
     console.log(`Connecting to WebSocket URL: ${wsUrl}`);
     
@@ -139,44 +132,74 @@ const useWebSocket = (url, options = {}) => {
           if (onOpen) onOpen(event);
         };
         
-        // メッセージ受信ハンドラ
+        // メッセージ受信ハンドラ - 接続状態を積極的に更新
         websocketRef.current.onmessage = (event) => {
+          // 接続状態をすぐに更新（メッセージを受信できている = 接続済み）
+          setIsConnected(true);
+          setError(null);
+          
           try {
             // データがある場合のみ処理
             if (event.data) {
-              const data = JSON.parse(event.data);
-              console.log('WebSocket message received:', data);
-              setMessages(prevMessages => [...prevMessages, data]);
+              let data;
+              try {
+                data = JSON.parse(event.data);
+              } catch (parseErr) {
+                console.error('❌ WebSocketメッセージ解析エラー:', parseErr);
+                console.log('受信データ:', event.data);
+                // 解析できなくても接続状態は更新
+                setIsConnected(true);
+                return;
+              }
               
-              // 接続確立メッセージを受信した場合、接続状態を確実に更新
-              // 接続確立メッセージを処理（サーバー側の形式に合わせて修正）
+              console.log('📩 WebSocketデータ受信:', data);
+              
+              // コンポーネント間で共有されるメッセージ履歴を更新
+              if (data.type !== 'ping' && data.type !== 'pong') {
+                setMessages(prevMessages => [...prevMessages, data]);
+              }
+              
+              // 接続確立メッセージの処理 - 最も重要
               if (data.type === 'connection_established') {
-                console.log('🎉 Connection established message from server:', data);
-                // UI状態を更新
+                console.log('🎉 WebSocket接続確立:', data);
+                
+                // UI状態を更新 - ステータス更新を複数の場所で強制
                 setIsConnected(true);
                 setError(null);
                 
-                // 明示的にUIにもメッセージを表示
+                // ローカル接続フラグも設定（画面描画に使用）
+                window.isWebSocketConnected = true;
+                localStorage.setItem('websocket_connected', 'true');
+                localStorage.setItem('websocket_last_connected', new Date().toISOString());
+                
+                // システムメッセージとして表示
                 setMessages(prevMessages => [
                   ...prevMessages, 
                   {
                     id: `system-${Date.now()}`,
                     type: 'system',
-                    content: 'WebSocket接続が確立されました',
+                    content: '✅ WebSocket接続が確立されました',
                     timestamp: new Date().toISOString()
                   }
                 ]);
                 
-                // グローバルステータスイベントをトリガー
+                // グローバルイベントを発行
                 try {
-                  // カスタムイベントを発行（他のコンポーネントが監視できるように）
                   const event = new CustomEvent('websocket-connected', { 
-                    detail: { connectionId: data.connection_id || 'unknown' } 
+                    detail: { 
+                      connectionId: data.connection_id || 'unknown',
+                      timestamp: new Date().toISOString(),
+                      success: true
+                    } 
                   });
                   window.dispatchEvent(event);
-                  console.log('✅ Triggered websocket-connected event');
+                  console.log('📢 WebSocket接続イベント発行');
+                  
+                  // React開発ツールでも確認できるよう状態更新
+                  setTimeout(() => setIsConnected(true), 100);
+                  setTimeout(() => setError(null), 100);
                 } catch (evtErr) {
-                  console.warn('❌ Failed to dispatch connection event:', evtErr);
+                  console.warn('❌ イベント発行エラー:', evtErr);
                 }
                 
                 // 確認応答を返信
@@ -189,25 +212,25 @@ const useWebSocket = (url, options = {}) => {
                         status: 'received',
                         client_info: { 
                           url: window.location.href,
-                          userAgent: navigator.userAgent,
-                          timestamp: new Date().toISOString()
+                          userAgent: navigator.userAgent
                         }
                       }
                     }));
-                    console.log('✅ Sent connection acknowledgement');
+                    console.log('✅ 接続確認応答送信');
                   }
                 } catch (err) {
-                  console.warn('❌ Failed to send connection acknowledgement:', err);
+                  console.warn('❌ 確認応答エラー:', err);
                 }
               }
               
               // pingメッセージへの応答
               if (data.type === 'ping') {
-                console.log('🏓 Ping received from server:', data);
+                console.log('🏓 Ping受信:', data);
                 
-                // 接続状態を更新
+                // 接続状態を更新（pingが来ている = 接続は生きている）
                 setIsConnected(true);
                 setError(null);
+                window.isWebSocketConnected = true;
                 
                 // Pongで応答
                 try {
@@ -220,10 +243,10 @@ const useWebSocket = (url, options = {}) => {
                         client_status: 'healthy'
                       }
                     }));
-                    console.log('✅ Replied with pong');
+                    console.log('✅ Pong応答送信');
                   }
                 } catch (err) {
-                  console.warn('❌ Failed to send pong:', err);
+                  console.warn('❌ Pong応答エラー:', err);
                 }
               }
               
