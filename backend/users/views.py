@@ -286,20 +286,23 @@ class UserCreateView(APIView):
             )
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        """Upload a profile image for the current user."""
-        user = request.user
+
+
+@action(detail=False, methods=['post'])
+def upload_image(self, request):
+    """Upload a profile image for the current user."""
+    user = request.user
+    
+    if 'profile_image' not in request.FILES:
+        return Response(
+            {'error': 'No image provided'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
         
-        if 'profile_image' not in request.FILES:
-            return Response(
-                {'error': 'No image provided'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        user.profile_image = request.FILES['profile_image']
-        user.save()
-        
-        serializer = self.get_serializer(user)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+    user.profile_image = request.FILES['profile_image']
+    user.save()
+    
+    return Response({'status': 'profile image updated'})
 
 
 class UserPreferencesViewSet(viewsets.ModelViewSet):

@@ -85,6 +85,7 @@ def create_default_channels(sender, instance, created, **kwargs):
             if not task_common_channel:
                 logger.info(f"Creating task channel in workspace {workspace.name}")
                 try:
+                    # まずDjangoのORMを使って試してみる
                     task_common_channel = Channel.objects.create(
                         name='task',
                         description='タスク関連の通知や議論のための共通チャンネルです',
@@ -92,11 +93,45 @@ def create_default_channels(sender, instance, created, **kwargs):
                         channel_type='public',
                         created_by=instance
                     )
-                    logger.info(f"Successfully created task channel with ID: {task_common_channel.id}")
-                except Exception as e:
-                    logger.error(f"Error creating task channel: {str(e)}")
-                    # エラーが発生した場合でも続行するために、空のオブジェクトを使用せず、関数を終了
-                    return
+                    logger.info(f"Successfully created task channel with ORM, ID: {task_common_channel.id}")
+                except Exception as orm_error:
+                    logger.error(f"Error creating task channel via ORM: {str(orm_error)}")
+                    
+                    # ORMが失敗した場合、SQL直接実行を試みる
+                    try:
+                        from django.db import connection
+                        
+                        # DBトランザクションを開始
+                        with connection.cursor() as cursor:
+                            # Channel作成のSQLを直接実行
+                            cursor.execute(
+                                """
+                                INSERT INTO chat_channel 
+                                (name, description, workspace_id, channel_type, created_by_id, created_at, updated_at, is_direct_message) 
+                                VALUES (%s, %s, %s, %s, %s, NOW(), NOW(), false)
+                                RETURNING id
+                                """,
+                                ['task', 'タスク関連の通知や議論のための共通チャンネルです', workspace.id, 'public', instance.id]
+                            )
+                            channel_id = cursor.fetchone()[0]
+                            
+                            # メンバーシップの作成
+                            cursor.execute(
+                                """
+                                INSERT INTO chat_channelmembership
+                                (channel_id, user_id, is_admin, muted, joined_at, last_read_at)
+                                VALUES (%s, %s, true, false, NOW(), NOW())
+                                """,
+                                [channel_id, instance.id]
+                            )
+                        
+                        # 作成されたチャンネルを取得
+                        task_common_channel = Channel.objects.get(id=channel_id)
+                        logger.info(f"Successfully created task channel via SQL, ID: {task_common_channel.id}")
+                    except Exception as sql_error:
+                        logger.error(f"Error creating task channel via SQL: {str(sql_error)}")
+                        # どちらの方法も失敗した場合は、続行できないので終了
+                        return
             
             # 新規ユーザーをチャンネルのメンバーとして追加
             if task_common_channel:

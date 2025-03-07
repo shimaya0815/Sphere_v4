@@ -49,15 +49,39 @@ class ChannelViewSet(viewsets.ModelViewSet):
         
         return queryset.distinct()
     
+    def create(self, request, *args, **kwargs):
+        """チャンネル作成のオーバーライド - バリデーションエラーのデバッグを追加"""
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Channel create request data: {request.data}")
+        
+        # シリアライザの初期化とバリデーション
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            logger.error(f"Channel validation errors: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 作成処理を通常通り実行
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         """Set created_by and add the creator as a member when creating a channel."""
-        channel = serializer.save(created_by=self.request.user)
+        import logging
+        logger = logging.getLogger(__name__)
         
-        # Add creator as member and admin
-        ChannelMembership.objects.create(
-            channel=channel,
-            user=self.request.user,
-            is_admin=True
+        try:
+            # ワークスペースが存在するか確認（これがよくエラーの原因）
+            workspace_id = serializer.validated_data.get('workspace').id if 'workspace' in serializer.validated_data else None
+            logger.info(f"Creating channel in workspace ID: {workspace_id}")
+            
+            channel = serializer.save(created_by=self.request.user)
+            logger.info(f"Channel created successfully: {channel.id} - {channel.name}")
+            
+            # Add creator as member and admin
+            membership = ChannelMembership.objects.create(
+                channel=channel,
+                user=self.request.user,
+                is_admin=True
         )
     
     @action(detail=True, methods=['get'])
