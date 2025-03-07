@@ -335,24 +335,28 @@ class UserCreateView(APIView):
                             try:
                                 logger.info(f"Creating channel: {channel_name}")
                                 
-                                # get_or_createを使用して重複を防止
-                                channel, created = Channel.objects.get_or_create(
+                                # get_or_createではname__iexactは使えないため、まず検索
+                                existing_channel = Channel.objects.filter(
                                     workspace=workspace,
-                                    name__iexact=channel_name,
-                                    defaults={
-                                        'name': channel_name,
-                                        'description': description,
-                                        'workspace': workspace,
-                                        'channel_type': 'public',
-                                        'created_by': user,
-                                        'is_direct_message': False
-                                    }
-                                )
+                                    name__iexact=channel_name
+                                ).first()
                                 
-                                if created:
-                                    logger.info(f"Created new channel: {channel.name} (ID: {channel.id})")
+                                if existing_channel:
+                                    channel = existing_channel
+                                    created = False
+                                    logger.info(f"Found existing channel: {channel.name} (ID: {channel.id})")
                                 else:
-                                    logger.info(f"Channel already exists: {channel.name} (ID: {channel.id})")
+                                    # 存在しなければ作成
+                                    channel = Channel.objects.create(
+                                        name=channel_name,
+                                        description=description,
+                                        workspace=workspace,
+                                        channel_type='public',
+                                        created_by=user,
+                                        is_direct_message=False
+                                    )
+                                    created = True
+                                    logger.info(f"Created new channel: {channel.name} (ID: {channel.id})")
                                 
                                 created_channels.append(channel)
                                 
