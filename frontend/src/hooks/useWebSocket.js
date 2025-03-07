@@ -40,88 +40,151 @@ const useWebSocket = (url, options = {}) => {
     
     // URLからチャンネルIDを抽出
     let channelId = '1'; // デフォルト値
+    let resourceType = 'chat'; // デフォルトの種類
+    
     try {
-      const match = url.match(/\/chat\/(\d+)\/?$/);
-      if (match && match[1]) {
-        channelId = match[1];
+      // /ws/{type}/{id}/形式のURLを解析
+      const matchFull = url.match(/\/ws\/([^\/]+)\/(\d+)\/?$/);
+      // /{type}/{id}/形式のURLも解析
+      const matchSimple = url.match(/\/([^\/]+)\/(\d+)\/?$/);
+      
+      if (matchFull && matchFull[1] && matchFull[2]) {
+        resourceType = matchFull[1];
+        channelId = matchFull[2];
+        console.log(`📌 URL解析: タイプ=${resourceType}, ID=${channelId} (フルパス形式)`);
+      } else if (matchSimple && matchSimple[1] && matchSimple[2]) {
+        resourceType = matchSimple[1];
+        channelId = matchSimple[2];
+        console.log(`📌 URL解析: タイプ=${resourceType}, ID=${channelId} (シンプル形式)`);
+      } else {
+        console.warn('⚠️ URL形式が認識できないため、デフォルト値を使用します');
       }
     } catch (e) {
       console.warn('⚠️ チャンネルID抽出エラー:', e);
     }
 
-    // 代替接続URLのリスト（接続失敗時に順番に試行）
+    // 複数の接続方法を準備（優先度順）
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    
+    // 代替接続URLのリスト（接続失敗時に順番に試行）
     const fallbackUrls = [
-      // 現在のURLをそのまま使用（最初の試行）
-      wsUrl,
+      // 1. URLがws://またはwss://で始まる場合はそのまま使用
+      wsUrl.startsWith('ws://') || wsUrl.startsWith('wss://') ? wsUrl : null,
       
-      // プロキシ経由での接続
-      `${protocol}//${window.location.host}/ws/chat/${channelId}/`,
+      // 2. フルパスを構築（/ws/プレフィックス付き）- プロキシ経由の推奨方法
+      `${protocol}//${window.location.host}/ws/${resourceType}/${channelId}/`,
       
-      // 直接WebSocketサーバーに接続
-      `${protocol}//localhost:8001/ws/chat/${channelId}/`,
+      // 3. フルパスを構築（/wsプレフィックスなし）- 直接WebSocketサーバーへの接続試行
+      `${protocol}//${window.location.host}/${resourceType}/${channelId}/`,
       
-      // IPアドレスで直接接続
-      `${protocol}//127.0.0.1:8001/ws/chat/${channelId}/`
-    ];
+      // 4. 直接WebSocketサーバーに接続（開発環境用）
+      `${protocol}//localhost:8001/ws/${resourceType}/${channelId}/`,
+      
+      // 5. IPアドレスで直接接続（フォールバック）
+      `${protocol}//127.0.0.1:8001/ws/${resourceType}/${channelId}/`
+    ].filter(Boolean); // nullの項目を除外
+    
+    // 重複しているURLを除外
+    const uniqueFallbackUrls = [...new Set(fallbackUrls)];
+    
+    // 最終的なURLはリストの最初の項目
+    wsUrl = uniqueFallbackUrls[0];
     
     // グローバル変数に保存（デバッグ用）
     window.wsConnectionOptions = {
       primary: wsUrl,
-      fallbacks: fallbackUrls,
+      fallbacks: uniqueFallbackUrls,
+      resourceType,
       channelId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      clientInfo: {
+        userAgent: navigator.userAgent,
+        url: window.location.href
+      }
     };
     
     console.log('🔌 WebSocket接続開始:', wsUrl);
-    console.log('🔄 フォールバックオプション:', fallbackUrls);
+    console.log('🔄 フォールバックオプション:', uniqueFallbackUrls);
     
     console.log(`Connecting to WebSocket URL: ${wsUrl}`);
+    
+    // WebSocket接続クリーンアップユーティリティ関数
+    const cleanupWebSocket = (ws) => {
+      if (!ws) return;
+      
+      console.log(`🧹 既存のWebSocket接続をクリーンアップ中...`);
+      
+      // コールバックをnull設定して、現在の処理が再び呼ばれないようにする
+      if (ws.onclose) ws.onclose = null;
+      if (ws.onerror) ws.onerror = null;
+      if (ws.onmessage) ws.onmessage = null;
+      if (ws.onopen) ws.onopen = null;
+      
+      // 接続状態に応じた処理
+      try {
+        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+          console.log(`🔌 WebSocket接続を明示的に閉じます (readyState=${ws.readyState})`);
+          ws.close(1000, "Client initiated disconnect - new connection attempt");
+        } else {
+          console.log(`👍 WebSocket接続は既に閉じられています (readyState=${ws.readyState})`);
+        }
+      } catch (err) {
+        console.warn('⚠️ WebSocket接続クローズ中のエラー:', err);
+      }
+      
+      return null; // 参照をクリアするためnullを返す
+    };
     
     // 既存の接続を閉じる（ある場合）
     try {
       if (websocketRef.current) {
-        const ws = websocketRef.current;
-        console.log(`Closing existing WebSocket connection`);
-        
-        // コールバックをnull設定して、現在の処理が再び呼ばれないようにする
-        if (ws.onclose) ws.onclose = null;
-        if (ws.onerror) ws.onerror = null;
-        if (ws.onmessage) ws.onmessage = null;
-        if (ws.onopen) ws.onopen = null;
-        
-        // 既存の接続を閉じる
-        ws.close();
-        
-        // 参照をすぐにクリア
-        websocketRef.current = null;
+        console.log(`🔍 既存のWebSocket接続を閉じています...`);
+        websocketRef.current = cleanupWebSocket(websocketRef.current);
       }
+      
+      // ローカルストレージから古いWebSocket接続の参照をクリア
+      localStorage.removeItem('websocket_connected');
+      
+      // ブラウザの全体的なWebSocketリソースが枯渇している可能性があるため、
+      // ガベージコレクタを積極的に促す（間接的な方法）
+      setTimeout(() => {
+        const memoryCleanupArray = new Array(10000).fill(0);
+        memoryCleanupArray.length = 0;
+      }, 10);
     } catch (e) {
-      console.warn('Error during WebSocket cleanup:', e);
+      console.warn('⚠️ WebSocket接続クリーンアップ中のエラー:', e);
       websocketRef.current = null;
     }
     
-    // 新しい接続を作成（100ms待機して既存接続の解放を確保）
+    // 新しい接続を作成（200ms待機して既存接続の解放を確保）
     setTimeout(() => {
       try {
-        console.log(`Creating new WebSocket connection to ${wsUrl}`);
+        // 既に接続が始まっていないことを確認
+        if (websocketRef.current) {
+          console.warn('⚠️ 既にWebSocket接続が存在します。重複接続を防止します。');
+          return;
+        }
         
-        // タイムアウト処理の設定
+        console.log(`🔄 WebSocket接続を作成中: ${wsUrl}`);
+        
+        // タイムアウト処理の設定 - 短めに（5秒）
         const connectionTimeout = setTimeout(() => {
-          console.error('WebSocket connection timeout after 8 seconds');
+          console.error('⏱️ WebSocket接続タイムアウト（5秒経過）');
+          
           if (websocketRef.current) {
             try {
-              websocketRef.current.close();
+              console.log('🛑 タイムアウトのため接続を閉じています...');
+              websocketRef.current = cleanupWebSocket(websocketRef.current);
+              setError(new Error('WebSocket接続タイムアウト'));
             } catch (err) {
-              console.warn('Error closing timed out connection:', err);
+              console.warn('⚠️ タイムアウト接続クローズ中のエラー:', err);
+              websocketRef.current = null;
             }
-            websocketRef.current = null;
-            setError(new Error('WebSocket connection timeout'));
             
             // タイムアウト後に再接続を開始 - フォールバックURLを使用
             if (reconnectCount.current < reconnectAttempts) {
               reconnectCount.current += 1;
-              console.log(`⏱️ 接続タイムアウト。再接続を試みます (${reconnectCount.current}/${reconnectAttempts})...`);
+              console.log(`🔁 接続タイムアウト。再接続を試みます (${reconnectCount.current}/${reconnectAttempts})...`);
               
               // フォールバックURLを順番に試す
               try {
@@ -130,19 +193,29 @@ const useWebSocket = (url, options = {}) => {
                   const fallbackIndex = reconnectCount.current % fallbacks.length;
                   const fallbackUrl = fallbacks[fallbackIndex];
                   
-                  console.log(`🔄 フォールバックURL使用: ${fallbackUrl} (${fallbackIndex + 1}/${fallbacks.length})`);
+                  console.log(`⭐ フォールバックURL使用: ${fallbackUrl} (${fallbackIndex + 1}/${fallbacks.length})`);
                   
-                  // グローバル変数でURLを上書き（次回接続用）
+                  // 次回接続用にURLを変更
                   wsUrl = fallbackUrl;
                 }
               } catch (err) {
                 console.error('❌ フォールバックURL選択エラー:', err);
               }
               
+              // 再接続タイマーを設定
               reconnectTimeoutRef.current = setTimeout(connect, reconnectInterval);
+            } else {
+              console.error('❌ 最大再接続試行回数に達しました。WebSocket接続を中止します。');
+              // リセット処理を24秒後に実行（単純なWebSocketリソースリークを防止）
+              setTimeout(() => {
+                reconnectCount.current = 0;
+                localStorage.removeItem('websocket_connected');
+                localStorage.removeItem('websocket_last_connected');
+                console.log('🔄 WebSocket接続状態をリセットしました。次回の接続をクリーンな状態で試行できます。');
+              }, 24000);
             }
           }
-        }, 8000); // 8秒のタイムアウト
+        }, 5000); // 5秒のタイムアウト
 
         // WebSocket接続を作成
         websocketRef.current = new WebSocket(wsUrl);
