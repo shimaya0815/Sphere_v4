@@ -96,11 +96,25 @@ module.exports = function(app) {
     secure: false,
     pathRewrite: { '^/chat': '/ws/chat' },
     logLevel: 'debug',
+    // WebSocketハンドシェイク検出フラグ
+    wsDetection: true,
+    // WebSocketハンドシェイク検出カスタマイズ
+    wsDetectionHeaders: ['upgrade', 'connection', 'sec-websocket-key'],
     onProxyReq: (proxyReq, req, res) => {
-      console.log(`🔌 チャットプロキシ: ${req.method} ${req.url} → ${WS_HOST}/ws${proxyReq.path}`);
+      const isWebSocket = req.headers.upgrade && req.headers.upgrade.toLowerCase() === 'websocket';
+      console.log(`🔌 チャットプロキシ: ${req.method} ${req.url} → ${WS_HOST}/ws${proxyReq.path} ${isWebSocket ? '(WebSocket)' : '(HTTP)'}`);
+      
+      // 必要なヘッダーを追加してプロキシの信頼性を向上
+      if (isWebSocket) {
+        proxyReq.setHeader('Connection', 'Upgrade');
+        proxyReq.setHeader('Upgrade', 'websocket');
+      }
+    },
+    onProxyRes: (proxyRes, req, res) => {
+      console.log(`🔍 チャットプロキシレスポンス: ${proxyRes.statusCode} (${req.method} ${req.url})`);
     },
     onError: (err, req, res) => {
-      console.error(`❌ チャットプロキシエラー: ${err.message}`);
+      console.error(`❌ チャットプロキシエラー: ${req.method} ${req.url} - ${err.message}`);
     }
   }));
   
@@ -111,11 +125,25 @@ module.exports = function(app) {
     secure: false,
     pathRewrite: { '^/tasks': '/ws/tasks' },
     logLevel: 'debug',
+    // WebSocketハンドシェイク検出フラグ
+    wsDetection: true,
+    // WebSocketハンドシェイク検出カスタマイズ
+    wsDetectionHeaders: ['upgrade', 'connection', 'sec-websocket-key'],
     onProxyReq: (proxyReq, req, res) => {
-      console.log(`🔌 タスクプロキシ: ${req.method} ${req.url} → ${WS_HOST}/ws${proxyReq.path}`);
+      const isWebSocket = req.headers.upgrade && req.headers.upgrade.toLowerCase() === 'websocket';
+      console.log(`🔌 タスクプロキシ: ${req.method} ${req.url} → ${WS_HOST}/ws${proxyReq.path} ${isWebSocket ? '(WebSocket)' : '(HTTP)'}`);
+      
+      // 必要なヘッダーを追加してプロキシの信頼性を向上
+      if (isWebSocket) {
+        proxyReq.setHeader('Connection', 'Upgrade');
+        proxyReq.setHeader('Upgrade', 'websocket');
+      }
+    },
+    onProxyRes: (proxyRes, req, res) => {
+      console.log(`🔍 タスクプロキシレスポンス: ${proxyRes.statusCode} (${req.method} ${req.url})`);
     },
     onError: (err, req, res) => {
-      console.error(`❌ タスクプロキシエラー: ${err.message}`);
+      console.error(`❌ タスクプロキシエラー: ${req.method} ${req.url} - ${err.message}`);
     }
   }));
 };
