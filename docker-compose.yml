@@ -23,6 +23,9 @@ services:
       - DANGEROUSLY_DISABLE_HOST_CHECK=true
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - default
+      - frontend-network
 
   backend:
     build:
@@ -59,6 +62,12 @@ services:
       - db
     environment:
       - DATABASE_URL=postgres://postgres:postgres@db:5432/sphere
+      - CORS_ORIGINS=http://localhost:3000,http://frontend:3000,http://localhost:8000,http://backend:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - default
+      - frontend-network
 
   db:
     image: postgres:14
@@ -73,3 +82,8 @@ services:
 
 volumes:
   postgres_data:
+
+networks:
+  default:
+  frontend-network:
+    driver: bridge
