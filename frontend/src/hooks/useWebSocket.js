@@ -29,9 +29,27 @@ const useWebSocket = (url, options = {}) => {
       return;
     }
     
-    // URLをそのまま使用（プロキシ設定がsetupProxy.jsで行われているので変更不要）
+    // URLをそのまま使用
     let wsUrl = url;
-    console.log(`Using WebSocket URL: ${wsUrl}`);
+    console.log(`Attempting direct WebSocket connection to: ${wsUrl}`);
+    
+    // 試験的コード: WebSocketの接続先を直接確認
+    try {
+      const testSocket = new WebSocket(wsUrl);
+      testSocket.onopen = () => console.log('🟢 Test connection successful!');
+      testSocket.onerror = (e) => console.error('🔴 Test connection failed:', e);
+      setTimeout(() => {
+        try {
+          if (testSocket && testSocket.readyState !== WebSocket.CLOSED) {
+            testSocket.close();
+          }
+        } catch (e) {
+          console.warn('Error closing test socket:', e);
+        }
+      }, 2000);
+    } catch (e) {
+      console.error('Error creating test socket:', e);
+    }
     
     console.log(`Connecting to WebSocket URL: ${wsUrl}`);
     

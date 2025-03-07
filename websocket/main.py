@@ -17,15 +17,8 @@ app = FastAPI(title="Sphere Websocket Service")
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    # 開発環境では以下のように明示的にフロントエンドのURLを許可
-    allow_origins=[
-        "http://localhost:3000",  # ローカル開発環境
-        "http://127.0.0.1:3000",
-        "http://frontend:3000",   # Docker内部のサービス名
-        "http://localhost:8000",  # バックエンド
-        "http://backend:8000",    # Docker内部のバックエンド
-        "*"                       # その他すべて（開発のみ）
-    ],
+    # すべてのオリジンを許可（開発環境用）
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -37,25 +30,67 @@ class ConnectionManager:
         self.active_connections: Dict[int, List[WebSocket]] = {}
 
     async def connect(self, websocket: WebSocket, channel_id: int):
-        await websocket.accept()
-        if channel_id not in self.active_connections:
-            self.active_connections[channel_id] = []
-        self.active_connections[channel_id].append(websocket)
-        logger.info(f"Client connected to channel {channel_id}. Active connections: {len(self.active_connections[channel_id])}")
+        try:
+            # ここでWebSocketの接続を受け入れる
+            await websocket.accept()
+            await asyncio.sleep(0.1)  # ハンドシェイク完了までの短い待機
+            
+            # チャンネルIDごとの接続リストを管理
+            if channel_id not in self.active_connections:
+                self.active_connections[channel_id] = []
+            
+            # このWebSocket接続をアクティブリストに追加
+            self.active_connections[channel_id].append(websocket)
+            
+            logger.info(f"Client connected to channel {channel_id}. Active connections: {len(self.active_connections[channel_id])}")
+            return True
+        except Exception as e:
+            logger.error(f"Error accepting connection: {str(e)}")
+            return False
 
     def disconnect(self, websocket: WebSocket, channel_id: int):
-        if channel_id in self.active_connections:
-            if websocket in self.active_connections[channel_id]:
-                self.active_connections[channel_id].remove(websocket)
-            if not self.active_connections[channel_id]:
-                del self.active_connections[channel_id]
-        logger.info(f"Client disconnected from channel {channel_id}.")
+        try:
+            if channel_id in self.active_connections:
+                # 接続がリストにある場合に削除
+                if websocket in self.active_connections[channel_id]:
+                    self.active_connections[channel_id].remove(websocket)
+                    logger.info(f"Client disconnected from channel {channel_id}. Active connections: {len(self.active_connections[channel_id])}")
+                else:
+                    logger.warning(f"Attempted to disconnect a WebSocket that was not in channel {channel_id}")
+                
+                # チャンネルが空になった場合、辞書からキーを削除
+                if not self.active_connections[channel_id]:
+                    del self.active_connections[channel_id]
+                    logger.info(f"Channel {channel_id} has no more connections, removed from active channels")
+            else:
+                logger.warning(f"Attempted to disconnect from non-existent channel {channel_id}")
+        except Exception as e:
+            logger.error(f"Error in disconnect method: {str(e)}")
+            
+        # 全体のアクティブ接続数をログに記録
+        total_connections = sum(len(connections) for connections in self.active_connections.values()) if self.active_connections else 0
+        logger.info(f"Total active connections across all channels: {total_connections}")
 
     async def broadcast(self, message: Dict[str, Any], channel_id: int):
         if channel_id in self.active_connections:
-            for connection in self.active_connections[channel_id]:
-                await connection.send_json(message)
-            logger.info(f"Message broadcast to {len(self.active_connections[channel_id])} clients in channel {channel_id}")
+            # 有効な接続のみに送信するために接続のリストをコピー
+            active_conns = self.active_connections[channel_id].copy()
+            sent_count = 0
+            
+            for connection in active_conns:
+                try:
+                    await connection.send_json(message)
+                    sent_count += 1
+                except Exception as e:
+                    logger.error(f"Error sending to a client in channel {channel_id}: {str(e)}")
+                    try:
+                        # 切断された接続を削除
+                        if connection in self.active_connections[channel_id]:
+                            self.active_connections[channel_id].remove(connection)
+                    except:
+                        pass
+            
+            logger.info(f"Message broadcast to {sent_count}/{len(active_conns)} clients in channel {channel_id}")
 
 manager = ConnectionManager()
 
@@ -91,36 +126,32 @@ async def websocket_endpoint(websocket: WebSocket, channel_id: int):
     
     # 接続を受け付ける（これによりハンドシェイクを完了させる）
     try:
-        await manager.connect(websocket, channel_id)
+        connection_success = await manager.connect(websocket, channel_id)
+        if not connection_success:
+            logger.error(f"Failed to establish connection for channel {channel_id}")
+            return
+        
         logger.info(f"WebSocket connection successful for channel {channel_id}")
         
-        # 接続確認メッセージを送信 - キープアライブを追加
-        for attempt in range(3):  # 3回までリトライ
+        # 接続確認メッセージを送信
+        try:
+            await websocket.send_json({
+                "type": "connection_established",
+                "data": {
+                    "message": "Connected to WebSocket server",
+                    "channel_id": channel_id,
+                    "timestamp": datetime.now().isoformat()
+                }
+            })
+            logger.info(f"Welcome message sent to channel {channel_id}")
+        except Exception as e:
+            logger.error(f"Error sending welcome message: {str(e)}")
+            # 接続に問題がある場合は早期終了
             try:
-                # 接続状態の確認
-                if websocket.client_state == websocket.application_state == 1:  # OPEN状態の確認
-                    await websocket.send_json({
-                        "type": "connection_established",
-                        "data": {
-                            "message": "Connected to WebSocket server",
-                            "channel_id": channel_id,
-                            "timestamp": datetime.now().isoformat()
-                        }
-                    })
-                    logger.info(f"Welcome message sent to channel {channel_id}")
-                    break  # 成功したらループを抜ける
-                else:
-                    logger.warning(f"WebSocket not in OPEN state, retrying... (attempt {attempt+1}/3)")
-                    await asyncio.sleep(0.1)  # 少し待機
-            except Exception as e:
-                logger.error(f"Error sending welcome message (attempt {attempt+1}/3): {str(e)}")
-                if attempt < 2:  # 最後の試行以外は待機して再試行
-                    await asyncio.sleep(0.2)
-                else:
-                    # 最後の試行の場合は、接続が生きているか確認
-                    if websocket.client_state != 1 or websocket.application_state != 1:
-                        logger.error("WebSocket connection appears to be closed or in invalid state")
-                    break
+                manager.disconnect(websocket, channel_id)
+            except:
+                pass
+            return
         
         # メッセージ受信ループ
         try:
@@ -200,36 +231,32 @@ async def task_endpoint(websocket: WebSocket, task_id: int):
     
     # マネージャーに接続を登録（コメントのブロードキャスト用）
     try:
-        await manager.connect(websocket, task_id)
+        connection_success = await manager.connect(websocket, task_id)
+        if not connection_success:
+            logger.error(f"Failed to establish connection for task {task_id}")
+            return
+            
         logger.info(f"Client connected to task {task_id} channel")
         
-        # 接続確認メッセージを送信 - キープアライブを追加
-        for attempt in range(3):  # 3回までリトライ
+        # 接続確認メッセージを送信
+        try:
+            await websocket.send_json({
+                "type": "connection_established",
+                "data": {
+                    "message": "Connected to task WebSocket server",
+                    "task_id": task_id,
+                    "timestamp": datetime.now().isoformat()
+                }
+            })
+            logger.info(f"Welcome message sent to task {task_id}")
+        except Exception as e:
+            logger.error(f"Error sending task welcome message: {str(e)}")
+            # 接続に問題がある場合は早期終了
             try:
-                # 接続状態の確認
-                if websocket.client_state == websocket.application_state == 1:  # OPEN状態の確認
-                    await websocket.send_json({
-                        "type": "connection_established",
-                        "data": {
-                            "message": "Connected to task WebSocket server",
-                            "task_id": task_id,
-                            "timestamp": datetime.now().isoformat()
-                        }
-                    })
-                    logger.info(f"Welcome message sent to task {task_id}")
-                    break  # 成功したらループを抜ける
-                else:
-                    logger.warning(f"Task WebSocket not in OPEN state, retrying... (attempt {attempt+1}/3)")
-                    await asyncio.sleep(0.1)  # 少し待機
-            except Exception as e:
-                logger.error(f"Error sending task welcome message (attempt {attempt+1}/3): {str(e)}")
-                if attempt < 2:  # 最後の試行以外は待機して再試行
-                    await asyncio.sleep(0.2)
-                else:
-                    # 最後の試行の場合は、接続が生きているか確認
-                    if websocket.client_state != 1 or websocket.application_state != 1:
-                        logger.error("Task WebSocket connection appears to be closed or in invalid state")
-                    break
+                manager.disconnect(websocket, task_id)
+            except:
+                pass
+            return
         
         # メッセージ受信ループ
         try:
