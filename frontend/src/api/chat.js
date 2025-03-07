@@ -6,7 +6,20 @@ const chatApi = {
   
   getChannel: (id) => apiClient.get(`/api/chat/channels/${id}/`),
   
-  createChannel: (data) => apiClient.post('/api/chat/channels/', data),
+  createChannel: async (data) => {
+    try {
+      // APIプレフィックスなしのエンドポイントを試す
+      try {
+        return await apiClient.post('/chat/channels/', data);
+      } catch (firstError) {
+        console.log('Trying with API prefix after first attempt failed');
+        return await apiClient.post('/api/chat/channels/', data);
+      }
+    } catch (error) {
+      console.error('Error creating channel:', error);
+      throw error;
+    }
+  },
   
   updateChannel: (id, data) => apiClient.patch(`/api/chat/channels/${id}/`, data),
   
@@ -17,8 +30,20 @@ const chatApi = {
     apiClient.post('/api/chat/messages/mark_read/', { channel_id: channelId }),
   
   // Channel messages
-  getChannelMessages: (channelId, params) => 
-    apiClient.get(`/api/chat/channels/${channelId}/messages/`, { params }),
+  getChannelMessages: async (channelId, params) => {
+    try {
+      // APIプレフィックスなしのエンドポイントを試す
+      try {
+        return await apiClient.get(`/chat/channels/${channelId}/messages/`, { params });
+      } catch (firstError) {
+        console.log('Trying messages with API prefix after first attempt failed');
+        return await apiClient.get(`/api/chat/channels/${channelId}/messages/`, { params });
+      }
+    } catch (error) {
+      console.error('Error fetching channel messages:', error);
+      throw error;
+    }
+  },
   
   // Channel members
   getChannelMembers: (channelId) => 
@@ -93,8 +118,15 @@ const chatApi = {
   // ユーザー自身のチャンネル一覧を取得
   getMyChannels: async () => {
     try {
-      const response = await apiClient.get('/api/chat/my-channels/');
-      return response.data;
+      // APIプレフィックスなしのエンドポイントも試す
+      try {
+        const response = await apiClient.get('/chat/my-channels/');
+        return response.data;
+      } catch (firstError) {
+        console.log('Trying with API prefix after first attempt failed');
+        const response = await apiClient.get('/api/chat/my-channels/');
+        return response.data;
+      }
     } catch (error) {
       console.error('Error fetching my channels:', error);
       return [];
