@@ -66,26 +66,34 @@ const useWebSocket = (url, options = {}) => {
     // 複数の接続方法を準備（優先度順）
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     
-    // 代替接続URLのリスト（接続失敗時に順番に試行）
-    const fallbackUrls = [
-      // 1. URLがws://またはwss://で始まる場合はそのまま使用
-      wsUrl.startsWith('ws://') || wsUrl.startsWith('wss://') ? wsUrl : null,
-      
-      // 2. フルパスを構築（/ws/プレフィックス付き）- プロキシ経由の推奨方法
-      `${protocol}//${window.location.host}/ws/${resourceType}/${channelId}/`,
-      
-      // 3. フルパスを構築（/wsプレフィックスなし）- 直接WebSocketサーバーへの接続試行
-      `${protocol}//${window.location.host}/${resourceType}/${channelId}/`,
-      
-      // 4. 直接WebSocketサーバーに接続（開発環境用）
+    // 代替接続URLのリスト（優先順位順）
+    const directUrls = [
+      // 直接WebSocketサーバーに接続（開発環境用）- 優先
       `${protocol}//localhost:8001/ws/${resourceType}/${channelId}/`,
-      
-      // 5. IPアドレスで直接接続（フォールバック）
+      // IPアドレスで直接接続
       `${protocol}//127.0.0.1:8001/ws/${resourceType}/${channelId}/`
+    ];
+    
+    const proxyUrls = [
+      // URLがws://またはwss://で始まる場合
+      wsUrl.startsWith('ws://') || wsUrl.startsWith('wss://') ? wsUrl : null,
+      // フルパスを構築（/ws/プレフィックス付き）- プロキシ経由
+      `${protocol}//${window.location.host}/ws/${resourceType}/${channelId}/`,
+      // フルパスを構築（/wsプレフィックスなし）
+      `${protocol}//${window.location.host}/${resourceType}/${channelId}/`
     ].filter(Boolean); // nullの項目を除外
+    
+    // Docker環境では直接接続を優先
+    const fallbackUrls = [...directUrls, ...proxyUrls];
     
     // 重複しているURLを除外
     const uniqueFallbackUrls = [...new Set(fallbackUrls)];
+    
+    // Docker環境検出（開発モード）
+    const isDockerEnvironment = window.location.hostname === 'localhost' || 
+                               window.location.hostname === '127.0.0.1';
+    
+    console.log(`🔍 環境検出: ${isDockerEnvironment ? 'Docker開発環境' : '本番環境'}`);
     
     // 最終的なURLはリストの最初の項目
     wsUrl = uniqueFallbackUrls[0];
@@ -186,17 +194,36 @@ const useWebSocket = (url, options = {}) => {
               reconnectCount.current += 1;
               console.log(`🔁 接続タイムアウト。再接続を試みます (${reconnectCount.current}/${reconnectAttempts})...`);
               
-              // フォールバックURLを順番に試す
+              // フォールバックURLを順番に試す - 優先順位を変更
               try {
                 if (window.wsConnectionOptions && window.wsConnectionOptions.fallbacks) {
-                  const fallbacks = window.wsConnectionOptions.fallbacks;
-                  const fallbackIndex = reconnectCount.current % fallbacks.length;
-                  const fallbackUrl = fallbacks[fallbackIndex];
+                  // 優先順位を変更：直接接続を優先
+                  const fallbacks = [...window.wsConnectionOptions.fallbacks];
                   
-                  console.log(`⭐ フォールバックURL使用: ${fallbackUrl} (${fallbackIndex + 1}/${fallbacks.length})`);
+                  // WebSocketサーバーへの直接接続を優先する
+                  const directConnections = fallbacks.filter(url => 
+                    url.includes('localhost:8001') || url.includes('127.0.0.1:8001')
+                  );
+                  
+                  const proxyConnections = fallbacks.filter(url => 
+                    !url.includes('localhost:8001') && !url.includes('127.0.0.1:8001')
+                  );
+                  
+                  // 直接接続を優先的に並べ替え
+                  const reorderedFallbacks = [...directConnections, ...proxyConnections];
+                  
+                  // 接続試行回数に基づいてURLを選択
+                  const fallbackIndex = reconnectCount.current % reorderedFallbacks.length;
+                  const fallbackUrl = reorderedFallbacks[fallbackIndex];
+                  
+                  console.log(`⭐ フォールバックURL使用: ${fallbackUrl} (${fallbackIndex + 1}/${reorderedFallbacks.length})`);
+                  console.log(`🔄 接続優先順位変更: 直接接続を優先`);
                   
                   // 次回接続用にURLを変更
                   wsUrl = fallbackUrl;
+                  
+                  // グローバル変数も更新
+                  window.wsConnectionOptions.currentUrl = fallbackUrl;
                 }
               } catch (err) {
                 console.error('❌ フォールバックURL選択エラー:', err);
@@ -390,18 +417,35 @@ const useWebSocket = (url, options = {}) => {
           if (reconnectCount.current < reconnectAttempts) {
             reconnectCount.current += 1;
             
-            // フォールバックURLを試す
+            // フォールバックURLを試す - 優先順位を変更：直接接続を優先
             try {
               if (window.wsConnectionOptions && window.wsConnectionOptions.fallbacks) {
-                const fallbacks = window.wsConnectionOptions.fallbacks;
-                const fallbackIndex = reconnectCount.current % fallbacks.length;
+                const fallbacks = [...window.wsConnectionOptions.fallbacks];
                 
-                // フォールバックURLを選択
-                const fallbackUrl = fallbacks[fallbackIndex];
-                console.log(`🔄 切断後の再接続: フォールバックURL使用 ${fallbackUrl} (${fallbackIndex + 1}/${fallbacks.length})`);
+                // WebSocketサーバーへの直接接続を優先する
+                const directConnections = fallbacks.filter(url => 
+                  url.includes('localhost:8001') || url.includes('127.0.0.1:8001')
+                );
+                
+                const proxyConnections = fallbacks.filter(url => 
+                  !url.includes('localhost:8001') && !url.includes('127.0.0.1:8001')
+                );
+                
+                // 直接接続を優先的に並べ替え
+                const reorderedFallbacks = [...directConnections, ...proxyConnections];
+                
+                // 接続試行回数に基づいてURLを選択
+                const fallbackIndex = reconnectCount.current % reorderedFallbacks.length;
+                const fallbackUrl = reorderedFallbacks[fallbackIndex];
+                
+                console.log(`🔄 切断後の再接続: フォールバックURL使用 ${fallbackUrl} (${fallbackIndex + 1}/${reorderedFallbacks.length})`);
+                console.log(`📌 接続優先順位: 直接接続を優先`);
                 
                 // URL変数を書き換えて次回の接続に使用
                 url = fallbackUrl;
+                
+                // グローバル変数も更新
+                window.wsConnectionOptions.currentUrl = fallbackUrl;
               }
             } catch (err) {
               console.error('❌ フォールバックURL選択エラー:', err);
