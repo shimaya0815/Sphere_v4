@@ -18,7 +18,17 @@ def create_default_channels(sender, instance, created, **kwargs):
     2. task チャンネル
     3. general チャンネル
     4. random チャンネル
+    
+    注意: このシグナルは UserCreateView によって明示的に無効化されているため、
+    通常のシグナル処理としては実行されません。UserCreateViewでチャンネル作成が
+    行われます。このコードは仕様変更時の参照として残しています。
     """
+    # UserCreateView で明示的にチャンネル作成を行うようになったため
+    # ここでは処理を行わない (重複エラー防止)
+    logger.info(f"Signal handler called but bypassed for {instance.email}")
+    return
+    
+    # 以下の古いコードは参照のために残しておく
     try:
         from django.db import transaction
         
