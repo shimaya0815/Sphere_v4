@@ -44,19 +44,21 @@ app.add_middleware(
 allowed_origins = specific_origins + ["*"]
 logger.info(f"Allowed CORS origins: {allowed_origins}")
 
-# Socket.IOサーバー作成 - 設定を緩和してリソース不足エラーを防止
+# Socket.IOサーバー作成 - 接続の安定性を重視した設定
 sio = socketio.AsyncServer(
     async_mode='asgi',
     cors_allowed_origins=allowed_origins,
     logger=True,
     engineio_logger=True,
-    ping_timeout=20000,     # 20秒に短縮
-    ping_interval=10000,    # 10秒に短縮
-    max_http_buffer_size=500000,  # 500KBに減らす
+    ping_timeout=30000,     # 30秒に延長
+    ping_interval=15000,    # 15秒に延長
+    max_http_buffer_size=1000000,  # 1MBに増加
     always_connect=True,    # 認証エラーがあっても接続を許可
-    # HTTPポーリングの設定
+    # HTTPポーリングを優先し安定性を向上
     http_polling_remotes=True,  # リモートHTTPリクエストを許可
-    allow_upgrades=False,  # WebSocketへのアップグレードを無効化
+    allow_upgrades=False,   # WebSocketへのアップグレードを無効化
+    async_handlers=False,   # 非同期ハンドラを無効化してオーバーヘッドを減らす
+    max_http_buffer_size=1000000  # バッファサイズを1MBに増加
 )
 
 # ASGIアプリケーション作成

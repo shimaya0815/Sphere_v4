@@ -60,8 +60,8 @@ const chatApi = {
       try {
         const requestConfig = { 
           params,
-          // リクエストタイムアウト設定
-          timeout: 8000
+          // リクエストタイムアウト設定 - 長めに設定
+          timeout: 20000
         };
         
         // CancelTokenがある場合のみ追加
@@ -84,7 +84,7 @@ const chatApi = {
         // バックアップとしてAPI prefixなしで試す
         const requestConfig = { 
           params,
-          timeout: 8000
+          timeout: 20000
         };
         
         // CancelTokenがある場合のみ追加
