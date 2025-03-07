@@ -220,19 +220,17 @@ const ChatContent = () => {
         {/* Connection status with refresh button */}
         <div className="px-4 py-2 flex justify-between items-center">
           <div className={`text-xs font-medium flex items-center ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
-            {isConnected ? 'Connected' : 'Disconnected'} 
+            {isConnected ? '接続済み' : '未接続'} 
             <span className={`inline-block w-2 h-2 ml-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
             
-            {/* 接続が切断されている場合に再接続ボタンを表示 */}
-            {!isConnected && connectionAttempts > 2 && (
-              <button 
-                className="ml-2 text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded hover:bg-red-200"
-                onClick={handleReconnect}
-                title="WebSocket再接続"
-              >
-                再接続
-              </button>
-            )}
+            {/* 接続ボタンは常に表示 */}
+            <button 
+              className={`ml-2 text-xs ${isConnected ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} px-1.5 py-0.5 rounded hover:bg-green-200`}
+              onClick={handleReconnect}
+              title="WebSocket接続状態の更新"
+            >
+              {isConnected ? '再確認' : '接続する'}
+            </button>
           </div>
           
           <div className="flex items-center space-x-1">

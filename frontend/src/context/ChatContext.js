@@ -19,13 +19,14 @@ export const ChatProvider = ({ children }) => {
   const getWebSocketUrl = (channelId) => {
     if (!channelId) return null;
     
-    // WebSocketのプロトコルを確認（HTTPSの場合はWSSを使用）
+    // 直接WebSocketサーバーのアドレスを使用
+    // HTTPSの場合はWSSを使用
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     
-    // 直接接続を試みる - 開発環境用
+    // 最も単純な形式で直接接続
     const directWsUrl = `${protocol}//localhost:8001/ws/chat/${channelId}/`;
     
-    console.log(`Getting WebSocket URL for channel: ${channelId}, url: ${directWsUrl}`);
+    console.log(`🔌 WebSocket直接接続 channel: ${channelId}, url: ${directWsUrl}`);
     
     return directWsUrl;
   };
