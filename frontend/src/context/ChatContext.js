@@ -23,16 +23,12 @@ export const ChatProvider = ({ children }) => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     
     // WebSocketのURLを構築
-    // 環境に応じたホストを使用
-    let host = 'localhost:8001';
+    // 常にlocalhost:8001を使用
+    // 開発環境ではsetupProxy.jsが/wsパスをWebSocketサービスに転送する
+    const host = 'localhost:8001';
     
-    // Docker環境内からの接続かどうかによってURLを調整
-    if (process.env.NODE_ENV === 'development') {
-      // Docker環境でも動作するように、Dockerネットワーク内のホスト名をチェック
-      host = 'websocket:8001';
-    }
-    
-    const wsUrl = `${protocol}//${host}/ws/chat/${channelId}/`;
+    // WSプロキシを使用（setupProxy.jsの設定に合わせる）
+    const wsUrl = `${protocol}//${window.location.hostname}:${window.location.port}/ws/chat/${channelId}/`;
     
     console.log(`Getting WebSocket URL for channel: ${channelId}, url: ${wsUrl}, env: ${process.env.NODE_ENV}`);
     

@@ -64,11 +64,18 @@ module.exports = function(app) {
   // 認証用URLパターンのプロキシ設定
   app.use('/auth', createApiProxy('/auth'));
 
-  // WebSocketプロキシ設定
+  // WebSocketプロキシ設定 - 詳細なログ出力と追加オプションで改善
   app.use('/ws', createProxyMiddleware({
     target: WS_HOST,
     changeOrigin: true,
-    ws: true,
-    logLevel: process.env.NODE_ENV === 'development' ? 'debug' : 'error'
+    ws: true, 
+    pathRewrite: { '^/ws': '/ws' },
+    logLevel: 'debug',
+    onProxyReq: (proxyReq, req, res) => {
+      console.log(`🔌 WebSocket接続: ${req.method} ${req.url} → ${WS_HOST}`);
+    },
+    onError: (err, req, res) => {
+      console.error(`❌ WebSocketエラー: ${req.method} ${req.url} - ${err.message}`);
+    }
   }));
 };
