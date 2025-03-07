@@ -138,42 +138,9 @@ export const ChatProvider = ({ children }) => {
     
     setLoading(true);
     try {
-      // Create mock channels immediately to ensure faster UI development
-      const mockChannels = [
-        {
-          id: 1,
-          name: 'general',
-          workspace: { id: 1, name: 'Workspace' },
-          channel_type: 'public',
-          is_direct_message: false,
-          description: '一般的な会話用チャンネル',
-          unread_count: 0
-        },
-        {
-          id: 2,
-          name: 'random',
-          workspace: { id: 1, name: 'Workspace' },
-          channel_type: 'public', 
-          is_direct_message: false,
-          description: '雑談用チャンネル',
-          unread_count: 0
-        }
-      ];
-      
-      // Create mock direct messages
-      const mockDMs = [
-        {
-          id: 3,
-          name: currentUser.get_full_name ? currentUser.get_full_name() : 'テストユーザー',
-          workspace: { id: 1, name: 'Workspace' },
-          channel_type: 'direct',
-          is_direct_message: true,
-          unread_count: 0
-        }
-      ];
-      
-      setChannels(mockChannels);
-      setDirectMessages(mockDMs);
+      // 最初に空の配列を設定し、APIからの実際のデータのみを使用する
+      setChannels([]);
+      setDirectMessages([]);
       
       try {
         // Try to load real channels but don't block the UI
@@ -545,59 +512,16 @@ export const ChatProvider = ({ children }) => {
       loadChannels().catch(err => {
         console.error('Error loading real channels, using mock data', err);
         
-        // Create mock channels if API fails
-        const mockChannels = [
-          {
-            id: 1,
-            name: 'general',
-            workspace: { id: 1, name: 'Workspace' },
-            channel_type: 'public',
-            is_direct_message: false,
-            description: '一般的な会話用チャンネル',
-            unread_count: 0
-          },
-          {
-            id: 2,
-            name: 'random',
-            workspace: { id: 1, name: 'Workspace' },
-            channel_type: 'public',
-            is_direct_message: false,
-            description: '雑談用チャンネル',
-            unread_count: 0
-          }
-        ];
-        
-        // Create mock direct messages
-        const mockDMs = [
-          {
-            id: 3,
-            name: 'テストユーザー',
-            workspace: { id: 1, name: 'Workspace' },
-            channel_type: 'direct',
-            is_direct_message: true,
-            unread_count: 0
-          }
-        ];
-        
-        setChannels(mockChannels);
-        setDirectMessages(mockDMs);
-        setError(null);
+        // APIからのデータ取得に失敗した場合でもモックデータは使用せず、
+        // エラーメッセージだけを設定する
+        setError('チャンネルデータの取得に失敗しました。再読み込みを行ってください。');
+        console.error('チャンネルデータの読み込みに失敗しました。');
       });
     }
   }, [currentUser, loadChannels]);
   
-  // Create default channel if none exists
-  useEffect(() => {
-    if (channels.length === 0 && !loading && currentUser) {
-      // Create a default channel if there are no channels
-      createChannel({
-        name: 'general',
-        description: '一般的な会話用チャンネル',
-        workspace: 1,
-        channel_type: 'public'
-      }).catch(err => console.error('Error creating default channel', err));
-    }
-  }, [channels, loading, currentUser, createChannel]);
+  // デフォルトチャンネルの作成は不要
+  // サインアップ時にバックエンドでtaskとgeneralのチャンネルが自動的に作成されるため
   
   const value = {
     channels,
