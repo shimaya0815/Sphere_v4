@@ -149,10 +149,23 @@ const useWebSocket = (url, options = {}) => {
               setMessages(prevMessages => [...prevMessages, data]);
               
               // 接続確立メッセージを受信した場合、接続状態を確実に更新
+              // 接続確立メッセージを処理（サーバー側の形式に合わせて修正）
               if (data.type === 'connection_established') {
+                console.log('🎉 Connection established message from server:', data);
                 setIsConnected(true);
                 setError(null);
-                console.log('Received connection confirmation from server');
+                // 追加の接続確認メッセージをすぐに送信（接続テスト用）
+                try {
+                  if (websocketRef.current && websocketRef.current.readyState === WebSocket.OPEN) {
+                    websocketRef.current.send(JSON.stringify({
+                      type: 'ping',
+                      data: { timestamp: new Date().toISOString(), client_info: 'connection_test' }
+                    }));
+                    console.log('✅ Sent follow-up ping after connection established');
+                  }
+                } catch (err) {
+                  console.warn('❌ Failed to send follow-up ping:', err);
+                }
               }
               
               if (onMessage) onMessage(data);
