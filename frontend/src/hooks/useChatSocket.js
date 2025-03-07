@@ -48,13 +48,30 @@ const useChatSocket = (options = {}) => {
     onConnect: (socket) => {
       if (debug) console.log('チャットサーバーに接続しました');
       
-          // 接続成功時にアクティブなチャンネルに参加
+      // 接続成功時にアクティブなチャンネルに参加
       if (activeChannel && currentUser) {
-        // 少し遅延を入れて参加を実行
+        // より長い遅延を入れて、確実に接続とユーザー情報が準備できた後で参加を実行
         setTimeout(() => {
-          joinChannel(activeChannel.id)
-            .catch(err => console.warn('自動チャンネル参加エラー:', err));
-        }, 500);
+          // 再確認: 接続状態を再チェック
+          if (socket && socket.connected && currentUser) {
+            joinChannel(activeChannel.id)
+              .then(() => {
+                if (debug) console.log('チャンネル参加成功:', activeChannel.id);
+              })
+              .catch(err => {
+                if (debug) console.warn('自動チャンネル参加エラー:', err);
+                // エラー後のリトライ
+                setTimeout(() => {
+                  if (socket && socket.connected && currentUser) {
+                    joinChannel(activeChannel.id)
+                      .catch(e => console.warn('チャンネル参加リトライ失敗:', e));
+                  }
+                }, 1000);
+              });
+          } else {
+            if (debug) console.warn('接続またはユーザー情報が未準備のため、チャンネル参加をスキップ');
+          }
+        }, 1500); // 1.5秒に延長
       }
       
       if (showNotifications) {
@@ -101,30 +118,66 @@ const useChatSocket = (options = {}) => {
    * @returns {Promise<Object>} 参加結果
    */
   const joinChannel = useCallback((channelId) => {
-    if (!isConnected || !currentUser) {
-      // 接続していない場合は接続を試みる
-      if (!isConnected) {
+    // 接続状態とユーザー情報を確認
+    if (!isConnected) {
+      if (debug) console.log('未接続状態でチャンネル参加が要求されました。接続を試みます...');
+      
+      // 接続を試みた後、再度参加を試みる
+      return new Promise((resolve, reject) => {
         connect();
-      }
-      return Promise.reject(new Error('未接続またはユーザー情報がありません'));
+        
+        // 接続を待ってから再度参加を試みる
+        setTimeout(() => {
+          if (isConnected && currentUser) {
+            joinChannel(channelId)
+              .then(resolve)
+              .catch(reject);
+          } else {
+            reject(new Error('接続試行後も未接続状態です'));
+          }
+        }, 2000); // 接続のための十分な時間
+      });
     }
     
-    if (debug) console.log(`チャンネル参加: ${channelId}`);
+    if (!currentUser) {
+      return Promise.reject(new Error('ユーザー情報がありません'));
+    }
+    
+    // ユーザー情報の整形 (より堅牢に)
+    const userInfo = {
+      id: currentUser.id,
+      name: 'ユーザー'
+    };
+    
+    // ユーザー名を取得
+    if (currentUser.get_full_name && typeof currentUser.get_full_name === 'function') {
+      userInfo.name = currentUser.get_full_name();
+    } else if (currentUser.full_name) {
+      userInfo.name = currentUser.full_name;
+    } else if (currentUser.username) {
+      userInfo.name = currentUser.username;
+    }
+    
+    // メールアドレスを取得
+    if (currentUser.email) {
+      userInfo.email = currentUser.email;
+    }
+    
+    if (debug) console.log(`チャンネル参加: ${channelId}`, userInfo);
     
     return new Promise((resolve, reject) => {
       // 参加リクエストを送信
       emit('join_channel', {
         channel_id: String(channelId),
-        user_info: {
-          id: currentUser.id,
-          name: currentUser.get_full_name ? currentUser.get_full_name() : 'ユーザー',
-          email: currentUser.email
-        }
+        user_info: userInfo
       }, (response) => {
         if (response && response.status === 'success') {
+          if (debug) console.log(`チャンネル参加成功: ${channelId}`, response);
           resolve(response);
         } else {
-          reject(new Error(response?.message || 'チャンネル参加に失敗しました'));
+          const errorMessage = response?.message || 'チャンネル参加に失敗しました';
+          if (debug) console.error(`チャンネル参加失敗: ${channelId}`, errorMessage);
+          reject(new Error(errorMessage));
         }
       });
     });
