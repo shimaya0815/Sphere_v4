@@ -138,12 +138,35 @@ export const ChatProvider = ({ children }) => {
     
     setLoading(true);
     try {
-      // 最初に空の配列を設定し、APIからの実際のデータのみを使用する
-      setChannels([]);
+      // APIからのデータ取得が失敗した場合のフォールバック
+      // バックエンドの最新状態に合わせたデフォルトチャンネル
+      const defaultChannels = [
+        {
+          id: 1,
+          name: 'task',
+          workspace: { id: 1, name: 'Workspace' },
+          channel_type: 'public',
+          is_direct_message: false,
+          description: 'タスク関連の通知や議論のための共通チャンネルです',
+          unread_count: 0
+        },
+        {
+          id: 2,
+          name: 'general',
+          workspace: { id: 1, name: 'Workspace' },
+          channel_type: 'public', 
+          is_direct_message: false,
+          description: '一般的な会話用チャンネルです',
+          unread_count: 0
+        }
+      ];
+      
+      // 最初にデフォルトのチャンネルを設定
+      setChannels(defaultChannels);
       setDirectMessages([]);
       
       try {
-        // Try to load real channels but don't block the UI
+        // Try to load real channels from API
         const response = await chatApi.getUserChannels();
         
         // Process and organize channels
@@ -166,6 +189,7 @@ export const ChatProvider = ({ children }) => {
           });
         });
         
+        // APIから取得したデータがある場合のみ更新
         if (allChannels.length > 0) {
           setChannels(allChannels);
         }
@@ -176,12 +200,12 @@ export const ChatProvider = ({ children }) => {
         
         setError(null);
       } catch (apiErr) {
-        console.warn('Could not load real channels, using mock data:', apiErr);
-        // Already using mock data, so just log the error
+        console.warn('Could not load real channels from API, using default channels:', apiErr);
+        // フォールバックとしてデフォルトチャンネルをそのまま使用
       }
     } catch (err) {
       console.error('Error loading channels:', err);
-      setError('Failed to load channels');
+      setError('チャンネルの読み込み中にエラーが発生しました');
     } finally {
       setLoading(false);
     }
@@ -506,16 +530,37 @@ export const ChatProvider = ({ children }) => {
     }
   }, []);
   
-  // Load channels on initial mount and handle mock data if API fails
+  // Load channels on initial mount and handle defaults if API fails
   useEffect(() => {
     if (currentUser) {
       loadChannels().catch(err => {
-        console.error('Error loading real channels, using mock data', err);
+        console.error('Error loading channels from API, using default channels', err);
         
-        // APIからのデータ取得に失敗した場合でもモックデータは使用せず、
-        // エラーメッセージだけを設定する
-        setError('チャンネルデータの取得に失敗しました。再読み込みを行ってください。');
-        console.error('チャンネルデータの読み込みに失敗しました。');
+        // APIからのデータ取得に失敗した場合でもデフォルトチャンネルを表示
+        const defaultChannels = [
+          {
+            id: 1,
+            name: 'task',
+            workspace: { id: 1, name: 'Workspace' },
+            channel_type: 'public',
+            is_direct_message: false,
+            description: 'タスク関連の通知や議論のための共通チャンネルです',
+            unread_count: 0
+          },
+          {
+            id: 2,
+            name: 'general',
+            workspace: { id: 1, name: 'Workspace' },
+            channel_type: 'public',
+            is_direct_message: false,
+            description: '一般的な会話用チャンネルです',
+            unread_count: 0
+          }
+        ];
+        
+        setChannels(defaultChannels);
+        setDirectMessages([]);
+        setError(null);
       });
     }
   }, [currentUser, loadChannels]);
