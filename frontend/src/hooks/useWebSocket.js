@@ -29,38 +29,52 @@ const useWebSocket = (url, options = {}) => {
       return;
     }
     
-    // WebSocket接続URLの調整 - 直接localhost:8001に接続
-    const originalUrl = url;
-    
-    // 常に直接WebSocketサーバーに接続するようにURLを調整
-    let wsUrl = url;
-    
-    // どのような環境でも直接接続できるように、すべての接続はlocalhost:8001に向ける
-    // window.location.protocolに応じてプロトコルを調整
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    
-    // URL末尾からチャンネルIDを取得し、必ず値があることを確認
-    let channelId = '1'; // デフォルト値として1を設定
-    
-    try {
-      // URLから末尾の数字部分を取得
-      const urlParts = url.split('/');
-      const lastPart = urlParts[urlParts.length - 1];
-      
-      // 末尾が数字の場合のみ使用
-      if (lastPart && /^\d+\/?$/.test(lastPart)) {
-        channelId = lastPart.replace('/', '');
-      } else {
-        console.warn('🔴 チャンネルIDが正しく取得できません。デフォルト値を使用します:', url);
-      }
-    } catch (e) {
-      console.error('🔴 URL解析エラー:', e);
+    // WebSocket接続の準備 - 複数の接続方法を用意
+    if (!url) {
+      console.error('❌ WebSocket URL が指定されていません');
+      return;
     }
     
-    // 必ずチャンネルIDを含む完全なURLを構築
-    wsUrl = `${wsProtocol}://localhost:8001/ws/chat/${channelId}/`;
+    // URLはそのまま使用
+    let wsUrl = url;
     
-    console.log(`🔌 WebSocket接続: ${originalUrl} -> ${wsUrl}（チャンネルID: ${channelId}）`);
+    // URLからチャンネルIDを抽出
+    let channelId = '1'; // デフォルト値
+    try {
+      const match = url.match(/\/chat\/(\d+)\/?$/);
+      if (match && match[1]) {
+        channelId = match[1];
+      }
+    } catch (e) {
+      console.warn('⚠️ チャンネルID抽出エラー:', e);
+    }
+
+    // 代替接続URLのリスト（接続失敗時に順番に試行）
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const fallbackUrls = [
+      // 現在のURLをそのまま使用（最初の試行）
+      wsUrl,
+      
+      // プロキシ経由での接続
+      `${protocol}//${window.location.host}/ws/chat/${channelId}/`,
+      
+      // 直接WebSocketサーバーに接続
+      `${protocol}//localhost:8001/ws/chat/${channelId}/`,
+      
+      // IPアドレスで直接接続
+      `${protocol}//127.0.0.1:8001/ws/chat/${channelId}/`
+    ];
+    
+    // グローバル変数に保存（デバッグ用）
+    window.wsConnectionOptions = {
+      primary: wsUrl,
+      fallbacks: fallbackUrls,
+      channelId,
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log('🔌 WebSocket接続開始:', wsUrl);
+    console.log('🔄 フォールバックオプション:', fallbackUrls);
     
     console.log(`Connecting to WebSocket URL: ${wsUrl}`);
     
@@ -104,10 +118,27 @@ const useWebSocket = (url, options = {}) => {
             websocketRef.current = null;
             setError(new Error('WebSocket connection timeout'));
             
-            // タイムアウト後に再接続を開始
+            // タイムアウト後に再接続を開始 - フォールバックURLを使用
             if (reconnectCount.current < reconnectAttempts) {
               reconnectCount.current += 1;
-              console.log(`Connection timed out. Attempting to reconnect (${reconnectCount.current}/${reconnectAttempts})...`);
+              console.log(`⏱️ 接続タイムアウト。再接続を試みます (${reconnectCount.current}/${reconnectAttempts})...`);
+              
+              // フォールバックURLを順番に試す
+              try {
+                if (window.wsConnectionOptions && window.wsConnectionOptions.fallbacks) {
+                  const fallbacks = window.wsConnectionOptions.fallbacks;
+                  const fallbackIndex = reconnectCount.current % fallbacks.length;
+                  const fallbackUrl = fallbacks[fallbackIndex];
+                  
+                  console.log(`🔄 フォールバックURL使用: ${fallbackUrl} (${fallbackIndex + 1}/${fallbacks.length})`);
+                  
+                  // グローバル変数でURLを上書き（次回接続用）
+                  wsUrl = fallbackUrl;
+                }
+              } catch (err) {
+                console.error('❌ フォールバックURL選択エラー:', err);
+              }
+              
               reconnectTimeoutRef.current = setTimeout(connect, reconnectInterval);
             }
           }
@@ -282,15 +313,34 @@ const useWebSocket = (url, options = {}) => {
           
           if (onClose) onClose(event);
           
-          // 再接続を試みる
+          // 再接続を試みる - フォールバックURLも使用
           if (reconnectCount.current < reconnectAttempts) {
             reconnectCount.current += 1;
+            
+            // フォールバックURLを試す
+            try {
+              if (window.wsConnectionOptions && window.wsConnectionOptions.fallbacks) {
+                const fallbacks = window.wsConnectionOptions.fallbacks;
+                const fallbackIndex = reconnectCount.current % fallbacks.length;
+                
+                // フォールバックURLを選択
+                const fallbackUrl = fallbacks[fallbackIndex];
+                console.log(`🔄 切断後の再接続: フォールバックURL使用 ${fallbackUrl} (${fallbackIndex + 1}/${fallbacks.length})`);
+                
+                // URL変数を書き換えて次回の接続に使用
+                url = fallbackUrl;
+              }
+            } catch (err) {
+              console.error('❌ フォールバックURL選択エラー:', err);
+            }
+            
             reconnectTimeoutRef.current = setTimeout(() => {
-              console.log(`Attempting to reconnect (${reconnectCount.current}/${reconnectAttempts})...`);
+              console.log(`🔄 再接続試行 ${reconnectCount.current}/${reconnectAttempts}...`);
               connect();
             }, reconnectInterval);
           } else {
-            setError(new Error('Maximum reconnect attempts reached'));
+            setError(new Error('最大再接続試行回数に達しました'));
+            console.error('❌ WebSocket接続失敗: 最大再接続試行回数に達しました');
           }
         };
         

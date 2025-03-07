@@ -64,18 +64,27 @@ module.exports = function(app) {
   // 認証用URLパターンのプロキシ設定
   app.use('/auth', createApiProxy('/auth'));
 
-  // WebSocketプロキシ設定 - 詳細なログ出力と追加オプションで改善
+  // WebSocketプロキシ設定 - 単純化して安定性を確保
   app.use('/ws', createProxyMiddleware({
     target: WS_HOST,
     changeOrigin: true,
     ws: true, 
+    secure: false, // 開発環境ではSSL検証をスキップ
     pathRewrite: { '^/ws': '/ws' },
     logLevel: 'debug',
     onProxyReq: (proxyReq, req, res) => {
-      console.log(`🔌 WebSocket接続: ${req.method} ${req.url} → ${WS_HOST}`);
+      console.log(`🔌 WebSocketプロキシ: ${req.method} ${req.url} → ${WS_HOST}${proxyReq.path}`);
+    },
+    onProxyRes: (proxyRes, req, res) => {
+      console.log(`🔍 WebSocketレスポンス: ${proxyRes.statusCode}`);
     },
     onError: (err, req, res) => {
-      console.error(`❌ WebSocketエラー: ${req.method} ${req.url} - ${err.message}`);
+      console.error(`❌ WebSocketプロキシエラー: ${req.method} ${req.url} - ${err.message}`);
+      // エラーがあればブラウザに転送
+      if (!res.headersSent) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'WebSocketプロキシエラー', message: err.message }));
+      }
     }
   }));
 };
