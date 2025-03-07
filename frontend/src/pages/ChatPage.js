@@ -93,35 +93,57 @@ const ChatContent = () => {
     }
   }, [messages]);
   
+  // チャンネル初期選択/接続処理のためのフラグ
+  const initialSetupDone = useRef(false);
+  const retryAttempts = useRef(0);
+  const MAX_RETRY_ATTEMPTS = 3;
+  
   // ページ読み込み時に必ずチャンネルを選択し、WebSocket接続を確立
   useEffect(() => {
-    // チャンネルが読み込まれたら最初のチャンネルを選択
-    if (channels.length > 0) {
-      console.log('🔄 チャンネル自動選択:', channels[0]);
+    // すでに初期設定が完了している場合は何もしない
+    if (initialSetupDone.current) {
+      return;
+    }
+    
+    // チャンネルが読み込まれていない場合は、まだ処理しない
+    if (channels.length === 0) {
+      return;
+    }
+    
+    console.log('🔄 チャンネル初期化 (試行:', retryAttempts.current, '/', MAX_RETRY_ATTEMPTS, ')');
+    
+    // アクティブチャンネルがない場合は最初のチャンネルを選択
+    if (!activeChannel) {
+      console.log('📌 初回選択: 最初のチャンネルを選択');
+      // 選択を一度だけ行う
+      selectChannel(channels[0]);
       
-      // アクティブチャンネルがない場合は最初のチャンネルを選択
-      if (!activeChannel) {
-        console.log('📌 初回選択: アクティブチャンネルなし -> 最初のチャンネルを選択');
-        selectChannel(channels[0]);
-      }
-      
-      // 3秒後に強制的に再接続を試みる（UIの表示が完了した後）
-      setTimeout(() => {
-        console.log('🔄 接続状態確認:', isConnected ? '接続済み' : '未接続');
+      // 接続が確立されていない場合は再試行するが、最大回数を制限
+      if (!isConnected && retryAttempts.current < MAX_RETRY_ATTEMPTS) {
+        retryAttempts.current += 1;
         
-        if (!isConnected && activeChannel) {
-          console.log('🔌 WebSocket接続を再試行...');
-          handleReconnect();
-        } else if (!isConnected) {
-          console.log('🔌 アクティブチャンネルがないため、最初のチャンネルを強制選択');
-          selectChannel(channels[0]);
-          
-          // さらに500ms後に再接続
-          setTimeout(() => {
+        // 遅延を増やして再試行
+        const delay = 1000 + (retryAttempts.current * 1000);
+        console.log(`🔌 WebSocket接続を ${delay}ms 後に再試行... (${retryAttempts.current}/${MAX_RETRY_ATTEMPTS})`);
+        
+        setTimeout(() => {
+          if (!isConnected) {
             handleReconnect();
-          }, 500);
-        }
-      }, 3000);
+          }
+        }, delay);
+      } else if (retryAttempts.current >= MAX_RETRY_ATTEMPTS) {
+        // 最大試行回数に達したら、それ以上試行しない
+        console.log('⚠️ 最大再試行回数に達しました。');
+        initialSetupDone.current = true;
+      } else if (isConnected) {
+        // 接続が確立されている場合は初期設定完了とマーク
+        console.log('✅ 接続が確立されました。初期設定完了。');
+        initialSetupDone.current = true;
+      }
+    } else {
+      // アクティブチャンネルがすでに選択されている
+      console.log('✅ チャンネルは既に選択されています:', activeChannel.name);
+      initialSetupDone.current = true;
     }
   }, [channels, activeChannel, selectChannel, isConnected, handleReconnect]);
   
