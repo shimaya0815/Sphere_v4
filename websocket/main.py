@@ -55,7 +55,7 @@ app.add_middleware(
 # Socket.IOサーバー作成 - タイムアウト問題解決のための設定
 sio = socketio.AsyncServer(
     async_mode='asgi',
-    cors_allowed_origins=allowed_origins,  # 明示的に許可されたオリジン
+    cors_allowed_origins="*",  # すべてのオリジンを許可（開発環境用）
     logger=True,
     engineio_logger=True,
     ping_timeout=20000,  # クライアントとより近い値に設定
