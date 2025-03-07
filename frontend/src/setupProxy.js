@@ -64,7 +64,7 @@ module.exports = function(app) {
   // 認証用URLパターンのプロキシ設定
   app.use('/auth', createApiProxy('/auth'));
 
-  // WebSocketプロキシ設定 - 単純化して安定性を確保
+  // WebSocketプロキシ設定 - 強化版
   app.use('/ws', createProxyMiddleware({
     target: WS_HOST,
     changeOrigin: true,
@@ -85,6 +85,37 @@ module.exports = function(app) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'WebSocketプロキシエラー', message: err.message }));
       }
+    }
+  }));
+  
+  // チャットやタスクのWebSocketアクセスを直接プロキシにも対応（/wsプレフィックスなし）
+  app.use('/chat', createProxyMiddleware({
+    target: WS_HOST,
+    changeOrigin: true,
+    ws: true,
+    secure: false,
+    pathRewrite: { '^/chat': '/ws/chat' },
+    logLevel: 'debug',
+    onProxyReq: (proxyReq, req, res) => {
+      console.log(`🔌 チャットプロキシ: ${req.method} ${req.url} → ${WS_HOST}/ws${proxyReq.path}`);
+    },
+    onError: (err, req, res) => {
+      console.error(`❌ チャットプロキシエラー: ${err.message}`);
+    }
+  }));
+  
+  app.use('/tasks', createProxyMiddleware({
+    target: WS_HOST,
+    changeOrigin: true,
+    ws: true,
+    secure: false,
+    pathRewrite: { '^/tasks': '/ws/tasks' },
+    logLevel: 'debug',
+    onProxyReq: (proxyReq, req, res) => {
+      console.log(`🔌 タスクプロキシ: ${req.method} ${req.url} → ${WS_HOST}/ws${proxyReq.path}`);
+    },
+    onError: (err, req, res) => {
+      console.error(`❌ タスクプロキシエラー: ${err.message}`);
     }
   }));
 };
