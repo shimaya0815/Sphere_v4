@@ -317,86 +317,110 @@ class UserCreateView(APIView):
                         
                         created_channels = []
                         
-                        # 各チャンネルについて作成を試みる
+                        # 各チャンネルごとに独立して処理する
                         for channel_name, description in channels_to_create:
-                            try:
-                                # 既存のチャンネルを検索（大文字小文字を区別しない）
-                                channel = Channel.objects.filter(
-                                    workspace=workspace,
-                                    name__iexact=channel_name
-                                ).first()
-                                
-                                # レコードがあるかログに記録
-                                if channel:
-                                    logger.info(f"Found existing channel: {channel.name} (ID: {channel.id})")
-                                    created_channels.append(channel)
-                                else:
-                                    logger.info(f"No existing channel found with name '{channel_name}'")
+                            # 各チャンネルに対して独立したトランザクションを使用
+                            with transaction.atomic():
+                                try:
+                                    logger.info(f"Processing channel '{channel_name}'")
                                     
-                                    # なければget_or_createで作成（重複を防止）
-                                    try:
-                                        channel, created = Channel.objects.get_or_create(
-                                            workspace=workspace,
-                                            name=channel_name,
+                                    # 既存のチャンネルを検索（大文字小文字を区別しない）
+                                    channel = Channel.objects.filter(
+                                        workspace=workspace,
+                                        name__iexact=channel_name
+                                    ).first()
+                                    
+                                    # レコードがあるかログに記録
+                                    if channel:
+                                        logger.info(f"Found existing channel: {channel.name} (ID: {channel.id})")
+                                        created_channels.append(channel)
+                                    else:
+                                        logger.info(f"No existing channel found with name '{channel_name}'")
+                                        
+                                        # なければget_or_createで作成（重複を防止）
+                                        try:
+                                            channel, created = Channel.objects.get_or_create(
+                                                workspace=workspace,
+                                                name=channel_name,
+                                                defaults={
+                                                    'description': description,
+                                                    'channel_type': 'public',
+                                                    'created_by': user,
+                                                    'is_direct_message': False
+                                                }
+                                            )
+                                            
+                                            if created:
+                                                logger.info(f"Created channel: {channel.name} (ID: {channel.id})")
+                                            else:
+                                                logger.info(f"Found existing channel during creation: {channel.name} (ID: {channel.id})")
+                                                
+                                            created_channels.append(channel)
+                                        except Exception as create_error:
+                                            logger.error(f"Error creating channel '{channel_name}': {str(create_error)}")
+                                            # エラーがあっても次のチャンネルに進むため、continueはしない
+                                    
+                                    # チャンネルが正常に取得/作成された場合のみ、メンバーシップを処理
+                                    if channel:
+                                        # ユーザーをメンバーに追加（get_or_createで重複を防止）
+                                        membership, membership_created = ChannelMembership.objects.get_or_create(
+                                            channel=channel,
+                                            user=user,
                                             defaults={
-                                                'description': description,
-                                                'channel_type': 'public',
-                                                'created_by': user
+                                                'is_admin': True,  # 明示的に管理者にする
+                                                'joined_at': timezone.now(),
+                                                'last_read_at': timezone.now()
                                             }
                                         )
                                         
-                                        if created:
-                                            logger.info(f"Created channel: {channel.name} (ID: {channel.id})")
+                                        if membership_created:
+                                            logger.info(f"Added user to channel: {channel.name}")
                                         else:
-                                            logger.info(f"Found existing channel during creation: {channel.name} (ID: {channel.id})")
+                                            logger.info(f"User already a member of channel: {channel.name}")
                                             
-                                        created_channels.append(channel)
-                                    except Exception as create_error:
-                                        logger.error(f"Error creating channel '{channel_name}': {str(create_error)}")
-                                        continue
-                                
-                                # ユーザーをメンバーに追加（get_or_createで重複を防止）
-                                membership, membership_created = ChannelMembership.objects.get_or_create(
-                                    channel=channel,
-                                    user=user,
-                                    defaults={
-                                        'is_admin': user == channel.created_by or not channel.memberships.exists(),
-                                        'joined_at': timezone.now(),
-                                        'last_read_at': timezone.now()
-                                    }
-                                )
-                                
-                                if membership_created:
-                                    logger.info(f"Added user to channel: {channel.name}")
-                                else:
-                                    logger.info(f"User already a member of channel: {channel.name}")
-                                    
-                            except Exception as channel_error:
-                                logger.error(f"Error processing channel '{channel_name}': {str(channel_error)}")
+                                except Exception as channel_error:
+                                    logger.error(f"Error processing channel '{channel_name}': {str(channel_error)}")
+                                    # 一つのチャンネルでエラーが発生しても他のチャンネルの処理を続行
                         
                         # ウェルカムメッセージの送信（チャンネルが作成されていれば）
-                        general_channel = next((c for c in created_channels if c.name.lower() == 'general'), None)
-                        task_channel = next((c for c in created_channels if c.name.lower() == 'task'), None)
+                        # 作成されたチャンネルをログに記録
+                        logger.info(f"Created channels: {[c.name for c in created_channels]}")
                         
-                        if general_channel:
+                        # generalチャンネルにウェルカムメッセージを送信（独立したトランザクション）
+                        with transaction.atomic():
                             try:
-                                Message.objects.create(
-                                    channel=general_channel,
-                                    user=user,
-                                    content=f"👋 {user.get_full_name() or user.email}さん、Sphereへようこそ！"
-                                )
-                                logger.info(f"Added welcome message to general channel")
+                                general_channel = next((c for c in created_channels if c.name.lower() == 'general'), None)
+                                if general_channel:
+                                    # ログを詳細に出力
+                                    logger.info(f"Sending welcome message to general channel (ID: {general_channel.id})")
+                                    
+                                    Message.objects.create(
+                                        channel=general_channel,
+                                        user=user,
+                                        content=f"👋 {user.get_full_name() or user.email}さん、Sphereへようこそ！"
+                                    )
+                                    logger.info(f"Added welcome message to general channel")
+                                else:
+                                    logger.warning("General channel not found for welcome message")
                             except Exception as msg_error:
                                 logger.error(f"Error creating welcome message in general channel: {str(msg_error)}")
                         
-                        if task_channel:
+                        # taskチャンネルにウェルカムメッセージを送信（独立したトランザクション）
+                        with transaction.atomic():
                             try:
-                                Message.objects.create(
-                                    channel=task_channel,
-                                    user=user,
-                                    content=f"🔔 このチャンネルではタスクの通知やタスクに関する議論を行います。{user.get_full_name() or user.email}さん、タスク管理をお楽しみください！"
-                                )
-                                logger.info(f"Added welcome message to task channel")
+                                task_channel = next((c for c in created_channels if c.name.lower() == 'task'), None)
+                                if task_channel:
+                                    # ログを詳細に出力
+                                    logger.info(f"Sending welcome message to task channel (ID: {task_channel.id})")
+                                    
+                                    Message.objects.create(
+                                        channel=task_channel,
+                                        user=user,
+                                        content=f"🔔 このチャンネルではタスクの通知やタスクに関する議論を行います。{user.get_full_name() or user.email}さん、タスク管理をお楽しみください！"
+                                    )
+                                    logger.info(f"Added welcome message to task channel")
+                                else:
+                                    logger.warning("Task channel not found for welcome message")
                             except Exception as msg_error:
                                 logger.error(f"Error creating welcome message in task channel: {str(msg_error)}")
                     else:
