@@ -389,6 +389,32 @@ export const ChatProvider = ({ children }) => {
     };
   }, [activeChannel, currentUser]);
   
+  /**
+   * WebSocket接続を再確立する
+   */
+  const handleReconnect = useCallback(() => {
+    try {
+      // 既存のSocket.IO接続を解除して再接続
+      disconnect();
+      setTimeout(() => {
+        connect();
+      }, 300);
+      
+      // アクティブチャンネルがある場合は再選択
+      if (activeChannel) {
+        setTimeout(() => {
+          selectChannelSocket(activeChannel);
+        }, 1000);
+      }
+      
+      return true;
+    } catch (err) {
+      console.error('WebSocket再接続エラー:', err);
+      setError('WebSocket接続の再確立に失敗しました');
+      return false;
+    }
+  }, [activeChannel, connect, disconnect, selectChannelSocket]);
+
   // コンテキスト値
   const value = {
     // チャンネル一覧
@@ -406,6 +432,7 @@ export const ChatProvider = ({ children }) => {
     
     // 接続状態
     isConnected,
+    connectionAttempts: 0, // 接続試行回数（将来的に実装）
     
     // チャンネル管理関数
     loadChannels,
@@ -422,7 +449,8 @@ export const ChatProvider = ({ children }) => {
     
     // 接続管理関数
     connect,
-    disconnect
+    disconnect,
+    handleReconnect
   };
   
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
