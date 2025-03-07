@@ -156,10 +156,31 @@ const ChatContent = () => {
     // メッセージデータのデバッグ
     console.log('ChatPage: messages状態', {
       count: messages.length,
-      messages: messages,
       activeChannel
     });
+    
+    if (messages.length > 0) {
+      console.log('メッセージ描画:', messages);
+    }
   }, [activeChannel, messages]);
+  
+  // メッセージロード完了イベントを監視
+  useEffect(() => {
+    const handleMessagesLoaded = (event) => {
+      console.log('メッセージロード完了イベント検知:', event.detail);
+      // メッセージの表示状態を確認
+      setTimeout(() => {
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    };
+    
+    window.addEventListener('messages-loaded', handleMessagesLoaded);
+    return () => {
+      window.removeEventListener('messages-loaded', handleMessagesLoaded);
+    };
+  }, []);
   
   // Handler to refresh channels
   const handleRefreshChannels = useCallback(() => {
@@ -419,108 +440,109 @@ const ChatContent = () => {
           ) : (
             <div className="space-y-6">
               {Array.isArray(messages) && messages.length > 0 ? (
-                console.log('メッセージ描画:', messages) || 
-                messages.map(msg => {
-                  if (!msg) {
-                    console.warn('空のメッセージをスキップ');
-                    return null; // nullメッセージをスキップ
-                  }
-                  
-                  // メッセージキーの生成 (id, message_id, または一時的なキー)
-                  const messageKey = msg.id || msg.message_id || `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                  
-                  // ユーザー情報の安全な取得
-                  const userId = safe(() => msg.user?.id || (msg.user ? msg.user : null));
-                  const isCurrentUser = userId === currentUser?.id;
-                  const isSelected = selectedMessage?.id === msg.id;
-                  
-                  return (
-                    <div 
-                      key={messageKey} 
-                      className={`flex ${isCurrentUser ? 'justify-end' : 'items-start'} mb-4 ${
-                        isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
-                      } p-2 rounded-lg cursor-pointer transition-colors relative group`}
-                      onClick={() => handleMessageSelect(msg)}
-                    >
-                      {!isCurrentUser && (
-                        <div className="flex-shrink-0 mr-3">
-                          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-800">
-                            {getInitials(safe(() => msg.user.full_name))}
-                          </div>
-                        </div>
-                      )}
-                      <div className={`flex flex-col max-w-[70%] ${isCurrentUser ? 'items-end' : ''}`}>
+                <>
+                  {messages.map(msg => {
+                    if (!msg) {
+                      console.warn('空のメッセージをスキップ');
+                      return null; // nullメッセージをスキップ
+                    }
+                    
+                    // メッセージキーの生成 (id, message_id, または一時的なキー)
+                    const messageKey = msg.id || msg.message_id || `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                    
+                    // ユーザー情報の安全な取得
+                    const userId = safe(() => msg.user?.id || (msg.user ? msg.user : null));
+                    const isCurrentUser = userId === currentUser?.id;
+                    const isSelected = selectedMessage?.id === msg.id;
+                    
+                    return (
+                      <div 
+                        key={messageKey} 
+                        className={`flex ${isCurrentUser ? 'justify-end' : 'items-start'} mb-4 ${
+                          isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
+                        } p-2 rounded-lg cursor-pointer transition-colors relative group`}
+                        onClick={() => handleMessageSelect(msg)}
+                      >
                         {!isCurrentUser && (
-                          <div className="flex items-center mb-1">
-                            <span className="font-medium text-gray-900 mr-2">{safe(() => msg.user.full_name, 'Unknown')}</span>
-                            <span className="text-xs text-gray-500">{formatTime(msg.created_at)}</span>
+                          <div className="flex-shrink-0 mr-3">
+                            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-800">
+                              {getInitials(safe(() => msg.user.full_name))}
+                            </div>
                           </div>
                         )}
-                        <div 
-                          className={`px-4 py-2 rounded-lg break-words ${
-                            isCurrentUser 
-                              ? 'bg-blue-600 text-white' 
-                              : 'bg-gray-100 text-gray-800'
-                          }`}
-                        >
-                          {/* メッセージ内容の表示（コンテンツが存在する場合のみ） */}
-                          {msg.content ? (
-                            msg.content.split('\n').map((line, i) => 
-                              line.startsWith('>') ? (
-                                <div key={i} className="pl-2 border-l-2 border-gray-400 italic text-gray-500 dark:text-gray-400">
-                                  {line.substring(1)}
-                                </div>
-                              ) : (
-                                <div key={i}>{line || ' '}</div>
+                        <div className={`flex flex-col max-w-[70%] ${isCurrentUser ? 'items-end' : ''}`}>
+                          {!isCurrentUser && (
+                            <div className="flex items-center mb-1">
+                              <span className="font-medium text-gray-900 mr-2">{safe(() => msg.user.full_name, 'Unknown')}</span>
+                              <span className="text-xs text-gray-500">{formatTime(msg.created_at || msg.timestamp)}</span>
+                            </div>
+                          )}
+                          <div 
+                            className={`px-4 py-2 rounded-lg break-words ${
+                              isCurrentUser 
+                                ? 'bg-blue-600 text-white' 
+                                : 'bg-gray-100 text-gray-800'
+                            }`}
+                          >
+                            {/* メッセージ内容の表示（コンテンツが存在する場合のみ） */}
+                            {msg.content ? (
+                              msg.content.split('\n').map((line, i) => 
+                                line.startsWith('>') ? (
+                                  <div key={i} className="pl-2 border-l-2 border-gray-400 italic text-gray-500 dark:text-gray-400">
+                                    {line.substring(1)}
+                                  </div>
+                                ) : (
+                                  <div key={i}>{line || ' '}</div>
+                                )
                               )
-                            )
-                          ) : (
-                            <div className="italic text-gray-400">[空のメッセージ]</div>
+                            ) : (
+                              <div className="italic text-gray-400">[空のメッセージ]</div>
+                            )}
+                          </div>
+                          {isCurrentUser && (
+                            <span className="text-xs text-gray-500 mt-1">{formatTime(msg.created_at || msg.timestamp)}</span>
+                          )}
+                          
+                          {/* メッセージ操作メニュー（選択時） */}
+                          {isSelected && (
+                            <div className="absolute top-0 right-0 bg-white shadow-md rounded-md p-1 flex space-x-1 border border-gray-200">
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  replyToMessage();
+                                }}
+                                className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                                title="返信"
+                              >
+                                <HiOutlineReply className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  copyMessageContent();
+                                }}
+                                className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                                title="コピー"
+                              >
+                                <HiOutlineClipboardCopy className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedMessage(null);
+                                }}
+                                className="p-1 text-gray-500 hover:bg-gray-50 rounded"
+                                title="閉じる"
+                              >
+                                <HiOutlineX className="w-4 h-4" />
+                              </button>
+                            </div>
                           )}
                         </div>
-                        {isCurrentUser && (
-                          <span className="text-xs text-gray-500 mt-1">{formatTime(msg.created_at)}</span>
-                        )}
-                        
-                        {/* メッセージ操作メニュー（選択時） */}
-                        {isSelected && (
-                          <div className="absolute top-0 right-0 bg-white shadow-md rounded-md p-1 flex space-x-1 border border-gray-200">
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                replyToMessage();
-                              }}
-                              className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-                              title="返信"
-                            >
-                              <HiOutlineReply className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                copyMessageContent();
-                              }}
-                              className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-                              title="コピー"
-                            >
-                              <HiOutlineClipboardCopy className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedMessage(null);
-                              }}
-                              className="p-1 text-gray-500 hover:bg-gray-50 rounded"
-                              title="閉じる"
-                            >
-                              <HiOutlineX className="w-4 h-4" />
-                            </button>
-                          </div>
-                        )}
                       </div>
-                    </div>
-                  );
-                })
+                    );
+                  })}
+                </>
               ) : activeChannel ? (
                 <div className="text-center text-gray-500">
                   No messages in this channel yet.

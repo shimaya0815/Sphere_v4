@@ -47,37 +47,55 @@ const useChatSocket = (options = {}) => {
     // 自動接続する - 一度だけSocket.IO接続を確立（複数接続を防止）
     autoConnect: true,
     
+    // Socket.IOオプション - 接続の強化
+    socketOptions: {
+      // WebSocketを優先しつつもポーリングもサポート
+      transports: ['websocket', 'polling'],
+      // 再接続の設定
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 3000,
+      reconnectionDelayMax: 5000,
+      // タイムアウト値
+      timeout: 20000,
+      // 切断後の自動再接続
+      autoConnect: true
+    },
+    
     // 接続イベントハンドラ
     onConnect: (socket) => {
-      if (debug) console.log('チャットサーバーに接続しました');
+      if (debug) console.log('チャットサーバーに接続しました', socket?.id);
       
       // 接続成功時にアクティブなチャンネルに参加
       if (activeChannel && currentUser) {
-        // より長い遅延を入れて、確実に接続とユーザー情報が準備できた後で参加を実行
-        setTimeout(() => {
-          // 再確認: 接続状態を再チェック
-          if (socket && socket.connected && currentUser) {
+        // 確実なタイミングで実行するためにrequestAnimationFrameを使用
+        requestAnimationFrame(() => {
+          // 接続状態を再チェック
+          if (socket?.connected && currentUser) {
+            // チャンネル参加を実行
+            console.log(`接続成功: チャンネル ${activeChannel.id || activeChannel.name} に参加を試みます`);
             joinChannel(activeChannel.id)
               .then(() => {
                 if (debug) console.log('チャンネル参加成功:', activeChannel.id);
               })
               .catch(err => {
-                if (debug) console.warn('自動チャンネル参加エラー:', err);
-                // エラー後のリトライ
+                if (debug) console.warn('チャンネル参加エラー:', err);
+                
+                // エラー後のリトライ (1回のみ)
                 setTimeout(() => {
-                  if (socket && socket.connected && currentUser) {
+                  if (socket?.connected && currentUser) {
                     joinChannel(activeChannel.id)
                       .catch(e => console.warn('チャンネル参加リトライ失敗:', e));
                   }
-                }, 1000);
+                }, 2000);  // 十分な遅延を確保
               });
           } else {
-            if (debug) console.warn('接続またはユーザー情報が未準備のため、チャンネル参加をスキップ');
+            if (debug) console.warn(`接続準備不完了: socket=${!!socket}, connected=${socket?.connected}, user=${!!currentUser}`);
           }
-        }, 1500); // 1.5秒に延長
+        });
       }
       
-      // 通知は初回接続時のみ表示する
+      // 通知は1回だけ表示
       if (showNotifications && !window._hasShownSocketConnectedToast) {
         window._hasShownSocketConnectedToast = true;
         toast.success('チャットサーバーに接続しました', { id: 'socket-connected' });
@@ -522,9 +540,11 @@ const useChatSocket = (options = {}) => {
   
   // コンポーネントアンマウント時の処理
   useEffect(() => {
-    // 明示的な切断処理を行わない（リソース枯渇問題を防ぐ）
-    // Socket.IOの自動切断に任せる
-    return () => {};
+    // この効果のクリーンアップは不要 - useSocketIOが適切に接続を管理するため
+    return () => {
+      console.log('ChatSocket コンポーネントのアンマウント');
+      // disconnect()は呼ばない - useSocketIOが管理する
+    };
   }, []);
   
   // 公開インターフェース

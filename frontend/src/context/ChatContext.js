@@ -269,6 +269,16 @@ export const ChatProvider = ({ children }) => {
         console.error('チャンネル既読マークエラー:', err);
       }
       
+      // 先にSocket.IO経由でチャンネルを選択（メッセージ読み込み前に実行）
+      try {
+        console.log('Socket.IO経由でチャンネルを選択:', channel.id);
+        const socketResult = await selectChannelSocket(channel);
+        console.log('Socket.IO経由のチャンネル選択結果:', socketResult);
+      } catch (socketErr) {
+        console.error('Socket.IO経由のチャンネル選択エラー:', socketErr);
+        // エラーは表示しない（メッセージ表示を優先）
+      }
+      
       // 過去メッセージを読み込む
       const messageHistory = await loadMessages(channel.id);
       
@@ -279,7 +289,6 @@ export const ChatProvider = ({ children }) => {
         
         // メッセージをuseChatSocketに渡す - 初期メッセージとして設定
         try {
-          // メッセージ一覧をSocketのメッセージリストとして設定（直接インポート）
           // ディープコピーして確実に新しい参照を作成
           const messagesCopy = JSON.parse(JSON.stringify(messageHistory.results));
           console.log('メッセージ設定前状態確認:', {
@@ -287,34 +296,22 @@ export const ChatProvider = ({ children }) => {
             設定するメッセージ数: messagesCopy.length
           });
           
-          // まず空配列で強制リセットし、確実にレンダリングが発生するようにする
+          // より単純な方法でメッセージを設定（一旦空にして、すぐに設定）
           setMessages([]);
           
-          // 安全のためにstateの更新が反映されるのを待ってから次のメッセージをセット
-          // React 18以降のバッチ更新を考慮して、Promise/setTimeout両方を使用
-          await new Promise(resolve => {
-            setTimeout(() => {
-              // 別のsetTimeoutで次のフレームで実行するよう保証
-              setTimeout(() => {
-                setMessages(messagesCopy);
-                console.log('メッセージが正常に設定されました:', messagesCopy.length);
-                resolve();
-              }, 50);  // 少し長めの遅延を入れて確実に処理
-            }, 50);
+          // requestAnimationFrameを使用して次の描画サイクルで設定
+          requestAnimationFrame(() => {
+            setMessages(messagesCopy);
+            console.log('メッセージが正常に設定されました:', messagesCopy.length);
+            
+            // メッセージの読み込みが完了したことをカスタムイベントで通知
+            window.dispatchEvent(new CustomEvent('messages-loaded', { 
+              detail: { channelId: channel.id, count: messagesCopy.length } 
+            }));
           });
         } catch (setErr) {
           console.error('メッセージリスト設定エラー:', setErr);
         }
-      }
-      
-      // Socket.IO経由でチャンネルを選択（API処理の後に行う）
-      try {
-        console.log('Socket.IO経由でチャンネルを選択:', channel.id);
-        const socketResult = await selectChannelSocket(channel);
-        console.log('Socket.IO経由のチャンネル選択結果:', socketResult);
-      } catch (socketErr) {
-        console.error('Socket.IO経由のチャンネル選択エラー:', socketErr);
-        // エラーは表示しない（メッセージ表示を優先）
       }
       
       return messageHistory;

@@ -2,13 +2,19 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 
 // グローバルなSocket.IO接続管理 - 複数の接続試行を防止
-const GLOBAL_CONNECTION = {
+// ブラウザタブ間で共有されないようにwindowスコープで保持
+window.SPHERE_SOCKET_GLOBAL = window.SPHERE_SOCKET_GLOBAL || {
   socket: null,
   isConnecting: false,
   connectionId: null,
   lastAttempt: 0,
-  clients: 0
+  lastDisconnect: 0,
+  clients: 0,
+  nextConnect: 0
 };
+
+// ローカル変数に参照を保持
+const GLOBAL_CONNECTION = window.SPHERE_SOCKET_GLOBAL;
 
 /**
  * 最適な Socket.IO 接続 URL を取得する
@@ -140,23 +146,51 @@ const useSocketIO = (options = {}) => {
       return;
     }
     
-    // 前回の接続試行から3秒以内または切断から1.5秒以内は試行しない（レート制限）
+    // 接続制限の管理
     const now = Date.now();
-    if (now - GLOBAL_CONNECTION.lastAttempt < 3000) {
-      log('接続試行間隔が短すぎます。スキップします');
+    
+    // 次の接続可能時刻が設定されている場合はそれに従う
+    if (GLOBAL_CONNECTION.nextConnect > now) {
+      const waitTime = GLOBAL_CONNECTION.nextConnect - now;
+      log(`接続クールダウン中です。${waitTime}ms後に接続可能になります`);
+      
+      // クールダウン時間後に自動で再接続
+      setTimeout(() => {
+        connect();
+      }, waitTime + 100); // 余裕を持たせる
       return;
     }
     
-    // 前回の切断から十分な時間が経っていない場合は待機
-    if (GLOBAL_CONNECTION.lastDisconnect && now - GLOBAL_CONNECTION.lastDisconnect < 1500) {
-      const waitTime = 1500 - (now - GLOBAL_CONNECTION.lastDisconnect);
-      log(`前回の切断から十分な時間が経っていません。${waitTime}ms後に再試行します`);
+    // 前回の接続試行から最低3秒は空ける
+    if (now - GLOBAL_CONNECTION.lastAttempt < 3000) {
+      const nextTime = GLOBAL_CONNECTION.lastAttempt + 3000;
+      GLOBAL_CONNECTION.nextConnect = nextTime;
       
+      log(`接続試行間隔が短すぎます。${nextTime - now}ms後に再試行します`);
+      
+      // 自動再接続
       setTimeout(() => {
         connect();
-      }, waitTime);
+      }, nextTime - now + 100);
       return;
     }
+    
+    // 前回の切断から最低2秒は空ける
+    if (GLOBAL_CONNECTION.lastDisconnect && now - GLOBAL_CONNECTION.lastDisconnect < 2000) {
+      const nextTime = GLOBAL_CONNECTION.lastDisconnect + 2000;
+      GLOBAL_CONNECTION.nextConnect = nextTime;
+      
+      log(`前回の切断から十分な時間が経っていません。${nextTime - now}ms後に再試行します`);
+      
+      // 自動再接続
+      setTimeout(() => {
+        connect();
+      }, nextTime - now + 100);
+      return;
+    }
+    
+    // 接続可能になったらnextConnectをリセット
+    GLOBAL_CONNECTION.nextConnect = 0;
     
     GLOBAL_CONNECTION.lastAttempt = now;
     GLOBAL_CONNECTION.isConnecting = true;
