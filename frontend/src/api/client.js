@@ -55,7 +55,7 @@ const axiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 15000, // より短いタイムアウト：15秒
+  timeout: 30000, // より長いタイムアウト：30秒
   withCredentials: false, // CORSのクッキー送信は無効化
   
   // リクエスト制限
