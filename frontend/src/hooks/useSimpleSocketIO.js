@@ -35,22 +35,35 @@ const useSimpleSocketIO = () => {
       connectCounter.current += 1;
       
       // 新しいSocket.IOインスタンスを作成
-      const socketOptions = {
+      let socketOptions = {
         transports: ['websocket', 'polling'],
         reconnection: true,
-        reconnectionAttempts: 5,
+        reconnectionAttempts: 10,
         reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
         timeout: 20000,
         autoConnect: true,
         forceNew: true
       };
       
-      // localhost:8001 に直接接続する場合は path を設定しない
-      if (useUrl !== 'http://localhost:8001' && !useUrl.includes('localhost:8001')) {
+      // URL形式に基づいてパスを設定
+      if (useUrl.startsWith('http://localhost:8001') || useUrl.includes('localhost:8001')) {
+        // localhost:8001への直接接続の場合
         socketOptions.path = '/socket.io/';
+        console.log('Socket.IO: localhostへの直接接続を使用');
+      } else if (useUrl.startsWith('/')) {
+        // 相対パスの場合
+        socketOptions.path = useUrl;
+        // 実際の接続URLをwindow.locationから取得
+        useUrl = window.location.origin;
+        console.log('Socket.IO: 相対パス接続を使用', useUrl);
+      } else {
+        // その他の接続
+        socketOptions.path = '/socket.io/';
+        console.log('Socket.IO: デフォルト設定で接続');
       }
       
-      console.log('Socket.IO options:', socketOptions);
+      console.log('Socket.IO接続:', useUrl, socketOptions);
       const socketInstance = io(useUrl, socketOptions);
       
       // 接続イベント
