@@ -16,45 +16,52 @@ logger = logging.getLogger(__name__)
 # FastAPIアプリケーションの作成
 app = FastAPI(title="Sphere Chat WebSocket Server")
 
-# CORS設定
-cors_origins = os.environ.get("CORS_ORIGINS", "*")
-if cors_origins != "*":
-    cors_origins = cors_origins.split(",")
-else:
-    cors_origins = ["*"]
-
+# CORS設定 - すべてのオリジンを明示的に許可
 # 開発環境用に明示的にlocalhostを追加
 specific_origins = [
     "http://localhost:3000",
-    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3000", 
+    "http://0.0.0.0:3000",
     "http://frontend:3000",
     "http://localhost:8000",
     "http://backend:8000",
+    "http://localhost",
+    "http://127.0.0.1",
+    "http://0.0.0.0",
+    "*"  # すべてのオリジンを許可（開発用）
 ]
 
+# 環境変数から追加のオリジンを取得
+cors_origins_env = os.environ.get("CORS_ORIGINS", "")
+if cors_origins_env:
+    additional_origins = cors_origins_env.split(",")
+    specific_origins.extend(additional_origins)
+
+# 重複を削除
+allowed_origins = list(set(specific_origins))
+
+logger.info(f"Allowed CORS origins: {allowed_origins}")
+
+# CORSミドルウェアを追加 - すべてのオリジンを許可
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=specific_origins + (cors_origins if isinstance(cors_origins, list) else [cors_origins]),
+    allow_origins=["*"],  # すべてのオリジンを許可
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
-# 許可するオリジンを明示的に指定
-allowed_origins = specific_origins + ["*"]
-logger.info(f"Allowed CORS origins: {allowed_origins}")
-
-# Socket.IOサーバー作成 - エラー解決用に設定を簡素化
+# Socket.IOサーバー作成 - CORS問題を解決する設定
 sio = socketio.AsyncServer(
     async_mode='asgi',
-    cors_allowed_origins=['*'],  # すべてのオリジンを許可
+    cors_allowed_origins="*",  # すべてのオリジンを許可
     logger=True,
     engineio_logger=True,
     ping_timeout=25000,
     ping_interval=20000,
-    max_http_buffer_size=500000,  # バッファサイズを調整
-    always_connect=True,
-    json=None,  # デフォルトのJSONシリアライザーを使用
+    max_http_buffer_size=500000,
+    always_connect=True
 )
 
 # ASGIアプリケーション作成
