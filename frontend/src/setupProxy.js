@@ -63,54 +63,20 @@ module.exports = function(app) {
   // 認証用URLパターンのプロキシ設定
   app.use('/auth', createApiProxy('/auth'));
   
-  // Socket.IOプロキシ設定
-  // Socket.IOサーバーへの接続をプロキシ
+  // Socket.IOプロキシ設定 - シンプルな設定で確実に動作させる
   app.use('/socket.io', createProxyMiddleware({
     target: SOCKET_HOST,
     changeOrigin: true,
-    ws: true,
-    secure: false,
-    logLevel: 'info',
-    // Socket.IOの長いポーリング接続をサポート
-    timeout: 60000,
-    // WebSocketリソースの割り当てを増やす
-    maxSockets: 1000,
-    // HeadersをDocker環境に適したものに調整
-    headers: {
-      'Origin': SOCKET_HOST,
-      'Access-Control-Allow-Origin': '*'
-    },
-    // パスの書き換えを無効化（Socket.IOのパス解決に影響するため）
-    pathRewrite: {
-      '^/socket.io': '/socket.io'
-    },
+    ws: true, // WebSocketをサポート
+    logLevel: 'debug',
     onProxyReq: (proxyReq, req, res) => {
-      const isWebSocket = req.headers.upgrade && req.headers.upgrade.toLowerCase() === 'websocket';
-      console.log(`→ Socket.IO: ${req.method} ${req.url} -> ${SOCKET_HOST}${proxyReq.path} ${isWebSocket ? '(WebSocket)' : '(HTTP)'}`);
-      
-      // WebSocket接続の場合、必要なヘッダーを設定
-      if (isWebSocket) {
-        proxyReq.setHeader('Connection', 'Upgrade');
-        proxyReq.setHeader('Upgrade', 'websocket');
-      }
-
-      // Docker環境のために追加のヘッダーを設定
-      proxyReq.setHeader('Origin', SOCKET_HOST);
-      proxyReq.setHeader('Host', new URL(SOCKET_HOST).host);
+      console.log(`[Socket.IO Proxy] → ${req.method} ${req.url} to ${SOCKET_HOST}`);
     },
     onProxyRes: (proxyRes, req, res) => {
-      console.log(`← Socket.IO: ${proxyRes.statusCode} ${req.method} ${req.url}`);
+      console.log(`[Socket.IO Proxy] ← ${proxyRes.statusCode} ${req.method} ${req.url}`);
     },
     onError: (err, req, res) => {
-      console.error(`❌ Socket.IO Error: ${req.method} ${req.url} - ${err.message}`);
-      
-      if (!res.headersSent) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-          error: 'Socket.IO Connection Error',
-          message: err.message
-        }));
-      }
+      console.error(`[Socket.IO Proxy] Error: ${err.message}`);
     }
   }));
 };

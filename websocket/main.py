@@ -34,7 +34,7 @@ app.add_middleware(
 # Socket.IOサーバー作成
 sio = socketio.AsyncServer(
     async_mode='asgi',
-    cors_allowed_origins=cors_origins,
+    cors_allowed_origins=['*'],  # すべてのオリジンを許可
     logger=True,
     engineio_logger=True,
     ping_timeout=60000,     # 60秒のping timeout
