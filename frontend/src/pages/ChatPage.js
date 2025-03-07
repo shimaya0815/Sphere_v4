@@ -93,13 +93,37 @@ const ChatContent = () => {
     }
   }, [messages]);
   
-  // Select first channel if none is selected and channels are loaded
+  // ページ読み込み時に必ずチャンネルを選択し、WebSocket接続を確立
   useEffect(() => {
-    if (!activeChannel && channels.length > 0) {
-      console.log('Auto-selecting first channel:', channels[0]);
-      selectChannel(channels[0]);
+    // チャンネルが読み込まれたら最初のチャンネルを選択
+    if (channels.length > 0) {
+      console.log('🔄 チャンネル自動選択:', channels[0]);
+      
+      // アクティブチャンネルがない場合は最初のチャンネルを選択
+      if (!activeChannel) {
+        console.log('📌 初回選択: アクティブチャンネルなし -> 最初のチャンネルを選択');
+        selectChannel(channels[0]);
+      }
+      
+      // 3秒後に強制的に再接続を試みる（UIの表示が完了した後）
+      setTimeout(() => {
+        console.log('🔄 接続状態確認:', isConnected ? '接続済み' : '未接続');
+        
+        if (!isConnected && activeChannel) {
+          console.log('🔌 WebSocket接続を再試行...');
+          handleReconnect();
+        } else if (!isConnected) {
+          console.log('🔌 アクティブチャンネルがないため、最初のチャンネルを強制選択');
+          selectChannel(channels[0]);
+          
+          // さらに500ms後に再接続
+          setTimeout(() => {
+            handleReconnect();
+          }, 500);
+        }
+      }, 3000);
     }
-  }, [channels, activeChannel, selectChannel]);
+  }, [channels, activeChannel, selectChannel, isConnected, handleReconnect]);
   
   // Focus input field when channel changes
   useEffect(() => {

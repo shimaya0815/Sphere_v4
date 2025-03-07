@@ -543,37 +543,77 @@ export const ChatProvider = ({ children }) => {
   // Load channels on initial mount and handle defaults if API fails
   useEffect(() => {
     if (currentUser) {
-      loadChannels().catch(err => {
-        console.error('Error loading channels from API, using default channels', err);
-        
-        // APIからのデータ取得に失敗した場合でもデフォルトチャンネルを表示
-        const defaultChannels = [
-          {
-            id: 1,
-            name: 'task',
-            workspace: { id: 1, name: 'Workspace' },
-            channel_type: 'public',
-            is_direct_message: false,
-            description: 'タスク関連の通知や議論のための共通チャンネルです',
-            unread_count: 0
-          },
-          {
-            id: 2,
-            name: 'general',
-            workspace: { id: 1, name: 'Workspace' },
-            channel_type: 'public',
-            is_direct_message: false,
-            description: '一般的な会話用チャンネルです',
-            unread_count: 0
-          }
-        ];
-        
-        setChannels(defaultChannels);
-        setDirectMessages([]);
-        setError(null);
-      });
+      console.log('🔄 チャンネル読み込み開始 - ユーザー:', currentUser);
+      
+      // 必ず表示するデフォルトチャンネル定義
+      const defaultChannels = [
+        {
+          id: 1,
+          name: 'task',
+          workspace: { id: 1, name: 'Workspace' },
+          channel_type: 'public',
+          is_direct_message: false,
+          description: 'タスク関連の通知や議論のための共通チャンネルです',
+          unread_count: 0
+        },
+        {
+          id: 2,
+          name: 'general',
+          workspace: { id: 1, name: 'Workspace' },
+          channel_type: 'public',
+          is_direct_message: false,
+          description: '一般的な会話用チャンネルです',
+          unread_count: 0
+        }
+      ];
+      
+      // 先にデフォルトチャンネルを設定して表示を確保
+      setChannels(defaultChannels);
+      console.log('📋 デフォルトチャンネル設定完了');
+      
+      // APIからのデータ取得を試みる
+      loadChannels()
+        .then(apiChannels => {
+          console.log('✅ APIからのチャンネル取得成功:', apiChannels);
+          // APIデータがない場合はデフォルトのままでOK
+        })
+        .catch(err => {
+          console.error('❌ APIチャンネル取得エラー、デフォルトチャンネルを維持:', err);
+          setError(null); // エラー表示はしない
+        });
     }
   }, [currentUser, loadChannels]);
+  
+  // チャンネル選択時に自動的にWebSocket接続を確立
+  const forceConnectToChannel = useCallback((channel) => {
+    if (!channel || !channel.id) {
+      console.warn('❌ 有効なチャンネルがありません');
+      return;
+    }
+    
+    console.log('🔌 チャンネル接続開始:', channel);
+    
+    // 強制的にWebSocket接続を確立
+    try {
+      // チャンネルを選択
+      selectChannel(channel);
+      
+      // WebSocket接続のためにタイマーを設定
+      setTimeout(() => {
+        try {
+          if (channel && channel.id) {
+            // useWebSocket.jsのconnect関数を直接呼び出す
+            connect();
+            console.log('🔄 WebSocket接続を強制的に試行:', channel.id);
+          }
+        } catch (err) {
+          console.error('❌ WebSocket接続試行エラー:', err);
+        }
+      }, 500);
+    } catch (err) {
+      console.error('❌ チャンネル選択エラー:', err);
+    }
+  }, [selectChannel, connect]);
   
   // デフォルトチャンネルの作成は不要
   // サインアップ時にバックエンドでtaskとgeneralのチャンネルが自動的に作成されるため
@@ -594,7 +634,9 @@ export const ChatProvider = ({ children }) => {
     createChannel,
     startDirectMessage,
     searchMessages,
-    handleReconnect
+    handleReconnect,
+    forceConnectToChannel, // 新しい関数を公開
+    connect // WebSocket接続関数も直接公開
   };
   
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
