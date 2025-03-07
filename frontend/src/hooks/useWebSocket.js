@@ -66,9 +66,13 @@ const useWebSocket = (url, options = {}) => {
     // 複数の接続方法を準備（優先度順）
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     
-    // 代替接続URLのリスト（優先順位順）
+    // 代替接続URLのリスト（優先順位順）- Docker環境用に最適化
     const directUrls = [
-      // 直接WebSocketサーバーに接続（開発環境用）- 優先
+      // host.docker.internalを使用 - Docker内からホストIPにアクセス
+      `${protocol}//host.docker.internal:8001/ws/${resourceType}/${channelId}/`,
+      // WebSocketサーバーのホスト名を直接指定（Docker内部ネットワーク用）
+      `${protocol}//websocket:8001/ws/${resourceType}/${channelId}/`,
+      // ループバックアドレスで試行（開発環境用）
       `${protocol}//localhost:8001/ws/${resourceType}/${channelId}/`,
       // IPアドレスで直接接続
       `${protocol}//127.0.0.1:8001/ws/${resourceType}/${channelId}/`
