@@ -414,26 +414,55 @@ export const ChatProvider = ({ children }) => {
    */
   const handleReconnect = useCallback(() => {
     try {
+      // リソース不足エラーが発生する可能性を考慮して
+      // 明示的な接続を最小限にする
+      
+      // 現在の接続状態をチェック
+      if (isConnected) {
+        console.log('既に接続済みのため再接続をスキップします');
+        return true;
+      }
+      
+      // 既に接続試行中かどうかをチェック
+      const reconnectCount = window._socketReconnectCount || 0;
+      window._socketReconnectCount = reconnectCount + 1;
+      
+      if (reconnectCount >= 3) {
+        console.log('接続試行回数が上限に達したため、再接続をスキップします');
+        
+        // ユーザーに通知
+        setError('チャットサーバーに接続できません。ページを再読み込みしてみてください。');
+        
+        // 10秒後にカウンターをリセット
+        setTimeout(() => {
+          window._socketReconnectCount = 0;
+        }, 10000);
+        
+        return false;
+      }
+      
       // 既存のSocket.IO接続を解除して再接続
       disconnect();
+      
+      // 短い遅延後に接続試行
       setTimeout(() => {
         connect();
+        
+        // アクティブチャンネルがある場合は再選択
+        if (activeChannel && isConnected) {
+          setTimeout(() => {
+            selectChannelSocket(activeChannel);
+          }, 1000);
+        }
       }, 300);
-      
-      // アクティブチャンネルがある場合は再選択
-      if (activeChannel) {
-        setTimeout(() => {
-          selectChannelSocket(activeChannel);
-        }, 1000);
-      }
       
       return true;
     } catch (err) {
       console.error('WebSocket再接続エラー:', err);
-      setError('WebSocket接続の再確立に失敗しました');
+      setError('チャットサーバーへの接続に失敗しました。ローカルメッセージのみ表示しています。');
       return false;
     }
-  }, [activeChannel, connect, disconnect, selectChannelSocket]);
+  }, [activeChannel, connect, disconnect, selectChannelSocket, isConnected]);
 
   // コンテキスト値
   const value = {

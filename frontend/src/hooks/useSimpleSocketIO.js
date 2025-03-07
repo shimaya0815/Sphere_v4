@@ -34,16 +34,17 @@ const useSimpleSocketIO = () => {
       // 接続カウンターをインクリメント
       connectCounter.current += 1;
       
-      // 新しいSocket.IOインスタンスを作成
+      // 新しいSocket.IOインスタンスを作成 - Pollingを優先
       let socketOptions = {
-        transports: ['websocket', 'polling'],
+        transports: ['polling', 'websocket'], // pollingを優先
         reconnection: true,
-        reconnectionAttempts: 10,
+        reconnectionAttempts: 5, // 回数を減らす
         reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-        timeout: 20000,
+        reconnectionDelayMax: 3000, // 最大遅延を短縮
+        timeout: 10000, // タイムアウトを短縮
         autoConnect: true,
-        forceNew: true
+        forceNew: true,
+        upgrade: false // WebSocketへのアップグレードを無効化
       };
       
       // URL形式に基づいてパスを設定
