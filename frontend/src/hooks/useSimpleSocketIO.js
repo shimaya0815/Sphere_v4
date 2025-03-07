@@ -22,9 +22,9 @@ const useSimpleSocketIO = () => {
     try {
       // 接続URLs (優先度順)
       const urls = [
-        '/socket.io', // プロキシ経由
-        window.location.protocol + '//' + window.location.hostname + ':8001', // 直接
-        'http://websocket:8001' // Docker内部
+        'http://localhost:8001', // 直接WebSocketサーバーへ
+        window.location.protocol + '//' + window.location.hostname + ':8001', // フルURL
+        '/socket.io' // プロキシ経由
       ];
       
       // 試す接続URL (最初のURLから開始)
@@ -35,16 +35,23 @@ const useSimpleSocketIO = () => {
       connectCounter.current += 1;
       
       // 新しいSocket.IOインスタンスを作成
-      const socketInstance = io(useUrl, {
+      const socketOptions = {
         transports: ['websocket', 'polling'],
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
         timeout: 20000,
         autoConnect: true,
-        forceNew: true,
-        path: '/socket.io/'
-      });
+        forceNew: true
+      };
+      
+      // localhost:8001 に直接接続する場合は path を設定しない
+      if (useUrl !== 'http://localhost:8001' && !useUrl.includes('localhost:8001')) {
+        socketOptions.path = '/socket.io/';
+      }
+      
+      console.log('Socket.IO options:', socketOptions);
+      const socketInstance = io(useUrl, socketOptions);
       
       // 接続イベント
       socketInstance.on('connect', () => {
