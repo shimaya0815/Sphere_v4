@@ -28,25 +28,15 @@ app.add_middleware(
 class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[int, List[WebSocket]] = {}
+        # デバッグ用の接続履歴
+        self.connection_history = []
 
     async def connect(self, websocket: WebSocket, channel_id: int):
-        try:
-            # ここでWebSocketの接続を受け入れる
-            await websocket.accept()
-            await asyncio.sleep(0.1)  # ハンドシェイク完了までの短い待機
-            
-            # チャンネルIDごとの接続リストを管理
-            if channel_id not in self.active_connections:
-                self.active_connections[channel_id] = []
-            
-            # このWebSocket接続をアクティブリストに追加
-            self.active_connections[channel_id].append(websocket)
-            
-            logger.info(f"Client connected to channel {channel_id}. Active connections: {len(self.active_connections[channel_id])}")
-            return True
-        except Exception as e:
-            logger.error(f"Error accepting connection: {str(e)}")
-            return False
+        """
+        この関数は直接使わない - 代わりにwebsocket_endpoint内で接続を管理
+        """
+        logger.warning("⚠️ connect method called directly - this is deprecated")
+        return False
 
     def disconnect(self, websocket: WebSocket, channel_id: int):
         try:
@@ -118,39 +108,57 @@ class TaskStatusNotification(BaseModel):
 
 @app.websocket("/ws/chat/{channel_id}/")
 async def websocket_endpoint(websocket: WebSocket, channel_id: int):
-    # WebSocketハンドシェイク前にオリジンをログに出力
+    # WebSocketハンドシェイク前にオリジンをログに出力（接続デバッグ用）
     client = f"{websocket.client.host}:{websocket.client.port}"
     headers = dict(websocket.headers)
     origin = headers.get('origin', 'unknown')
-    logger.info(f"WebSocket connection attempt from {client}, Origin: {origin}")
+    logger.info(f"⚡ WebSocket connection attempt from {client}, Origin: {origin}")
+    
+    # より詳細なリクエスト情報を出力
+    logger.info(f"⚡ Headers: {headers}")
+    logger.info(f"⚡ Connection attempt for channel: {channel_id}")
     
     # 接続を受け付ける（これによりハンドシェイクを完了させる）
     try:
-        connection_success = await manager.connect(websocket, channel_id)
+        # より安全な接続ロジック
+        try:
+            # 明示的なaccept呼び出し
+            await websocket.accept()
+            logger.info(f"✅ WebSocket connection accepted for channel {channel_id}")
+            
+            # 接続をマネージャーに登録
+            if channel_id not in manager.active_connections:
+                manager.active_connections[channel_id] = []
+            manager.active_connections[channel_id].append(websocket)
+            
+            logger.info(f"👥 Client connected to channel {channel_id}. Active connections: {len(manager.active_connections[channel_id])}")
+            connection_success = True
+        except Exception as accept_err:
+            logger.error(f"❌ Error accepting connection: {str(accept_err)}")
+            connection_success = False
+        
         if not connection_success:
-            logger.error(f"Failed to establish connection for channel {channel_id}")
+            logger.error(f"❌ Failed to establish connection for channel {channel_id}")
             return
         
-        logger.info(f"WebSocket connection successful for channel {channel_id}")
+        logger.info(f"✅ WebSocket connection successful for channel {channel_id}")
         
         # 接続確認メッセージを送信
         try:
+            # メッセージを小さなJSONオブジェクトに簡素化
             await websocket.send_json({
                 "type": "connection_established",
-                "data": {
-                    "message": "Connected to WebSocket server",
-                    "channel_id": channel_id,
-                    "timestamp": datetime.now().isoformat()
-                }
+                "message": "Connected to server",
+                "channel_id": channel_id
             })
-            logger.info(f"Welcome message sent to channel {channel_id}")
+            logger.info(f"📨 Welcome message sent to channel {channel_id}")
         except Exception as e:
-            logger.error(f"Error sending welcome message: {str(e)}")
+            logger.error(f"❌ Error sending welcome message: {str(e)}")
             # 接続に問題がある場合は早期終了
             try:
                 manager.disconnect(websocket, channel_id)
-            except:
-                pass
+            except Exception as disc_err:
+                logger.error(f"❌ Error during disconnect: {str(disc_err)}")
             return
         
         # メッセージ受信ループ
