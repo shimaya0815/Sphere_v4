@@ -2,7 +2,7 @@ from rest_framework import viewsets, permissions, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from django.db.models import Q, Count, Max, F, Prefetch
@@ -229,7 +229,10 @@ class MessageViewSet(viewsets.ModelViewSet):
     """ViewSet for chat messages."""
     queryset = Message.objects.all()
     permission_classes = [permissions.IsAuthenticated, IsSameBusiness]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    
+    # 1秒あたりのリクエスト制限を緩和
+    throttle_scope = 'chat'
     
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
