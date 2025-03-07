@@ -1,142 +1,100 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import chatApi from '../api/chat';
 import { useAuth } from './AuthContext';
-import useSocketIO from '../hooks/useSocketIO';
+import useChatSocket from '../hooks/useChatSocket';
 import toast from 'react-hot-toast';
 
+// チャットコンテキスト作成
 const ChatContext = createContext();
 
+/**
+ * チャットコンテキストプロバイダーコンポーネント
+ */
 export const ChatProvider = ({ children }) => {
   const { currentUser } = useAuth();
+  
+  // チャンネル関連の状態管理
   const [channels, setChannels] = useState([]);
   const [directMessages, setDirectMessages] = useState([]);
-  const [activeChannel, setActiveChannel] = useState(null);
-  const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
-  // Socket.IO connection with custom options
+  // Socket.IOを使用したチャット接続管理
   const {
     isConnected,
-    emit,
-    on,
+    activeChannel,
+    messages,
+    typingUsers,
+    selectChannel: selectChannelSocket,
+    sendMessage: sendMessageSocket,
+    sendTypingIndicator,
+    sendReadStatus,
     connect,
     disconnect
-  } = useSocketIO({
-    // 接続URLを明示的に指定して強制
-    socketUrl: 'http://localhost:8001',
-    
-    onConnect: (socket) => {
-      console.log('Connected to chat Socket.IO server');
-      
-      // Join active channel if exists
-      if (activeChannel && currentUser) {
-        joinChannel(activeChannel.id);
-      }
-    },
-    onDisconnect: (reason) => {
-      console.log(`Disconnected from chat Socket.IO server: ${reason}`);
-    },
-    onError: (err) => {
-      console.error('Chat Socket.IO error:', err);
-    },
-    onReconnect: () => {
-      console.log('Reconnected to chat Socket.IO server');
-      
-      // Rejoin active channel on reconnect
-      if (activeChannel && currentUser) {
-        joinChannel(activeChannel.id);
-      }
-    }
+  } = useChatSocket({
+    showNotifications: true,
+    debug: process.env.NODE_ENV === 'development'
   });
   
-  // Join a channel via Socket.IO
-  const joinChannel = useCallback((channelId) => {
-    if (!isConnected || !currentUser) return;
-    
-    console.log(`Joining channel ${channelId} via Socket.IO`);
-    
-    emit('join_channel', {
-      channel_id: channelId,
-      user_info: {
-        id: currentUser.id,
-        name: currentUser.get_full_name ? currentUser.get_full_name() : 'User',
-        email: currentUser.email
-      }
-    }, (response) => {
-      console.log('Join channel response:', response);
-    });
-  }, [isConnected, currentUser, emit]);
-  
-  // Leave a channel via Socket.IO
-  const leaveChannel = useCallback((channelId) => {
-    if (!isConnected) return;
-    
-    console.log(`Leaving channel ${channelId} via Socket.IO`);
-    
-    emit('leave_channel', {
-      channel_id: channelId
-    });
-  }, [isConnected, emit]);
-  
-  // Load channels for the current user's business
+  /**
+   * チャンネル一覧を読み込む
+   */
   const loadChannels = useCallback(async () => {
     if (!currentUser) return;
     
     setLoading(true);
+    
     try {
-      // APIからのデータ取得が失敗した場合のフォールバック
-      // バックエンドの最新状態に合わせたデフォルトチャンネル
+      // 最低限表示するデフォルトチャンネル
       const defaultChannels = [
         {
           id: 1,
+          name: 'general',
+          workspace: { id: 1, name: 'Workspace' },
+          channel_type: 'public',
+          is_direct_message: false,
+          description: '一般的な会話用チャンネルです',
+          unread_count: 0
+        },
+        {
+          id: 2,
           name: 'task',
           workspace: { id: 1, name: 'Workspace' },
           channel_type: 'public',
           is_direct_message: false,
           description: 'タスク関連の通知や議論のための共通チャンネルです',
           unread_count: 0
-        },
-        {
-          id: 2,
-          name: 'general',
-          workspace: { id: 1, name: 'Workspace' },
-          channel_type: 'public', 
-          is_direct_message: false,
-          description: '一般的な会話用チャンネルです',
-          unread_count: 0
         }
       ];
       
-      // 最初にデフォルトのチャンネルを設定
+      // まずデフォルトチャンネルを表示して、UIのレスポンス性を確保
       setChannels(defaultChannels);
       setDirectMessages([]);
       
       try {
-        // Try to load real channels from API
+        // APIからチャンネル一覧を取得
         const response = await chatApi.getUserChannels();
         
-        // Process and organize channels
+        // チャンネルとダイレクトメッセージを整理
         const allChannels = [];
         const allDirectMessages = [];
         
         response.forEach(workspace => {
           workspace.channels.forEach(channel => {
+            const enrichedChannel = {
+              ...channel,
+              workspace: workspace.workspace
+            };
+            
             if (channel.is_direct_message) {
-              allDirectMessages.push({
-                ...channel,
-                workspace: workspace.workspace
-              });
+              allDirectMessages.push(enrichedChannel);
             } else {
-              allChannels.push({
-                ...channel,
-                workspace: workspace.workspace
-              });
+              allChannels.push(enrichedChannel);
             }
           });
         });
         
-        // APIから取得したデータがある場合のみ更新
+        // 取得データがある場合のみ更新
         if (allChannels.length > 0) {
           setChannels(allChannels);
         }
@@ -147,39 +105,42 @@ export const ChatProvider = ({ children }) => {
         
         setError(null);
       } catch (apiErr) {
-        console.warn('Could not load real channels from API, using default channels:', apiErr);
-        // フォールバックとしてデフォルトチャンネルをそのまま使用
+        console.warn('APIからのチャンネル取得に失敗しました。デフォルトチャンネルを使用します。', apiErr);
+        // デフォルトチャンネルをそのまま使用
       }
     } catch (err) {
-      console.error('Error loading channels:', err);
+      console.error('チャンネル読み込みエラー:', err);
       setError('チャンネルの読み込み中にエラーが発生しました');
     } finally {
       setLoading(false);
     }
   }, [currentUser]);
   
-  // Load messages for a channel
+  /**
+   * チャンネルのメッセージを読み込む
+   * @param {number|string} channelId - チャンネルID
+   * @param {Object} options - 読み込みオプション
+   * @returns {Promise<Object>} 読み込み結果
+   */
   const loadMessages = useCallback(async (channelId, options = {}) => {
     if (!channelId) return;
     
     setLoading(true);
+    
     try {
+      // APIからメッセージ履歴を取得
       const response = await chatApi.getChannelMessages(channelId, options);
       
-      // If loading more messages (before_id is set), append to existing messages
-      // Otherwise replace all messages
       if (options.before_id) {
-        setMessages(prevMessages => [...response.results, ...prevMessages]);
+        // 過去メッセージを読み込む場合（ページング）
+        return response;
       } else {
-        setMessages(response.results || []);
+        return response;
       }
-      
-      setError(null);
-      return response;
     } catch (err) {
-      console.error('Error loading messages:', err);
+      console.error('メッセージ読み込みエラー:', err);
       
-      // Use mock data if API call fails
+      // APIエラー時のフォールバックメッセージ
       const mockMessages = [
         {
           id: 1,
@@ -193,98 +154,24 @@ export const ChatProvider = ({ children }) => {
         }
       ];
       
-      setMessages(mockMessages);
-      setError(null);
-      
       return { results: mockMessages, count: mockMessages.length };
     } finally {
       setLoading(false);
     }
   }, []);
   
-  // Set up Socket.IO event listeners
-  useEffect(() => {
-    if (!isConnected) return;
-    
-    // Handle incoming chat messages
-    const unsubscribeMessage = on('chat_message', (data) => {
-      console.log('Received chat message:', data);
-      
-      // Only process messages for the active channel
-      if (activeChannel && data.channel_id === activeChannel.id.toString()) {
-        const enhancedMessage = {
-          id: data.id,
-          content: data.content,
-          user: {
-            id: data.user.id,
-            full_name: data.user.name || 'Unknown User'
-          },
-          created_at: data.timestamp,
-          channel: parseInt(data.channel_id)
-        };
-        
-        setMessages(prevMessages => {
-          // Check if message already exists (avoid duplicates)
-          const exists = prevMessages.some(m => m.id === enhancedMessage.id);
-          if (exists) return prevMessages;
-          return [...prevMessages, enhancedMessage];
-        });
-      } else {
-        // If message is for another channel, increment unread count
-        setChannels(prevChannels => {
-          return prevChannels.map(ch => {
-            if (ch.id.toString() === data.channel_id) {
-              return {
-                ...ch,
-                unread_count: (ch.unread_count || 0) + 1
-              };
-            }
-            return ch;
-          });
-        });
-      }
-    });
-    
-    // Handle typing indicators
-    const unsubscribeTyping = on('typing', (data) => {
-      console.log('Typing indicator:', data);
-      // We could implement typing indicator UI here
-    });
-    
-    // Handle read status updates
-    const unsubscribeReadStatus = on('read_status', (data) => {
-      console.log('Read status update:', data);
-      // We could update read receipts UI here
-    });
-    
-    // Handle user joined notifications
-    const unsubscribeUserJoined = on('user_joined', (data) => {
-      console.log('User joined channel:', data);
-      // We could show a notification that a user joined
-    });
-    
-    // Clean up event listeners on unmount or when connection status changes
-    return () => {
-      unsubscribeMessage();
-      unsubscribeTyping();
-      unsubscribeReadStatus();
-      unsubscribeUserJoined();
-    };
-  }, [isConnected, on, activeChannel]);
-  
-  // Set active channel and load its messages
+  /**
+   * チャンネルを選択して表示する
+   * @param {Object} channel - チャンネルオブジェクト
+   */
   const selectChannel = useCallback(async (channel) => {
-    // Leave previous channel if exists
-    if (activeChannel && isConnected) {
-      leaveChannel(activeChannel.id);
-    }
+    if (!channel) return;
     
-    setActiveChannel(channel);
-    
-    if (channel) {
-      await loadMessages(channel.id);
+    try {
+      // Socket.IO経由でチャンネルを選択
+      await selectChannelSocket(channel);
       
-      // Reset unread count for this channel in the local state
+      // 未読カウントをリセット
       setChannels(prevChannels => {
         return prevChannels.map(ch => {
           if (ch.id === channel.id) {
@@ -294,97 +181,43 @@ export const ChatProvider = ({ children }) => {
         });
       });
       
-      // Join the new channel via Socket.IO
-      if (isConnected) {
-        joinChannel(channel.id);
-      }
-      
-      // Send API request to mark channel as read
+      // APIでチャンネルを既読としてマーク
       try {
         await chatApi.markChannelAsRead(channel.id);
-        
-        // Also notify other users through Socket.IO
-        if (isConnected) {
-          emit('read_status', {
-            channel_id: channel.id,
-            timestamp: new Date().toISOString()
-          });
-        } else {
-          console.warn('Socket.IO not connected, read status will not be broadcast in real-time');
-          
-          // Try to reconnect Socket.IO
-          connect();
-        }
       } catch (err) {
-        console.error("Failed to mark channel as read:", err);
+        console.error('チャンネル既読マークエラー:', err);
       }
+      
+      // 過去メッセージを読み込む
+      const messageHistory = await loadMessages(channel.id);
+      
+      return messageHistory;
+    } catch (err) {
+      console.error('チャンネル選択エラー:', err);
+      setError(`チャンネルの選択中にエラーが発生しました: ${err.message}`);
+      return null;
     }
-  }, [loadMessages, isConnected, activeChannel, joinChannel, leaveChannel, emit, connect]);
+  }, [selectChannelSocket, loadMessages]);
   
-  // Send a message to the current channel
+  /**
+   * メッセージを送信する
+   * @param {string} content - メッセージ内容
+   * @param {Object} options - 送信オプション
+   * @returns {Promise<Object>} 送信結果
+   */
   const sendMessage = useCallback(async (content, options = {}) => {
-    if (!activeChannel) return null;
-    
-    console.log('Sending message to channel:', activeChannel.id, content);
+    if (!content.trim() || !activeChannel) return null;
     
     const { files, parentMessageId, mentionedUserIds } = options;
     
     try {
-      // Create a unique timestamp-based ID for this message
-      const tempId = `temp-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      // Socket.IO経由でメッセージを送信
+      const socketResult = await sendMessageSocket(content);
       
-      // Create a message object for immediate display
-      const messageObj = {
-        id: tempId,
-        content,
-        channel: activeChannel.id,
-        user: {
-          id: currentUser?.id || 1,
-          full_name: currentUser?.get_full_name ? currentUser.get_full_name() : 'Current User',
-        },
-        created_at: new Date().toISOString(),
-        is_local: !isConnected, // Flag to indicate if this is a local-only message
-      };
-      
-      // Add the message to the UI immediately for better responsiveness
-      setMessages(prevMessages => {
-        const exists = prevMessages.some(m => m.id === messageObj.id);
-        if (exists) return prevMessages;
-        return [...prevMessages, messageObj];
-      });
-      
-      // Send via Socket.IO if connected
-      if (isConnected) {
-        emit('chat_message', {
-          channel_id: activeChannel.id,
-          content,
-          id: tempId
-        });
-      } else {
-        console.warn('Socket.IO not connected, message saved locally only');
-        
-        // Try to reconnect
-        connect();
-      }
-      
-      // Also save to API for persistence
-      try {
-        // Prepare message data for API
-        const messageData = {
-          content,
-          channel: activeChannel.id
-        };
-        
-        if (parentMessageId) {
-          messageData.parent_message = parentMessageId;
-        }
-        
-        if (mentionedUserIds && mentionedUserIds.length > 0) {
-          messageData.mentioned_user_ids = mentionedUserIds;
-        }
-        
-        if (files && files.length > 0) {
-          // For files, use FormData
+      // ファイルがある場合やAPIに永続化が必要な場合は、
+      // REST APIでもメッセージを送信
+      if (files && files.length > 0) {
+        try {
           const formData = new FormData();
           formData.append('channel', activeChannel.id);
           formData.append('content', content);
@@ -403,175 +236,198 @@ export const ChatProvider = ({ children }) => {
             formData.append('files', file);
           });
           
-          // Send API request but don't block UI
-          chatApi.createMessage(formData)
-            .then(response => {
-              console.log('Message saved to API:', response.data);
-            })
-            .catch(err => {
-              console.warn('Could not save message to API:', err);
-            });
-        } else {
-          // Regular JSON message - send but don't block UI
-          chatApi.createMessage(messageData)
-            .then(response => {
-              console.log('Message saved to API:', response.data);
-            })
-            .catch(err => {
-              console.warn('Could not save message to API:', err);
-            });
+          // APIでメッセージを保存
+          await chatApi.createMessage(formData);
+        } catch (apiErr) {
+          console.warn('APIでのメッセージ保存に失敗しましたが、Socket.IOでの送信は成功しました', apiErr);
         }
-      } catch (apiError) {
-        console.error('API Error when sending message:', apiError);
+      } else {
+        // 通常のテキストメッセージの場合
+        try {
+          const messageData = {
+            content,
+            channel: activeChannel.id
+          };
+          
+          if (parentMessageId) {
+            messageData.parent_message = parentMessageId;
+          }
+          
+          if (mentionedUserIds && mentionedUserIds.length > 0) {
+            messageData.mentioned_user_ids = mentionedUserIds;
+          }
+          
+          // APIでメッセージを保存
+          await chatApi.createMessage(messageData);
+        } catch (apiErr) {
+          console.warn('APIでのメッセージ保存に失敗しましたが、Socket.IOでの送信は成功しました', apiErr);
+        }
       }
       
-      return messageObj;
+      return socketResult;
     } catch (err) {
-      console.error('Error sending message:', err);
-      setError('Failed to send message');
+      console.error('メッセージ送信エラー:', err);
+      setError(`メッセージの送信中にエラーが発生しました: ${err.message}`);
       return null;
     }
-  }, [activeChannel, isConnected, currentUser, emit, connect]);
+  }, [activeChannel, sendMessageSocket]);
   
-  // Send typing indicator
-  const sendTypingIndicator = useCallback((isTyping = true) => {
-    if (!activeChannel || !isConnected) return;
-    
-    emit('typing_indicator', {
-      channel_id: activeChannel.id,
-      is_typing: isTyping
-    });
-  }, [activeChannel, isConnected, emit]);
-  
-  // Create a new channel
+  /**
+   * 新しいチャンネルを作成する
+   * @param {Object} channelData - チャンネル情報
+   * @returns {Promise<Object>} 作成結果
+   */
   const createChannel = useCallback(async (channelData) => {
     try {
+      // APIでチャンネルを作成
       const response = await chatApi.createChannel(channelData);
       
-      // Add the new channel to the list
-      setChannels(prevChannels => [...prevChannels, response.data]);
+      // チャンネル一覧に追加
+      setChannels(prev => [...prev, response.data]);
       
       return response.data;
     } catch (err) {
-      console.error('Error creating channel:', err);
-      setError('Failed to create channel');
+      console.error('チャンネル作成エラー:', err);
+      setError('チャンネルの作成に失敗しました');
       return null;
     }
   }, []);
   
-  // Start a direct message conversation
+  /**
+   * ダイレクトメッセージチャンネルを開始する
+   * @param {number|string} userId - 相手ユーザーID
+   * @returns {Promise<Object>} 作成結果
+   */
   const startDirectMessage = useCallback(async (userId) => {
     try {
+      // APIでダイレクトメッセージチャンネルを作成
       const response = await chatApi.createDirectMessageChannel(userId);
       
-      // Add to direct messages if not already there
-      setDirectMessages(prevDMs => {
-        const exists = prevDMs.some(dm => dm.id === response.data.id);
-        if (exists) return prevDMs;
-        return [...prevDMs, response.data];
+      // 既に存在しない場合のみ追加
+      setDirectMessages(prev => {
+        const exists = prev.some(dm => dm.id === response.data.id);
+        if (exists) return prev;
+        return [...prev, response.data];
       });
       
       return response.data;
     } catch (err) {
-      console.error('Error starting direct message:', err);
-      setError('Failed to start direct message conversation');
+      console.error('ダイレクトメッセージ開始エラー:', err);
+      setError('ダイレクトメッセージの開始に失敗しました');
       return null;
     }
   }, []);
   
-  // Search messages
+  /**
+   * メッセージを検索する
+   * @param {number|string} workspaceId - ワークスペースID
+   * @param {string} query - 検索キーワード
+   * @param {Object} options - 検索オプション
+   * @returns {Promise<Object>} 検索結果
+   */
   const searchMessages = useCallback(async (workspaceId, query, options = {}) => {
     try {
+      // APIでメッセージを検索
       const response = await chatApi.searchMessages(workspaceId, query, options);
       return response;
     } catch (err) {
-      console.error('Error searching messages:', err);
-      setError('Failed to search messages');
+      console.error('メッセージ検索エラー:', err);
+      setError('メッセージの検索に失敗しました');
       return { results: [], count: 0 };
     }
   }, []);
   
-  // Load channels on initial mount and when user changes
+  // ユーザー情報が変更されたときにチャンネル一覧を読み込む
   useEffect(() => {
     if (currentUser) {
-      console.log('🔄 チャンネル読み込み開始 - ユーザー:', currentUser);
-      
-      // 必ず表示するデフォルトチャンネル定義
-      const defaultChannels = [
-        {
-          id: 1,
-          name: 'task',
-          workspace: { id: 1, name: 'Workspace' },
-          channel_type: 'public',
-          is_direct_message: false,
-          description: 'タスク関連の通知や議論のための共通チャンネルです',
-          unread_count: 0
-        },
-        {
-          id: 2,
-          name: 'general',
-          workspace: { id: 1, name: 'Workspace' },
-          channel_type: 'public',
-          is_direct_message: false,
-          description: '一般的な会話用チャンネルです',
-          unread_count: 0
-        }
-      ];
-      
-      // 先にデフォルトチャンネルを設定して表示を確保
-      setChannels(defaultChannels);
-      console.log('📋 デフォルトチャンネル設定完了');
-      
-      // APIからのデータ取得を試みる
-      loadChannels()
-        .then(() => {
-          console.log('✅ APIからのチャンネル取得成功');
-        })
-        .catch(err => {
-          console.error('❌ APIチャンネル取得エラー、デフォルトチャンネルを維持:', err);
-          setError(null); // エラー表示はしない
-        });
+      loadChannels();
     }
   }, [currentUser, loadChannels]);
   
-  // Cleanup on unmount
+  // アクティブチャンネルが変更されたときに未読カウントを更新
   useEffect(() => {
-    return () => {
-      // Leave active channel
-      if (activeChannel && isConnected) {
-        leaveChannel(activeChannel.id);
+    if (!activeChannel) return;
+    
+    // メッセージが届いたとき、他のチャンネルの場合は未読カウントを増やす
+    const handleNewMessage = (message) => {
+      if (message.user && message.user.id !== currentUser?.id && 
+          String(message.channel_id) !== String(activeChannel.id)) {
+        
+        setChannels(prev => prev.map(channel => {
+          if (String(channel.id) === String(message.channel_id)) {
+            return {
+              ...channel,
+              unread_count: (channel.unread_count || 0) + 1
+            };
+          }
+          return channel;
+        }));
+        
+        setDirectMessages(prev => prev.map(dm => {
+          if (String(dm.id) === String(message.channel_id)) {
+            return {
+              ...dm,
+              unread_count: (dm.unread_count || 0) + 1
+            };
+          }
+          return dm;
+        }));
       }
-      
-      // Disconnect Socket.IO
-      disconnect();
     };
-  }, [activeChannel, isConnected, leaveChannel, disconnect]);
+    
+    // メッセージ受信時の未読カウント処理を設定
+    window.addEventListener('new-chat-message', (e) => handleNewMessage(e.detail));
+    
+    return () => {
+      window.removeEventListener('new-chat-message', (e) => handleNewMessage(e.detail));
+    };
+  }, [activeChannel, currentUser]);
   
+  // コンテキスト値
   const value = {
+    // チャンネル一覧
     channels,
     directMessages,
+    
+    // アクティブチャンネルと関連状態
     activeChannel,
     messages,
+    typingUsers,
+    
+    // 読み込み状態
     loading,
     error,
+    
+    // 接続状態
     isConnected,
+    
+    // チャンネル管理関数
     loadChannels,
     loadMessages,
     selectChannel,
-    sendMessage,
-    sendTypingIndicator,
     createChannel,
     startDirectMessage,
+    
+    // メッセージ関連関数
+    sendMessage,
+    sendTypingIndicator,
+    sendReadStatus,
     searchMessages,
-    connect
+    
+    // 接続管理関数
+    connect,
+    disconnect
   };
   
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 };
 
+/**
+ * チャットコンテキストを使用するためのフック
+ */
 export const useChat = () => {
   const context = useContext(ChatContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useChat must be used within a ChatProvider');
   }
   return context;
