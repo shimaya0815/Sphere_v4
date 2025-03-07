@@ -287,12 +287,21 @@ export const ChatProvider = ({ children }) => {
             設定するメッセージ数: messagesCopy.length
           });
           
-          // 明示的に空配列を設定してから新しいメッセージを設定 (強制的な更新)
+          // まず空配列で強制リセットし、確実にレンダリングが発生するようにする
           setMessages([]);
-          setTimeout(() => {
-            setMessages(messagesCopy);
-            console.log('メッセージが正常に設定されました:', messagesCopy.length);
-          }, 10);
+          
+          // 安全のためにstateの更新が反映されるのを待ってから次のメッセージをセット
+          // React 18以降のバッチ更新を考慮して、Promise/setTimeout両方を使用
+          await new Promise(resolve => {
+            setTimeout(() => {
+              // 別のsetTimeoutで次のフレームで実行するよう保証
+              setTimeout(() => {
+                setMessages(messagesCopy);
+                console.log('メッセージが正常に設定されました:', messagesCopy.length);
+                resolve();
+              }, 50);  // 少し長めの遅延を入れて確実に処理
+            }, 50);
+          });
         } catch (setErr) {
           console.error('メッセージリスト設定エラー:', setErr);
         }

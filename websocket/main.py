@@ -55,14 +55,14 @@ app.add_middleware(
 # Socket.IOサーバー作成 - タイムアウト問題解決のための設定
 sio = socketio.AsyncServer(
     async_mode='asgi',
-    cors_allowed_origins="*",  # すべてのオリジンを許可
+    cors_allowed_origins=allowed_origins,  # 明示的に許可されたオリジン
     logger=True,
     engineio_logger=True,
-    ping_timeout=45000,  # クライアントと同じ値に設定
-    ping_interval=30000,  # より長く
+    ping_timeout=20000,  # クライアントとより近い値に設定
+    ping_interval=25000,  # クライアントとバランスのとれた値
     max_http_buffer_size=500000,
     always_connect=True,
-    http_compression=False  # 処理の高速化
+    http_compression=True  # 必要に応じて圧縮を有効化
 )
 
 # ASGIアプリケーション作成
