@@ -38,16 +38,15 @@ def get_cors_origins():
     logger.info(f"Using default CORS origins: {default_origins}")
     return default_origins
 
-# Add CORS middleware with improved settings
+# Add CORS middleware with maximum permissiveness for development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=get_cors_origins(),
+    allow_origins=["*"],  # Allow all origins in development
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS", "DELETE", "PUT", "PATCH"],
-    allow_headers=["X-Requested-With", "X-HTTP-Method-Override", "Content-Type", 
-                  "Accept", "Authorization", "X-CSRF-Token"],
-    expose_headers=["Content-Disposition"],
-    max_age=600,  # 10分キャッシュ（オプション検証を減らす）
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
+    expose_headers=["*"],  # Expose all headers
+    max_age=86400,  # 24時間キャッシュ
 )
 
 # Create Socket.IO Server with enhanced settings
@@ -64,8 +63,15 @@ sio = socketio.AsyncServer(
     transports=['websocket', 'polling']
 )
 
-# Create the ASGI app
-socket_app = socketio.ASGIApp(sio, app)
+# Create the ASGI app with more explicit settings
+socket_app = socketio.ASGIApp(
+    sio,
+    app,
+    socketio_path='socket.io',
+    static_files={},
+    on_startup=lambda: print("Socket.IO server starting up"),
+    on_shutdown=lambda: print("Socket.IO server shutting down")
+)
 
 # Connection tracking dictionaries
 connected_clients = {}

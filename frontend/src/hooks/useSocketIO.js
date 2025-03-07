@@ -22,18 +22,13 @@ const useSocketIO = (options = {}) => {
   
   // Get the Socket.IO server URL based on environment
   const getSocketServer = useCallback(() => {
-    // Logging for debugging
-    console.log('Environment:', process.env.NODE_ENV);
-    console.log('Location:', window.location.hostname);
-    
-    // For Docker environment - direct connection
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      // Direct connection to Socket.IO server - this avoids proxy issues
+    // すべての可能な接続方法を試行
+    // ブラウザ環境では localhost に直接接続を試みる
+    if (typeof window !== 'undefined') {
+      console.log('Trying direct connection to localhost:8001');
       return 'http://localhost:8001';
     }
-    
-    // For production - use the current host with socket.io path
-    return window.location.origin;
+    return 'http://websocket:8001';
   }, []);
 
   // Connect to Socket.IO server
@@ -47,15 +42,17 @@ const useSocketIO = (options = {}) => {
     if (enableLogging) console.log(`🔄 Connecting to Socket.IO server: ${socketUrl}`);
     
     try {
-      // Create Socket.IO client with automatic reconnection
+      // 明示的なパス設定なしでSocket.IOクライアントを作成
+      // これによりデフォルトのSocket.IOパスが使用される
       const socketClient = io(socketUrl, {
-        transports: ['websocket', 'polling'],
+        transports: ['polling', 'websocket'], // pollingを優先して互換性を確保
         reconnection: true,
         reconnectionAttempts: reconnectAttempts,
         reconnectionDelay: reconnectInterval,
         reconnectionDelayMax: reconnectInterval * 5,
-        timeout: 20000,
+        timeout: 60000, // Longer timeout
         autoConnect: false, // We'll connect manually
+        forceNew: true, // Force a new connection
       });
       
       // Set up event listeners
