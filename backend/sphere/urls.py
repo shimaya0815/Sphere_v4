@@ -12,6 +12,7 @@ from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from users.views import BusinessAuthTokenView
+from users import views as users_views
 
 schema_view = get_schema_view(
     openapi.Info(
@@ -41,6 +42,8 @@ urlpatterns = [
     path('auth/', include('djoser.urls')),
     path('auth/token/login/', BusinessAuthTokenView.as_view(), name='login-with-business-alt'),
     path('auth/', include('djoser.urls.authtoken')),
+    # Override user registration endpoint
+    path('auth/users/', users_views.UserCreateView.as_view(), name='user-create'),
     
     # API endpoints with /api prefix
     path('api/users/', include('users.urls')),
