@@ -18,18 +18,22 @@ const useSocketIO = (options = {}) => {
     onError,
     onReconnect,
     enableLogging = process.env.NODE_ENV === 'development',
+    // 明示的にURLを設定できるようにする
+    socketUrl = null
   } = options;
   
-  // Get the Socket.IO server URL based on environment
+  // Get the Socket.IO server URL based on environment or use provided URL
   const getSocketServer = useCallback(() => {
-    // すべての可能な接続方法を試行
-    // ブラウザ環境では localhost に直接接続を試みる
-    if (typeof window !== 'undefined') {
-      console.log('Trying direct connection to localhost:8001');
-      return 'http://localhost:8001';
+    // 明示的に指定されたURLを優先
+    if (socketUrl) {
+      console.log(`Using explicitly provided Socket.IO URL: ${socketUrl}`);
+      return socketUrl;
     }
-    return 'http://websocket:8001';
-  }, []);
+    
+    // デフォルト: localhostに直接接続
+    console.log('Using default Socket.IO URL: http://localhost:8001');
+    return 'http://localhost:8001';
+  }, [socketUrl]);
 
   // Connect to Socket.IO server
   const connect = useCallback(() => {
