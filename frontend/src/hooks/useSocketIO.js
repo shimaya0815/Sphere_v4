@@ -251,15 +251,28 @@ const useSocketIO = (options = {}) => {
   
   // 自動接続が有効な場合、コンポーネントマウント時に接続
   useEffect(() => {
-    if (autoConnect) {
-      connect();
+    let mounted = true;
+    
+    if (autoConnect && mounted) {
+      // 少し遅延を入れて接続することで、
+      // 短時間での接続/切断サイクルを防止
+      const timer = setTimeout(() => {
+        if (mounted) {
+          connect();
+        }
+      }, 100);
+      
+      return () => {
+        mounted = false;
+        clearTimeout(timer);
+        // 切断処理は行わない - Socket.IOのクリーンアップに任せる
+      };
     }
     
-    // クリーンアップ時に切断
     return () => {
-      disconnect();
+      mounted = false;
     };
-  }, [autoConnect, connect, disconnect]);
+  }, [autoConnect, connect]);
   
   // 公開インターフェース
   return {

@@ -168,9 +168,6 @@ export const ChatProvider = ({ children }) => {
     if (!channel) return;
     
     try {
-      // Socket.IO経由でチャンネルを選択
-      await selectChannelSocket(channel);
-      
       // 未読カウントをリセット
       setChannels(prevChannels => {
         return prevChannels.map(ch => {
@@ -190,6 +187,15 @@ export const ChatProvider = ({ children }) => {
       
       // 過去メッセージを読み込む
       const messageHistory = await loadMessages(channel.id);
+      
+      // Socket.IO経由でチャンネルを選択（API処理の後に行う）
+      // エラーが発生してもメッセージは表示できるようにする
+      try {
+        await selectChannelSocket(channel);
+      } catch (socketErr) {
+        console.error('Socket.IO経由のチャンネル選択エラー:', socketErr);
+        // エラーは表示しない（メッセージ表示を優先）
+      }
       
       return messageHistory;
     } catch (err) {
