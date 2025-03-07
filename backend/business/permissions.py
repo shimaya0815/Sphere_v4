@@ -42,10 +42,22 @@ class IsSameBusiness(permissions.BasePermission):
         if hasattr(obj, 'business'):
             return obj.business == request.user.business
         
+        # Handle Channel objects which have workspace relationship to business
+        if hasattr(obj, 'workspace') and hasattr(obj.workspace, 'business'):
+            return obj.workspace.business == request.user.business
+        
         # Handle objects that relate to a business through a foreign key
-        for attr in ['task', 'client']:
-            if hasattr(obj, attr) and hasattr(getattr(obj, attr), 'business'):
-                return getattr(obj, attr).business == request.user.business
+        for attr in ['task', 'client', 'channel', 'workspace']:
+            if hasattr(obj, attr):
+                attr_obj = getattr(obj, attr)
+                
+                # Check direct business relationship
+                if hasattr(attr_obj, 'business'):
+                    return attr_obj.business == request.user.business
+                
+                # Check nested workspace->business relationship for channel
+                if attr == 'channel' and hasattr(attr_obj, 'workspace') and hasattr(attr_obj.workspace, 'business'):
+                    return attr_obj.workspace.business == request.user.business
         
         # Default deny if we can't determine the business
         return False
