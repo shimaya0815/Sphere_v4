@@ -16,13 +16,27 @@ const FiscalYearManagement = ({ clientId }) => {
   const modalContainerRef = useRef(null);
   
   useEffect(() => {
+    console.log('FiscalYearManagement mounted or clientId changed:', clientId);
     fetchFiscalYears();
   }, [clientId]);
   
+  // モーダルが閉じられた後に再度データを取得するためのポーリングメカニズム
+  useEffect(() => {
+    // showFormが false (モーダルが閉じられた) になった時にデータを再取得
+    if (!showForm) {
+      console.log('Modal closed, refetching data...');
+      setTimeout(() => {
+        fetchFiscalYears();
+      }, 300);
+    }
+  }, [showForm]);
+  
   const fetchFiscalYears = async () => {
+    console.log('Fetching fiscal years for client:', clientId);
     setLoading(true);
     try {
       const data = await clientsApi.getFiscalYears(clientId);
+      console.log('Fiscal years fetched:', data);
       setFiscalYears(data);
       setError(null);
     } catch (error) {
@@ -50,7 +64,11 @@ const FiscalYearManagement = ({ clientId }) => {
   };
   
   const handleFormSuccess = () => {
-    fetchFiscalYears();
+    console.log('Form success callback triggered');
+    setTimeout(() => {
+      console.log('Fetching fiscal years after form success');
+      fetchFiscalYears();
+    }, 800); // データが更新される時間を確保するために少し遅延を入れる
   };
   
   const handleSetCurrentFiscalYear = async (fiscalYear) => {
