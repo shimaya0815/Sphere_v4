@@ -35,7 +35,7 @@ const ClientDetail = ({ id, client: initialClient }) => {
   const [checkSettings, setCheckSettings] = useState([]);
   const [loading, setLoading] = useState(!initialClient);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('basic');
+  const [activeTab, setActiveTab] = useState('overview');
   const [showFiscalYearForm, setShowFiscalYearForm] = useState(false);
   const [showCheckSettingForm, setShowCheckSettingForm] = useState(false);
   const [editingFiscalYear, setEditingFiscalYear] = useState(null);
@@ -182,10 +182,34 @@ const ClientDetail = ({ id, client: initialClient }) => {
       
       <div className="tabs tabs-boxed mb-6">
         <button 
-          className={`tab ${activeTab === 'basic' ? 'tab-active' : ''}`}
-          onClick={() => setActiveTab('basic')}
+          className={`tab ${activeTab === 'overview' ? 'tab-active' : ''}`}
+          onClick={() => setActiveTab('overview')}
         >
           基本情報
+        </button>
+        <button 
+          className={`tab ${activeTab === 'corporate' ? 'tab-active' : ''}`}
+          onClick={() => setActiveTab('corporate')}
+        >
+          法人情報
+        </button>
+        <button 
+          className={`tab ${activeTab === 'address' ? 'tab-active' : ''}`}
+          onClick={() => setActiveTab('address')}
+        >
+          住所情報
+        </button>
+        <button 
+          className={`tab ${activeTab === 'tax' ? 'tab-active' : ''}`}
+          onClick={() => setActiveTab('tax')}
+        >
+          税務情報
+        </button>
+        <button 
+          className={`tab ${activeTab === 'salary' ? 'tab-active' : ''}`}
+          onClick={() => setActiveTab('salary')}
+        >
+          給与情報
         </button>
         <button 
           className={`tab ${activeTab === 'fiscal' ? 'tab-active' : ''}`}
@@ -207,20 +231,36 @@ const ClientDetail = ({ id, client: initialClient }) => {
         </button>
       </div>
       
-      {activeTab === 'basic' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {activeTab === 'overview' && (
+        <div className="w-full max-w-3xl mx-auto">
           {/* 基本情報カード */}
           <ClientBasicInfoCard client={client} />
-          
+        </div>
+      )}
+      
+      {activeTab === 'corporate' && (
+        <div className="w-full max-w-3xl mx-auto">
           {/* 法人情報カード */}
           <ClientCorporateInfoCard client={client} />
-          
+        </div>
+      )}
+      
+      {activeTab === 'address' && (
+        <div className="w-full max-w-3xl mx-auto">
           {/* 住所情報カード */}
           <ClientAddressCard client={client} />
-          
+        </div>
+      )}
+      
+      {activeTab === 'tax' && (
+        <div className="w-full max-w-3xl mx-auto">
           {/* 税務情報カード */}
           <ClientTaxInfoCard client={client} />
-          
+        </div>
+      )}
+      
+      {activeTab === 'salary' && (
+        <div className="w-full max-w-3xl mx-auto">
           {/* 給与情報カード */}
           <ClientSalaryInfoCard client={client} />
         </div>
