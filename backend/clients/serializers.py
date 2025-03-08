@@ -160,6 +160,7 @@ class TaxRuleHistorySerializer(serializers.ModelSerializer):
     tax_type_display = serializers.SerializerMethodField()
     rule_type_display = serializers.SerializerMethodField()
     is_current = serializers.SerializerMethodField()
+    end_date = serializers.DateField(required=False, allow_null=True)
     
     class Meta:
         model = TaxRuleHistory

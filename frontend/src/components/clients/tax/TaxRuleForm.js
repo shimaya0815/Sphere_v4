@@ -72,6 +72,11 @@ const TaxRuleForm = ({ clientId, taxRule = null, taxType = 'income', onClose, on
       client: Number(clientId)
     };
     
+    // 終了日が空の場合は、nullに設定
+    if (submitData.end_date === '') {
+      submitData.end_date = null;
+    }
+    
     console.log('TaxRule submit data:', submitData);
     
     try {
@@ -217,7 +222,7 @@ const TaxRuleForm = ({ clientId, taxRule = null, taxType = 'income', onClose, on
           
           <div>
             <label htmlFor="end_date" className="block text-sm font-medium text-gray-700 mb-1">
-              終了日 <span className="text-gray-400">(空白の場合は無期限)</span>
+              終了日 <span className="text-gray-400">(空白の場合は現在まで適用)</span>
             </label>
             <div className="flex">
               <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
@@ -227,10 +232,14 @@ const TaxRuleForm = ({ clientId, taxRule = null, taxType = 'income', onClose, on
                 type="date"
                 id="end_date"
                 name="end_date"
-                value={formData.end_date}
+                value={formData.end_date || ''}
                 onChange={handleChange}
                 className="input input-bordered rounded-l-none w-full"
+                placeholder="未入力で現在まで適用"
               />
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              終了日を入力しない場合、現在も適用中のルールとして扱われます
             </div>
           </div>
           
