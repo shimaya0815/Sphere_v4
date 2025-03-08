@@ -79,29 +79,8 @@ class Client(models.Model):
     fiscal_year = models.PositiveIntegerField(_('決算期（期）'), null=True, blank=True)
     fiscal_date = models.DateField(_('決算日'), null=True, blank=True)
     
-    # タスクテンプレート設定
-    TEMPLATE_USAGE_CHOICES = (
-        ('enabled', _('テンプレート使用する')),
-        ('disabled', _('テンプレート使用しない')),
-    )
-    task_template_usage = models.CharField(
-        _('タスクテンプレート使用設定'), 
-        max_length=20, 
-        choices=TEMPLATE_USAGE_CHOICES, 
-        default='enabled'
-    )
-    
-    TEMPLATE_TYPE_CHOICES = (
-        ('default', _('デフォルトテンプレートを使用')),
-        ('custom', _('カスタマイズしたテンプレートを使用')),
-        ('none', _('テンプレートを使用しない（手動作成のみ）')),
-    )
-    task_template_type = models.CharField(
-        _('使用するテンプレートタイプ'), 
-        max_length=20, 
-        choices=TEMPLATE_TYPE_CHOICES, 
-        default='default'
-    )
+    # タスクテンプレート設定は削除
+    # 以前は task_template_usage と task_template_type フィールドがここにありました
     
     # Metadata
     created_at = models.DateTimeField(_('created at'), auto_now_add=True)
@@ -129,14 +108,13 @@ class Client(models.Model):
         """
         from tasks.models import Task
         
-        # Skip if templates are disabled for this client
-        if self.task_template_usage == 'disabled' or self.task_template_type == 'none':
-            return []
-            
         created_tasks = []
         
-        # Get templates to apply
-        if self.task_template_type == 'default':
+        # Get client templates that are active
+        client_templates = self.task_templates.filter(is_active=True)
+        
+        # If no client-specific templates, use default templates
+        if not client_templates.exists():
             # Use business-wide default templates
             templates = Task.objects.filter(
                 business=self.business,
@@ -160,11 +138,8 @@ class Client(models.Model):
                 )
                 task = client_template.create_task(fiscal_year=fiscal_year)
                 created_tasks.append(task)
-                
-        elif self.task_template_type == 'custom':
+        else:
             # Use client's custom templates
-            client_templates = self.task_templates.filter(is_active=True)
-            
             for client_template in client_templates:
                 task = client_template.create_task(fiscal_year=fiscal_year)
                 created_tasks.append(task)
@@ -181,10 +156,6 @@ class Client(models.Model):
         """
         from tasks.models import Task
         
-        # Skip if templates are disabled
-        if self.task_template_usage == 'disabled':
-            return []
-            
         # Get default templates from business
         default_templates = Task.objects.filter(
             business=self.business, 

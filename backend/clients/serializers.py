@@ -18,8 +18,6 @@ class ClientSerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source='user.get_full_name', read_only=True)
     contract_status_display = serializers.SerializerMethodField()
     corporate_individual_display = serializers.SerializerMethodField()
-    task_template_usage_display = serializers.SerializerMethodField()
-    task_template_type_display = serializers.SerializerMethodField()
     
     class Meta:
         model = Client
@@ -31,8 +29,6 @@ class ClientSerializer(serializers.ModelSerializer):
             'tax_taxpayer_confirmation_number', 'tax_invoice_no', 'tax_invoice_registration_date',
             'salary_closing_day', 'salary_payment_month', 'salary_payment_day',
             'attendance_management_software', 'fiscal_year', 'fiscal_date',
-            'task_template_usage', 'task_template_usage_display',
-            'task_template_type', 'task_template_type_display',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['business', 'created_at', 'updated_at']
@@ -42,12 +38,6 @@ class ClientSerializer(serializers.ModelSerializer):
     
     def get_corporate_individual_display(self, obj):
         return dict(Client.ENTITY_CHOICES).get(obj.corporate_individual, '')
-        
-    def get_task_template_usage_display(self, obj):
-        return dict(Client.TEMPLATE_USAGE_CHOICES).get(obj.task_template_usage, '')
-        
-    def get_task_template_type_display(self, obj):
-        return dict(Client.TEMPLATE_TYPE_CHOICES).get(obj.task_template_type, '')
     
     def validate_client_code(self, value):
         """
