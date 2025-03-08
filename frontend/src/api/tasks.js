@@ -161,6 +161,21 @@ const tasksApi = {
     }
   },
   
+  // ファイル添付ありのコメント追加
+  addCommentWithFiles: async (taskId, formData) => {
+    try {
+      const response = await apiClient.post('/api/tasks/comments/', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error adding comment with files:', error);
+      throw error;
+    }
+  },
+  
   // タスクコメントを削除
   deleteComment: async (commentId) => {
     try {
