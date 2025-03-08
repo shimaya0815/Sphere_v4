@@ -66,7 +66,6 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
     fiscal_year: '',
     fiscal_date: '',
     contract_status: 'active',
-    some_task_flag: false,
     user: null
   });
   
@@ -489,24 +488,6 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
                 </div>
               </div>
 
-              <div>
-                <label htmlFor="some_task_flag" className="block text-sm font-medium text-gray-700 mb-1">
-                  タスク設定フラグ
-                </label>
-                <div className="form-control">
-                  <label className="label cursor-pointer">
-                    <input
-                      type="checkbox"
-                      id="some_task_flag"
-                      name="some_task_flag"
-                      checked={formData.some_task_flag}
-                      onChange={(e) => setFormData({...formData, some_task_flag: e.target.checked})}
-                      className="checkbox"
-                    />
-                    <span className="label-text ml-2">タスク設定を有効にする</span>
-                  </label>
-                </div>
-              </div>
             </div>
           </div>
         </div>
