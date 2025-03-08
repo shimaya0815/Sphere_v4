@@ -39,9 +39,8 @@ const FiscalYearForm = ({ clientId, fiscalYear = null, onClose, onSuccess }) => 
     });
   };
   
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleSubmit = async () => {
+    // フォーム要素を使わないように変更したため、イベントオブジェクトはなし
     
     if (!formData.fiscal_period) {
       toast.error('決算期は必須です');
@@ -160,7 +159,7 @@ const FiscalYearForm = ({ clientId, fiscalYear = null, onClose, onSuccess }) => 
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} noValidate>
+        <div className="fiscal-year-form-container">
           <div className="space-y-4">
             <div>
               <label htmlFor="fiscal_period" className="block text-sm font-medium text-gray-700 mb-1">
@@ -274,15 +273,12 @@ const FiscalYearForm = ({ clientId, fiscalYear = null, onClose, onSuccess }) => 
               キャンセル
             </button>
             <button
-              type="submit"
+              type="button"
               className="btn btn-primary"
               disabled={loading}
-              onClick={(e) => {
-                // submit時にフォームデータのURLへの反映を防止
-                if (loading) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  return false;
+              onClick={() => {
+                if (!loading) {
+                  handleSubmit();
                 }
               }}
             >
@@ -296,7 +292,7 @@ const FiscalYearForm = ({ clientId, fiscalYear = null, onClose, onSuccess }) => 
               )}
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
