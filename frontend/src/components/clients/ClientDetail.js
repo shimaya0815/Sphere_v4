@@ -7,6 +7,7 @@ import CheckSettingForm from './CheckSettingForm';
 import FiscalYearTimeline from './FiscalYearTimeline';
 import FiscalYearTaskGenerator from './FiscalYearTaskGenerator';
 import FiscalYearManagement from './FiscalYearManagement';
+import ClientTaskTemplateSettings from './ClientTaskTemplateSettings';
 import { 
   HiOutlineOfficeBuilding, 
   HiOutlinePhone, 
@@ -22,7 +23,8 @@ import {
   HiOutlinePlus,
   HiOutlineChevronDown,
   HiOutlineChevronUp,
-  HiOutlineBriefcase
+  HiOutlineBriefcase,
+  HiOutlineTemplate
 } from 'react-icons/hi';
 
 const ClientDetail = ({ id, client: initialClient }) => {
@@ -197,6 +199,12 @@ const ClientDetail = ({ id, client: initialClient }) => {
         >
           業務チェック設定
         </button>
+        <button 
+          className={`tab ${activeTab === 'templates' ? 'tab-active' : ''}`}
+          onClick={() => setActiveTab('templates')}
+        >
+          タスクテンプレート
+        </button>
       </div>
       
       {activeTab === 'basic' && (
@@ -300,6 +308,13 @@ const ClientDetail = ({ id, client: initialClient }) => {
         </div>
       )}
       
+      {activeTab === 'templates' && (
+        <ClientTaskTemplateSettings 
+          clientId={id} 
+          client={client}
+        />
+      )}
+      
       {/* モーダルフォーム */}
       {showFiscalYearForm && (
         <FiscalYearForm 
@@ -378,11 +393,17 @@ const ClientBasicInfoCard = ({ client }) => {
               <td className="py-2">{client.email || '-'}</td>
             </tr>
             <tr>
-              <td className="py-2 text-sm font-medium text-gray-500">タスク設定</td>
+              <td className="py-2 text-sm font-medium text-gray-500">タスクテンプレート</td>
               <td className="py-2">
-                {client.some_task_flag ? 
+                {client.task_template_usage === 'enabled' ? 
                   <span className="badge badge-success">有効</span> : 
                   <span className="badge badge-ghost">無効</span>}
+                {client.task_template_usage === 'enabled' && (
+                  <span className="ml-2 text-xs">
+                    ({client.task_template_type === 'default' ? 'デフォルト' : 
+                      client.task_template_type === 'custom' ? 'カスタム' : '手動作成のみ'})
+                  </span>
+                )}
               </td>
             </tr>
           </tbody>
