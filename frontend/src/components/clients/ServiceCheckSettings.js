@@ -67,12 +67,9 @@ const ServiceCheckSettings = ({ clientId }) => {
       // クライアントチェック設定の取得
       const checkSettings = await clientsApi.getCheckSettings(clientId);
       
-      // クライアント情報の取得（テンプレート使用設定）
-      const clientData = await clientsApi.getClient(clientId);
-      
       // 取得したデータを設定オブジェクトにマッピング
       const newSettings = {
-        templates_enabled: clientData.task_template_usage === 'enabled',
+        templates_enabled: true, // デフォルトで有効
         ...settings
       };
       
@@ -164,11 +161,6 @@ const ServiceCheckSettings = ({ clientId }) => {
     setSaving(true);
     
     try {
-      // クライアントのテンプレート使用設定を更新
-      await clientsApi.updateClient(clientId, {
-        task_template_usage: settings.templates_enabled ? 'enabled' : 'disabled'
-      });
-      
       // 各サービスのチェック設定を更新
       const services = [
         { key: 'monthly_check', type: 'monthly' },
