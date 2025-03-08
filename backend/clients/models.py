@@ -2,6 +2,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.utils import timezone
 
 User = get_user_model()
 
@@ -290,6 +291,92 @@ class FiscalYear(models.Model):
         # for this client are marked as current
         if self.is_current:
             FiscalYear.objects.filter(client=self.client, is_current=True).exclude(pk=self.pk).update(is_current=False)
+        super().save(*args, **kwargs)
+
+
+class TaxRuleHistory(models.Model):
+    """源泉所得税・住民税のルール履歴を管理するモデル"""
+    
+    client = models.ForeignKey(
+        Client,
+        on_delete=models.CASCADE,
+        related_name='tax_rule_histories'
+    )
+    
+    # 税の種類
+    TAX_TYPE_CHOICES = (
+        ('income', _('源泉所得税')),
+        ('residence', _('住民税')),
+    )
+    tax_type = models.CharField(_('税種別'), max_length=20, choices=TAX_TYPE_CHOICES)
+    
+    # ルールの種類
+    RULE_TYPE_CHOICES = (
+        ('principle', _('原則')),
+        ('exception', _('特例')),
+    )
+    rule_type = models.CharField(_('ルール種別'), max_length=20, choices=RULE_TYPE_CHOICES)
+    
+    # 適用期間
+    start_date = models.DateField(_('開始日'))
+    end_date = models.DateField(_('終了日'), null=True, blank=True)
+    
+    # 備考
+    description = models.TextField(_('備考'), blank=True)
+    
+    # メタデータ
+    created_at = models.DateTimeField(_('作成日時'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('更新日時'), auto_now=True)
+    
+    class Meta:
+        verbose_name = _('税ルール履歴')
+        verbose_name_plural = _('税ルール履歴')
+        ordering = ['-start_date']
+        unique_together = ('client', 'tax_type', 'start_date')
+    
+    def __str__(self):
+        rule_type_display = dict(self.RULE_TYPE_CHOICES).get(self.rule_type)
+        tax_type_display = dict(self.TAX_TYPE_CHOICES).get(self.tax_type)
+        return f"{self.client.name} - {tax_type_display} ({rule_type_display}) {self.start_date}"
+    
+    def is_current(self):
+        """現在適用されているルールかどうかを判定"""
+        today = timezone.now().date()
+        return self.start_date <= today and (self.end_date is None or self.end_date >= today)
+    
+    def save(self, *args, **kwargs):
+        """
+        重複期間を回避するために、保存前に同一クライアント・税種別の他のルールの期間を調整
+        """
+        # 終了日が指定されていない場合は無期限と見なす
+        if not self.end_date:
+            # 将来の別ルールの開始日の前日を終了日とする
+            future_rules = TaxRuleHistory.objects.filter(
+                client=self.client,
+                tax_type=self.tax_type,
+                start_date__gt=self.start_date
+            ).order_by('start_date')
+            
+            if future_rules.exists() and not self.pk:
+                future_rule = future_rules.first()
+                # 開始日の前日を終了日とする
+                from datetime import timedelta
+                self.end_date = future_rule.start_date - timedelta(days=1)
+        
+        # 同じクライアント・税種別で期間が重複する既存のルールを調整
+        existing_rules = TaxRuleHistory.objects.filter(
+            client=self.client,
+            tax_type=self.tax_type
+        ).exclude(pk=self.pk)
+        
+        for rule in existing_rules:
+            # この新しいルールが既存のルールの期間内に開始する場合
+            if rule.start_date <= self.start_date and (rule.end_date is None or rule.end_date >= self.start_date):
+                # 既存ルールの終了日を新ルールの開始日の前日に設定
+                from datetime import timedelta
+                rule.end_date = self.start_date - timedelta(days=1)
+                rule.save()
+        
         super().save(*args, **kwargs)
 
 
