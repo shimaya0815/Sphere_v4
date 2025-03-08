@@ -78,8 +78,29 @@ class Client(models.Model):
     fiscal_year = models.PositiveIntegerField(_('決算期（期）'), null=True, blank=True)
     fiscal_date = models.DateField(_('決算日'), null=True, blank=True)
     
-    # タスク設定
-    some_task_flag = models.BooleanField(_('タスク設定フラグ'), default=False)
+    # タスクテンプレート設定
+    TEMPLATE_USAGE_CHOICES = (
+        ('enabled', _('テンプレート使用する')),
+        ('disabled', _('テンプレート使用しない')),
+    )
+    task_template_usage = models.CharField(
+        _('タスクテンプレート使用設定'), 
+        max_length=20, 
+        choices=TEMPLATE_USAGE_CHOICES, 
+        default='enabled'
+    )
+    
+    TEMPLATE_TYPE_CHOICES = (
+        ('default', _('デフォルトテンプレートを使用')),
+        ('custom', _('カスタマイズしたテンプレートを使用')),
+        ('none', _('テンプレートを使用しない（手動作成のみ）')),
+    )
+    task_template_type = models.CharField(
+        _('使用するテンプレートタイプ'), 
+        max_length=20, 
+        choices=TEMPLATE_TYPE_CHOICES, 
+        default='default'
+    )
     
     # Metadata
     created_at = models.DateTimeField(_('created at'), auto_now_add=True)
@@ -93,6 +114,107 @@ class Client(models.Model):
     
     def __str__(self):
         return self.name
+        
+    def apply_default_templates(self, fiscal_year=None):
+        """
+        Apply default templates to this client.
+        This creates tasks based on default templates (templates marked as default).
+        
+        Args:
+            fiscal_year: Optional FiscalYear object. If provided, fiscal-related templates will use this.
+            
+        Returns:
+            List of tasks created
+        """
+        from tasks.models import Task
+        
+        # Skip if templates are disabled for this client
+        if self.task_template_usage == 'disabled' or self.task_template_type == 'none':
+            return []
+            
+        created_tasks = []
+        
+        # Get templates to apply
+        if self.task_template_type == 'default':
+            # Use business-wide default templates
+            templates = Task.objects.filter(
+                business=self.business,
+                is_template=True
+            ).exclude(
+                client_templates__client=self  # Exclude those already customized by this client
+            )
+            
+            # Create default client templates from business templates
+            for template in templates:
+                client_template = ClientTaskTemplate.objects.create(
+                    client=self,
+                    template=template,
+                    title=template.title,
+                    description=template.description,
+                    deadline_type='calendar_days',
+                    deadline_value=30,  # Default 30 days
+                    category=template.category,
+                    priority=template.priority,
+                    estimated_hours=template.estimated_hours
+                )
+                task = client_template.create_task(fiscal_year=fiscal_year)
+                created_tasks.append(task)
+                
+        elif self.task_template_type == 'custom':
+            # Use client's custom templates
+            client_templates = self.task_templates.filter(is_active=True)
+            
+            for client_template in client_templates:
+                task = client_template.create_task(fiscal_year=fiscal_year)
+                created_tasks.append(task)
+                
+        return created_tasks
+        
+    def copy_default_templates(self):
+        """
+        Copy default templates to client custom templates.
+        This allows the client to customize the templates.
+        
+        Returns:
+            List of ClientTaskTemplate objects created
+        """
+        from tasks.models import Task
+        
+        # Skip if templates are disabled
+        if self.task_template_usage == 'disabled':
+            return []
+            
+        # Get default templates from business
+        default_templates = Task.objects.filter(
+            business=self.business, 
+            is_template=True
+        )
+        
+        created_templates = []
+        
+        for template in default_templates:
+            # Check if this client already has this template
+            existing = ClientTaskTemplate.objects.filter(
+                client=self,
+                template=template
+            ).first()
+            
+            if not existing:
+                # Create a new client template based on the default
+                client_template = ClientTaskTemplate.objects.create(
+                    client=self,
+                    template=template,
+                    title=template.title,
+                    description=template.description,
+                    deadline_type='calendar_days',
+                    deadline_value=30,  # Default 30 days
+                    category=template.category,
+                    priority=template.priority,
+                    estimated_hours=template.estimated_hours
+                )
+                created_templates.append(client_template)
+                
+        return created_templates
 
 
 class ClientCheckSetting(models.Model):
@@ -169,3 +291,152 @@ class FiscalYear(models.Model):
         if self.is_current:
             FiscalYear.objects.filter(client=self.client, is_current=True).exclude(pk=self.pk).update(is_current=False)
         super().save(*args, **kwargs)
+
+
+class ClientTaskTemplate(models.Model):
+    """Client-specific task template settings."""
+    
+    client = models.ForeignKey(
+        Client,
+        on_delete=models.CASCADE,
+        related_name='task_templates'
+    )
+    template = models.ForeignKey(
+        'tasks.Task',
+        on_delete=models.CASCADE,
+        related_name='client_templates',
+        help_text=_('Reference to the original template task')
+    )
+    
+    # カスタマイズフィールド
+    title = models.CharField(_('タイトル'), max_length=255)
+    description = models.TextField(_('説明'), blank=True)
+    
+    # 期限設定
+    DEADLINE_TYPE_CHOICES = (
+        ('business_days', _('営業日')),
+        ('calendar_days', _('カレンダー日付')),
+        ('fiscal_date', _('決算日基準')),
+    )
+    deadline_type = models.CharField(
+        _('期限タイプ'),
+        max_length=20,
+        choices=DEADLINE_TYPE_CHOICES,
+        default='calendar_days'
+    )
+    deadline_value = models.IntegerField(
+        _('期限値'),
+        help_text=_('営業日/カレンダー日の場合は日数、決算日基準の場合は±日数'),
+        default=0
+    )
+    
+    # 担当者設定
+    worker = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='client_template_worker',
+        verbose_name=_('作業担当者')
+    )
+    reviewer = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='client_template_reviewer',
+        verbose_name=_('レビュー担当者')
+    )
+    
+    # カテゴリ・優先度
+    category = models.ForeignKey(
+        'tasks.TaskCategory',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='client_templates'
+    )
+    priority = models.ForeignKey(
+        'tasks.TaskPriority',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='client_templates'
+    )
+    
+    # 工数見積もり
+    estimated_hours = models.DecimalField(
+        _('見積工数'),
+        max_digits=6,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    
+    # 管理用フィールド
+    is_active = models.BooleanField(_('有効'), default=True)
+    order = models.PositiveIntegerField(_('順序'), default=0)
+    created_at = models.DateTimeField(_('作成日時'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('更新日時'), auto_now=True)
+    
+    class Meta:
+        verbose_name = _('client task template')
+        verbose_name_plural = _('client task templates')
+        ordering = ['order', 'title']
+        unique_together = ('client', 'template')
+    
+    def __str__(self):
+        return f"{self.client.name} - {self.title}"
+        
+    def create_task(self, fiscal_year=None):
+        """
+        Create a task based on this client template
+        
+        Args:
+            fiscal_year: Optional FiscalYear object. If provided and deadline_type is fiscal_date,
+                        the due date will be calculated based on this fiscal year's end date.
+        
+        Returns:
+            Task object that was created
+        """
+        from datetime import timedelta
+        from django.utils import timezone
+        from tasks.models import Task
+        
+        # Calculate due date
+        due_date = None
+        if self.deadline_type == 'business_days':
+            # Simple implementation - just add weekdays, ignoring holidays
+            current_date = timezone.now().date()
+            days_added = 0
+            while days_added < self.deadline_value:
+                current_date += timedelta(days=1)
+                if current_date.weekday() < 5:  # Monday to Friday
+                    days_added += 1
+            due_date = current_date
+        elif self.deadline_type == 'calendar_days':
+            due_date = timezone.now().date() + timedelta(days=self.deadline_value)
+        elif self.deadline_type == 'fiscal_date' and fiscal_year:
+            # Calculate based on fiscal year end date
+            due_date = fiscal_year.end_date + timedelta(days=self.deadline_value)
+        
+        # Create the task
+        task = Task.objects.create(
+            title=self.title,
+            description=self.description,
+            business=self.client.business,
+            workspace=self.template.workspace,
+            status=self.template.status,
+            priority=self.priority or self.template.priority,
+            category=self.category or self.template.category,
+            creator=self.template.creator,
+            worker=self.worker,
+            reviewer=self.reviewer,
+            client=self.client,
+            is_fiscal_task=True if fiscal_year else False,
+            fiscal_year=fiscal_year,
+            due_date=due_date,
+            estimated_hours=self.estimated_hours or self.template.estimated_hours,
+        )
+        
+        return task
