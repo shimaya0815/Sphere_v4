@@ -301,6 +301,13 @@ export const ChatProvider = ({ children }) => {
           
           // requestAnimationFrameを使用して次の描画サイクルで設定
           requestAnimationFrame(() => {
+            // メッセージを時系列順にソート（古いものが上、新しいものが下）
+            messagesCopy.sort((a, b) => {
+              const dateA = new Date(a.created_at || a.timestamp);
+              const dateB = new Date(b.created_at || b.timestamp);
+              return dateA - dateB;
+            });
+            
             setMessages(messagesCopy);
             console.log('メッセージが正常に設定されました:', messagesCopy.length);
             

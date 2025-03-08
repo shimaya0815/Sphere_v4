@@ -57,10 +57,10 @@ const ChatContent = () => {
     if (selectedMessage?.content) {
       navigator.clipboard.writeText(selectedMessage.content)
         .then(() => {
-          alert('メッセージをクリップボードにコピーしました');
+          toast.success('メッセージをクリップボードにコピーしました');
         })
         .catch(() => {
-          alert('コピーに失敗しました');
+          toast.error('コピーに失敗しました');
         });
     }
   }, [selectedMessage]);
