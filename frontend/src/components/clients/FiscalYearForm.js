@@ -74,21 +74,30 @@ const FiscalYearForm = ({ clientId, fiscalYear = null, onClose, onSuccess }) => 
     console.log('FiscalYear submit data:', submitData);
     
     try {
+      let response;
       if (fiscalYear) {
         // 更新
-        await clientsApi.updateFiscalYear(fiscalYear.id, submitData);
+        response = await clientsApi.updateFiscalYear(fiscalYear.id, submitData);
+        console.log('Fiscal year updated:', response);
         toast.success('決算期情報を更新しました');
       } else {
         // 新規作成
-        await clientsApi.createFiscalYear(clientId, submitData);
+        response = await clientsApi.createFiscalYear(Number(clientId), submitData);
+        console.log('New fiscal year created:', response);
         toast.success('決算期情報を追加しました');
       }
       
+      // 親コンポーネントに成功を通知
       if (onSuccess) {
+        console.log('Calling onSuccess callback');
         onSuccess();
       }
       
-      onClose();
+      // 少し遅延を入れて、APIレスポンスが完全に処理される時間を確保
+      setTimeout(() => {
+        console.log('Closing modal after successful submission');
+        onClose();
+      }, 500);
     } catch (error) {
       console.error('Error saving fiscal year:', error);
       console.error('Request data:', submitData);
@@ -112,13 +121,35 @@ const FiscalYearForm = ({ clientId, fiscalYear = null, onClose, onSuccess }) => 
   
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-25 backdrop-blur-sm flex justify-center items-center" 
-      style={{ zIndex: 10000 }}
+      className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex justify-center items-center" 
+      style={{ 
+        zIndex: 50000,
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0
+      }}
+      onClick={() => onClose()} // 背景のクリックでモーダルを閉じる
     >
-      <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-lg" onClick={e => e.stopPropagation()}>
-        <h2 className="text-xl font-semibold mb-4">
-          {fiscalYear ? '決算期を編集' : '決算期を追加'}
-        </h2>
+      <div 
+        className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg" 
+        style={{ position: 'relative' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">
+            {fiscalYear ? '決算期を編集' : '決算期を追加'}
+          </h2>
+          <button 
+            type="button" 
+            className="text-gray-400 hover:text-gray-500"
+            onClick={onClose}
+            style={{ fontSize: '1.5rem', lineHeight: 1 }}
+          >
+            ✕
+          </button>
+        </div>
         
         <form onSubmit={handleSubmit}>
           <div className="space-y-4">
