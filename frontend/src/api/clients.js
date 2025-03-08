@@ -314,11 +314,28 @@ const clientsApi = {
   getTaxRules: async (clientId, params = {}) => {
     console.log(`API - Getting tax rules for client ${clientId}:`, params);
     try {
-      const response = await apiClient.get(`/api/clients/${clientId}/tax-rules/`, { params });
+      const response = await apiClient.get(`/api/clients/${clientId}/tax-rules/`, { 
+        params,
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
       console.log('API - Tax rules fetched successfully:', response.data);
       return response.data;
     } catch (error) {
       console.error('API - Failed to get tax rules:', error.response?.data || error.message);
+      
+      // HTMLレスポンスのエラーハンドリング
+      if (error.response?.data && typeof error.response.data === 'string' && error.response.data.startsWith('<!DOCTYPE html>')) {
+        console.error('Received HTML response instead of JSON');
+        return [];
+      }
+      
+      // データが存在しない場合は空配列を返す
+      if (error.response?.status === 404) {
+        return [];
+      }
+      
       throw error;
     }
   },
@@ -327,11 +344,23 @@ const clientsApi = {
   createTaxRule: async (clientId, ruleData) => {
     console.log(`API - Creating tax rule for client ${clientId}:`, ruleData);
     try {
-      const response = await apiClient.post(`/api/clients/${clientId}/tax-rules/`, ruleData);
+      const response = await apiClient.post(`/api/clients/${clientId}/tax-rules/`, ruleData, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
       console.log('API - Tax rule created successfully:', response.data);
       return response.data;
     } catch (error) {
       console.error('API - Failed to create tax rule:', error.response?.data || error.message);
+      
+      // HTMLレスポンスのエラーハンドリング
+      if (error.response?.data && typeof error.response.data === 'string' && error.response.data.startsWith('<!DOCTYPE html>')) {
+        console.error('Received HTML response instead of JSON');
+        throw new Error('サーバーエラーが発生しました。しばらく経ってから再度お試しください。');
+      }
+      
       throw error;
     }
   },
@@ -340,11 +369,23 @@ const clientsApi = {
   updateTaxRule: async (ruleId, ruleData) => {
     console.log(`API - Updating tax rule ${ruleId}:`, ruleData);
     try {
-      const response = await apiClient.patch(`/api/clients/tax-rules/${ruleId}/`, ruleData);
+      const response = await apiClient.patch(`/api/clients/tax-rules/${ruleId}/`, ruleData, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
       console.log('API - Tax rule updated successfully:', response.data);
       return response.data;
     } catch (error) {
       console.error('API - Failed to update tax rule:', error.response?.data || error.message);
+      
+      // HTMLレスポンスのエラーハンドリング
+      if (error.response?.data && typeof error.response.data === 'string' && error.response.data.startsWith('<!DOCTYPE html>')) {
+        console.error('Received HTML response instead of JSON');
+        throw new Error('サーバーエラーが発生しました。しばらく経ってから再度お試しください。');
+      }
+      
       throw error;
     }
   },
@@ -353,11 +394,22 @@ const clientsApi = {
   deleteTaxRule: async (ruleId) => {
     console.log(`API - Deleting tax rule ${ruleId}`);
     try {
-      const response = await apiClient.delete(`/api/clients/tax-rules/${ruleId}/`);
+      const response = await apiClient.delete(`/api/clients/tax-rules/${ruleId}/`, {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
       console.log('API - Tax rule deleted successfully');
       return response.data;
     } catch (error) {
       console.error('API - Failed to delete tax rule:', error.response?.data || error.message);
+      
+      // HTMLレスポンスのエラーハンドリング
+      if (error.response?.data && typeof error.response.data === 'string' && error.response.data.startsWith('<!DOCTYPE html>')) {
+        console.error('Received HTML response instead of JSON');
+        throw new Error('サーバーエラーが発生しました。しばらく経ってから再度お試しください。');
+      }
+      
       throw error;
     }
   },
@@ -371,11 +423,28 @@ const clientsApi = {
     }
     
     try {
-      const response = await apiClient.get(`/api/clients/${clientId}/tax-rules/`, { params });
+      const response = await apiClient.get(`/api/clients/${clientId}/tax-rules/`, { 
+        params,
+        headers: {
+          'Accept': 'application/json'
+        } 
+      });
       console.log('API - Current tax rules fetched successfully:', response.data);
       return response.data;
     } catch (error) {
       console.error('API - Failed to get current tax rules:', error.response?.data || error.message);
+      
+      // HTMLレスポンスのエラーハンドリング
+      if (error.response?.data && typeof error.response.data === 'string' && error.response.data.startsWith('<!DOCTYPE html>')) {
+        console.error('Received HTML response instead of JSON');
+        throw new Error('サーバーエラーが発生しました。しばらく経ってから再度お試しください。');
+      }
+      
+      // データが存在しない場合は空配列を返す
+      if (error.response?.status === 404) {
+        return [];
+      }
+      
       throw error;
     }
   },
