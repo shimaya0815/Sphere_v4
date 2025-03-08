@@ -20,16 +20,23 @@ class Command(BaseCommand):
             action='store_true',
             help='スーパーユーザーを削除対象から除外する',
         )
+        parser.add_argument(
+            '--no-input',
+            action='store_true',
+            help='確認プロンプトをスキップして直接実行する',
+        )
 
     def handle(self, *args, **options):
         keep_superuser = options['keep_superuser']
+        no_input = options['no_input']
         
         self.stdout.write(self.style.WARNING('警告: すべてのユーザーデータを削除します。このコマンドは開発環境でのみ使用してください。'))
         
-        confirm = input('本当に続行しますか？ [y/N]: ')
-        if confirm.lower() != 'y':
-            self.stdout.write(self.style.SUCCESS('操作をキャンセルしました。'))
-            return
+        if not no_input:
+            confirm = input('本当に続行しますか？ [y/N]: ')
+            if confirm.lower() != 'y':
+                self.stdout.write(self.style.SUCCESS('操作をキャンセルしました。'))
+                return
         
         try:
             with transaction.atomic():
