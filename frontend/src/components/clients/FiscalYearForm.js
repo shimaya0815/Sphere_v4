@@ -111,8 +111,11 @@ const FiscalYearForm = ({ clientId, fiscalYear = null, onClose, onSuccess }) => 
   };
   
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-25 backdrop-blur-sm flex justify-center items-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-lg">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-25 backdrop-blur-sm flex justify-center items-center" 
+      style={{ zIndex: 10000 }}
+    >
+      <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-lg" onClick={e => e.stopPropagation()}>
         <h2 className="text-xl font-semibold mb-4">
           {fiscalYear ? '決算期を編集' : '決算期を追加'}
         </h2>
