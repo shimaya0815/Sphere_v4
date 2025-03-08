@@ -3,6 +3,7 @@ import { clientsApi } from '../../api';
 import toast from 'react-hot-toast';
 
 const FiscalYearForm = ({ clientId, fiscalYear = null, onClose, onSuccess }) => {
+  // React Router navigate関数を使用しない - history.pushStateを直接使わない
   const [formData, setFormData] = useState({
     client: clientId,
     fiscal_period: '',
@@ -88,17 +89,17 @@ const FiscalYearForm = ({ clientId, fiscalYear = null, onClose, onSuccess }) => 
         toast.success('決算期情報を追加しました');
       }
       
-      console.log('Closing modal and notifying success');
-      onClose();
+      console.log('Form submission successful, calling success callback');
       
-      // 遅延を入れてモーダルが完全に閉じた後にデータ更新を通知
-      setTimeout(() => {
-        // 親コンポーネントに成功を通知
-        if (onSuccess) {
-          console.log('Calling onSuccess callback');
-          onSuccess();
-        }
-      }, 300);
+      // 親コンポーネントに成功を通知
+      if (onSuccess) {
+        console.log('Calling onSuccess callback');
+        onSuccess();
+      }
+      
+      // 成功後にモーダルを閉じる
+      console.log('Closing modal after successful submission');
+      onClose();
     } catch (error) {
       console.error('Error saving fiscal year:', error);
       console.error('Request data:', submitData);
@@ -131,7 +132,10 @@ const FiscalYearForm = ({ clientId, fiscalYear = null, onClose, onSuccess }) => 
         right: 0,
         bottom: 0
       }}
-      onClick={() => onClose()} // 背景のクリックでモーダルを閉じる
+      onClick={(e) => {
+        e.preventDefault();
+        onClose();
+      }} // 背景のクリックでモーダルを閉じる
     >
       <div 
         className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg" 
@@ -145,14 +149,18 @@ const FiscalYearForm = ({ clientId, fiscalYear = null, onClose, onSuccess }) => 
           <button 
             type="button" 
             className="text-gray-400 hover:text-gray-500"
-            onClick={onClose}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose();
+            }}
             style={{ fontSize: '1.5rem', lineHeight: 1 }}
           >
             ✕
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} action="">
+        <form onSubmit={handleSubmit} noValidate>
           <div className="space-y-4">
             <div>
               <label htmlFor="fiscal_period" className="block text-sm font-medium text-gray-700 mb-1">
@@ -255,7 +263,11 @@ const FiscalYearForm = ({ clientId, fiscalYear = null, onClose, onSuccess }) => 
           <div className="mt-6 flex justify-end space-x-3">
             <button
               type="button"
-              onClick={onClose}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onClose();
+              }}
               className="btn btn-ghost"
               disabled={loading}
             >
@@ -265,6 +277,14 @@ const FiscalYearForm = ({ clientId, fiscalYear = null, onClose, onSuccess }) => 
               type="submit"
               className="btn btn-primary"
               disabled={loading}
+              onClick={(e) => {
+                // submit時にフォームデータのURLへの反映を防止
+                if (loading) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  return false;
+                }
+              }}
             >
               {loading ? (
                 <>
