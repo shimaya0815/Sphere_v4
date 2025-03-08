@@ -6,6 +6,7 @@ import FiscalYearManagement from './FiscalYearManagement';
 import CheckSettingForm from './CheckSettingForm';
 import ClientTaskTemplateSettings from './ClientTaskTemplateSettings';
 import TaxRulesView from './tax/TaxRulesView';
+import ServiceCheckSettings from './ServiceCheckSettings';
 import { 
   HiOutlineOfficeBuilding, 
   HiOutlinePhone, 
@@ -352,6 +353,13 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
           type="button"
         >
           タスクテンプレート
+        </button>
+        <button 
+          className={`tab ${activeTab === 'service_settings' ? 'tab-active' : ''}`}
+          onClick={() => setActiveTab('service_settings')}
+          type="button"
+        >
+          サービス設定
         </button>
       </div>
       
@@ -981,6 +989,19 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
           )}
         </div>
       )}
+      
+      {/* サービス設定タブ */}
+      {activeTab === 'service_settings' && (
+        <div>
+          {clientId ? (
+            <ServiceCheckSettings clientId={clientId} />
+          ) : (
+            <div className="alert alert-info">
+              クライアントを作成してからサービス設定を行ってください。先に基本情報を入力して登録してください。
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ボタンナビゲーション */}
       <div className="flex justify-between mt-6">
@@ -990,7 +1011,7 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
               type="button"
               className="btn btn-outline"
               onClick={() => {
-                const tabs = ['overview', 'corporate', 'address', 'tax', 'tax_rules', 'salary', 'fiscal', 'check', 'templates'];
+                const tabs = ['overview', 'corporate', 'address', 'tax', 'tax_rules', 'salary', 'fiscal', 'check', 'templates', 'service_settings'];
                 const currentIndex = tabs.indexOf(activeTab);
                 if (currentIndex > 0) {
                   setActiveTab(tabs[currentIndex - 1]);
@@ -1038,7 +1059,7 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
               type="button"
               className="btn btn-primary"
               onClick={() => {
-                const tabs = ['overview', 'corporate', 'address', 'tax', 'tax_rules', 'salary', 'fiscal', 'check', 'templates'];
+                const tabs = ['overview', 'corporate', 'address', 'tax', 'tax_rules', 'salary', 'fiscal', 'check', 'templates', 'service_settings'];
                 const currentIndex = tabs.indexOf(activeTab);
                 if (currentIndex < tabs.length - 1) {
                   setActiveTab(tabs[currentIndex + 1]);
