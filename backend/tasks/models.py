@@ -570,19 +570,26 @@ class TaskComment(models.Model):
     class Meta:
         verbose_name = _('task comment')
         verbose_name_plural = _('task comments')
-        ordering = ['created_at']
+        ordering = ['-created_at']  # 新しいコメントが最初に来るように変更
     
     def __str__(self):
         return f"Comment by {self.user.get_full_name()} on {self.task.title}"
 
 
 class TaskAttachment(models.Model):
-    """Attachments for tasks."""
+    """Attachments for tasks and comments."""
     
     task = models.ForeignKey(
         Task,
         on_delete=models.CASCADE,
         related_name='attachments'
+    )
+    comment = models.ForeignKey(
+        TaskComment,
+        on_delete=models.CASCADE,
+        related_name='attachments',
+        null=True,
+        blank=True
     )
     user = models.ForeignKey(
         User,

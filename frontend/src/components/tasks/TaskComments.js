@@ -288,10 +288,11 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
   const handlePaste = (e) => {
     const clipboardData = e.clipboardData;
     const items = clipboardData.items;
+    let hasImage = false;
     
     for (let i = 0; i < items.length; i++) {
       if (items[i].type.indexOf('image') !== -1) {
-        e.preventDefault(); // デフォルトのペースト動作をキャンセル
+        hasImage = true;
         
         const blob = items[i].getAsFile();
         const imageUrl = URL.createObjectURL(blob);
@@ -302,10 +303,16 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
           file: blob,
           url: imageUrl
         }]);
-        
-        toast.success('画像が追加されました');
       }
     }
+    
+    // 画像がペーストされた場合のみデフォルト動作をキャンセル
+    if (hasImage) {
+      e.preventDefault();
+      toast.success('画像が追加されました');
+    }
+    
+    // テキストのペーストはそのまま通常通り処理
   };
   
   // 画像の削除
@@ -413,21 +420,35 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
 
   // メンション候補選択時のハンドラ
   const handleSelectMention = (user) => {
-    const userName = user.get_full_name || user.email || user.username;
-    
-    // メンション候補を名前に置き換え
-    const beforeMention = newComment.substring(0, mentionQueryStart);
-    const afterMention = newComment.substring(mentionQueryStart + mentionQuery.length + 1);
-    const updatedComment = `${beforeMention}@${userName} ${afterMention}`;
-    
-    setNewComment(updatedComment);
-    setShowMentionSuggestions(false);
-    setMentionQueryStart(-1);
-    setMentionQuery('');
-    
-    // フォーカスを戻す
-    if (commentInputRef.current) {
-      commentInputRef.current.focus();
+    try {
+      const userName = user.get_full_name || user.email || user.username;
+      
+      // メンション候補を名前に置き換え
+      const beforeMention = newComment.substring(0, mentionQueryStart);
+      const afterMention = newComment.substring(mentionQueryStart + mentionQuery.length + 1);
+      const updatedComment = `${beforeMention}@${userName} ${afterMention}`;
+      
+      setNewComment(updatedComment);
+      setShowMentionSuggestions(false);
+      setMentionQueryStart(-1);
+      setMentionQuery('');
+      
+      // フォーカスを戻す
+      if (commentInputRef.current) {
+        commentInputRef.current.focus();
+      }
+    } catch (error) {
+      console.error('メンション選択処理エラー:', error);
+      
+      // エラー発生時には単純に@ユーザー名を挿入する方法にフォールバック
+      const userName = user.get_full_name || user.email || user.username || 'ユーザー';
+      setNewComment(prev => prev + userName + ' ');
+      setShowMentionSuggestions(false);
+      
+      // フォーカスを戻す
+      if (commentInputRef.current) {
+        commentInputRef.current.focus();
+      }
     }
   };
 
@@ -475,8 +496,8 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
       imageUrls: imagePreviewUrls
     };
     
-    // 一時的にコメントを表示
-    setComments(prevComments => [tempComment, ...prevComments]);
+    // 一時的にコメントを表示（リストの最後に追加）
+    setComments(prevComments => [...prevComments, tempComment]);
     setNewComment(''); // 入力欄をクリア
     
     try {
@@ -682,8 +703,8 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
             まだコメントはありません
           </div>
         ) : (
-          // 古いコメントが上、新しいコメントが下に表示
-          [...comments].map(comment => (
+          // 新しいコメントが下、古いコメントが上に表示
+          [...comments].sort((a, b) => new Date(a.created_at) - new Date(b.created_at)).map(comment => (
             <div 
               key={comment.id} 
               className={`bg-gray-50 rounded-lg p-4 ${comment.isSending ? 'opacity-70' : ''}`}

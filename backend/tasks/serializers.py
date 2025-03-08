@@ -31,20 +31,30 @@ class TaskAttachmentSerializer(serializers.ModelSerializer):
 class TaskCommentSerializer(serializers.ModelSerializer):
     user_name = serializers.ReadOnlyField(source='user.get_full_name')
     mentioned_user_names = serializers.SerializerMethodField()
+    files = serializers.ListField(
+        child=serializers.FileField(),
+        write_only=True,
+        required=False
+    )
+    attachments = TaskAttachmentSerializer(many=True, read_only=True)
     
     class Meta:
         model = TaskComment
-        fields = ('id', 'task', 'user', 'user_name', 'content', 'created_at', 'updated_at', 'mentioned_users', 'mentioned_user_names')
-        read_only_fields = ('user', 'created_at', 'updated_at', 'mentioned_users', 'mentioned_user_names')
+        fields = ('id', 'task', 'user', 'user_name', 'content', 'created_at', 'updated_at', 
+                 'mentioned_users', 'mentioned_user_names', 'files', 'attachments')
+        read_only_fields = ('user', 'created_at', 'updated_at', 'mentioned_users', 'mentioned_user_names', 'attachments')
 
     def get_mentioned_user_names(self, obj):
         """メンションされたユーザー名のリストを返す"""
         return [user.get_full_name() for user in obj.mentioned_users.all()]
 
     def create(self, validated_data):
-        """メンション処理を含むコメント作成"""
+        """メンション処理と添付ファイル処理を含むコメント作成"""
         user = self.context['request'].user
         content = validated_data.get('content', '')
+        
+        # files フィールドを取り出す（ない場合は空リスト）
+        files = validated_data.pop('files', [])
         
         # コメント作成
         comment = TaskComment.objects.create(
@@ -52,6 +62,24 @@ class TaskCommentSerializer(serializers.ModelSerializer):
             user=user,
             content=content
         )
+        
+        # 添付ファイルの処理
+        for file in files:
+            # ファイルのサイズと種類を取得
+            file_size = file.size
+            file_type = file.content_type
+            filename = file.name
+            
+            # 添付ファイルを作成 (コメントにも関連付け)
+            TaskAttachment.objects.create(
+                task=validated_data['task'],
+                comment=comment,  # コメントに関連付け
+                user=user,
+                file=file,
+                filename=filename,
+                file_type=file_type,
+                file_size=file_size
+            )
         
         # メンション処理
         self._process_mentions(comment, content)
