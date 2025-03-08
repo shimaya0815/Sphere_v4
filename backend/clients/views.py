@@ -2,12 +2,12 @@ from rest_framework import viewsets, permissions, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.db.models import Count
+from django.db.models import Count, Q as models_Q
 from django.shortcuts import get_object_or_404
-from .models import Client, ClientCheckSetting, FiscalYear, ClientTaskTemplate
+from .models import Client, ClientCheckSetting, FiscalYear, ClientTaskTemplate, TaxRuleHistory
 from .serializers import (
     ClientSerializer, ClientCheckSettingSerializer, FiscalYearSerializer,
-    ClientTaskTemplateSerializer
+    ClientTaskTemplateSerializer, TaxRuleHistorySerializer
 )
 from business.permissions import IsSameBusiness
 from tasks.serializers import TaskSerializer
@@ -22,6 +22,33 @@ class ClientViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'client_code', 'email', 'corporate_number']
     ordering_fields = ['name', 'created_at', 'contract_status']
     ordering = ['name']
+    
+    @action(detail=True, methods=['get'])
+    def tax_rules(self, request, pk=None):
+        """Get tax rules for this client."""
+        client = self.get_object()
+        tax_rules = client.tax_rule_histories.all()
+        
+        # Filter by tax_type if provided
+        tax_type = request.query_params.get('tax_type', None)
+        if tax_type:
+            tax_rules = tax_rules.filter(tax_type=tax_type)
+        
+        # Filter current rules if requested
+        is_current = request.query_params.get('is_current', None)
+        if is_current and is_current.lower() == 'true':
+            # Get current date
+            from django.utils import timezone
+            today = timezone.now().date()
+            # Filter rules that are current
+            tax_rules = tax_rules.filter(
+                start_date__lte=today
+            ).filter(
+                models_Q(end_date__isnull=True) | models_Q(end_date__gte=today)
+            )
+            
+        serializer = TaxRuleHistorySerializer(tax_rules, many=True)
+        return Response(serializer.data)
     
     def get_queryset(self):
         """Return clients for the authenticated user's business."""
@@ -378,6 +405,111 @@ class ClientTaskTemplateViewSet(viewsets.ModelViewSet):
         # Return the created task
         serializer = TaskSerializer(task)
         return Response(serializer.data)
+
+
+class TaxRuleHistoryViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing tax rule histories."""
+    queryset = TaxRuleHistory.objects.all()
+    serializer_class = TaxRuleHistorySerializer
+    permission_classes = [permissions.IsAuthenticated, IsSameBusiness]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['client__name', 'tax_type', 'rule_type']
+    ordering_fields = ['start_date', 'end_date', 'tax_type', 'rule_type']
+    ordering = ['-start_date']
+    
+    def get_queryset(self):
+        """Return tax rules for the authenticated user's business."""
+        queryset = TaxRuleHistory.objects.filter(client__business=self.request.user.business)
+        
+        # Filter by client if client_id is provided
+        client_id = self.request.query_params.get('client_id', None)
+        if client_id:
+            queryset = queryset.filter(client_id=client_id)
+        
+        # Filter by tax_type if provided
+        tax_type = self.request.query_params.get('tax_type', None)
+        if tax_type:
+            queryset = queryset.filter(tax_type=tax_type)
+            
+        # Filter by rule_type if provided
+        rule_type = self.request.query_params.get('rule_type', None)
+        if rule_type:
+            queryset = queryset.filter(rule_type=rule_type)
+            
+        # Filter current rules if requested
+        is_current = self.request.query_params.get('is_current', None)
+        if is_current and is_current.lower() == 'true':
+            # Get current date
+            from django.utils import timezone
+            today = timezone.now().date()
+            # Filter rules that are current (start_date <= today and (end_date is null or end_date >= today))
+            queryset = queryset.filter(
+                start_date__lte=today
+            ).filter(
+                models_Q(end_date__isnull=True) | models_Q(end_date__gte=today)
+            )
+            
+        return queryset
+    
+    def perform_create(self, serializer):
+        """Create a tax rule."""
+        serializer.save()
+
+
+class ClientTaxRulesView(APIView):
+    """View to manage tax rules for a specific client."""
+    permission_classes = [permissions.IsAuthenticated, IsSameBusiness]
+    
+    def get_client(self, client_id, request):
+        """Get the client object ensuring it belongs to the user's business."""
+        return get_object_or_404(
+            Client, 
+            id=client_id, 
+            business=request.user.business
+        )
+    
+    def get(self, request, client_id):
+        """Get all tax rules for a client."""
+        client = self.get_client(client_id, request)
+        
+        # Filter by tax_type if provided
+        tax_type = request.query_params.get('tax_type', None)
+        tax_rules = client.tax_rule_histories.all()
+        
+        if tax_type:
+            tax_rules = tax_rules.filter(tax_type=tax_type)
+        
+        # Filter current rules if requested
+        is_current = request.query_params.get('is_current', None)
+        if is_current and is_current.lower() == 'true':
+            # Get current date
+            from django.utils import timezone
+            today = timezone.now().date()
+            # Filter rules that are current
+            tax_rules = tax_rules.filter(
+                start_date__lte=today
+            ).filter(
+                models_Q(end_date__isnull=True) | models_Q(end_date__gte=today)
+            )
+            
+        serializer = TaxRuleHistorySerializer(tax_rules, many=True)
+        return Response(serializer.data)
+    
+    def post(self, request, client_id):
+        """Create a new tax rule for a client."""
+        client = self.get_client(client_id, request)
+        
+        # リクエストデータのコピーを作成し、client_idを追加
+        data = request.data.copy()
+        data['client'] = client.id
+        
+        serializer = TaxRuleHistorySerializer(data=data)
+        
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ClientTaskTemplatesView(APIView):

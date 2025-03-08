@@ -1,6 +1,7 @@
 from rest_framework import serializers
-from .models import Client, ClientCheckSetting, FiscalYear, ClientTaskTemplate
+from .models import Client, ClientCheckSetting, FiscalYear, ClientTaskTemplate, TaxRuleHistory
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 
 User = get_user_model()
 
@@ -152,3 +153,39 @@ class ClientTaskTemplateSerializer(serializers.ModelSerializer):
     
     def get_deadline_type_display(self, obj):
         return dict(ClientTaskTemplate.DEADLINE_TYPE_CHOICES).get(obj.deadline_type, '')
+        
+        
+class TaxRuleHistorySerializer(serializers.ModelSerializer):
+    client_name = serializers.CharField(source='client.name', read_only=True)
+    tax_type_display = serializers.SerializerMethodField()
+    rule_type_display = serializers.SerializerMethodField()
+    is_current = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = TaxRuleHistory
+        fields = [
+            'id', 'client', 'client_name', 'tax_type', 'tax_type_display',
+            'rule_type', 'rule_type_display', 'start_date', 'end_date',
+            'description', 'is_current', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+    
+    def get_tax_type_display(self, obj):
+        return dict(TaxRuleHistory.TAX_TYPE_CHOICES).get(obj.tax_type, '')
+    
+    def get_rule_type_display(self, obj):
+        return dict(TaxRuleHistory.RULE_TYPE_CHOICES).get(obj.rule_type, '')
+        
+    def get_is_current(self, obj):
+        today = timezone.now().date()
+        return obj.start_date <= today and (obj.end_date is None or obj.end_date >= today)
+        
+    def validate(self, data):
+        """
+        開始日と終了日の検証
+        """
+        if 'start_date' in data and 'end_date' in data and data['end_date']:
+            if data['end_date'] < data['start_date']:
+                raise serializers.ValidationError({"end_date": "終了日は開始日より後である必要があります。"})
+        
+        return data

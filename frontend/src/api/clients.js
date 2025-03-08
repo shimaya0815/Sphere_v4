@@ -309,6 +309,76 @@ const clientsApi = {
     const response = await apiClient.get('/api/clients/industries/');
     return response.data;
   },
+  
+  // 税ルール（源泉所得税・住民税）の取得
+  getTaxRules: async (clientId, params = {}) => {
+    console.log(`API - Getting tax rules for client ${clientId}:`, params);
+    try {
+      const response = await apiClient.get(`/api/clients/${clientId}/tax-rules/`, { params });
+      console.log('API - Tax rules fetched successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('API - Failed to get tax rules:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+  
+  // 税ルールの作成
+  createTaxRule: async (clientId, ruleData) => {
+    console.log(`API - Creating tax rule for client ${clientId}:`, ruleData);
+    try {
+      const response = await apiClient.post(`/api/clients/${clientId}/tax-rules/`, ruleData);
+      console.log('API - Tax rule created successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('API - Failed to create tax rule:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+  
+  // 税ルールの更新
+  updateTaxRule: async (ruleId, ruleData) => {
+    console.log(`API - Updating tax rule ${ruleId}:`, ruleData);
+    try {
+      const response = await apiClient.patch(`/api/clients/tax-rules/${ruleId}/`, ruleData);
+      console.log('API - Tax rule updated successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('API - Failed to update tax rule:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+  
+  // 税ルールの削除
+  deleteTaxRule: async (ruleId) => {
+    console.log(`API - Deleting tax rule ${ruleId}`);
+    try {
+      const response = await apiClient.delete(`/api/clients/tax-rules/${ruleId}/`);
+      console.log('API - Tax rule deleted successfully');
+      return response.data;
+    } catch (error) {
+      console.error('API - Failed to delete tax rule:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+  
+  // 現在適用されている税ルールの取得
+  getCurrentTaxRules: async (clientId, taxType = null) => {
+    console.log(`API - Getting current tax rules for client ${clientId} and tax type ${taxType}`);
+    const params = { is_current: true };
+    if (taxType) {
+      params.tax_type = taxType;
+    }
+    
+    try {
+      const response = await apiClient.get(`/api/clients/${clientId}/tax-rules/`, { params });
+      console.log('API - Current tax rules fetched successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('API - Failed to get current tax rules:', error.response?.data || error.message);
+      throw error;
+    }
+  },
 };
 
 export default clientsApi;
