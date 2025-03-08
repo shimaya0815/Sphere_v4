@@ -40,7 +40,7 @@ class TaskCommentSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = TaskComment
-        fields = ('id', 'task', 'user', 'user_name', 'content', 'created_at', 'updated_at', 
+        fields = ('id', 'task', 'user', 'user_name', 'content', 'html_content', 'created_at', 'updated_at', 
                  'mentioned_users', 'mentioned_user_names', 'files', 'attachments')
         read_only_fields = ('user', 'created_at', 'updated_at', 'mentioned_users', 'mentioned_user_names', 'attachments')
 
@@ -56,11 +56,15 @@ class TaskCommentSerializer(serializers.ModelSerializer):
         # files フィールドを取り出す（ない場合は空リスト）
         files = validated_data.pop('files', [])
         
+        # HTML形式のコンテンツがあれば取得
+        html_content = validated_data.get('html_content', '')
+        
         # コメント作成
         comment = TaskComment.objects.create(
             task=validated_data['task'],
             user=user,
-            content=content
+            content=content,
+            html_content=html_content
         )
         
         # 添付ファイルの処理

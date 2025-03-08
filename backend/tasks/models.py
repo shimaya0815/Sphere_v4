@@ -557,6 +557,7 @@ class TaskComment(models.Model):
         related_name='task_comments'
     )
     content = models.TextField(_('content'))
+    html_content = models.TextField(_('html content'), blank=True, null=True)
     created_at = models.DateTimeField(_('created at'), auto_now_add=True)
     updated_at = models.DateTimeField(_('updated at'), auto_now=True)
     
