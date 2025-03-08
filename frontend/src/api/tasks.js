@@ -164,6 +164,7 @@ const tasksApi = {
   // ファイル添付ありのコメント追加
   addCommentWithFiles: async (taskId, formData) => {
     try {
+      console.log('Sending files to API:', formData);
       const response = await apiClient.post('/api/tasks/comments/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
