@@ -432,20 +432,6 @@ const ClientBasicInfoCard = ({ client }) => {
               <td className="py-2 text-sm font-medium text-gray-500">メールアドレス</td>
               <td className="py-2">{client.email || '-'}</td>
             </tr>
-            <tr>
-              <td className="py-2 text-sm font-medium text-gray-500">タスクテンプレート</td>
-              <td className="py-2">
-                {client.task_template_usage === 'enabled' ? 
-                  <span className="badge badge-success">有効</span> : 
-                  <span className="badge badge-ghost">無効</span>}
-                {client.task_template_usage === 'enabled' && (
-                  <span className="ml-2 text-xs">
-                    ({client.task_template_type === 'default' ? 'デフォルト' : 
-                      client.task_template_type === 'custom' ? 'カスタム' : '手動作成のみ'})
-                  </span>
-                )}
-              </td>
-            </tr>
           </tbody>
         </table>
       </div>
