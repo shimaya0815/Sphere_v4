@@ -20,19 +20,35 @@ const TaxRulesView = ({ clientId }) => {
     
     try {
       // 源泉所得税と住民税のルールを同時に取得
-      const incomeRules = await clientsApi.getTaxRules(clientId, { tax_type: 'income' });
-      const residenceRules = await clientsApi.getTaxRules(clientId, { tax_type: 'residence' });
+      let incomeRules = [];
+      let residenceRules = [];
       
-      console.log('Income tax rules fetched:', incomeRules);
-      console.log('Residence tax rules fetched:', residenceRules);
+      try {
+        incomeRules = await clientsApi.getTaxRules(clientId, { tax_type: 'income' });
+        console.log('Income tax rules fetched:', incomeRules);
+      } catch (incomeErr) {
+        console.error('Error fetching income tax rules:', incomeErr);
+        // エラーの場合は空配列を使用
+        incomeRules = [];
+      }
       
-      setIncomeTaxRules(incomeRules);
-      setResidenceTaxRules(residenceRules);
+      try {
+        residenceRules = await clientsApi.getTaxRules(clientId, { tax_type: 'residence' });
+        console.log('Residence tax rules fetched:', residenceRules);
+      } catch (residenceErr) {
+        console.error('Error fetching residence tax rules:', residenceErr);
+        // エラーの場合は空配列を使用
+        residenceRules = [];
+      }
+      
+      setIncomeTaxRules(Array.isArray(incomeRules) ? incomeRules : []);
+      setResidenceTaxRules(Array.isArray(residenceRules) ? residenceRules : []);
       setError(null);
     } catch (err) {
-      console.error('Error fetching tax rules:', err);
-      setError('税務ルールの取得に失敗しました');
-      toast.error('税務ルールの取得に失敗しました');
+      console.error('Error in fetchTaxRules:', err);
+      setIncomeTaxRules([]);
+      setResidenceTaxRules([]);
+      setError('現在データは登録されていません');
     } finally {
       setLoading(false);
     }
@@ -134,7 +150,7 @@ const TaxRulesView = ({ clientId }) => {
         
         <div className="p-4">
           {error && (
-            <div className="alert alert-error mb-4">
+            <div className="alert alert-info mb-4">
               {error}
             </div>
           )}

@@ -104,11 +104,25 @@ const TaxRuleForm = ({ clientId, taxRule = null, taxType = 'income', onClose, on
       console.error('Error details:', error.response?.data);
       
       let errorMsg = '税務ルールの保存に失敗しました';
-      if (error.response?.data) {
-        const errors = Object.entries(error.response.data)
-          .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
-          .join('; ');
-        errorMsg += `: ${errors}`;
+      
+      // HTMLレスポンスの検出
+      if (error.response?.data && typeof error.response.data === 'string' && error.response.data.startsWith('<!DOCTYPE html>')) {
+        errorMsg = 'サーバーエラーが発生しました。しばらく経ってから再度お試しください。';
+      } else if (error.response?.data) {
+        try {
+          // オブジェクトの場合
+          if (typeof error.response.data === 'object') {
+            const errors = Object.entries(error.response.data)
+              .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+              .join('; ');
+            errorMsg += `: ${errors}`;
+          } else {
+            // 文字列の場合
+            errorMsg += `: ${error.response.data}`;
+          }
+        } catch (e) {
+          errorMsg += `: ${error.message}`;
+        }
       } else {
         errorMsg += `: ${error.message}`;
       }
