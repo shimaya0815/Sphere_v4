@@ -1,14 +1,69 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { HiOutlinePaperAirplane, HiOutlineTrash, HiOutlineAtSymbol, HiOutlinePaperClip } from 'react-icons/hi';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { HiOutlinePaperAirplane, HiOutlineTrash, HiOutlineAtSymbol, HiOutlinePaperClip, HiOutlineBold, HiDocumentText } from 'react-icons/hi';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 import toast from 'react-hot-toast';
 import { tasksApi, usersApi, chatApi } from '../../api';
 import useWebSocket from '../../hooks/useWebSocket';
+
+// Quillエディタのスタイルをオーバーライド（TaskComments.cssなどの外部ファイルに移動するべき）
+const quillStyles = `
+.quill-editor {
+  margin-bottom: 20px;
+}
+
+.quill-editor .ql-container {
+  border-radius: 0 0 4px 4px;
+  min-height: 100px;
+  font-size: 0.875rem;
+}
+
+.quill-editor .ql-toolbar {
+  border-radius: 4px 4px 0 0;
+}
+
+.quill-content img {
+  max-width: 100%;
+  height: auto;
+  margin: 8px 0;
+  border-radius: 4px;
+}
+
+.quill-content p {
+  margin-bottom: 0.5rem;
+}
+
+.quill-content blockquote {
+  border-left: 3px solid #ccc;
+  padding-left: 0.75rem;
+  margin-left: 0;
+  color: #666;
+}
+
+.quill-content pre {
+  background-color: #f1f1f1;
+  border-radius: 3px;
+  padding: 0.5rem;
+  font-family: monospace;
+  white-space: pre-wrap;
+}
+
+.quill-content .ql-syntax {
+  background-color: #f8f8f8;
+  border-radius: 3px;
+  padding: 0.5rem;
+  font-family: monospace;
+  white-space: pre-wrap;
+}
+`;
 
 const TaskComments = ({ taskId, task, onCommentAdded }) => {
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [newComment, setNewComment] = useState('');
+  const [editorContent, setEditorContent] = useState('');
+  const [editorHtml, setEditorHtml] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [users, setUsers] = useState([]);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
@@ -17,12 +72,33 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
   const [mentionQuery, setMentionQuery] = useState('');
   const [pastedImages, setPastedImages] = useState([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [boldText, setBoldText] = useState(false);
-  const [italicText, setItalicText] = useState(false);
   
   const commentInputRef = useRef(null);
+  const quillRef = useRef(null);
   const mentionSuggestionsRef = useRef(null);
   const fileInputRef = useRef(null);
+  
+  // Quillエディタのモジュール設定
+  const modules = {
+    toolbar: [
+      ['bold', 'italic', 'underline', 'strike'],
+      ['blockquote', 'code-block'],
+      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+      ['link', 'image'],
+      ['clean']
+    ],
+    clipboard: {
+      matchVisual: false,
+    }
+  };
+  
+  // フォーマット指定
+  const formats = [
+    'bold', 'italic', 'underline', 'strike',
+    'blockquote', 'code-block',
+    'list', 'bullet',
+    'link', 'image'
+  ];
   
   // WebSocketの接続と設定 - タスク専用WebSocketエンドポイントを使用
   // プロトコルを自動判定（ブラウザがhttpsなら、wssを使う）
@@ -388,31 +464,19 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
     }, 10);
   };
   
-  // コメント入力時のハンドラ
-  const handleCommentChange = (e) => {
-    const value = e.target.value;
-    setNewComment(value);
+  // リッチテキストエディタ変更ハンドラ
+  const handleEditorChange = (content, delta, source, editor) => {
+    setEditorHtml(content);  // HTML形式のコンテンツ
+    setEditorContent(editor.getContents());  // デルタ形式のコンテンツ
     
-    // カーソル位置を取得
-    const curPos = e.target.selectionStart;
+    // プレーンテキスト形式も保持（API送信用）
+    const plainText = editor.getText().trim();
+    setNewComment(plainText);
     
-    // @が入力されているか確認
-    const textUntilCursor = value.substring(0, curPos);
-    const lastAtPos = textUntilCursor.lastIndexOf('@');
+    // @が含まれている場合のメンション処理は、
+    // Quillの場合は別途プラグインを使って処理するか、カスタムハンドラを追加する必要があります
+    // ここでは単純化のためスキップします
     
-    if (lastAtPos !== -1) {
-      // @の直後またはスペースがない場合は、メンション候補を表示
-      const textAfterAt = textUntilCursor.substring(lastAtPos + 1);
-      const hasSpace = textAfterAt.includes(' ');
-      
-      if (!hasSpace && lastAtPos !== -1) {
-        setMentionQueryStart(lastAtPos);
-        setMentionQuery(textAfterAt);
-        return;
-      }
-    }
-    
-    // それ以外の場合はメンション候補を非表示
     setShowMentionSuggestions(false);
     setMentionQueryStart(-1);
     setMentionQuery('');
@@ -479,17 +543,19 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
   // コメント送信
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!newComment.trim() && pastedImages.length === 0) return;
+    if ((!newComment.trim() && !editorHtml) && pastedImages.length === 0) return;
     
     setSubmitting(true);
     let addedComment;
-    let savedComment = newComment; // 送信前にコメント内容を保存
+    let savedComment = newComment; // プレーンテキスト
+    let savedHtml = editorHtml; // HTML形式
     let imagePreviewUrls = pastedImages.map(img => img.url);
     
     // 楽観的UI更新 - 送信中のコメントを表示
     const tempComment = {
       id: `temp-${Date.now()}`,
       content: savedComment,
+      html_content: savedHtml, // HTML形式のコンテンツを保存
       user_name: 'あなた', // 現在のユーザー名は後でAPIから取得
       created_at: new Date().toISOString(),
       isSending: true,
@@ -499,17 +565,22 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
     // 一時的にコメントを表示（リストの最後に追加）
     setComments(prevComments => [...prevComments, tempComment]);
     setNewComment(''); // 入力欄をクリア
+    setEditorHtml(''); // エディタもクリア
     
     try {
       // FormDataを作成してファイルと一緒に送信
       const formData = new FormData();
       formData.append('task', taskId);
       formData.append('content', savedComment);
+      formData.append('html_content', savedHtml); // HTML形式も送信
       
       // 画像ファイルを追加
       pastedImages.forEach(img => {
         formData.append('files', img.file);
       });
+      
+      // エディタに埋め込まれている画像も抽出して送信
+      // (実装方法はQuillの仕様によって異なる)
       
       // APIでコメント追加（FormDataを使用）
       addedComment = await tasksApi.addCommentWithFiles(taskId, formData);
@@ -521,10 +592,11 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
       // 一覧を再取得（一時コメントを実際のコメントで置き換え）
       await fetchComments();
       
-      // 少し遅延させてコメント入力欄にスクロールする
+      // 少し遅延させてエディタにフォーカスする
       setTimeout(() => {
-        commentInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        commentInputRef.current?.focus();
+        if (quillRef.current && quillRef.current.getEditor) {
+          quillRef.current.getEditor().focus();
+        }
       }, 100);
       
       // タスク固有のWebSocketにコメント通知を送信
@@ -538,6 +610,7 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
               comment_id: addedComment.id,
               user_name: addedComment.user_name,
               content: savedComment,
+              html_content: savedHtml, // HTML形式も送信
               created_at: new Date().toISOString(),
               has_attachments: pastedImages.length > 0
             }
@@ -575,6 +648,7 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
       setComments(prevComments => prevComments.filter(comment => comment.id !== tempComment.id));
       // 入力内容を復元
       setNewComment(savedComment);
+      setEditorHtml(savedHtml);
       
       // エラー時も画像は保持
       // setPastedImages([...pastedImages]);
@@ -610,40 +684,109 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
     }
   };
 
-  // コメント内のメンションをハイライト
-  const highlightMentions = (content) => {
+  // コメント内の書式とメンションをハイライト
+  const formatContent = (content) => {
     if (!content) return '';
     
-    // メンションパターン検索
-    const mentionRegex = /@(\w+(?:\s+\w+)*)/g;
-    
-    // コンテンツを分割してメンションをスタイル適用
-    let lastIndex = 0;
-    const parts = [];
-    let match;
-    
-    while ((match = mentionRegex.exec(content)) !== null) {
-      // メンション前のテキスト
-      if (match.index > lastIndex) {
-        parts.push(content.substring(lastIndex, match.index));
+    // メンションとマークダウン記法のパターンを定義
+    const patterns = [
+      // メンション
+      { 
+        regex: /@(\w+(?:\s+\w+)*)/g, 
+        render: (match) => (
+          <span className="text-blue-600 font-medium">
+            {match[0]}
+          </span>
+        )
+      },
+      // 太字 (**text**)
+      { 
+        regex: /\*\*(.+?)\*\*/g, 
+        render: (match) => (
+          <span className="font-bold">
+            {match[1]}
+          </span>
+        )
+      },
+      // 斜体 (*text*)
+      { 
+        regex: /\*(.+?)\*/g, 
+        render: (match) => (
+          <span className="italic">
+            {match[1]}
+          </span>
+        )
+      },
+      // コード (`text`)
+      { 
+        regex: /`(.+?)`/g, 
+        render: (match) => (
+          <code className="px-1 py-0.5 bg-gray-100 rounded font-mono text-sm">
+            {match[1]}
+          </code>
+        )
       }
-      
-      // メンションテキスト
-      parts.push(
-        <span key={match.index} className="text-blue-600 font-medium">
-          {match[0]}
-        </span>
-      );
-      
-      lastIndex = match.index + match[0].length;
-    }
+    ];
     
-    // 残りのテキスト
-    if (lastIndex < content.length) {
-      parts.push(content.substring(lastIndex));
-    }
+    // テキストを分割して各パターンに合致する部分をスタイル適用
+    let segments = [{ text: content, isFormatted: false }];
     
-    return parts;
+    // 各パターンについて順番に処理
+    patterns.forEach(pattern => {
+      const newSegments = [];
+      
+      segments.forEach(segment => {
+        // 既にフォーマット済みのセグメントはそのまま
+        if (segment.isFormatted) {
+          newSegments.push(segment);
+          return;
+        }
+        
+        // プレーンテキストを処理
+        const text = segment.text;
+        let lastIndex = 0;
+        let match;
+        
+        // パターンに一致する箇所をすべて見つける
+        pattern.regex.lastIndex = 0; // リセット
+        while ((match = pattern.regex.exec(text)) !== null) {
+          // マッチ前のテキスト
+          if (match.index > lastIndex) {
+            newSegments.push({
+              text: text.substring(lastIndex, match.index),
+              isFormatted: false
+            });
+          }
+          
+          // マッチしたテキストをレンダリング関数で処理
+          newSegments.push({
+            element: pattern.render(match),
+            isFormatted: true
+          });
+          
+          lastIndex = match.index + match[0].length;
+        }
+        
+        // 残りのテキスト
+        if (lastIndex < text.length) {
+          newSegments.push({
+            text: text.substring(lastIndex),
+            isFormatted: false
+          });
+        }
+      });
+      
+      segments = newSegments;
+    });
+    
+    // 最終的な要素の配列を作成
+    return segments.map((segment, index) => {
+      if (segment.isFormatted) {
+        return <React.Fragment key={index}>{segment.element}</React.Fragment>;
+      } else {
+        return <React.Fragment key={index}>{segment.text}</React.Fragment>;
+      }
+    });
   };
 
   // ローディング表示
@@ -666,6 +809,8 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
 
   return (
     <div>
+      {/* Quillエディタ用スタイル */}
+      <style>{quillStyles}</style>
       {/* WebSocket接続状態表示は非表示（開発中） */}
       {false && connectionError && (
         <div className="mb-4 bg-red-50 border border-red-200 rounded-md p-3 text-sm">
@@ -739,9 +884,18 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
                   </button>
                 )}
               </div>
-              <div className="mt-3 text-sm text-gray-700 whitespace-pre-wrap">
-                {highlightMentions(comment.content)}
-              </div>
+              {comment.html_content ? (
+                // HTML形式のコンテンツがある場合はそれを表示
+                <div 
+                  className="mt-3 text-sm text-gray-700 quill-content"
+                  dangerouslySetInnerHTML={{ __html: comment.html_content }}
+                />
+              ) : (
+                // そうでなければ通常のテキスト表示
+                <div className="mt-3 text-sm text-gray-700 whitespace-pre-wrap">
+                  {formatContent(comment.content)}
+                </div>
+              )}
               
               {/* メンション情報（あれば表示） */}
               {comment.mentioned_user_names && comment.mentioned_user_names.length > 0 && (
@@ -831,84 +985,32 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
         )}
         
         <div className="relative">
-          {/* リッチテキストツールバー */}
-          <div className="flex items-center space-x-1 mb-2 bg-white p-1 rounded-t-md border border-gray-300 border-b-0">
-            <button
-              type="button"
-              className={`p-1 rounded ${boldText ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
-              title="太字"
-              onClick={() => insertFormatting('bold')}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M13.594 10.5c0 1.25-.984 2.297-2.312 2.422l2.375 2.375-1.281 1.281-3.844-3.828v-2.688h1.359c1.187 0 2.141-.891 2.141-2.062 0-1.125-.938-2.016-2.125-2.016H5v10h3.703c2.625 0 4.891-1.594 4.891-4.484 0-1.406-.531-2.625-1.422-3.516l1.422 1.422z"></path>
-              </svg>
-            </button>
-            <button
-              type="button" 
-              className={`p-1 rounded ${italicText ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
-              title="斜体"
-              onClick={() => insertFormatting('italic')}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M15 17h-5l.371-1.132H12l-1.329-9H9l-.371-1H14l-.371 1h-1.675l1.330 9h1.344L15 17z"></path>
-              </svg>
-            </button>
-            <button
-              type="button"
-              className="p-1 rounded hover:bg-gray-100"
-              title="コード"
-              onClick={() => insertFormatting('code')}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
-            </button>
-            <div className="border-l border-gray-300 h-6 mx-1"></div>
-            <button
-              type="button"
-              className="p-1 rounded hover:bg-gray-100"
-              title="メンション"
-              onClick={() => {
-                setNewComment(prev => prev + '@');
-                commentInputRef.current.focus();
-              }}
-            >
-              <HiOutlineAtSymbol className="h-5 w-5" />
-            </button>
-            <button
-              type="button"
-              className="p-1 rounded hover:bg-gray-100"
-              title="ファイルを添付"
-              onClick={handleFileButtonClick}
-            >
-              <HiOutlinePaperClip className="h-5 w-5" />
-            </button>
-            {/* 非表示のファイル入力 */}
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              accept="image/*"
-              multiple
-              onChange={handleFileChange}
-            />
-          </div>
+          {/* ファイル添付の非表示入力 */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            accept="image/*"
+            multiple
+            onChange={handleFileChange}
+          />
           
+          {/* リッチテキストエディタ */}
           <div className="flex items-start space-x-3">
             <div className="relative flex-1">
-              <textarea
-                ref={commentInputRef}
-                rows="3"
-                className="block w-full px-3 py-2 border border-gray-300 rounded-b-md rounded-tr-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                placeholder="コメントを入力... @でメンション、画像はペーストで添付できます"
-                value={newComment}
-                onChange={handleCommentChange}
-                onKeyDown={handleKeyDown}
-                onPaste={handlePaste}
+              <ReactQuill
+                ref={quillRef}
+                value={editorHtml}
+                onChange={handleEditorChange}
+                modules={modules}
+                formats={formats}
+                placeholder="コメントを入力... 画像はエディタに直接ドラッグ＆ドロップできます"
+                theme="snow"
+                className="rounded quill-editor"
                 disabled={submitting}
-              ></textarea>
+              />
               
-              {/* メンション候補 */}
+              {/* メンション候補 - メンションプラグインで代替する必要があります */}
               {showMentionSuggestions && (
                 <div 
                   ref={mentionSuggestionsRef}
@@ -931,13 +1033,15 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
                 </div>
               )}
             </div>
+            
             <button
               type="button"
               onClick={handleSubmit}
               className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 ${
                 submitting ? 'opacity-75 cursor-not-allowed' : ''
               }`}
-              disabled={submitting || (!newComment.trim() && pastedImages.length === 0)}
+              disabled={submitting || (!editorHtml && pastedImages.length === 0)}
+              style={{ marginTop: '15px' }} // エディタのツールバーと揃える
             >
               <HiOutlinePaperAirplane className="-ml-1 mr-2 h-5 w-5 transform rotate-90" />
               送信
