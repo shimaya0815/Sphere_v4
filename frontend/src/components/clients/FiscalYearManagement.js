@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { clientsApi } from '../../api';
 import toast from 'react-hot-toast';
 import { HiOutlineRefresh, HiLockClosed, HiLockOpen, HiStar } from 'react-icons/hi';
@@ -13,6 +13,7 @@ const FiscalYearManagement = ({ clientId }) => {
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [selectedFiscalYear, setSelectedFiscalYear] = useState(null);
+  const modalContainerRef = useRef(null);
   
   useEffect(() => {
     fetchFiscalYears();
@@ -61,7 +62,7 @@ const FiscalYearManagement = ({ clientId }) => {
     }
     
     if (fiscalYear.is_current) {
-      toast.info('この決算期は既に現在の期として設定されています');
+      toast('この決算期は既に現在の期として設定されています');
       return;
     }
     
@@ -251,14 +252,17 @@ const FiscalYearManagement = ({ clientId }) => {
         </>
       )}
       
-      {showForm && (
-        <FiscalYearForm
-          clientId={clientId}
-          fiscalYear={selectedFiscalYear}
-          onClose={handleFormClose}
-          onSuccess={handleFormSuccess}
-        />
-      )}
+      {/* モーダルコンテナ - z-indexが親コンポーネントに影響されないために別途追加 */}
+      <div ref={modalContainerRef} className="fiscal-year-form-modal-container" style={{ position: 'relative', zIndex: 9999 }}>
+        {showForm && (
+          <FiscalYearForm
+            clientId={clientId}
+            fiscalYear={selectedFiscalYear}
+            onClose={handleFormClose}
+            onSuccess={handleFormSuccess}
+          />
+        )}
+      </div>
     </div>
   );
 };
