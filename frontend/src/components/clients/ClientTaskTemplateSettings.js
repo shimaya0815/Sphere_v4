@@ -17,6 +17,7 @@ const ClientTaskTemplateSettings = ({ clientId, client }) => {
   const [editingTemplate, setEditingTemplate] = useState(null);
   const [creatingTask, setCreatingTask] = useState(false);
   const [copyingTemplates, setCopyingTemplates] = useState(false);
+  const [templateMode, setTemplateMode] = useState('custom'); // 'custom', 'default', 'none'
   
   // Load templates
   const fetchTemplates = async () => {
@@ -24,6 +25,14 @@ const ClientTaskTemplateSettings = ({ clientId, client }) => {
     try {
       const data = await clientsApi.getClientTaskTemplates(clientId);
       setTemplates(data);
+      
+      // 既存のテンプレートの有無でモードを判断
+      if (data && data.length > 0) {
+        setTemplateMode('custom');
+      } else {
+        // テンプレートがない場合はデフォルトモード
+        setTemplateMode('default');
+      }
     } catch (error) {
       console.error('Error fetching templates:', error);
       toast.error('テンプレート設定の取得に失敗しました');
@@ -36,27 +45,10 @@ const ClientTaskTemplateSettings = ({ clientId, client }) => {
     fetchTemplates();
   }, [clientId]);
   
-  // Update client template settings
-  const updateClientSettings = async (settings) => {
-    try {
-      await clientsApi.updateClient(clientId, settings);
-      toast.success('クライアント設定を更新しました');
-    } catch (error) {
-      console.error('Error updating client settings:', error);
-      toast.error('クライアント設定の更新に失敗しました');
-    }
-  };
-  
-  // Handle template usage toggle
-  const handleTemplateUsageChange = (e) => {
+  // Handle template mode change
+  const handleTemplateModeChange = (e) => {
     const value = e.target.value;
-    updateClientSettings({ task_template_usage: value });
-  };
-  
-  // Handle template type change
-  const handleTemplateTypeChange = (e) => {
-    const value = e.target.value;
-    updateClientSettings({ task_template_type: value });
+    setTemplateMode(value);
   };
   
   // Copy default templates
@@ -66,6 +58,7 @@ const ClientTaskTemplateSettings = ({ clientId, client }) => {
       await clientsApi.copyDefaultTemplates(clientId);
       toast.success('デフォルトテンプレートをコピーしました');
       fetchTemplates();
+      setTemplateMode('custom');
     } catch (error) {
       console.error('Error copying default templates:', error);
       toast.error('デフォルトテンプレートのコピーに失敗しました');
@@ -133,78 +126,46 @@ const ClientTaskTemplateSettings = ({ clientId, client }) => {
         
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            タスクテンプレート使用設定
+            使用するテンプレートタイプ
           </label>
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-col space-y-2">
             <label className="inline-flex items-center">
               <input
                 type="radio"
                 className="form-radio"
-                name="template_usage"
-                value="enabled"
-                checked={client.task_template_usage === 'enabled'}
-                onChange={handleTemplateUsageChange}
+                name="template_mode"
+                value="default"
+                checked={templateMode === 'default'}
+                onChange={handleTemplateModeChange}
               />
-              <span className="ml-2">テンプレートを使用する</span>
+              <span className="ml-2">デフォルトテンプレートを使用</span>
             </label>
             <label className="inline-flex items-center">
               <input
                 type="radio"
                 className="form-radio"
-                name="template_usage"
-                value="disabled"
-                checked={client.task_template_usage === 'disabled'}
-                onChange={handleTemplateUsageChange}
+                name="template_mode"
+                value="custom"
+                checked={templateMode === 'custom'}
+                onChange={handleTemplateModeChange}
               />
-              <span className="ml-2">テンプレートを使用しない</span>
+              <span className="ml-2">カスタマイズしたテンプレートを使用</span>
+            </label>
+            <label className="inline-flex items-center">
+              <input
+                type="radio"
+                className="form-radio"
+                name="template_mode"
+                value="none"
+                checked={templateMode === 'none'}
+                onChange={handleTemplateModeChange}
+              />
+              <span className="ml-2">テンプレートを使用しない（手動作成のみ）</span>
             </label>
           </div>
         </div>
         
-        {client.task_template_usage === 'enabled' && (
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              使用するテンプレートタイプ
-            </label>
-            <div className="flex flex-col space-y-2">
-              <label className="inline-flex items-center">
-                <input
-                  type="radio"
-                  className="form-radio"
-                  name="template_type"
-                  value="default"
-                  checked={client.task_template_type === 'default'}
-                  onChange={handleTemplateTypeChange}
-                />
-                <span className="ml-2">デフォルトテンプレートを使用</span>
-              </label>
-              <label className="inline-flex items-center">
-                <input
-                  type="radio"
-                  className="form-radio"
-                  name="template_type"
-                  value="custom"
-                  checked={client.task_template_type === 'custom'}
-                  onChange={handleTemplateTypeChange}
-                />
-                <span className="ml-2">カスタマイズしたテンプレートを使用</span>
-              </label>
-              <label className="inline-flex items-center">
-                <input
-                  type="radio"
-                  className="form-radio"
-                  name="template_type"
-                  value="none"
-                  checked={client.task_template_type === 'none'}
-                  onChange={handleTemplateTypeChange}
-                />
-                <span className="ml-2">テンプレートを使用しない（手動作成のみ）</span>
-              </label>
-            </div>
-          </div>
-        )}
-        
-        {client.task_template_usage === 'enabled' && client.task_template_type !== 'none' && (
+        {templateMode !== 'none' && (
           <div className="flex flex-wrap gap-2 mt-4">
             <button
               className="btn btn-primary btn-sm"
@@ -215,20 +176,22 @@ const ClientTaskTemplateSettings = ({ clientId, client }) => {
               {creatingTask ? 'タスク作成中...' : 'テンプレートからタスクを作成'}
             </button>
             
-            <button
-              className="btn btn-outline btn-sm"
-              onClick={handleCopyDefaults}
-              disabled={copyingTemplates}
-            >
-              <HiOutlineTemplate className="mr-1" />
-              {copyingTemplates ? 'コピー中...' : 'デフォルトテンプレートをコピー'}
-            </button>
+            {templateMode === 'default' && (
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={handleCopyDefaults}
+                disabled={copyingTemplates}
+              >
+                <HiOutlineTemplate className="mr-1" />
+                {copyingTemplates ? 'コピー中...' : 'デフォルトテンプレートをコピー'}
+              </button>
+            )}
           </div>
         )}
       </div>
       
       {/* テンプレート一覧 */}
-      {client.task_template_usage === 'enabled' && client.task_template_type === 'custom' && (
+      {templateMode === 'custom' && (
         <div>
           <div className="flex justify-between mb-4">
             <h2 className="text-xl font-semibold">テンプレート一覧</h2>
@@ -268,7 +231,8 @@ const ClientTaskTemplateSettings = ({ clientId, client }) => {
               ))
             ) : (
               <div className="col-span-2 bg-gray-50 p-6 rounded-lg text-center text-gray-500">
-                テンプレートが登録されていません
+                テンプレートが登録されていません。デフォルトテンプレートを
+                コピーするか、新しいテンプレートを追加してください。
               </div>
             )}
           </div>
