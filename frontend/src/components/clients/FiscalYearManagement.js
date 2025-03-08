@@ -271,7 +271,7 @@ const FiscalYearManagement = ({ clientId }) => {
       )}
       
       {/* モーダルコンテナ - z-indexが親コンポーネントに影響されないために別途追加 */}
-      <div ref={modalContainerRef} className="fiscal-year-form-modal-container" style={{ position: 'relative', zIndex: 9999 }}>
+      <div ref={modalContainerRef} className="fiscal-year-form-modal-container" style={{ position: 'relative', zIndex: 50000 }}>
         {showForm && (
           <FiscalYearForm
             clientId={clientId}

@@ -40,6 +40,7 @@ const FiscalYearForm = ({ clientId, fiscalYear = null, onClose, onSuccess }) => 
   
   const handleSubmit = async (e) => {
     e.preventDefault();
+    e.stopPropagation();
     
     if (!formData.fiscal_period) {
       toast.error('決算期は必須です');
@@ -87,17 +88,17 @@ const FiscalYearForm = ({ clientId, fiscalYear = null, onClose, onSuccess }) => 
         toast.success('決算期情報を追加しました');
       }
       
-      // 親コンポーネントに成功を通知
-      if (onSuccess) {
-        console.log('Calling onSuccess callback');
-        onSuccess();
-      }
+      console.log('Closing modal and notifying success');
+      onClose();
       
-      // 少し遅延を入れて、APIレスポンスが完全に処理される時間を確保
+      // 遅延を入れてモーダルが完全に閉じた後にデータ更新を通知
       setTimeout(() => {
-        console.log('Closing modal after successful submission');
-        onClose();
-      }, 500);
+        // 親コンポーネントに成功を通知
+        if (onSuccess) {
+          console.log('Calling onSuccess callback');
+          onSuccess();
+        }
+      }, 300);
     } catch (error) {
       console.error('Error saving fiscal year:', error);
       console.error('Request data:', submitData);
@@ -151,7 +152,7 @@ const FiscalYearForm = ({ clientId, fiscalYear = null, onClose, onSuccess }) => 
           </button>
         </div>
         
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} action="">
           <div className="space-y-4">
             <div>
               <label htmlFor="fiscal_period" className="block text-sm font-medium text-gray-700 mb-1">
