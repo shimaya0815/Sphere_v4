@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Client, ClientCheckSetting, FiscalYear
+from .models import Client, ClientCheckSetting, FiscalYear, ClientTaskTemplate
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -17,6 +17,8 @@ class ClientSerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source='user.get_full_name', read_only=True)
     contract_status_display = serializers.SerializerMethodField()
     corporate_individual_display = serializers.SerializerMethodField()
+    task_template_usage_display = serializers.SerializerMethodField()
+    task_template_type_display = serializers.SerializerMethodField()
     
     class Meta:
         model = Client
@@ -27,7 +29,9 @@ class ClientSerializer(serializers.ModelSerializer):
             'phone', 'email', 'capital', 'establishment_date', 'tax_eTax_ID', 'tax_eLTAX_ID',
             'tax_taxpayer_confirmation_number', 'tax_invoice_no', 'tax_invoice_registration_date',
             'salary_closing_day', 'salary_payment_month', 'salary_payment_day',
-            'attendance_management_software', 'fiscal_year', 'fiscal_date', 'some_task_flag',
+            'attendance_management_software', 'fiscal_year', 'fiscal_date',
+            'task_template_usage', 'task_template_usage_display',
+            'task_template_type', 'task_template_type_display',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['business', 'created_at', 'updated_at']
@@ -37,6 +41,12 @@ class ClientSerializer(serializers.ModelSerializer):
     
     def get_corporate_individual_display(self, obj):
         return dict(Client.ENTITY_CHOICES).get(obj.corporate_individual, '')
+        
+    def get_task_template_usage_display(self, obj):
+        return dict(Client.TEMPLATE_USAGE_CHOICES).get(obj.task_template_usage, '')
+        
+    def get_task_template_type_display(self, obj):
+        return dict(Client.TEMPLATE_TYPE_CHOICES).get(obj.task_template_type, '')
     
     def validate_client_code(self, value):
         """
@@ -117,3 +127,28 @@ class FiscalYearSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("ロックされた決算期は編集できません。")
                 
         return data
+
+
+class ClientTaskTemplateSerializer(serializers.ModelSerializer):
+    client_name = serializers.CharField(source='client.name', read_only=True)
+    template_name = serializers.CharField(source='template.title', read_only=True)
+    deadline_type_display = serializers.SerializerMethodField()
+    worker_name = serializers.CharField(source='worker.get_full_name', read_only=True, allow_null=True)
+    reviewer_name = serializers.CharField(source='reviewer.get_full_name', read_only=True, allow_null=True)
+    category_name = serializers.CharField(source='category.name', read_only=True, allow_null=True)
+    priority_value = serializers.IntegerField(source='priority.priority_value', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = ClientTaskTemplate
+        fields = [
+            'id', 'client', 'client_name', 'template', 'template_name',
+            'title', 'description', 'deadline_type', 'deadline_type_display', 'deadline_value',
+            'worker', 'worker_name', 'reviewer', 'reviewer_name',
+            'category', 'category_name', 'priority', 'priority_value',
+            'estimated_hours', 'is_active', 'order',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+    
+    def get_deadline_type_display(self, obj):
+        return dict(ClientTaskTemplate.DEADLINE_TYPE_CHOICES).get(obj.deadline_type, '')
