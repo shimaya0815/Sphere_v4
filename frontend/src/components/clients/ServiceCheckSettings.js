@@ -61,7 +61,8 @@ const ServiceCheckSettings = ({ clientId }) => {
     try {
       // テンプレートの取得
       const templatesData = await clientsApi.getTaskTemplates();
-      setTemplates(templatesData);
+      // 必ず配列として扱えるようにする
+      setTemplates(Array.isArray(templatesData) ? templatesData : []);
       
       // クライアントチェック設定の取得
       const checkSettings = await clientsApi.getCheckSettings(clientId);
@@ -316,8 +317,10 @@ const ServiceCheckSettings = ({ clientId }) => {
                     disabled={!settings.templates_enabled || !settings.monthly_check.enabled}
                   >
                     <option value="">テンプレート選択</option>
-                    {templates.filter(t => t.category === 'monthly').map(template => (
-                      <option key={template.id} value={template.id}>{template.title}</option>
+                    {Array.isArray(templates) && templates
+                      .filter(t => t && t.category === 'monthly')
+                      .map(template => (
+                        <option key={template.id} value={template.id}>{template.title}</option>
                     ))}
                   </select>
                   <button 
@@ -362,8 +365,10 @@ const ServiceCheckSettings = ({ clientId }) => {
                     disabled={!settings.templates_enabled || !settings.bookkeeping.enabled}
                   >
                     <option value="">テンプレート選択</option>
-                    {templates.filter(t => t.category === 'bookkeeping').map(template => (
-                      <option key={template.id} value={template.id}>{template.title}</option>
+                    {Array.isArray(templates) && templates
+                      .filter(t => t && t.category === 'bookkeeping')
+                      .map(template => (
+                        <option key={template.id} value={template.id}>{template.title}</option>
                     ))}
                   </select>
                   <button 
@@ -408,8 +413,10 @@ const ServiceCheckSettings = ({ clientId }) => {
                     disabled={!settings.templates_enabled || !settings.tax_return.enabled}
                   >
                     <option value="">テンプレート選択</option>
-                    {templates.filter(t => t.category === 'tax_return').map(template => (
-                      <option key={template.id} value={template.id}>{template.title}</option>
+                    {Array.isArray(templates) && templates
+                      .filter(t => t && t.category === 'tax_return')
+                      .map(template => (
+                        <option key={template.id} value={template.id}>{template.title}</option>
                     ))}
                   </select>
                   <button 
@@ -454,8 +461,10 @@ const ServiceCheckSettings = ({ clientId }) => {
                     disabled={!settings.templates_enabled || !settings.income_tax.enabled}
                   >
                     <option value="">テンプレート選択</option>
-                    {templates.filter(t => t.category === 'income_tax').map(template => (
-                      <option key={template.id} value={template.id}>{template.title}</option>
+                    {Array.isArray(templates) && templates
+                      .filter(t => t && t.category === 'income_tax')
+                      .map(template => (
+                        <option key={template.id} value={template.id}>{template.title}</option>
                     ))}
                   </select>
                   <button 
@@ -500,8 +509,10 @@ const ServiceCheckSettings = ({ clientId }) => {
                     disabled={!settings.templates_enabled || !settings.residence_tax.enabled}
                   >
                     <option value="">テンプレート選択</option>
-                    {templates.filter(t => t.category === 'residence_tax').map(template => (
-                      <option key={template.id} value={template.id}>{template.title}</option>
+                    {Array.isArray(templates) && templates
+                      .filter(t => t && t.category === 'residence_tax')
+                      .map(template => (
+                        <option key={template.id} value={template.id}>{template.title}</option>
                     ))}
                   </select>
                   <button 
@@ -546,8 +557,10 @@ const ServiceCheckSettings = ({ clientId }) => {
                     disabled={!settings.templates_enabled || !settings.social_insurance.enabled}
                   >
                     <option value="">テンプレート選択</option>
-                    {templates.filter(t => t.category === 'social_insurance').map(template => (
-                      <option key={template.id} value={template.id}>{template.title}</option>
+                    {Array.isArray(templates) && templates
+                      .filter(t => t && t.category === 'social_insurance')
+                      .map(template => (
+                        <option key={template.id} value={template.id}>{template.title}</option>
                     ))}
                   </select>
                   <button 
