@@ -827,116 +827,138 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
       )}
 
       {/* 決算期管理タブ */}
-      {activeTab === 'fiscal' && clientId && (
+      {activeTab === 'fiscal' && (
         <div className="mt-6">
-          <FiscalYearManagement clientId={clientId} />
+          {clientId ? (
+            <FiscalYearManagement clientId={clientId} />
+          ) : (
+            <div className="alert alert-info">
+              クライアントを作成してから決算期の管理を行ってください。先に基本情報を入力して登録してください。
+            </div>
+          )}
         </div>
       )}
       
       {/* 業務チェック設定タブ */}
-      {activeTab === 'check' && clientId && (
+      {activeTab === 'check' && (
         <div>
-          <div className="flex justify-between mb-4">
-            <h2 className="text-xl font-semibold">業務チェック設定</h2>
-            <button 
-              className="btn btn-primary btn-sm"
-              onClick={() => {
-                setEditingCheckSetting(null);
-                setShowCheckSettingForm(true);
-              }}
-            >
-              <HiOutlinePlus className="mr-1" /> チェック設定を追加
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {checkSettings && checkSettings.length > 0 ? (
-              checkSettings.map(setting => (
-                <div key={setting.id} className="bg-white rounded-lg shadow overflow-hidden">
-                  <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
-                    <h3 className="font-semibold text-gray-800 flex items-center">
-                      <HiOutlineClock className="mr-2" /> 
-                      {getCheckTypeDisplay(setting.check_type)}
-                    </h3>
-                    <div className="flex items-center">
-                      {setting.is_enabled ? (
-                        <span className="badge badge-success mr-3">有効</span>
-                      ) : (
-                        <span className="badge badge-ghost mr-3">無効</span>
-                      )}
-                      <div className="flex space-x-2">
-                        <button 
-                          className="btn btn-ghost btn-xs"
-                          onClick={() => {
-                            setEditingCheckSetting(setting);
-                            setShowCheckSettingForm(true);
-                          }}
-                        >
-                          <HiPencilAlt />
-                        </button>
-                        <button 
-                          className="btn btn-ghost btn-xs text-red-500"
-                          onClick={async () => {
-                            if (window.confirm(`チェック設定「${getCheckTypeDisplay(setting.check_type)}」を削除してもよろしいですか？`)) {
-                              try {
-                                await clientsApi.deleteCheckSetting(setting.id);
-                                toast.success('チェック設定を削除しました');
-                                fetchCheckSettings();
-                              } catch (error) {
-                                console.error('Error deleting check setting:', error);
-                                toast.error('チェック設定の削除に失敗しました');
-                              }
-                            }
-                          }}
-                        >
-                          <HiOutlineTrash />
-                        </button>
+          {clientId ? (
+            <>
+              <div className="flex justify-between mb-4">
+                <h2 className="text-xl font-semibold">業務チェック設定</h2>
+                <button 
+                  className="btn btn-primary btn-sm"
+                  onClick={() => {
+                    setEditingCheckSetting(null);
+                    setShowCheckSettingForm(true);
+                  }}
+                >
+                  <HiOutlinePlus className="mr-1" /> チェック設定を追加
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {checkSettings && checkSettings.length > 0 ? (
+                  checkSettings.map(setting => (
+                    <div key={setting.id} className="bg-white rounded-lg shadow overflow-hidden">
+                      <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                        <h3 className="font-semibold text-gray-800 flex items-center">
+                          <HiOutlineClock className="mr-2" /> 
+                          {getCheckTypeDisplay(setting.check_type)}
+                        </h3>
+                        <div className="flex items-center">
+                          {setting.is_enabled ? (
+                            <span className="badge badge-success mr-3">有効</span>
+                          ) : (
+                            <span className="badge badge-ghost mr-3">無効</span>
+                          )}
+                          <div className="flex space-x-2">
+                            <button 
+                              className="btn btn-ghost btn-xs"
+                              onClick={() => {
+                                setEditingCheckSetting(setting);
+                                setShowCheckSettingForm(true);
+                              }}
+                            >
+                              <HiPencilAlt />
+                            </button>
+                            <button 
+                              className="btn btn-ghost btn-xs text-red-500"
+                              onClick={async () => {
+                                if (window.confirm(`チェック設定「${getCheckTypeDisplay(setting.check_type)}」を削除してもよろしいですか？`)) {
+                                  try {
+                                    await clientsApi.deleteCheckSetting(setting.id);
+                                    toast.success('チェック設定を削除しました');
+                                    fetchCheckSettings();
+                                  } catch (error) {
+                                    console.error('Error deleting check setting:', error);
+                                    toast.error('チェック設定の削除に失敗しました');
+                                  }
+                                }
+                              }}
+                            >
+                              <HiOutlineTrash />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-4">
+                        <table className="w-full">
+                          <tbody>
+                            <tr>
+                              <td className="py-2 text-sm font-medium text-gray-500 w-1/3">サイクル</td>
+                              <td className="py-2 text-sm">
+                                {setting.cycle === 'monthly' ? '毎月' : 
+                                 setting.cycle === 'yearly' ? '毎年' : 
+                                 setting.cycle}
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="py-2 text-sm font-medium text-gray-500">作成日</td>
+                              <td className="py-2 text-sm">
+                                {setting.create_day}日
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="py-2 text-sm font-medium text-gray-500">テンプレート</td>
+                              <td className="py-2 text-sm">
+                                {setting.template ? setting.template.title : 'なし'}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="col-span-2 bg-gray-50 p-6 rounded-lg text-center text-gray-500">
+                    業務チェック設定が登録されていません
                   </div>
-                  <div className="p-4">
-                    <table className="w-full">
-                      <tbody>
-                        <tr>
-                          <td className="py-2 text-sm font-medium text-gray-500 w-1/3">サイクル</td>
-                          <td className="py-2 text-sm">
-                            {setting.cycle === 'monthly' ? '毎月' : 
-                             setting.cycle === 'yearly' ? '毎年' : 
-                             setting.cycle}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="py-2 text-sm font-medium text-gray-500">作成日</td>
-                          <td className="py-2 text-sm">
-                            {setting.create_day}日
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="py-2 text-sm font-medium text-gray-500">テンプレート</td>
-                          <td className="py-2 text-sm">
-                            {setting.template ? setting.template.title : 'なし'}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="col-span-2 bg-gray-50 p-6 rounded-lg text-center text-gray-500">
-                業務チェック設定が登録されていません
+                )}
               </div>
-            )}
-          </div>
+            </>
+          ) : (
+            <div className="alert alert-info">
+              クライアントを作成してから業務チェック設定を行ってください。先に基本情報を入力して登録してください。
+            </div>
+          )}
         </div>
       )}
       
       {/* タスクテンプレートタブ */}
-      {activeTab === 'templates' && clientId && (
-        <ClientTaskTemplateSettings 
-          clientId={clientId} 
-          client={formData}
-        />
+      {activeTab === 'templates' && (
+        <div>
+          {clientId ? (
+            <ClientTaskTemplateSettings 
+              clientId={clientId} 
+              client={formData}
+            />
+          ) : (
+            <div className="alert alert-info">
+              クライアントを作成してからタスクテンプレート設定を行ってください。先に基本情報を入力して登録してください。
+            </div>
+          )}
+        </div>
       )}
 
       {/* ボタンナビゲーション */}
@@ -959,8 +981,38 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
           )}
         </div>
         
-        <div>
-          {activeTab !== 'templates' ? (
+        <div className="flex space-x-2">
+          {!clientId && activeTab === 'overview' && (
+            <button
+              type="submit"
+              className="btn btn-success"
+              disabled={saving}
+            >
+              {saving ? (
+                <>
+                  <span className="loading loading-spinner loading-sm mr-2"></span>
+                  保存中...
+                </>
+              ) : '登録する'}
+            </button>
+          )}
+          
+          {clientId && (
+            <button
+              type="submit"
+              className="btn btn-success"
+              disabled={saving}
+            >
+              {saving ? (
+                <>
+                  <span className="loading loading-spinner loading-sm mr-2"></span>
+                  保存中...
+                </>
+              ) : '更新する'}
+            </button>
+          )}
+          
+          {activeTab !== 'templates' && (
             <button
               type="button"
               className="btn btn-primary"
@@ -973,21 +1025,6 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
               }}
             >
               次のステップ
-            </button>
-          ) : (
-            <button
-              type="submit"
-              className="btn btn-success"
-              disabled={saving}
-            >
-              {saving ? (
-                <>
-                  <span className="loading loading-spinner loading-sm mr-2"></span>
-                  保存中...
-                </>
-              ) : (
-                clientId ? '更新する' : '登録する'
-              )}
             </button>
           )}
         </div>
