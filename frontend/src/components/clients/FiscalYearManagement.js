@@ -20,16 +20,9 @@ const FiscalYearManagement = ({ clientId }) => {
     fetchFiscalYears();
   }, [clientId]);
   
-  // モーダルが閉じられた後に再度データを取得するためのポーリングメカニズム
-  useEffect(() => {
-    // showFormが false (モーダルが閉じられた) になった時にデータを再取得
-    if (!showForm) {
-      console.log('Modal closed, refetching data...');
-      setTimeout(() => {
-        fetchFiscalYears();
-      }, 300);
-    }
-  }, [showForm]);
+  // 必要になったときだけデータを取得する
+  // モーダルが閉じられただけではデータを取得しない
+  // (formSuccessが明示的に呼ばれる場合のみ取得)
   
   const fetchFiscalYears = async () => {
     console.log('Fetching fiscal years for client:', clientId);
@@ -59,16 +52,15 @@ const FiscalYearManagement = ({ clientId }) => {
   };
   
   const handleFormClose = () => {
+    console.log('Form close called');
     setShowForm(false);
     setSelectedFiscalYear(null);
   };
   
   const handleFormSuccess = () => {
     console.log('Form success callback triggered');
-    setTimeout(() => {
-      console.log('Fetching fiscal years after form success');
-      fetchFiscalYears();
-    }, 800); // データが更新される時間を確保するために少し遅延を入れる
+    // 成功した場合にのみデータを再取得
+    fetchFiscalYears();
   };
   
   const handleSetCurrentFiscalYear = async (fiscalYear) => {
