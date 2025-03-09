@@ -3,48 +3,56 @@ import { clientsApi } from '../../api';
 import { HiOutlineTemplate, HiOutlinePencilAlt, HiOutlineCheck, HiOutlineRefresh } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 
+// サービスカテゴリタイプのマッピング定義
+const SERVICE_CATEGORIES = {
+  monthly_check: 'monthly',
+  bookkeeping: 'bookkeeping',
+  tax_return: 'tax_return',
+  income_tax: 'income_tax',
+  residence_tax: 'residence_tax',
+  social_insurance: 'social_insurance'
+};
+
+// サービス表示名のマッピング
+const SERVICE_DISPLAY_NAMES = {
+  monthly_check: '月次チェック',
+  bookkeeping: '記帳代行',
+  tax_return: '税務申告書作成',
+  income_tax: '源泉所得税',
+  residence_tax: '住民税対応',
+  social_insurance: '社会保険対応'
+};
+
+// デフォルトサイクルのマッピング
+const DEFAULT_CYCLES = {
+  monthly_check: 'monthly',
+  bookkeeping: 'monthly',
+  tax_return: 'yearly',
+  income_tax: 'monthly',
+  residence_tax: 'yearly',
+  social_insurance: 'monthly'
+};
+
 const ServiceCheckSettings = ({ clientId }) => {
+  // サービス設定の初期状態
+  const initialSettings = Object.keys(SERVICE_CATEGORIES).reduce((acc, service) => {
+    acc[service] = {
+      cycle: DEFAULT_CYCLES[service],
+      enabled: false,
+      template_id: null,
+      customized: false
+    };
+    return acc;
+  }, {});
+
   const [settings, setSettings] = useState({
     templates_enabled: true,
-    monthly_check: {
-      cycle: 'monthly',
-      enabled: true,
-      template_id: null,
-      customized: false
-    },
-    bookkeeping: {
-      cycle: 'monthly',
-      enabled: true,
-      template_id: null,
-      customized: false
-    },
-    tax_return: {
-      cycle: 'yearly',
-      enabled: true,
-      template_id: null,
-      customized: false
-    },
-    income_tax: {
-      cycle: 'monthly',
-      enabled: true,
-      template_id: null,
-      customized: false
-    },
-    residence_tax: {
-      cycle: 'yearly',
-      enabled: true,
-      template_id: null,
-      customized: false
-    },
-    social_insurance: {
-      cycle: 'monthly',
-      enabled: true,
-      template_id: null,
-      customized: false
-    }
+    ...initialSettings
   });
   
   const [templates, setTemplates] = useState([]);
+  const [clientTemplates, setClientTemplates] = useState([]);
+  const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
@@ -59,52 +67,45 @@ const ServiceCheckSettings = ({ clientId }) => {
     setLoading(true);
     
     try {
-      // テンプレートの取得
-      const templatesData = await clientsApi.getTaskTemplates();
-      // 必ず配列として扱えるようにする
-      setTemplates(Array.isArray(templatesData) ? templatesData : []);
+      // テンプレートとスケジュールの取得
+      const [templatesData, schedulesData, clientTemplatesData] = await Promise.all([
+        clientsApi.getTaskTemplates(),
+        clientsApi.getTaskTemplateSchedules(),
+        clientsApi.getClientTaskTemplates(clientId)
+      ]);
       
-      // TODO: APIが修正されたら、サービス設定の取得方法を変更する
-      // 仮の設定値を使用
+      // 必ず配列として扱えるようにする
+      const templatesArray = Array.isArray(templatesData) ? templatesData : [];
+      const schedulesArray = Array.isArray(schedulesData) ? schedulesData : [];
+      const clientTemplatesArray = Array.isArray(clientTemplatesData) ? clientTemplatesData : [];
+      
+      setTemplates(templatesArray);
+      setSchedules(schedulesArray);
+      setClientTemplates(clientTemplatesArray);
+      
+      // クライアントのテンプレート設定を基にサービス設定を構築
       const newSettings = {
-        templates_enabled: true,
-        monthly_check: {
-          cycle: 'monthly',
-          enabled: true,
-          template_id: null,
-          customized: false
-        },
-        bookkeeping: {
-          cycle: 'monthly',
-          enabled: true,
-          template_id: null,
-          customized: false
-        },
-        tax_return: {
-          cycle: 'yearly',
-          enabled: true,
-          template_id: null,
-          customized: false
-        },
-        income_tax: {
-          cycle: 'monthly',
-          enabled: true,
-          template_id: null,
-          customized: false
-        },
-        residence_tax: {
-          cycle: 'yearly',
-          enabled: true,
-          template_id: null,
-          customized: false
-        },
-        social_insurance: {
-          cycle: 'monthly',
-          enabled: true,
-          template_id: null,
-          customized: false
-        }
+        templates_enabled: clientTemplatesArray.length > 0,
+        ...initialSettings
       };
+      
+      // クライアントのテンプレート設定から各サービスの設定を抽出
+      Object.entries(SERVICE_CATEGORIES).forEach(([serviceKey, category]) => {
+        const templateForService = clientTemplatesArray.find(t => 
+          t.category === category || t.title.includes(SERVICE_DISPLAY_NAMES[serviceKey])
+        );
+        
+        if (templateForService) {
+          const schedule = schedulesArray.find(s => s.id === templateForService.schedule);
+          
+          newSettings[serviceKey] = {
+            cycle: schedule ? getCycleFromSchedule(schedule, serviceKey) : DEFAULT_CYCLES[serviceKey],
+            enabled: templateForService.is_active,
+            template_id: templateForService.id,
+            customized: templateForService.customized || false
+          };
+        }
+      });
       
       setSettings(newSettings);
     } catch (error) {
@@ -113,6 +114,18 @@ const ServiceCheckSettings = ({ clientId }) => {
     } finally {
       setLoading(false);
     }
+  };
+  
+  // スケジュールオブジェクトからサイクル値を抽出
+  const getCycleFromSchedule = (schedule, serviceKey) => {
+    const type = schedule.schedule_type;
+    const recurrence = schedule.recurrence;
+    
+    if (recurrence === 'monthly') return 'monthly';
+    if (recurrence === 'quarterly') return 'quarterly';
+    if (recurrence === 'yearly' || type === 'fiscal_relative') return 'yearly';
+    
+    return DEFAULT_CYCLES[serviceKey] || 'monthly';
   };
   
   // フィールド変更ハンドラ
@@ -133,30 +146,73 @@ const ServiceCheckSettings = ({ clientId }) => {
     });
   };
   
+  // テンプレート編集画面に移動するハンドラ
+  const handleCustomize = (service, templateId) => {
+    if (!templateId) {
+      toast.error(`テンプレートを先に選択してください`);
+      return;
+    }
+    
+    // 既存のテンプレート編集機能を呼び出す
+    const existingTemplate = clientTemplates.find(t => t.id === templateId);
+    if (existingTemplate) {
+      // テンプレート編集モーダルを開く（現在の実装では別コンポーネントとして存在）
+      toast.success(`${SERVICE_DISPLAY_NAMES[service]} テンプレートをカスタマイズします`);
+      // ClientTaskTemplateSettingsの編集機能を使うべきだが、現在の実装では直接呼び出せない
+    }
+  };
+  
   // 設定保存ハンドラ
   const handleSave = async () => {
     setSaving(true);
     
     try {
-      // TODO: APIが修正されたら、サービス設定の保存方法を変更する
-      // 現在は仮実装
+      const promises = [];
+      
+      // サービスごとにタスクテンプレートを更新または作成
+      for (const [service, serviceSettings] of Object.entries(settings)) {
+        if (service === 'templates_enabled') continue;
+        
+        const category = SERVICE_CATEGORIES[service];
+        if (!category) continue;
+        
+        // テンプレートが有効で、テンプレートIDが選択されている場合
+        if (settings.templates_enabled && serviceSettings.enabled && serviceSettings.template_id) {
+          const existingTemplate = clientTemplates.find(t => t.id === serviceSettings.template_id);
+          
+          if (existingTemplate) {
+            // 既存のテンプレートを更新
+            const updateData = {
+              is_active: serviceSettings.enabled,
+              // 必要に応じて他の項目も更新
+            };
+            
+            promises.push(clientsApi.updateClientTaskTemplate(existingTemplate.id, updateData));
+          }
+        } 
+        // テンプレートが無効化された場合
+        else if (serviceSettings.template_id) {
+          const existingTemplate = clientTemplates.find(t => t.id === serviceSettings.template_id);
+          
+          if (existingTemplate) {
+            // テンプレートを無効化
+            promises.push(clientsApi.updateClientTaskTemplate(existingTemplate.id, { is_active: false }));
+          }
+        }
+      }
+      
+      // すべての更新を実行
+      await Promise.all(promises);
       
       toast.success('サービス設定を保存しました');
       // 最新データを再取得
       fetchData();
-      
     } catch (error) {
       console.error('Error saving service settings:', error);
       toast.error('サービス設定の保存に失敗しました');
     } finally {
       setSaving(false);
     }
-  };
-  
-  const handleCustomize = (service) => {
-    // テンプレートのカスタマイズ処理
-    toast.success(`${service} テンプレートをカスタマイズします`);
-    // ここに実装を追加
   };
   
   if (loading) {
@@ -225,293 +281,65 @@ const ServiceCheckSettings = ({ clientId }) => {
             </tr>
           </thead>
           <tbody>
-            {/* 月次チェック */}
-            <tr className="border-b">
-              <td className="px-4 py-3 font-medium">月次チェック</td>
-              <td className="px-4 py-3">
-                <select 
-                  className="select select-bordered select-sm w-full max-w-xs"
-                  value={settings.monthly_check.cycle}
-                  onChange={(e) => handleServiceChange('monthly_check', 'cycle', e.target.value)}
-                  disabled={!settings.templates_enabled}
-                >
-                  <option value="monthly">毎月</option>
-                  <option value="quarterly">四半期</option>
-                  <option value="yearly">年次</option>
-                </select>
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex items-center space-x-4">
-                  <input
-                    type="checkbox"
-                    className="checkbox checkbox-primary"
-                    checked={settings.monthly_check.enabled}
-                    onChange={(e) => handleServiceChange('monthly_check', 'enabled', e.target.checked)}
-                    disabled={!settings.templates_enabled}
-                  />
+            {/* サービス項目をマッピングから動的に生成 */}
+            {Object.entries(SERVICE_CATEGORIES).map(([service, category]) => (
+              <tr key={service} className="border-b">
+                <td className="px-4 py-3 font-medium">{SERVICE_DISPLAY_NAMES[service]}</td>
+                <td className="px-4 py-3">
                   <select 
                     className="select select-bordered select-sm w-full max-w-xs"
-                    value={settings.monthly_check.template_id || ''}
-                    onChange={(e) => handleServiceChange('monthly_check', 'template_id', e.target.value ? Number(e.target.value) : null)}
-                    disabled={!settings.templates_enabled || !settings.monthly_check.enabled}
-                  >
-                    <option value="">テンプレート選択</option>
-                    {Array.isArray(templates) && templates
-                      .filter(t => t && t.category === 'monthly')
-                      .map(template => (
-                        <option key={template.id} value={template.id}>{template.title}</option>
-                    ))}
-                  </select>
-                  <button 
-                    className="btn btn-sm btn-outline"
-                    onClick={() => handleCustomize('月次チェック')}
-                    disabled={!settings.templates_enabled || !settings.monthly_check.enabled || !settings.monthly_check.template_id}
-                  >
-                    <HiOutlinePencilAlt className="mr-1" /> カスタマイズ
-                  </button>
-                </div>
-              </td>
-            </tr>
-            
-            {/* 記帳代行 */}
-            <tr className="border-b">
-              <td className="px-4 py-3 font-medium">記帳代行</td>
-              <td className="px-4 py-3">
-                <select 
-                  className="select select-bordered select-sm w-full max-w-xs"
-                  value={settings.bookkeeping.cycle}
-                  onChange={(e) => handleServiceChange('bookkeeping', 'cycle', e.target.value)}
-                  disabled={!settings.templates_enabled}
-                >
-                  <option value="monthly">毎月</option>
-                  <option value="quarterly">四半期</option>
-                  <option value="yearly">年次</option>
-                </select>
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex items-center space-x-4">
-                  <input
-                    type="checkbox"
-                    className="checkbox checkbox-primary"
-                    checked={settings.bookkeeping.enabled}
-                    onChange={(e) => handleServiceChange('bookkeeping', 'enabled', e.target.checked)}
+                    value={settings[service]?.cycle || DEFAULT_CYCLES[service]}
+                    onChange={(e) => handleServiceChange(service, 'cycle', e.target.value)}
                     disabled={!settings.templates_enabled}
-                  />
-                  <select 
-                    className="select select-bordered select-sm w-full max-w-xs"
-                    value={settings.bookkeeping.template_id || ''}
-                    onChange={(e) => handleServiceChange('bookkeeping', 'template_id', e.target.value ? Number(e.target.value) : null)}
-                    disabled={!settings.templates_enabled || !settings.bookkeeping.enabled}
                   >
-                    <option value="">テンプレート選択</option>
-                    {Array.isArray(templates) && templates
-                      .filter(t => t && t.category === 'bookkeeping')
-                      .map(template => (
-                        <option key={template.id} value={template.id}>{template.title}</option>
-                    ))}
+                    {service === 'tax_return' || service === 'residence_tax' ? (
+                      <>
+                        <option value="yearly">年次</option>
+                        <option value="quarterly">四半期</option>
+                        <option value="monthly">毎月</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="monthly">毎月</option>
+                        <option value="quarterly">四半期</option>
+                        <option value="yearly">年次</option>
+                      </>
+                    )}
                   </select>
-                  <button 
-                    className="btn btn-sm btn-outline"
-                    onClick={() => handleCustomize('記帳代行')}
-                    disabled={!settings.templates_enabled || !settings.bookkeeping.enabled || !settings.bookkeeping.template_id}
-                  >
-                    <HiOutlinePencilAlt className="mr-1" /> カスタマイズ
-                  </button>
-                </div>
-              </td>
-            </tr>
-            
-            {/* 税務申告書作成 */}
-            <tr className="border-b">
-              <td className="px-4 py-3 font-medium">税務申告書作成</td>
-              <td className="px-4 py-3">
-                <select 
-                  className="select select-bordered select-sm w-full max-w-xs"
-                  value={settings.tax_return.cycle}
-                  onChange={(e) => handleServiceChange('tax_return', 'cycle', e.target.value)}
-                  disabled={!settings.templates_enabled}
-                >
-                  <option value="yearly">年次</option>
-                  <option value="quarterly">四半期</option>
-                  <option value="monthly">毎月</option>
-                </select>
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex items-center space-x-4">
-                  <input
-                    type="checkbox"
-                    className="checkbox checkbox-primary"
-                    checked={settings.tax_return.enabled}
-                    onChange={(e) => handleServiceChange('tax_return', 'enabled', e.target.checked)}
-                    disabled={!settings.templates_enabled}
-                  />
-                  <select 
-                    className="select select-bordered select-sm w-full max-w-xs"
-                    value={settings.tax_return.template_id || ''}
-                    onChange={(e) => handleServiceChange('tax_return', 'template_id', e.target.value ? Number(e.target.value) : null)}
-                    disabled={!settings.templates_enabled || !settings.tax_return.enabled}
-                  >
-                    <option value="">テンプレート選択</option>
-                    {Array.isArray(templates) && templates
-                      .filter(t => t && t.category === 'tax_return')
-                      .map(template => (
-                        <option key={template.id} value={template.id}>{template.title}</option>
-                    ))}
-                  </select>
-                  <button 
-                    className="btn btn-sm btn-outline"
-                    onClick={() => handleCustomize('税務申告書作成')}
-                    disabled={!settings.templates_enabled || !settings.tax_return.enabled || !settings.tax_return.template_id}
-                  >
-                    <HiOutlinePencilAlt className="mr-1" /> カスタマイズ
-                  </button>
-                </div>
-              </td>
-            </tr>
-            
-            {/* 源泉所得税 */}
-            <tr className="border-b">
-              <td className="px-4 py-3 font-medium">源泉所得税</td>
-              <td className="px-4 py-3">
-                <select 
-                  className="select select-bordered select-sm w-full max-w-xs"
-                  value={settings.income_tax.cycle}
-                  onChange={(e) => handleServiceChange('income_tax', 'cycle', e.target.value)}
-                  disabled={!settings.templates_enabled}
-                >
-                  <option value="monthly">毎月</option>
-                  <option value="quarterly">四半期</option>
-                  <option value="yearly">年次</option>
-                </select>
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex items-center space-x-4">
-                  <input
-                    type="checkbox"
-                    className="checkbox checkbox-primary"
-                    checked={settings.income_tax.enabled}
-                    onChange={(e) => handleServiceChange('income_tax', 'enabled', e.target.checked)}
-                    disabled={!settings.templates_enabled}
-                  />
-                  <select 
-                    className="select select-bordered select-sm w-full max-w-xs"
-                    value={settings.income_tax.template_id || ''}
-                    onChange={(e) => handleServiceChange('income_tax', 'template_id', e.target.value ? Number(e.target.value) : null)}
-                    disabled={!settings.templates_enabled || !settings.income_tax.enabled}
-                  >
-                    <option value="">テンプレート選択</option>
-                    {Array.isArray(templates) && templates
-                      .filter(t => t && t.category === 'income_tax')
-                      .map(template => (
-                        <option key={template.id} value={template.id}>{template.title}</option>
-                    ))}
-                  </select>
-                  <button 
-                    className="btn btn-sm btn-outline"
-                    onClick={() => handleCustomize('源泉所得税')}
-                    disabled={!settings.templates_enabled || !settings.income_tax.enabled || !settings.income_tax.template_id}
-                  >
-                    <HiOutlinePencilAlt className="mr-1" /> カスタマイズ
-                  </button>
-                </div>
-              </td>
-            </tr>
-            
-            {/* 住民税対応 */}
-            <tr className="border-b">
-              <td className="px-4 py-3 font-medium">住民税対応</td>
-              <td className="px-4 py-3">
-                <select 
-                  className="select select-bordered select-sm w-full max-w-xs"
-                  value={settings.residence_tax.cycle}
-                  onChange={(e) => handleServiceChange('residence_tax', 'cycle', e.target.value)}
-                  disabled={!settings.templates_enabled}
-                >
-                  <option value="yearly">年次</option>
-                  <option value="quarterly">四半期</option>
-                  <option value="monthly">毎月</option>
-                </select>
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex items-center space-x-4">
-                  <input
-                    type="checkbox"
-                    className="checkbox checkbox-primary"
-                    checked={settings.residence_tax.enabled}
-                    onChange={(e) => handleServiceChange('residence_tax', 'enabled', e.target.checked)}
-                    disabled={!settings.templates_enabled}
-                  />
-                  <select 
-                    className="select select-bordered select-sm w-full max-w-xs"
-                    value={settings.residence_tax.template_id || ''}
-                    onChange={(e) => handleServiceChange('residence_tax', 'template_id', e.target.value ? Number(e.target.value) : null)}
-                    disabled={!settings.templates_enabled || !settings.residence_tax.enabled}
-                  >
-                    <option value="">テンプレート選択</option>
-                    {Array.isArray(templates) && templates
-                      .filter(t => t && t.category === 'residence_tax')
-                      .map(template => (
-                        <option key={template.id} value={template.id}>{template.title}</option>
-                    ))}
-                  </select>
-                  <button 
-                    className="btn btn-sm btn-outline"
-                    onClick={() => handleCustomize('住民税対応')}
-                    disabled={!settings.templates_enabled || !settings.residence_tax.enabled || !settings.residence_tax.template_id}
-                  >
-                    <HiOutlinePencilAlt className="mr-1" /> カスタマイズ
-                  </button>
-                </div>
-              </td>
-            </tr>
-            
-            {/* 社会保険対応 */}
-            <tr className="border-b">
-              <td className="px-4 py-3 font-medium">社会保険対応</td>
-              <td className="px-4 py-3">
-                <select 
-                  className="select select-bordered select-sm w-full max-w-xs"
-                  value={settings.social_insurance.cycle}
-                  onChange={(e) => handleServiceChange('social_insurance', 'cycle', e.target.value)}
-                  disabled={!settings.templates_enabled}
-                >
-                  <option value="monthly">毎月</option>
-                  <option value="quarterly">四半期</option>
-                  <option value="yearly">年次</option>
-                </select>
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex items-center space-x-4">
-                  <input
-                    type="checkbox"
-                    className="checkbox checkbox-primary"
-                    checked={settings.social_insurance.enabled}
-                    onChange={(e) => handleServiceChange('social_insurance', 'enabled', e.target.checked)}
-                    disabled={!settings.templates_enabled}
-                  />
-                  <select 
-                    className="select select-bordered select-sm w-full max-w-xs"
-                    value={settings.social_insurance.template_id || ''}
-                    onChange={(e) => handleServiceChange('social_insurance', 'template_id', e.target.value ? Number(e.target.value) : null)}
-                    disabled={!settings.templates_enabled || !settings.social_insurance.enabled}
-                  >
-                    <option value="">テンプレート選択</option>
-                    {Array.isArray(templates) && templates
-                      .filter(t => t && t.category === 'social_insurance')
-                      .map(template => (
-                        <option key={template.id} value={template.id}>{template.title}</option>
-                    ))}
-                  </select>
-                  <button 
-                    className="btn btn-sm btn-outline"
-                    onClick={() => handleCustomize('社会保険対応')}
-                    disabled={!settings.templates_enabled || !settings.social_insurance.enabled || !settings.social_insurance.template_id}
-                  >
-                    <HiOutlinePencilAlt className="mr-1" /> カスタマイズ
-                  </button>
-                </div>
-              </td>
-            </tr>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center space-x-4">
+                    <input
+                      type="checkbox"
+                      className="checkbox checkbox-primary"
+                      checked={settings[service]?.enabled || false}
+                      onChange={(e) => handleServiceChange(service, 'enabled', e.target.checked)}
+                      disabled={!settings.templates_enabled}
+                    />
+                    <select 
+                      className="select select-bordered select-sm w-full max-w-xs"
+                      value={settings[service]?.template_id || ''}
+                      onChange={(e) => handleServiceChange(service, 'template_id', e.target.value ? Number(e.target.value) : null)}
+                      disabled={!settings.templates_enabled || !settings[service]?.enabled}
+                    >
+                      <option value="">テンプレート選択</option>
+                      {Array.isArray(templates) && templates
+                        .filter(t => t && (t.category === category || t.title.includes(SERVICE_DISPLAY_NAMES[service])))
+                        .map(template => (
+                          <option key={template.id} value={template.id}>{template.title}</option>
+                      ))}
+                    </select>
+                    <button 
+                      className="btn btn-sm btn-outline"
+                      onClick={() => handleCustomize(service, settings[service]?.template_id)}
+                      disabled={!settings.templates_enabled || !settings[service]?.enabled || !settings[service]?.template_id}
+                    >
+                      <HiOutlinePencilAlt className="mr-1" /> カスタマイズ
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
