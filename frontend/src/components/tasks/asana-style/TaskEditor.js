@@ -1053,6 +1053,29 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                           </div>
                         </div>
                         
+                        {/* 作業担当者・レビュー担当者の表示 */}
+                        <div className="flex items-center space-x-2 text-sm">
+                          <div className="flex items-center">
+                            <span className="text-gray-500 mr-1">作業:</span>
+                            <span className="font-medium text-gray-700">
+                              {watch('worker') && users.find(user => user.id.toString() === watch('worker'))
+                                ? (users.find(user => user.id.toString() === watch('worker')).get_full_name || 
+                                   users.find(user => user.id.toString() === watch('worker')).email)
+                                : '未設定'}
+                            </span>
+                          </div>
+                          <span className="text-gray-300">|</span>
+                          <div className="flex items-center">
+                            <span className="text-gray-500 mr-1">レビュー:</span>
+                            <span className="font-medium text-gray-700">
+                              {watch('reviewer') && users.find(user => user.id.toString() === watch('reviewer'))
+                                ? (users.find(user => user.id.toString() === watch('reviewer')).get_full_name || 
+                                   users.find(user => user.id.toString() === watch('reviewer')).email)
+                                : '未設定'}
+                            </span>
+                          </div>
+                        </div>
+                        
                         {/* 折りたたみ展開ボタン */}
                         <button 
                           type="button" 

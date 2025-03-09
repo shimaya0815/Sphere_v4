@@ -1,8 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import TaskList from '../components/tasks/TaskList';
 import TaskDetail from '../components/tasks/TaskDetail';
 import TaskEditor from '../components/tasks/asana-style/TaskEditor';
+import { tasksApi } from '../api';
 
 const TasksPage = ({ view }) => {
   const { taskId } = useParams();
@@ -13,14 +14,30 @@ const TasksPage = ({ view }) => {
   const location = useLocation();
   const taskListRef = useRef(null);
   
+  // タスクIDが指定されている場合、そのタスクを取得して表示
+  useEffect(() => {
+    if (taskId && !view) {
+      const fetchTask = async () => {
+        try {
+          const task = await tasksApi.getTask(taskId);
+          setSelectedTask(task);
+          setSlideOverOpen(true);
+        } catch (error) {
+          console.error('Error fetching task:', error);
+        }
+      };
+      
+      fetchTask();
+    }
+  }, [taskId, view]);
+  
   // タスクを選択して右からスライドするパネルを開く
   const handleTaskSelect = (task) => {
     setSelectedTask(task);
     setSlideOverOpen(true);
     
-    // URLにtaskIdを追加せず、同じページにとどまる
-    // これにより、右から表示されてもブラウザの戻るボタンを押したときに前のページに戻るのではなく
-    // スライドオーバーを閉じるだけになります
+    // URLをタスクIDに更新
+    navigate(`/tasks/${task.id}`, { replace: true });
   };
   
   // スライドオーバーを閉じる
@@ -28,6 +45,9 @@ const TasksPage = ({ view }) => {
     setSlideOverOpen(false);
     setSelectedTask(null);
     setIsNewTask(false);
+    
+    // URLをタスク一覧に戻す
+    navigate('/tasks', { replace: true });
   };
   
   // 新規タスク作成用のスライドオーバーを開く
