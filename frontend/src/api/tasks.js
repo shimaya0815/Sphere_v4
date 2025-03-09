@@ -214,6 +214,79 @@ const tasksApi = {
     }
   },
   
+  // テンプレートの内包タスク取得
+  getTemplateChildTasks: async (templateId) => {
+    try {
+      const response = await apiClient.get(`/api/tasks/templates/${templateId}/tasks/`);
+      console.log('Template child tasks response:', response.data);
+      
+      // DRFのページネーション形式に対応
+      if (response.data && response.data.results && Array.isArray(response.data.results)) {
+        return response.data.results;
+      }
+      
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+      console.error('Error fetching template child tasks:', error);
+      return [];
+    }
+  },
+  
+  // テンプレート内包タスク詳細取得
+  getTemplateTask: async (taskId) => {
+    try {
+      const response = await apiClient.get(`/api/tasks/template-tasks/${taskId}/`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching template task:', error);
+      throw error;
+    }
+  },
+  
+  // テンプレート内包タスク作成
+  createTemplateTask: async (taskData) => {
+    try {
+      const response = await apiClient.post('/api/tasks/template-tasks/', taskData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating template task:', error);
+      throw error;
+    }
+  },
+  
+  // テンプレート内包タスク更新
+  updateTemplateTask: async (taskId, taskData) => {
+    try {
+      const response = await apiClient.put(`/api/tasks/template-tasks/${taskId}/`, taskData);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating template task:', error);
+      throw error;
+    }
+  },
+  
+  // テンプレート内包タスク削除
+  deleteTemplateTask: async (taskId) => {
+    try {
+      const response = await apiClient.delete(`/api/tasks/template-tasks/${taskId}/`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting template task:', error);
+      throw error;
+    }
+  },
+  
+  // タスクスケジュール作成（内包タスク用）
+  createTaskSchedule: async (scheduleData) => {
+    try {
+      const response = await apiClient.post('/api/tasks/schedules/', scheduleData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating task schedule:', error);
+      throw error;
+    }
+  },
+  
   // タスクコメント関連API
   
   // タスクのコメント一覧を取得

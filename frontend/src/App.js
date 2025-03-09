@@ -7,6 +7,7 @@ import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import TasksPage from './pages/TasksPage';
 import TaskTemplatesPage from './pages/TaskTemplatesPage';
+import TemplateTaskList from './components/tasks/template/TemplateTaskList';
 import ClientsPage from './pages/ClientsPage';
 import ClientNewPage from './pages/ClientNewPage';
 import ClientDetailPage from './pages/ClientDetailPage';
@@ -68,6 +69,11 @@ function App() {
           <Route path="/tasks/templates" element={
             <PrivateRoute>
               <TaskTemplatesPage />
+            </PrivateRoute>
+          } />
+          <Route path="/tasks/templates/:templateId/tasks" element={
+            <PrivateRoute>
+              <TemplateTaskList />
             </PrivateRoute>
           } />
           <Route path="/tasks/:taskId" element={
