@@ -198,26 +198,7 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
       
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className="space-y-4">
-          {/* タイトルと説明フィールド */}
-          <TitleDescriptionFields register={register} errors={errors} />
-          
-          {/* テンプレート固有のフィールド（実行順序、カスタムスケジュール） */}
-          <TemplateSpecificFields 
-            register={register} 
-            errors={errors} 
-            hasCustomSchedule={hasCustomSchedule}
-          />
-          
-          {/* 担当者とレビュアーフィールド */}
-          <AssigneeFields 
-            register={register} 
-            errors={errors} 
-            workers={workers} 
-            reviewers={reviewers}
-            isLoadingUsers={isLoadingUsers} 
-          />
-          
-          {/* ステータスと優先度フィールド */}
+          {/* ステータスと優先度フィールド - 最初に表示 */}
           <StatusPriorityFields 
             register={register} 
             errors={errors} 
@@ -225,7 +206,26 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
             priorities={priorities} 
           />
           
-          {/* カテゴリーフィールド */}
+          {/* タイトルフィールド - ステータスの後に表示 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="title">
+              タイトル
+            </label>
+            <input
+              id="title"
+              type="text"
+              className={`appearance-none relative block w-full px-4 py-3 border ${
+                errors.title ? 'border-red-300 ring-1 ring-red-300' : 'border-gray-300'
+              } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm`}
+              placeholder="タスクのタイトルを入力"
+              {...register('title', { required: 'タイトルは必須です' })}
+            />
+            {errors.title && (
+              <p className="mt-1 text-xs text-red-600">{errors.title.message}</p>
+            )}
+          </div>
+          
+          {/* カテゴリーフィールド - タイトルの後に表示 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="category">
@@ -246,7 +246,39 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
             </div>
           </div>
           
-          {/* 見積時間フィールド */}
+          {/* 担当者とレビュアーフィールド - クライアント・決算期の代わりに */}
+          <AssigneeFields 
+            register={register} 
+            errors={errors} 
+            workers={workers} 
+            reviewers={reviewers}
+            isLoadingUsers={isLoadingUsers} 
+          />
+          
+          {/* テンプレート固有のフィールド（実行順序、カスタムスケジュール） - 期限日部分に相当 */}
+          <TemplateSpecificFields 
+            register={register} 
+            errors={errors} 
+            hasCustomSchedule={hasCustomSchedule}
+          />
+          
+          {/* 説明フィールド - TaskEditorと同じ位置に */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="description">
+              説明
+            </label>
+            <textarea
+              id="description"
+              rows="4"
+              className={`appearance-none relative block w-full px-4 py-3 border ${
+                errors.description ? 'border-red-300 ring-1 ring-red-300' : 'border-gray-300'
+              } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm`}
+              placeholder="タスクの詳細を入力"
+              {...register('description')}
+            />
+          </div>
+          
+          {/* 見積時間フィールド - 作業時間記録の一部として */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="estimated_hours">
               見積時間 (時間)
