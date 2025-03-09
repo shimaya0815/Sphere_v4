@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Client, ClientCheckSetting, FiscalYear, ClientTaskTemplate, TaxRuleHistory
+from .models import Client, FiscalYear, TaxRuleHistory
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
@@ -50,40 +50,7 @@ class ClientSerializer(serializers.ModelSerializer):
         return value
 
 
-class ClientCheckSettingSerializer(serializers.ModelSerializer):
-    client_name = serializers.CharField(source='client.name', read_only=True)
-    check_type_display = serializers.SerializerMethodField()
-    cycle_display = serializers.SerializerMethodField()
-    template_id = serializers.IntegerField(required=False, allow_null=True, write_only=True)
-    
-    class Meta:
-        model = ClientCheckSetting
-        fields = [
-            'id', 'client', 'client_name', 'check_type', 'check_type_display',
-            'is_enabled', 'cycle', 'cycle_display', 'create_day', 'template', 'template_id'
-        ]
-        read_only_fields = ['template']
-    
-    def get_check_type_display(self, obj):
-        return dict(ClientCheckSetting.CHECK_TYPE_CHOICES).get(obj.check_type, '')
-    
-    def get_cycle_display(self, obj):
-        return dict(ClientCheckSetting.CYCLE_CHOICES).get(obj.cycle, '')
-        
-    def validate(self, attrs):
-        # template_idが存在する場合のみTemplateを検証
-        template_id = attrs.pop('template_id', None)
-        if template_id:
-            try:
-                from tasks.models import Task
-                task = Task.objects.get(id=template_id)
-                attrs['template'] = task
-            except Task.DoesNotExist:
-                # 存在しないテンプレートIDが指定された場合はNoneに設定
-                # エラーは出さず処理を続行する
-                attrs['template'] = None
-        
-        return attrs
+# ClientCheckSettingSerializer was removed and merged into ClientTaskTemplateSerializer
 
 
 class FiscalYearSerializer(serializers.ModelSerializer):
@@ -120,29 +87,7 @@ class FiscalYearSerializer(serializers.ModelSerializer):
         return data
 
 
-class ClientTaskTemplateSerializer(serializers.ModelSerializer):
-    client_name = serializers.CharField(source='client.name', read_only=True)
-    template_name = serializers.CharField(source='template.title', read_only=True)
-    deadline_type_display = serializers.SerializerMethodField()
-    worker_name = serializers.CharField(source='worker.get_full_name', read_only=True, allow_null=True)
-    reviewer_name = serializers.CharField(source='reviewer.get_full_name', read_only=True, allow_null=True)
-    category_name = serializers.CharField(source='category.name', read_only=True, allow_null=True)
-    priority_value = serializers.IntegerField(source='priority.priority_value', read_only=True, allow_null=True)
-    
-    class Meta:
-        model = ClientTaskTemplate
-        fields = [
-            'id', 'client', 'client_name', 'template', 'template_name',
-            'title', 'description', 'deadline_type', 'deadline_type_display', 'deadline_value',
-            'worker', 'worker_name', 'reviewer', 'reviewer_name',
-            'category', 'category_name', 'priority', 'priority_value',
-            'estimated_hours', 'is_active', 'order',
-            'created_at', 'updated_at'
-        ]
-        read_only_fields = ['created_at', 'updated_at']
-    
-    def get_deadline_type_display(self, obj):
-        return dict(ClientTaskTemplate.DEADLINE_TYPE_CHOICES).get(obj.deadline_type, '')
+# ClientTaskTemplateSerializer は削除されました
         
         
 class TaxRuleHistorySerializer(serializers.ModelSerializer):

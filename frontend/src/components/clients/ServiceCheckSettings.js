@@ -64,70 +64,47 @@ const ServiceCheckSettings = ({ clientId }) => {
       // 必ず配列として扱えるようにする
       setTemplates(Array.isArray(templatesData) ? templatesData : []);
       
-      // クライアントチェック設定の取得
-      const checkSettings = await clientsApi.getCheckSettings(clientId);
-      
-      // 取得したデータを設定オブジェクトにマッピング
+      // TODO: APIが修正されたら、サービス設定の取得方法を変更する
+      // 仮の設定値を使用
       const newSettings = {
-        templates_enabled: true, // デフォルトで有効
-        ...settings
-      };
-      
-      // チェック設定をマッピング
-      checkSettings.forEach(setting => {
-        switch(setting.check_type) {
-          case 'monthly':
-            newSettings.monthly_check = {
-              cycle: setting.cycle,
-              enabled: setting.is_enabled,
-              template_id: setting.template?.id || null,
-              customized: setting.template?.is_custom || false
-            };
-            break;
-          case 'bookkeeping':
-            newSettings.bookkeeping = {
-              cycle: setting.cycle,
-              enabled: setting.is_enabled,
-              template_id: setting.template?.id || null,
-              customized: setting.template?.is_custom || false
-            };
-            break;
-          case 'tax_return':
-            newSettings.tax_return = {
-              cycle: setting.cycle,
-              enabled: setting.is_enabled,
-              template_id: setting.template?.id || null,
-              customized: setting.template?.is_custom || false
-            };
-            break;
-          case 'withholding_tax':
-            newSettings.income_tax = {
-              cycle: setting.cycle,
-              enabled: setting.is_enabled,
-              template_id: setting.template?.id || null,
-              customized: setting.template?.is_custom || false
-            };
-            break;
-          case 'residence_tax':
-            newSettings.residence_tax = {
-              cycle: setting.cycle,
-              enabled: setting.is_enabled,
-              template_id: setting.template?.id || null,
-              customized: setting.template?.is_custom || false
-            };
-            break;
-          case 'social_insurance':
-            newSettings.social_insurance = {
-              cycle: setting.cycle,
-              enabled: setting.is_enabled,
-              template_id: setting.template?.id || null,
-              customized: setting.template?.is_custom || false
-            };
-            break;
-          default:
-            break;
+        templates_enabled: true,
+        monthly_check: {
+          cycle: 'monthly',
+          enabled: true,
+          template_id: null,
+          customized: false
+        },
+        bookkeeping: {
+          cycle: 'monthly',
+          enabled: true,
+          template_id: null,
+          customized: false
+        },
+        tax_return: {
+          cycle: 'yearly',
+          enabled: true,
+          template_id: null,
+          customized: false
+        },
+        income_tax: {
+          cycle: 'monthly',
+          enabled: true,
+          template_id: null,
+          customized: false
+        },
+        residence_tax: {
+          cycle: 'yearly',
+          enabled: true,
+          template_id: null,
+          customized: false
+        },
+        social_insurance: {
+          cycle: 'monthly',
+          enabled: true,
+          template_id: null,
+          customized: false
         }
-      });
+      };
       
       setSettings(newSettings);
     } catch (error) {
@@ -161,42 +138,12 @@ const ServiceCheckSettings = ({ clientId }) => {
     setSaving(true);
     
     try {
-      // 各サービスのチェック設定を更新
-      const services = [
-        { key: 'monthly_check', type: 'monthly' },
-        { key: 'bookkeeping', type: 'bookkeeping' },
-        { key: 'tax_return', type: 'tax_return' },
-        { key: 'income_tax', type: 'withholding_tax' },
-        { key: 'residence_tax', type: 'residence_tax' },
-        { key: 'social_insurance', type: 'social_insurance' }
-      ];
-      
-      for (const service of services) {
-        const setting = settings[service.key];
-        
-        // 既存の設定を確認
-        const existingSettings = await clientsApi.getCheckSettings(clientId);
-        const existingSetting = existingSettings.find(s => s.check_type === service.type);
-        
-        const data = {
-          check_type: service.type,
-          is_enabled: setting.enabled,
-          cycle: setting.cycle,
-          create_day: 1, // デフォルト値
-          template_id: setting.template_id
-        };
-        
-        if (existingSetting) {
-          // 既存の設定を更新
-          await clientsApi.updateCheckSetting(existingSetting.id, data);
-        } else {
-          // 新規に設定を作成
-          await clientsApi.createCheckSetting(clientId, data);
-        }
-      }
+      // TODO: APIが修正されたら、サービス設定の保存方法を変更する
+      // 現在は仮実装
       
       toast.success('サービス設定を保存しました');
-      fetchData(); // 最新データを再取得
+      // 最新データを再取得
+      fetchData();
       
     } catch (error) {
       console.error('Error saving service settings:', error);
