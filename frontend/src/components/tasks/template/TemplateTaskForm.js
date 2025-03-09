@@ -35,7 +35,7 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
       title: '',
       description: '',
       status: '',
-      priority: '',
+      priority_value: '50', // デフォルト値としておいたほうが実用的
       category: '',
       estimated_hours: '',
       has_custom_schedule: 'false',
@@ -98,13 +98,21 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
             return field.toString();
           };
           
+          // 優先度の値を取得する（優先度オブジェクトから数値を取り出す）
+          let priorityValue = '50'; // デフォルト値
+          if (task.priority) {
+            if (typeof task.priority === 'object' && task.priority.priority_value) {
+              priorityValue = task.priority.priority_value.toString();
+            }
+          }
+          
           // Set form values from existing task
           reset({
             title: task.title || '',
             description: task.description || '',
             category: getIdAsString(task.category?.id || task.category),
             status: getIdAsString(task.status?.id || task.status),
-            priority: getIdAsString(task.priority?.id || task.priority),
+            priority_value: priorityValue,
             estimated_hours: task.estimated_hours || '',
             has_custom_schedule: task.has_custom_schedule ? 'true' : 'false',
             order: task.order?.toString() || '1',
@@ -133,12 +141,27 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
   const submitTask = async (data) => {
     setIsSubmitting(true);
     try {
+      // 優先度値に基づいてPriorityレコードを作成または取得
+      let priorityId = null;
+      if (data.priority_value) {
+        const priorityValue = parseInt(data.priority_value, 10);
+        if (!isNaN(priorityValue) && priorityValue >= 1 && priorityValue <= 100) {
+          try {
+            const priorityResponse = await tasksApi.createPriorityForValue(priorityValue);
+            priorityId = priorityResponse.id;
+            console.log(`優先度 ${priorityValue} のレコードを取得: ID=${priorityId}`);
+          } catch (error) {
+            console.error('優先度レコードの作成に失敗:', error);
+          }
+        }
+      }
+      
       // Format data for API submission
       const formattedData = {
         ...data,
         // Convert string IDs to numbers
         status: data.status ? parseInt(data.status) : null,
-        priority: data.priority ? parseInt(data.priority) : null,
+        priority: priorityId, // 取得したpriorityIdを使用
         category: data.category ? parseInt(data.category) : null,
         worker: data.worker ? parseInt(data.worker) : null,
         reviewer: data.reviewer ? parseInt(data.reviewer) : null,
@@ -276,36 +299,46 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
               </div>
             </div>
 
-            {/* 優先度 */}
+            {/* 優先度 - 数値入力形式（1-100） */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="priority">
+              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="priority_value">
                 優先度
+                <div className="relative ml-2 group inline-block">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="absolute left-0 bottom-6 w-52 p-2 bg-gray-800 text-white text-xs rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                    <p>優先度は1〜100の数値で指定します。</p>
+                    <p className="mt-1">数値が小さいほど優先度が高くなります。</p>
+                    <div className="absolute bottom-0 left-3 transform translate-y-full w-2 h-2 bg-gray-800 rotate-45"></div>
+                  </div>
+                </div>
               </label>
               <div className="mt-1">
                 <Controller
-                  name="priority"
+                  name="priority_value"
                   control={control}
-                  rules={{ required: '優先度は必須です' }}
+                  rules={{ 
+                    min: { value: 1, message: '1以上の値を入力してください' },
+                    max: { value: 100, message: '100以下の値を入力してください' }
+                  }}
                   render={({ field, fieldState }) => (
                     <div>
-                      <select
-                        id="priority"
-                        className={`${selectClassName} ${
+                      <input
+                        type="number"
+                        id="priority_value"
+                        min="1"
+                        max="100"
+                        placeholder="1-100の数値を入力"
+                        className={`${inputClassName} ${
                           fieldState.error ? 'border-red-300 ring-1 ring-red-300' : ''
                         }`}
                         {...field}
                         onChange={(e) => {
                           field.onChange(e);
-                          handleFieldChange('priority', e.target.value);
+                          handleFieldChange('priority_value', e.target.value);
                         }}
-                      >
-                        <option value="">優先度を選択</option>
-                        {priorities.map((priority) => (
-                          <option key={priority.id} value={priority.id}>
-                            {priority.priority_value || '未設定'}
-                          </option>
-                        ))}
-                      </select>
+                      />
                       {fieldState.error && (
                         <p className="mt-1 text-xs text-red-600">{fieldState.error.message}</p>
                       )}
