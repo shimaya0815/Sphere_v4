@@ -397,7 +397,7 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
             </div>
           </div>
           
-          {/* 実行順序 */}
+          {/* 実行順序 - 内包タスク固有のフィールド */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="order">
               実行順序
