@@ -212,10 +212,13 @@ const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
   };
 
   return (
-    <div className={`bg-white rounded-lg shadow-card overflow-hidden transition-all hover:shadow-card-hover ${
-      task.completed_at ? 'border-l-4 border-green-500' : 
-      isOverdue() ? 'border-l-4 border-red-500' : ''
-    }`}>
+    <div 
+      className={`bg-white rounded-lg shadow-card overflow-hidden transition-all hover:shadow-card-hover cursor-pointer ${
+        task.completed_at ? 'border-l-4 border-green-500' : 
+        isOverdue() ? 'border-l-4 border-red-500' : ''
+      }`}
+      onClick={() => onEdit(task)} // カード全体をクリック可能に
+    >
       <div className="p-5">
         <div className="flex justify-between items-start">
           <div className="flex-1">
@@ -230,13 +233,16 @@ const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
           <div className="relative">
             <button 
               className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              onClick={(e) => {
+                e.stopPropagation(); // イベントの親への伝播を停止
+                setIsMenuOpen(!isMenuOpen);
+              }}
             >
               <HiOutlineDotsVertical />
             </button>
             
             {isMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200" onClick={(e) => e.stopPropagation()}>
                 <ul className="py-1">
                   <li>
                     <button 
@@ -254,7 +260,8 @@ const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
                     <button 
                       className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
                       onClick={() => {
-                        navigate(`/tasks/${task.id}`);
+                        // スライドパネルを表示するためにonEditを呼び出す
+                        onEdit(task);
                         setIsMenuOpen(false);
                       }}
                     >
