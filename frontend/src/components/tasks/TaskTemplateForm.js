@@ -10,9 +10,9 @@ import {
   HiOutlineOfficeBuilding
 } from 'react-icons/hi';
 
-const TaskTemplateForm = ({ templateId = null, onSuccess, onCancel }) => {
+const TaskTemplateForm = ({ templateId = null, templateData = null, onSuccess, onCancel }) => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(templateId ? true : false);
+  const [loading, setLoading] = useState(templateId && !templateData ? true : false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   
@@ -22,7 +22,25 @@ const TaskTemplateForm = ({ templateId = null, onSuccess, onCancel }) => {
   const [workspaces, setWorkspaces] = useState([]);
   const [schedules, setSchedules] = useState([]);
   
-  const [formData, setFormData] = useState({
+  // 初期データをセット
+  const initialData = templateData ? {
+    ...templateData,
+    category: templateData.category?.id || null,
+    priority: templateData.priority?.id || null,
+    status: templateData.status?.id || null,
+    workspace: templateData.workspace?.id || null,
+    is_template: true,
+    // スケジュール関連のフィールド
+    schedule_type: templateData.schedule_type || 'monthly_start',
+    recurrence: templateData.recurrence || 'monthly',
+    creation_day: templateData.creation_day || '',
+    deadline_day: templateData.deadline_day || '',
+    deadline_next_month: templateData.deadline_next_month || false,
+    fiscal_date_reference: templateData.fiscal_date_reference || 'end_date',
+    creation_date_offset: templateData.creation_date_offset || 0,
+    deadline_date_offset: templateData.deadline_date_offset || 5,
+    reference_date_type: templateData.reference_date_type || 'execution_date'
+  } : {
     title: '',
     description: '',
     category: null,
@@ -40,34 +58,47 @@ const TaskTemplateForm = ({ templateId = null, onSuccess, onCancel }) => {
     deadline_day: '',
     deadline_next_month: false,
     fiscal_date_reference: 'end_date',
-    // 追加: カスタム設定用のフィールド
-    creation_date_offset: 0,  // 基準日からの作成日オフセット（日数）
-    deadline_date_offset: 5,  // 作成日からの期日オフセット（日数）
-    reference_date_type: 'execution_date' // 基準日タイプ（実行日/決算日/当月初日/当月末日）
-  });
+    // カスタム設定用のフィールド
+    creation_date_offset: 0,
+    deadline_date_offset: 5,
+    reference_date_type: 'execution_date'
+  };
+  
+  const [formData, setFormData] = useState(initialData);
   
   useEffect(() => {
-    // Load template data if editing
-    if (templateId) {
+    console.log('TaskTemplateForm initialized with:', { templateId, templateData });
+    
+    // 直接渡されたテンプレートデータがない場合のみAPIから取得
+    if (templateId && !templateData) {
       fetchTemplateData();
+    } else if (templateData) {
+      console.log('Using provided template data');
+      setLoading(false);
     }
     
-    // Load reference data
+    // 参照データを取得
     fetchReferenceData();
-  }, [templateId]);
+  }, [templateId, templateData]);
   
   const fetchTemplateData = async () => {
     try {
+      console.log('Fetching template data for ID:', templateId);
       const data = await tasksApi.getTask(templateId);
+      console.log('Template data received:', data);
       
       // スケジュール情報をテンプレートから取得
       let scheduleData = {};
       if (data.schedule) {
         try {
+          console.log('Fetching schedule data for schedule ID:', data.schedule);
           const scheduleResponse = await tasksApi.getTemplateSchedules();
+          console.log('Schedule response:', scheduleResponse);
+          
           const matchingSchedule = scheduleResponse.find(s => s.id === data.schedule);
           
           if (matchingSchedule) {
+            console.log('Found matching schedule:', matchingSchedule);
             scheduleData = {
               schedule: matchingSchedule.id,
               schedule_type: matchingSchedule.schedule_type || 'monthly_start',
@@ -80,11 +111,22 @@ const TaskTemplateForm = ({ templateId = null, onSuccess, onCancel }) => {
               deadline_date_offset: matchingSchedule.deadline_date_offset || 5,
               reference_date_type: matchingSchedule.reference_date_type || 'execution_date'
             };
+          } else {
+            console.warn('No matching schedule found for ID:', data.schedule);
           }
         } catch (scheduleError) {
           console.error('Error fetching schedule data:', scheduleError);
         }
       }
+      
+      console.log('Setting form data with:', {
+        ...data,
+        category: data.category?.id || null,
+        priority: data.priority?.id || null,
+        status: data.status?.id || null,
+        workspace: data.workspace?.id || null,
+        ...scheduleData
+      });
       
       setFormData({
         ...data,
@@ -98,6 +140,7 @@ const TaskTemplateForm = ({ templateId = null, onSuccess, onCancel }) => {
       setError(null);
     } catch (error) {
       console.error('Error fetching template:', error);
+      console.error('Error details:', error.response?.data || error.message);
       setError('テンプレートの取得に失敗しました');
       toast.error('テンプレートの取得に失敗しました');
     } finally {

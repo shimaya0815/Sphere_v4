@@ -119,6 +119,8 @@ const TaskTemplateList = () => {
   };
 
   const handleEdit = (template) => {
+    console.log('Edit template clicked:', template);
+    // IDのみをセットするのではなく、テンプレート全体をセット
     setEditingTemplate(template);
     setShowForm(true);
   };
@@ -277,6 +279,7 @@ const TaskTemplateList = () => {
     return (
       <TaskTemplateForm 
         templateId={editingTemplate?.id}
+        templateData={editingTemplate} // 既存データを直接渡す
         onSuccess={handleFormSuccess}
         onCancel={handleFormCancel}
       />

@@ -22,9 +22,13 @@ const tasksApi = {
   // タスクの詳細を取得
   getTask: async (taskId) => {
     try {
+      console.log('Fetching task details for ID:', taskId);
       const response = await apiClient.get(`/api/tasks/${taskId}/`);
+      console.log('Task details response:', response.data);
       return response.data;
     } catch (error) {
+      console.error('Error in getTask:', error);
+      console.error('Error details:', error.response?.data || error.message);
       throw error;
     }
   },
