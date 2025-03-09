@@ -82,7 +82,14 @@ const tasksApi = {
   // タスクテンプレート一覧を取得
   getTemplates: async () => {
     try {
+      console.log('Fetching templates from API...');
       const response = await apiClient.get('/api/tasks/templates/');
+      console.log('Templates response:', response.data);
+      // 明示的に配列でなければ空配列を返す
+      if (!Array.isArray(response.data)) {
+        console.warn('API response is not an array:', response.data);
+        return [];
+      }
       return response.data;
     } catch (error) {
       console.error('Error fetching templates:', error);

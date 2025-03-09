@@ -209,7 +209,9 @@ const TaskTemplateList = () => {
           );
           
           if (!exists) {
-            await tasksApi.createTask(templateData);
+            console.log('Creating template with data:', templateData);
+            const createdTemplate = await tasksApi.createTask(templateData);
+            console.log('Template created successfully:', createdTemplate);
             createdCount++;
           }
         } catch (err) {

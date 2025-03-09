@@ -193,7 +193,7 @@ const TaskTemplateForm = ({ templateId = null, onSuccess, onCancel }) => {
       // テンプレートタスクの保存/更新
       const taskData = {
         ...formData,
-        is_template: true,
+        is_template: true, // 明示的にテンプレートフラグを設定
         schedule: scheduleId
       };
       
