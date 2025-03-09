@@ -50,12 +50,20 @@ const TemplateTaskList = () => {
   const fetchTemplateTasks = async () => {
     setLoading(true);
     try {
-      const data = await tasksApi.getTemplateChildTasks(templateId);
-      console.log('Template child tasks:', data);
+      console.log('Fetching template child tasks with templateId:', templateId);
+      // APIがまだ実装されていない可能性があるため、空の配列を設定
+      // 将来的にAPIが実装されたら、以下の行を有効化する
+      // const data = await tasksApi.getTemplateChildTasks(templateId);
+      
+      // 現時点では仮のデータを使用
+      const data = [];
+      console.log('Template child tasks (mock data):', data);
+      
       setTemplateTasks(Array.isArray(data) ? data : []);
       setError(null);
     } catch (error) {
       console.error('Error fetching template tasks:', error);
+      console.error('Error details:', error.response?.data || error.message);
       toast.error('テンプレートタスクの取得に失敗しました');
       setError('テンプレートタスクの取得に失敗しました');
       setTemplateTasks([]);
@@ -123,7 +131,31 @@ const TemplateTaskList = () => {
     );
   }
   
+  // 現在、TemplateTaskFormがまだ開発中の場合は、簡易的な代替表示を用意
   if (showForm) {
+    // APIが未実装のためフォームを一時的に無効化
+    return (
+      <div className="container mx-auto p-6 bg-white rounded-lg shadow">
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">
+            {editingTask ? "内包タスク編集" : "新規内包タスク作成"}
+          </h2>
+          <p className="text-yellow-600 mb-4">
+            内包タスクの{editingTask ? "編集" : "作成"}機能は現在開発中です。
+            バックエンドAPIが実装され次第、この機能が利用可能になります。
+          </p>
+          <button 
+            onClick={handleFormCancel}
+            className="btn btn-primary"
+          >
+            内包タスク一覧に戻る
+          </button>
+        </div>
+      </div>
+    );
+    
+    // 将来的にAPIが実装されたら、以下のコードを有効化する
+    /*
     return (
       <TemplateTaskForm 
         parentTemplateId={templateId}
@@ -132,6 +164,7 @@ const TemplateTaskList = () => {
         onCancel={handleFormCancel}
       />
     );
+    */
   }
   
   return (
@@ -194,12 +227,17 @@ const TemplateTaskList = () => {
           <h3 className="mt-2 text-lg font-medium text-gray-900">内包タスクがありません</h3>
           <p className="mt-1 text-gray-500">このテンプレートにはまだ内包タスクが追加されていません。</p>
           <div className="mt-6">
-            <button
-              onClick={handleCreateNew}
-              className="btn btn-primary"
-            >
-              <HiOutlinePlus className="mr-2" /> 内包タスクを追加
-            </button>
+            <div className="flex flex-col items-center gap-4">
+              <button
+                onClick={handleCreateNew}
+                className="btn btn-primary"
+              >
+                <HiOutlinePlus className="mr-2" /> 内包タスクを追加
+              </button>
+              <div className="text-sm text-amber-600 bg-amber-50 p-3 rounded-md max-w-md">
+                <strong>開発者向け注意：</strong> 内包タスク機能はプロトタイプ段階です。バックエンドAPIの実装が必要です。
+              </div>
+            </div>
           </div>
         </div>
       ) : (
