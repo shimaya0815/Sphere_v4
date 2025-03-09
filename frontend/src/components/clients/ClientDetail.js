@@ -191,10 +191,10 @@ const ClientDetail = ({ id, client: initialClient }) => {
           決算期管理
         </button>
         <button 
-          className={`tab ${activeTab === 'templates' ? 'tab-active' : ''}`}
-          onClick={() => setActiveTab('templates')}
+          className={`tab ${activeTab === 'services' ? 'tab-active' : ''}`}
+          onClick={() => setActiveTab('services')}
         >
-          タスクテンプレート
+          サービス設定
         </button>
       </div>
       
@@ -267,11 +267,14 @@ const ClientDetail = ({ id, client: initialClient }) => {
         </div>
       )}
       
-      {activeTab === 'templates' && (
-        <ClientTaskTemplateSettings 
-          clientId={id} 
-          client={client}
-        />
+      {activeTab === 'services' && (
+        <div>
+          <h2 className="text-xl font-semibold mb-4">サービス設定</h2>
+          <ClientTaskTemplateSettings 
+            clientId={id} 
+            client={client}
+          />
+        </div>
       )}
       
       {/* モーダルフォーム */}
