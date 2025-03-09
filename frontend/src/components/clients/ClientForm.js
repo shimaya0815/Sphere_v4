@@ -310,13 +310,6 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
           決算期管理
         </button>
         <button 
-          className={`tab ${activeTab === 'templates' ? 'tab-active' : ''}`}
-          onClick={() => setActiveTab('templates')}
-          type="button"
-        >
-          タスクテンプレート
-        </button>
-        <button 
           className={`tab ${activeTab === 'service_settings' ? 'tab-active' : ''}`}
           onClick={() => setActiveTab('service_settings')}
           type="button"
@@ -813,28 +806,28 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
         </div>
       )}
       
-      
-      {/* タスクテンプレートタブ */}
-      {activeTab === 'templates' && (
-        <div>
-          {clientId ? (
-            <ClientTaskTemplateSettings 
-              clientId={clientId} 
-              client={formData}
-            />
-          ) : (
-            <div className="alert alert-info">
-              クライアントを作成してからタスクテンプレート設定を行ってください。先に基本情報を入力して登録してください。
-            </div>
-          )}
-        </div>
-      )}
-      
       {/* サービス設定タブ */}
       {activeTab === 'service_settings' && (
         <div>
           {clientId ? (
-            <ServiceCheckSettings clientId={clientId} />
+            <>
+              <div className="bg-white rounded-lg shadow p-6 mb-8">
+                <h3 className="text-lg font-medium mb-4 flex items-center">
+                  <HiOutlineTemplate className="mr-2" /> タスクテンプレート設定
+                </h3>
+                <ClientTaskTemplateSettings 
+                  clientId={clientId} 
+                  client={formData}
+                />
+              </div>
+              
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-medium mb-4 flex items-center">
+                  <HiOutlineClipboardCheck className="mr-2" /> サービスチェック設定
+                </h3>
+                <ServiceCheckSettings clientId={clientId} />
+              </div>
+            </>
           ) : (
             <div className="alert alert-info">
               クライアントを作成してからサービス設定を行ってください。先に基本情報を入力して登録してください。
