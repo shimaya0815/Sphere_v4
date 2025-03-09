@@ -1,7 +1,11 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.db.models import Q
-from .models import Task, TaskCategory, TaskStatus, TaskPriority, TaskComment, TaskAttachment, TaskTimer, TaskHistory, TaskNotification
+from .models import (
+    Task, TaskCategory, TaskStatus, TaskPriority, TaskComment, 
+    TaskAttachment, TaskTimer, TaskHistory, TaskNotification,
+    TaskSchedule, TemplateChildTask
+)
 
 
 class TaskCategorySerializer(serializers.ModelSerializer):
@@ -276,4 +280,121 @@ class TaskSerializer(serializers.ModelSerializer):
             if default_workspace:
                 validated_data['workspace'] = default_workspace
         
+        return super().create(validated_data)
+
+
+class TaskTemplateSerializer(TaskSerializer):
+    """タスクテンプレート用のシリアライザ"""
+    
+    child_tasks_count = serializers.IntegerField(read_only=True)
+    schedule = serializers.PrimaryKeyRelatedField(
+        queryset=TaskSchedule.objects.all(), 
+        required=False, 
+        allow_null=True
+    )
+    
+    class Meta(TaskSerializer.Meta):
+        model = Task
+        fields = TaskSerializer.Meta.fields + ['child_tasks_count', 'schedule']
+        read_only_fields = tuple(list(TaskSerializer.Meta.read_only_fields) + ['child_tasks_count'])
+    
+    def to_representation(self, instance):
+        """カスタム表現を生成"""
+        data = super().to_representation(instance)
+        
+        # スケジュール情報を追加
+        if hasattr(instance, 'schedule') and instance.schedule:
+            data['schedule_type'] = instance.schedule.schedule_type
+            data['recurrence'] = instance.schedule.recurrence
+            data['creation_day'] = instance.schedule.creation_day
+            data['deadline_day'] = instance.schedule.deadline_day
+            data['deadline_next_month'] = instance.schedule.deadline_next_month
+            data['fiscal_date_reference'] = instance.schedule.fiscal_date_reference
+            data['creation_date_offset'] = instance.schedule.creation_date_offset
+            data['deadline_date_offset'] = instance.schedule.deadline_date_offset
+            data['reference_date_type'] = instance.schedule.reference_date_type
+        
+        # 子タスク数を追加
+        data['child_tasks_count'] = instance.child_tasks_count
+        
+        return data
+
+
+class TaskScheduleSerializer(serializers.ModelSerializer):
+    """タスクスケジュール用のシリアライザ"""
+    
+    class Meta:
+        model = TaskSchedule
+        fields = '__all__'
+        read_only_fields = ('business', 'created_at', 'updated_at')
+    
+    def create(self, validated_data):
+        user = self.context['request'].user
+        validated_data['business'] = user.business
+        return super().create(validated_data)
+
+
+class TemplateChildTaskSerializer(serializers.ModelSerializer):
+    """テンプレート内包タスク用のシリアライザ"""
+    
+    category_data = serializers.SerializerMethodField()
+    priority_data = serializers.SerializerMethodField()
+    status_data = serializers.SerializerMethodField()
+    schedule_data = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = TemplateChildTask
+        fields = '__all__'
+        read_only_fields = ('business', 'created_at', 'updated_at')
+    
+    def get_category_data(self, obj):
+        """カテゴリ情報を一貫した形式で返す"""
+        if obj.category:
+            return {
+                'id': obj.category.id,
+                'name': obj.category.name,
+                'color': obj.category.color
+            }
+        return None
+    
+    def get_priority_data(self, obj):
+        """優先度情報を一貫した形式で返す"""
+        if obj.priority:
+            return {
+                'id': obj.priority.id,
+                'name': str(obj.priority.priority_value),
+                'color': obj.priority.color,
+                'priority_value': obj.priority.priority_value
+            }
+        return None
+    
+    def get_status_data(self, obj):
+        """ステータス情報を一貫した形式で返す"""
+        if obj.status:
+            return {
+                'id': obj.status.id,
+                'name': obj.status.name,
+                'color': obj.status.color
+            }
+        return None
+    
+    def get_schedule_data(self, obj):
+        """スケジュール情報を一貫した形式で返す"""
+        if obj.has_custom_schedule and obj.schedule:
+            return {
+                'id': obj.schedule.id,
+                'name': obj.schedule.name,
+                'schedule_type': obj.schedule.schedule_type,
+                'recurrence': obj.schedule.recurrence,
+                'creation_day': obj.schedule.creation_day,
+                'deadline_day': obj.schedule.deadline_day,
+                'creation_date_offset': obj.schedule.creation_date_offset,
+                'deadline_date_offset': obj.schedule.deadline_date_offset,
+                'reference_date_type': obj.schedule.reference_date_type
+            }
+        return None
+    
+    def create(self, validated_data):
+        user = self.context['request'].user
+        validated_data['business'] = user.business
         return super().create(validated_data)

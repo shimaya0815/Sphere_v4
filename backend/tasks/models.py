@@ -541,6 +541,80 @@ class Task(models.Model):
             return date + relativedelta(years=frequency)
         
         return None
+        
+    @property
+    def child_tasks_count(self):
+        """
+        このテンプレートに関連付けられた内包タスクの数を返す
+        """
+        if not self.is_template:
+            return 0
+            
+        return self.child_tasks.count()
+        
+    def generate_task_from_template(self, user=None, client=None, fiscal_year=None, **kwargs):
+        """
+        テンプレートから実際のタスクを生成する
+        """
+        if not self.is_template:
+            return None
+            
+        # スケジュール設定
+        schedule = None
+        if hasattr(self, 'schedule') and self.schedule:
+            schedule = self.schedule
+            
+        # 基準日
+        reference_date = timezone.now()
+        
+        # 作成日と期限日を計算
+        creation_date = reference_date
+        due_date = None
+        
+        if schedule:
+            creation_date = schedule.calculate_creation_date(reference_date)
+            due_date = schedule.calculate_deadline_date(
+                creation_date=creation_date,
+                reference_date=reference_date,
+                fiscal_year=fiscal_year
+            )
+            
+        # タスク作成
+        task_data = {
+            'title': self.title,
+            'description': self.description,
+            'business': self.business,
+            'workspace': self.workspace,
+            'category': self.category,
+            'priority': self.priority,
+            'status': self.status or TaskStatus.objects.filter(business=self.business, name='未着手').first(),
+            'estimated_hours': self.estimated_hours,
+            'worker': self.worker,
+            'reviewer': self.reviewer,
+            'creator': user or self.creator,
+            'client': client,
+            'fiscal_year': fiscal_year,
+            'is_fiscal_task': fiscal_year is not None,
+            'start_date': creation_date,
+            'due_date': due_date
+        }
+        
+        # 追加のタスクデータがあれば上書き
+        task_data.update(kwargs)
+        
+        # タスク作成
+        task = Task.objects.create(**task_data)
+        
+        # 内包タスクを生成
+        child_tasks = self.child_tasks.all()
+        for child_task in child_tasks:
+            child_task.generate_task(
+                parent_task=task,
+                reference_date=reference_date,
+                fiscal_year=fiscal_year
+            )
+            
+        return task
 
 
 class TaskComment(models.Model):
@@ -677,6 +751,292 @@ class TaskTimer(models.Model):
         """Resume a stopped timer."""
         self.end_time = None
         self.save()
+
+
+class TaskSchedule(models.Model):
+    """Schedule settings for task templates."""
+    
+    SCHEDULE_TYPES = (
+        ('monthly_start', _('月初作成・当月締め切り')),
+        ('monthly_end', _('月末作成・翌月締め切り')),
+        ('fiscal_relative', _('決算日基準')),
+        ('custom', _('カスタム設定')),
+    )
+    
+    RECURRENCE_CHOICES = (
+        ('once', _('一度のみ')),
+        ('daily', _('毎日')),
+        ('weekly', _('毎週')),
+        ('monthly', _('毎月')),
+        ('quarterly', _('四半期ごと')),
+        ('yearly', _('毎年')),
+        ('with_parent', _('親テンプレートと同時')),
+    )
+    
+    REFERENCE_DATE_TYPES = (
+        ('execution_date', _('実行日（バッチ処理実行日）')),
+        ('fiscal_start', _('決算期開始日')),
+        ('fiscal_end', _('決算期終了日')),
+        ('month_start', _('当月初日')),
+        ('month_end', _('当月末日')),
+        ('parent_creation', _('親タスク作成日')),
+    )
+    
+    business = models.ForeignKey(
+        'business.Business',
+        on_delete=models.CASCADE,
+        related_name='task_schedules'
+    )
+    name = models.CharField(_('name'), max_length=255)
+    schedule_type = models.CharField(
+        _('schedule type'),
+        max_length=30,
+        choices=SCHEDULE_TYPES,
+        default='monthly_start'
+    )
+    recurrence = models.CharField(
+        _('recurrence'),
+        max_length=20,
+        choices=RECURRENCE_CHOICES,
+        default='monthly'
+    )
+    
+    # 月初/月末パターン用
+    creation_day = models.IntegerField(_('creation day'), null=True, blank=True)
+    deadline_day = models.IntegerField(_('deadline day'), null=True, blank=True)
+    deadline_next_month = models.BooleanField(_('deadline next month'), default=False)
+    
+    # 決算日基準用
+    fiscal_date_reference = models.CharField(
+        _('fiscal date reference'),
+        max_length=20,
+        choices=(
+            ('start_date', _('開始日')),
+            ('end_date', _('終了日')),
+        ),
+        default='end_date'
+    )
+    
+    # カスタム設定用
+    reference_date_type = models.CharField(
+        _('reference date type'),
+        max_length=30,
+        choices=REFERENCE_DATE_TYPES,
+        default='execution_date'
+    )
+    creation_date_offset = models.IntegerField(_('creation date offset'), default=0)
+    deadline_date_offset = models.IntegerField(_('deadline date offset'), default=5)
+    
+    created_at = models.DateTimeField(_('created at'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('updated at'), auto_now=True)
+    
+    class Meta:
+        verbose_name = _('task schedule')
+        verbose_name_plural = _('task schedules')
+        ordering = ['name']
+    
+    def __str__(self):
+        return self.name
+        
+    def calculate_creation_date(self, reference_date=None):
+        """
+        基準日から作成日を計算する
+        """
+        from datetime import datetime, timedelta
+        from dateutil.relativedelta import relativedelta
+        
+        # 基準日が指定されていない場合は現在日時
+        if not reference_date:
+            reference_date = timezone.now()
+            
+        if self.schedule_type == 'monthly_start' and self.creation_day:
+            # 月初パターン: 毎月X日に作成
+            return reference_date.replace(day=min(self.creation_day, 28))
+            
+        elif self.schedule_type == 'monthly_end' and self.creation_day:
+            # 月末パターン: 月末からX日前に作成
+            last_day = reference_date.replace(day=1) + relativedelta(months=1, days=-1)
+            return last_day - timedelta(days=min(self.creation_day, 15))
+            
+        elif self.schedule_type == 'fiscal_relative':
+            # 決算日基準は別途計算
+            return None
+            
+        elif self.schedule_type == 'custom':
+            # カスタム: 基準日タイプに応じた日付を計算
+            return reference_date + timedelta(days=self.creation_date_offset)
+            
+        return reference_date
+        
+    def calculate_deadline_date(self, creation_date=None, reference_date=None, fiscal_year=None):
+        """
+        作成日または基準日から期限日を計算する
+        """
+        from datetime import datetime, timedelta
+        from dateutil.relativedelta import relativedelta
+        
+        # 作成日が指定されていない場合は現在日時
+        if not creation_date:
+            creation_date = self.calculate_creation_date(reference_date)
+            
+        if not creation_date:
+            return None
+            
+        if self.schedule_type == 'monthly_start' and self.deadline_day:
+            # 月初パターン: 毎月X日が期限
+            result = creation_date.replace(day=min(self.deadline_day, 28))
+            if result < creation_date:  # 作成日より前の日付になる場合
+                result = result + relativedelta(months=1)
+            return result
+            
+        elif self.schedule_type == 'monthly_end' and self.deadline_day:
+            # 月末パターン: 翌月X日が期限
+            if self.deadline_next_month:
+                next_month = creation_date + relativedelta(months=1)
+                return next_month.replace(day=min(self.deadline_day, 28))
+            else:
+                return creation_date.replace(day=min(self.deadline_day, 28))
+                
+        elif self.schedule_type == 'fiscal_relative' and fiscal_year:
+            # 決算日基準: 決算開始日または終了日からの相対日
+            if self.fiscal_date_reference == 'start_date':
+                base_date = fiscal_year.start_date
+            else:
+                base_date = fiscal_year.end_date
+                
+            return base_date + timedelta(days=self.deadline_day or 0)
+            
+        elif self.schedule_type == 'custom':
+            # カスタム: 作成日からのオフセット
+            return creation_date + timedelta(days=self.deadline_date_offset)
+            
+        return None
+
+
+class TemplateChildTask(models.Model):
+    """内包タスクモデル（テンプレートの子タスク）"""
+    
+    parent_template = models.ForeignKey(
+        Task,
+        on_delete=models.CASCADE,
+        related_name='child_tasks',
+        limit_choices_to={'is_template': True}
+    )
+    title = models.CharField(_('title'), max_length=255)
+    description = models.TextField(_('description'), blank=True)
+    business = models.ForeignKey(
+        'business.Business',
+        on_delete=models.CASCADE,
+        related_name='template_child_tasks'
+    )
+    category = models.ForeignKey(
+        TaskCategory,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='template_child_tasks'
+    )
+    priority = models.ForeignKey(
+        TaskPriority,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='template_child_tasks'
+    )
+    status = models.ForeignKey(
+        TaskStatus,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='template_child_tasks'
+    )
+    estimated_hours = models.DecimalField(
+        _('estimated hours'),
+        max_digits=6,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    
+    # 実行順序
+    order = models.PositiveIntegerField(_('order'), default=1)
+    
+    # カスタムスケジュール
+    has_custom_schedule = models.BooleanField(_('has custom schedule'), default=False)
+    schedule = models.ForeignKey(
+        TaskSchedule,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='template_child_tasks'
+    )
+    
+    created_at = models.DateTimeField(_('created at'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('updated at'), auto_now=True)
+    
+    class Meta:
+        verbose_name = _('template child task')
+        verbose_name_plural = _('template child tasks')
+        ordering = ['order', 'created_at']
+    
+    def __str__(self):
+        return f"{self.title} (子: {self.parent_template.title})"
+    
+    def generate_task(self, parent_task, reference_date=None, fiscal_year=None):
+        """
+        この内包タスク定義から実際のタスクを生成する
+        
+        parent_task: 親タスク（テンプレートから生成されたタスク）
+        reference_date: 基準日
+        fiscal_year: 関連する決算期
+        """
+        # 基準日がなければ現在時刻
+        if not reference_date:
+            reference_date = timezone.now()
+            
+        # スケジュール計算
+        creation_date = None
+        due_date = None
+        
+        if self.has_custom_schedule and self.schedule:
+            # カスタムスケジュールを使用
+            creation_date = self.schedule.calculate_creation_date(reference_date)
+            due_date = self.schedule.calculate_deadline_date(
+                creation_date=creation_date,
+                reference_date=reference_date,
+                fiscal_year=fiscal_year
+            )
+        else:
+            # 親タスクと同じ日程
+            creation_date = timezone.now()
+            due_date = parent_task.due_date
+            
+        # 担当者は親タスクから引き継ぐ
+        worker = parent_task.worker
+        reviewer = parent_task.reviewer
+            
+        # タスク作成
+        task = Task.objects.create(
+            title=self.title,
+            description=self.description,
+            business=self.business,
+            workspace=parent_task.workspace,
+            category=self.category,
+            priority=self.priority,
+            status=self.status or TaskStatus.objects.filter(business=self.business, name='未着手').first(),
+            estimated_hours=self.estimated_hours,
+            worker=worker,
+            reviewer=reviewer,
+            creator=parent_task.creator,
+            client=parent_task.client,
+            fiscal_year=fiscal_year,
+            is_fiscal_task=parent_task.is_fiscal_task,
+            start_date=creation_date,
+            due_date=due_date,
+            parent_task=parent_task
+        )
+        
+        return task
 
 
 class TaskNotification(models.Model):
