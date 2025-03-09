@@ -6,6 +6,7 @@ import FiscalYearForm from './FiscalYearForm';
 import FiscalYearTimeline from './FiscalYearTimeline';
 import FiscalYearTaskGenerator from './FiscalYearTaskGenerator';
 import FiscalYearManagement from './FiscalYearManagement';
+import ClientTaskTemplateSettings from './ClientTaskTemplateSettings';
 import { 
   HiOutlineOfficeBuilding, 
   HiOutlinePhone, 
@@ -189,6 +190,12 @@ const ClientDetail = ({ id, client: initialClient }) => {
         >
           決算期管理
         </button>
+        <button 
+          className={`tab ${activeTab === 'templates' ? 'tab-active' : ''}`}
+          onClick={() => setActiveTab('templates')}
+        >
+          タスクテンプレート
+        </button>
       </div>
       
       {activeTab === 'overview' && (
@@ -260,6 +267,12 @@ const ClientDetail = ({ id, client: initialClient }) => {
         </div>
       )}
       
+      {activeTab === 'templates' && (
+        <ClientTaskTemplateSettings 
+          clientId={id} 
+          client={client}
+        />
+      )}
       
       {/* モーダルフォーム */}
       {showFiscalYearForm && (

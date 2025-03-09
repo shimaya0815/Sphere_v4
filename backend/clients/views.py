@@ -4,10 +4,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db.models import Count, Q as models_Q
 from django.shortcuts import get_object_or_404
-from .models import Client, FiscalYear, TaxRuleHistory
+from .models import Client, FiscalYear, TaxRuleHistory, TaskTemplateSchedule, ClientTaskTemplate
 from .serializers import (
     ClientSerializer, FiscalYearSerializer,
-    TaxRuleHistorySerializer
+    TaxRuleHistorySerializer, TaskTemplateScheduleSerializer,
+    ClientTaskTemplateSerializer
 )
 from business.permissions import IsSameBusiness
 from tasks.serializers import TaskSerializer
@@ -81,9 +82,20 @@ class ClientViewSet(viewsets.ModelViewSet):
         serializer = FiscalYearSerializer(fiscal_years, many=True)
         return Response(serializer.data)
     
-    # check_settings action was removed and merged into task_templates
+    @action(detail=True, methods=['get'])
+    def task_templates(self, request, pk=None):
+        """Get task templates for this client."""
+        client = self.get_object()
+        templates = client.task_templates.all()
         
-    # タスクテンプレート関連のメソッドは削除されました
+        # Filter by active status if provided
+        is_active = request.query_params.get('is_active', None)
+        if is_active is not None:
+            is_active_bool = is_active.lower() == 'true'
+            templates = templates.filter(is_active=is_active_bool)
+            
+        serializer = ClientTaskTemplateSerializer(templates, many=True)
+        return Response(serializer.data)
 
 
 # ClientCheckSettingViewSet was removed and merged into ClientTaskTemplateViewSet
@@ -245,7 +257,105 @@ class ClientFiscalYearsView(APIView):
 # ClientCheckSettingsView was removed and merged into ClientTaskTemplatesView
 
 
-# ClientTaskTemplateViewSetは削除されました
+class TaskTemplateScheduleViewSet(viewsets.ModelViewSet):
+    """ViewSet for task template schedules."""
+    queryset = TaskTemplateSchedule.objects.all()
+    serializer_class = TaskTemplateScheduleSerializer
+    permission_classes = [permissions.IsAuthenticated, IsSameBusiness]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['name', 'schedule_type']
+    ordering_fields = ['name', 'created_at']
+    ordering = ['name']
+    
+    def get_queryset(self):
+        """Return schedules for the authenticated user's business."""
+        return TaskTemplateSchedule.objects.filter(business=self.request.user.business)
+    
+    def perform_create(self, serializer):
+        """Set the business to the authenticated user's business when creating."""
+        serializer.save(business=self.request.user.business)
+
+
+class ClientTaskTemplateViewSet(viewsets.ModelViewSet):
+    """ViewSet for client task templates."""
+    queryset = ClientTaskTemplate.objects.all()
+    serializer_class = ClientTaskTemplateSerializer
+    permission_classes = [permissions.IsAuthenticated, IsSameBusiness]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['title', 'description', 'client__name']
+    ordering_fields = ['order', 'title', 'created_at']
+    ordering = ['order', 'title']
+    
+    def get_queryset(self):
+        """Return templates for the authenticated user's business."""
+        queryset = ClientTaskTemplate.objects.filter(client__business=self.request.user.business)
+        
+        # Filter by client if provided
+        client_id = self.request.query_params.get('client_id', None)
+        if client_id:
+            queryset = queryset.filter(client_id=client_id)
+            
+        # Filter by active status if provided
+        is_active = self.request.query_params.get('is_active', None)
+        if is_active is not None:
+            is_active_bool = is_active.lower() == 'true'
+            queryset = queryset.filter(is_active=is_active_bool)
+            
+        return queryset
+    
+    @action(detail=True, methods=['post'])
+    def generate_task(self, request, pk=None):
+        """Generate a task from this template."""
+        template = self.get_object()
+        task = template.generate_task()
+        
+        if task:
+            serializer = TaskSerializer(task)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            return Response(
+                {"error": "タスクの生成に失敗しました。テンプレートが無効か、スケジュール設定に問題があります。"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+
+class ClientTaskTemplatesView(APIView):
+    """View to manage task templates for a specific client."""
+    permission_classes = [permissions.IsAuthenticated, IsSameBusiness]
+    
+    def get_client(self, client_id, request):
+        """Get the client object ensuring it belongs to the user's business."""
+        return get_object_or_404(Client, id=client_id, business=request.user.business)
+    
+    def get(self, request, client_id):
+        """Get all task templates for a client."""
+        client = self.get_client(client_id, request)
+        templates = client.task_templates.all()
+        
+        # Filter by active status if provided
+        is_active = request.query_params.get('is_active', None)
+        if is_active is not None:
+            is_active_bool = is_active.lower() == 'true'
+            templates = templates.filter(is_active=is_active_bool)
+            
+        serializer = ClientTaskTemplateSerializer(templates, many=True)
+        return Response(serializer.data)
+    
+    def post(self, request, client_id):
+        """Create a new task template for a client."""
+        client = self.get_client(client_id, request)
+        
+        # Add client to request data
+        data = request.data.copy()
+        data['client'] = client.id
+        
+        serializer = ClientTaskTemplateSerializer(data=data)
+        
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class TaxRuleHistoryViewSet(viewsets.ModelViewSet):

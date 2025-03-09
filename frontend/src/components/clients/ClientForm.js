@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import clientsApi from '../../api/clients';
 import toast from 'react-hot-toast';
 import FiscalYearManagement from './FiscalYearManagement';
+import ClientTaskTemplateSettings from './ClientTaskTemplateSettings';
 import TaxRulesView from './tax/TaxRulesView';
 import ServiceCheckSettings from './ServiceCheckSettings';
 import { 
@@ -307,6 +308,13 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
           type="button"
         >
           決算期管理
+        </button>
+        <button 
+          className={`tab ${activeTab === 'templates' ? 'tab-active' : ''}`}
+          onClick={() => setActiveTab('templates')}
+          type="button"
+        >
+          タスクテンプレート
         </button>
         <button 
           className={`tab ${activeTab === 'service_settings' ? 'tab-active' : ''}`}
@@ -806,6 +814,22 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
       )}
       
       
+      {/* タスクテンプレートタブ */}
+      {activeTab === 'templates' && (
+        <div>
+          {clientId ? (
+            <ClientTaskTemplateSettings 
+              clientId={clientId} 
+              client={formData}
+            />
+          ) : (
+            <div className="alert alert-info">
+              クライアントを作成してからタスクテンプレート設定を行ってください。先に基本情報を入力して登録してください。
+            </div>
+          )}
+        </div>
+      )}
+      
       {/* サービス設定タブ */}
       {activeTab === 'service_settings' && (
         <div>
@@ -827,7 +851,7 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
               type="button"
               className="btn btn-outline"
               onClick={() => {
-                const tabs = ['overview', 'corporate', 'address', 'tax', 'tax_rules', 'salary', 'fiscal', 'service_settings'];
+                const tabs = ['overview', 'corporate', 'address', 'tax', 'tax_rules', 'salary', 'fiscal', 'templates', 'service_settings'];
                 const currentIndex = tabs.indexOf(activeTab);
                 if (currentIndex > 0) {
                   setActiveTab(tabs[currentIndex - 1]);
@@ -875,7 +899,7 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
               type="button"
               className="btn btn-primary"
               onClick={() => {
-                const tabs = ['overview', 'corporate', 'address', 'tax', 'tax_rules', 'salary', 'fiscal', 'service_settings'];
+                const tabs = ['overview', 'corporate', 'address', 'tax', 'tax_rules', 'salary', 'fiscal', 'templates', 'service_settings'];
                 const currentIndex = tabs.indexOf(activeTab);
                 if (currentIndex < tabs.length - 1) {
                   setActiveTab(tabs[currentIndex + 1]);

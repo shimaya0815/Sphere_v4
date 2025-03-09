@@ -121,6 +121,9 @@ The tasks app includes several management commands that should be scheduled to r
 
 # 繰り返しタスクの生成 (毎日午前8時に実行)
 0 8 * * * cd /path/to/project/backend && python manage.py generate_recurring_tasks
+
+# テンプレートからのタスク生成 (毎日午前7時に実行)
+0 7 * * * cd /path/to/project/backend && python manage.py generate_template_tasks
 ```
 
 To set up these scheduled tasks in a production environment, add them to the server's crontab or use a task scheduler like Celery.
