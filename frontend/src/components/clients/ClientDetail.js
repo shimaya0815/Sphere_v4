@@ -199,12 +199,6 @@ const ClientDetail = ({ id, client: initialClient }) => {
           決算期管理
         </button>
         <button 
-          className={`tab ${activeTab === 'templates' ? 'tab-active' : ''}`}
-          onClick={() => setActiveTab('templates')}
-        >
-          タスクテンプレート
-        </button>
-        <button 
           className={`tab ${activeTab === 'service_settings' ? 'tab-active' : ''}`}
           onClick={() => setActiveTab('service_settings')}
         >
@@ -290,23 +284,28 @@ const ClientDetail = ({ id, client: initialClient }) => {
         </div>
       )}
       
-      {activeTab === 'templates' && (
-        <div>
-          <h2 className="text-xl font-semibold mb-4">タスクテンプレート</h2>
-          <ClientTaskTemplateSettings 
-            clientId={id} 
-            client={client}
-          />
-        </div>
-      )}
-      
       {activeTab === 'service_settings' && (
         <div>
           <h2 className="text-xl font-semibold mb-4">サービス設定</h2>
-          <ServiceCheckSettings 
-            clientId={id} 
-            client={client}
-          />
+          <div className="bg-white rounded-lg shadow p-6 mb-8">
+            <h3 className="text-lg font-medium mb-4 flex items-center">
+              <HiOutlineTemplate className="mr-2" /> タスクテンプレート設定
+            </h3>
+            <ClientTaskTemplateSettings 
+              clientId={id} 
+              client={client}
+            />
+          </div>
+          
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-medium mb-4 flex items-center">
+              <HiOutlineClipboardCheck className="mr-2" /> サービスチェック設定
+            </h3>
+            <ServiceCheckSettings 
+              clientId={id} 
+              client={client}
+            />
+          </div>
         </div>
       )}
       
