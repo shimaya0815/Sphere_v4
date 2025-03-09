@@ -324,64 +324,102 @@ const TaskTemplateList = () => {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {templates.map(template => (
-            <div key={template.id} className="bg-white rounded-lg shadow overflow-hidden">
-              <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
-                <h2 className="font-semibold text-gray-800 truncate" title={template.template_name}>
-                  {template.template_name || template.title}
-                </h2>
-                <div className="flex space-x-2">
-                  <button 
-                    className="btn btn-sm btn-ghost text-blue-600"
-                    onClick={() => handleEdit(template)}
-                    title="編集"
-                  >
-                    <HiOutlinePencilAlt />
-                  </button>
-                  <button 
-                    className="btn btn-sm btn-ghost text-red-600"
-                    onClick={() => handleDelete(template.id)}
-                    title="削除"
-                  >
-                    <HiOutlineTrash />
-                  </button>
-                </div>
-              </div>
-              <div className="p-4">
-                <p className="text-gray-600 mb-3 line-clamp-2" title={template.description}>
-                  {template.description || '説明なし'}
-                </p>
-                
-                <div className="mb-4 space-y-2">
-                  {template.category && (
-                    <div className="flex items-center text-sm">
-                      <HiOutlineTag className="mr-2 text-gray-500" />
-                      <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+        <div className="overflow-x-auto">
+          <table className="table w-full table-zebra">
+            <thead>
+              <tr>
+                <th>テンプレート名</th>
+                <th>説明</th>
+                <th>カテゴリ</th>
+                <th>スケジュール</th>
+                <th>見積時間</th>
+                <th>内包タスク</th>
+                <th className="text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {templates.map(template => (
+                <tr key={template.id} className="hover">
+                  <td className="font-medium">
+                    {template.template_name || template.title}
+                  </td>
+                  <td className="max-w-xs truncate" title={template.description}>
+                    {template.description || '説明なし'}
+                  </td>
+                  <td>
+                    {template.category ? (
+                      <span className="badge badge-info badge-sm">
                         {template.category.name}
                       </span>
-                    </div>
-                  )}
-                  
-                  {template.estimated_hours && (
-                    <div className="flex items-center text-sm text-gray-600">
-                      <HiOutlineClock className="mr-2 text-gray-500" />
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </td>
+                  <td>
+                    {template.schedule ? (
+                      <span className="badge badge-ghost badge-sm">
+                        {
+                          template.schedule_type === 'monthly_start' ? '月初作成' :
+                          template.schedule_type === 'monthly_end' ? '月末作成' :
+                          template.schedule_type === 'fiscal_relative' ? '決算日基準' :
+                          template.schedule_type === 'custom' ? 'カスタム' :
+                          '未設定'
+                        }
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </td>
+                  <td>
+                    {template.estimated_hours ? (
                       <span>{template.estimated_hours}時間</span>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </td>
+                  <td>
+                    <span className="badge badge-secondary badge-sm">
+                      {template.child_tasks_count || 0}個
+                    </span>
+                    {(template.child_tasks_count > 0 || !template.child_tasks_count) && (
+                      <button
+                        className="btn btn-xs btn-ghost ml-2"
+                        onClick={() => navigate(`/tasks/templates/${template.id}/tasks`)}
+                        title="内包タスク管理"
+                      >
+                        <HiOutlineTemplate size={16} />
+                      </button>
+                    )}
+                  </td>
+                  <td className="text-right">
+                    <div className="flex justify-end space-x-1">
+                      <button
+                        className="btn btn-xs btn-info"
+                        onClick={() => handleApplyTemplate(template.id)}
+                        title="このテンプレートからタスクを作成"
+                      >
+                        <HiOutlineDuplicate size={16} />
+                      </button>
+                      <button
+                        className="btn btn-xs btn-primary"
+                        onClick={() => handleEdit(template)}
+                        title="編集"
+                      >
+                        <HiOutlinePencilAlt size={16} />
+                      </button>
+                      <button
+                        className="btn btn-xs btn-error"
+                        onClick={() => handleDelete(template.id)}
+                        title="削除"
+                      >
+                        <HiOutlineTrash size={16} />
+                      </button>
                     </div>
-                  )}
-                </div>
-                
-                <div className="mt-4 flex justify-end">
-                  <button
-                    className="btn btn-sm btn-primary"
-                    onClick={() => handleApplyTemplate(template.id)}
-                  >
-                    <HiOutlineDuplicate className="mr-1" /> タスク作成
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
