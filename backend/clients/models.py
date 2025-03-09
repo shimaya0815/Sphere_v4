@@ -94,11 +94,262 @@ class Client(models.Model):
     
     def __str__(self):
         return self.name
+
+
+class TaskTemplateSchedule(models.Model):
+    """Scheduling configuration for task templates - when to generate tasks and deadlines."""
+    
+    # Schedule types
+    SCHEDULE_TYPE_CHOICES = (
+        ('monthly_start', _('月初作成・当月締め切り')),  # 1日作成、5日締め切り
+        ('monthly_end', _('月末作成・翌月締め切り')),    # 25日作成、翌月10日締め切り
+        ('fiscal_relative', _('決算日基準')),           # 決算日基準の相対日
+        ('custom', _('カスタム設定')),                 # カスタム設定
+    )
+    
+    # For monthly_start: generate on 1st, due on 5th
+    # For monthly_end: generate on 25th, due on 10th of next month
+    # For fiscal_relative: generate/due based on days relative to fiscal year start/end
+    
+    name = models.CharField(_('スケジュール名'), max_length=100)
+    schedule_type = models.CharField(_('スケジュールタイプ'), max_length=20, choices=SCHEDULE_TYPE_CHOICES)
+    business = models.ForeignKey(
+        'business.Business',
+        on_delete=models.CASCADE,
+        related_name='task_template_schedules'
+    )
+    
+    # 作成日設定
+    # For monthly types, this is the day of month to create tasks
+    # For fiscal_relative, this is days relative to fiscal_date_reference (+ or -)
+    creation_day = models.IntegerField(_('タスク作成日'), null=True, blank=True)
+    
+    # 期限日設定
+    # For monthly types, this is the day of month for the deadline
+    # For fiscal_relative, this is days relative to fiscal_date_reference (+ or -)
+    deadline_day = models.IntegerField(_('タスク期限日'), null=True, blank=True)
+    
+    # For fiscal_relative schedule type
+    FISCAL_REFERENCE_CHOICES = (
+        ('start_date', _('開始日基準')),
+        ('end_date', _('終了日基準')),
+    )
+    fiscal_date_reference = models.CharField(
+        _('決算日参照タイプ'), 
+        max_length=20, 
+        choices=FISCAL_REFERENCE_CHOICES,
+        null=True, 
+        blank=True
+    )
+    
+    # For next_month deadline (e.g., generate on 25th, due on 10th of next month)
+    deadline_next_month = models.BooleanField(_('期限日を翌月に設定'), default=False)
+    
+    # 繰り返し設定
+    RECURRENCE_CHOICES = (
+        ('monthly', _('毎月')),
+        ('quarterly', _('四半期ごと')),
+        ('yearly', _('毎年')),
+        ('once', _('一度のみ')),
+    )
+    recurrence = models.CharField(_('繰り返し'), max_length=20, choices=RECURRENCE_CHOICES, default='monthly')
+    
+    # メタデータ
+    created_at = models.DateTimeField(_('作成日時'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('更新日時'), auto_now=True)
+    
+    class Meta:
+        verbose_name = _('task template schedule')
+        verbose_name_plural = _('task template schedules')
+        ordering = ['name']
+        unique_together = ('business', 'name')
+    
+    def __str__(self):
+        return self.name
+
+
+class ClientTaskTemplate(models.Model):
+    """Client-specific task template settings."""
+    
+    # 基本情報
+    client = models.ForeignKey(
+        Client,
+        on_delete=models.CASCADE,
+        related_name='task_templates'
+    )
+    title = models.CharField(_('タイトル'), max_length=255)
+    description = models.TextField(_('説明'), blank=True)
+    
+    # スケジュール設定
+    schedule = models.ForeignKey(
+        TaskTemplateSchedule,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='task_templates'
+    )
+    
+    # タスク設定
+    template_task = models.ForeignKey(
+        'tasks.Task',
+        on_delete=models.CASCADE,
+        related_name='client_templates',
+        help_text=_('Reference to the original template task')
+    )
+    category = models.ForeignKey(
+        'tasks.TaskCategory',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='client_templates'
+    )
+    priority = models.ForeignKey(
+        'tasks.TaskPriority',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='client_templates'
+    )
+    estimated_hours = models.DecimalField(
+        _('見積工数'),
+        max_digits=6,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    
+    # 担当者設定
+    worker = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='client_template_worker',
+        verbose_name=_('作業担当者')
+    )
+    reviewer = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='client_template_reviewer',
+        verbose_name=_('レビュー担当者')
+    )
+    
+    # 有効・無効
+    is_active = models.BooleanField(_('有効'), default=True)
+    
+    # 表示順
+    order = models.PositiveIntegerField(_('順序'), default=0)
+    
+    # メタデータ
+    created_at = models.DateTimeField(_('作成日時'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('更新日時'), auto_now=True)
+    
+    # 最終タスク生成日
+    last_generated_at = models.DateTimeField(_('最終タスク生成日時'), null=True, blank=True)
+    
+    class Meta:
+        verbose_name = _('client task template')
+        verbose_name_plural = _('client task templates')
+        ordering = ['order', 'title']
+        unique_together = ('client', 'template_task')
+    
+    def __str__(self):
+        return f"{self.client.name} - {self.title}"
+    
+    def generate_task(self, reference_date=None):
+        """Generate a task based on this template"""
+        from django.utils import timezone
+        from tasks.models import Task
         
-    # タスクテンプレート関連のメソッドは削除されました
-
-
-# ClientCheckSetting model was removed and merged into ClientTaskTemplate
+        if not self.is_active:
+            return None
+            
+        if not reference_date:
+            reference_date = timezone.now().date()
+            
+        # Calculate due date based on schedule settings
+        due_date = self._calculate_due_date(reference_date)
+        
+        # Get default task status
+        default_status = self.client.business.task_statuses.filter(name='未着手').first()
+        
+        # Create new task
+        new_task = Task.objects.create(
+            title=self.title,
+            description=self.description,
+            business=self.client.business,
+            workspace=self.client.business.workspaces.first(),  # Get default workspace
+            status=default_status,
+            priority=self.priority,
+            category=self.category,
+            worker=self.worker,
+            reviewer=self.reviewer,
+            due_date=due_date,
+            estimated_hours=self.estimated_hours,
+            client=self.client,
+            is_template=False
+        )
+        
+        # Update last generated timestamp
+        self.last_generated_at = timezone.now()
+        self.save(update_fields=['last_generated_at'])
+        
+        return new_task
+    
+    def _calculate_due_date(self, reference_date):
+        """Calculate the due date based on the schedule settings"""
+        import calendar
+        from datetime import datetime, timedelta
+        from dateutil.relativedelta import relativedelta
+        
+        if not self.schedule:
+            return None
+            
+        # 基準日付
+        date = reference_date
+        
+        # スケジュールタイプに基づいて期限日を計算
+        if self.schedule.schedule_type == 'monthly_start':
+            # 月初作成＆当月5日締め切り（1日作成、5日締め切り）
+            current_month = date.replace(day=1)  # 当月1日
+            due_date = current_month.replace(day=5)  # 当月5日
+            
+        elif self.schedule.schedule_type == 'monthly_end':
+            # 月末作成＆翌月10日締め切り（25日作成、翌月10日締め切り）
+            if date.day >= 25:
+                # 既に25日以降なら来月の10日が期限
+                next_month = date + relativedelta(months=1)
+                due_date = next_month.replace(day=10)
+            else:
+                # まだ25日前なら当月の10日が期限
+                due_date = date.replace(day=10)
+                
+        elif self.schedule.schedule_type == 'fiscal_relative':
+            # 決算日を基準にした相対日
+            fiscal_year = self.client.fiscal_years.filter(is_current=True).first()
+            if not fiscal_year:
+                return None
+                
+            # 基準日を決定
+            if self.schedule.fiscal_date_reference == 'start_date':
+                reference = fiscal_year.start_date
+            else:  # end_date
+                reference = fiscal_year.end_date
+                
+            # 相対日数を計算
+            due_date = reference + timedelta(days=self.schedule.deadline_day)
+            
+        elif self.schedule.schedule_type == 'custom':
+            # カスタム設定
+            # 実装は省略 - 必要に応じて拡張
+            return None
+            
+        else:
+            return None
+            
+        return due_date
 
 
 class FiscalYear(models.Model):

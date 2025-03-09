@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Client, FiscalYear, TaxRuleHistory
+from .models import Client, FiscalYear, TaxRuleHistory, TaskTemplateSchedule, ClientTaskTemplate
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
@@ -87,9 +87,83 @@ class FiscalYearSerializer(serializers.ModelSerializer):
         return data
 
 
-# ClientTaskTemplateSerializer は削除されました
+class TaskTemplateScheduleSerializer(serializers.ModelSerializer):
+    business_name = serializers.CharField(source='business.name', read_only=True)
+    schedule_type_display = serializers.SerializerMethodField()
+    recurrence_display = serializers.SerializerMethodField()
+    fiscal_date_reference_display = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = TaskTemplateSchedule
+        fields = [
+            'id', 'name', 'schedule_type', 'schedule_type_display', 'business', 'business_name', 
+            'creation_day', 'deadline_day', 'fiscal_date_reference', 'fiscal_date_reference_display',
+            'deadline_next_month', 'recurrence', 'recurrence_display',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['business', 'created_at', 'updated_at']
+    
+    def get_schedule_type_display(self, obj):
+        return dict(TaskTemplateSchedule.SCHEDULE_TYPE_CHOICES).get(obj.schedule_type, '')
+    
+    def get_recurrence_display(self, obj):
+        return dict(TaskTemplateSchedule.RECURRENCE_CHOICES).get(obj.recurrence, '')
+    
+    def get_fiscal_date_reference_display(self, obj):
+        if obj.fiscal_date_reference:
+            return dict(TaskTemplateSchedule.FISCAL_REFERENCE_CHOICES).get(obj.fiscal_date_reference, '')
+        return None
         
+    def validate(self, data):
+        """Validate schedule settings based on schedule_type"""
+        if 'schedule_type' in data:
+            schedule_type = data['schedule_type']
+            
+            # Validate monthly schedules
+            if schedule_type in ['monthly_start', 'monthly_end']:
+                if 'creation_day' in data and (data['creation_day'] < 1 or data['creation_day'] > 31):
+                    raise serializers.ValidationError({"creation_day": "作成日は1〜31の間で指定してください"})
+                    
+                if 'deadline_day' in data and (data['deadline_day'] < 1 or data['deadline_day'] > 31):
+                    raise serializers.ValidationError({"deadline_day": "期限日は1〜31の間で指定してください"})
+            
+            # Validate fiscal_relative schedule
+            elif schedule_type == 'fiscal_relative':
+                if 'fiscal_date_reference' not in data:
+                    raise serializers.ValidationError({"fiscal_date_reference": "決算日参照タイプは必須です"})
         
+        return data
+
+
+class ClientTaskTemplateSerializer(serializers.ModelSerializer):
+    schedule_name = serializers.CharField(source='schedule.name', read_only=True)
+    worker_name = serializers.SerializerMethodField()
+    reviewer_name = serializers.SerializerMethodField()
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    priority_value = serializers.IntegerField(source='priority.priority_value', read_only=True)
+    client_name = serializers.CharField(source='client.name', read_only=True)
+    
+    class Meta:
+        model = ClientTaskTemplate
+        fields = [
+            'id', 'client', 'client_name', 'title', 'description', 'schedule', 'schedule_name',
+            'template_task', 'category', 'category_name', 'priority', 'priority_value',
+            'estimated_hours', 'worker', 'worker_name', 'reviewer', 'reviewer_name',
+            'is_active', 'order', 'created_at', 'updated_at', 'last_generated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at', 'last_generated_at']
+    
+    def get_worker_name(self, obj):
+        if obj.worker:
+            return obj.worker.get_full_name()
+        return None
+    
+    def get_reviewer_name(self, obj):
+        if obj.reviewer:
+            return obj.reviewer.get_full_name()
+        return None
+
+
 class TaxRuleHistorySerializer(serializers.ModelSerializer):
     client_name = serializers.CharField(source='client.name', read_only=True)
     tax_type_display = serializers.SerializerMethodField()

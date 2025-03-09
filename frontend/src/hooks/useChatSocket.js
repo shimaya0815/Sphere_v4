@@ -468,6 +468,7 @@ const useChatSocket = (options = {}) => {
           detail: { message: data } 
         }));
         
+        // 新しいメッセージを配列の末尾に追加 (最新メッセージが下に表示)
         return [...prev, data];
       });
       

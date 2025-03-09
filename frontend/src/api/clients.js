@@ -147,6 +147,105 @@ const clientsApi = {
     }
   },
   
+  // Get task template schedules
+  getTaskTemplateSchedules: async () => {
+    try {
+      const response = await apiClient.get('/api/clients/task-template-schedules/');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching task template schedules:', error);
+      throw error;
+    }
+  },
+  
+  // Create task template schedule
+  createTaskTemplateSchedule: async (scheduleData) => {
+    try {
+      const response = await apiClient.post('/api/clients/task-template-schedules/', scheduleData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating task template schedule:', error);
+      throw error;
+    }
+  },
+  
+  // Update task template schedule
+  updateTaskTemplateSchedule: async (scheduleId, scheduleData) => {
+    try {
+      const response = await apiClient.patch(`/api/clients/task-template-schedules/${scheduleId}/`, scheduleData);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating task template schedule:', error);
+      throw error;
+    }
+  },
+  
+  // Delete task template schedule
+  deleteTaskTemplateSchedule: async (scheduleId) => {
+    try {
+      const response = await apiClient.delete(`/api/clients/task-template-schedules/${scheduleId}/`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting task template schedule:', error);
+      throw error;
+    }
+  },
+  
+  // Get client task templates
+  getClientTaskTemplates: async (clientId) => {
+    try {
+      const response = await apiClient.get(`/api/clients/${clientId}/task-templates/`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching client task templates:', error);
+      throw error;
+    }
+  },
+  
+  // Create client task template
+  createClientTaskTemplate: async (clientId, templateData) => {
+    try {
+      const response = await apiClient.post(`/api/clients/${clientId}/task-templates/`, templateData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating client task template:', error);
+      throw error;
+    }
+  },
+  
+  // Update client task template
+  updateClientTaskTemplate: async (templateId, templateData) => {
+    try {
+      const response = await apiClient.patch(`/api/clients/client-task-templates/${templateId}/`, templateData);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating client task template:', error);
+      throw error;
+    }
+  },
+  
+  // Delete client task template
+  deleteClientTaskTemplate: async (templateId) => {
+    try {
+      const response = await apiClient.delete(`/api/clients/client-task-templates/${templateId}/`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting client task template:', error);
+      throw error;
+    }
+  },
+  
+  // Generate task from template
+  generateTaskFromTemplate: async (templateId) => {
+    try {
+      const response = await apiClient.post(`/api/clients/client-task-templates/${templateId}/generate_task/`);
+      return response.data;
+    } catch (error) {
+      console.error('Error generating task from template:', error);
+      throw error;
+    }
+  },
+  
   // Get a specific contract by ID
   getContract: async (contractId) => {
     const response = await apiClient.get(`/api/clients/contracts/${contractId}/`);
