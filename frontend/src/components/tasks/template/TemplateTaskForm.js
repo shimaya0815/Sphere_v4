@@ -181,15 +181,19 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
   };
 
   return (
-    <div className="bg-white shadow-lg rounded-lg p-6">
+    <div className="bg-white shadow-lg rounded-lg p-6 max-w-4xl mx-auto">
       <h2 className="text-xl font-bold mb-6">{templateTaskId ? 'テンプレートタスクを編集' : '新規テンプレートタスク作成'}</h2>
       {parentTemplate && (
-        <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-sm">
           <h3 className="text-sm font-medium text-gray-700 mb-2">親テンプレート情報</h3>
           <div className="text-sm text-gray-600">
-            <p><span className="font-medium">テンプレート名:</span> {parentTemplate.template_name || parentTemplate.title}</p>
+            <div className="bg-white p-2 rounded border border-gray-100 mb-1">
+              <span className="font-medium">テンプレート名:</span> {parentTemplate.template_name || parentTemplate.title}
+            </div>
             {parentTemplate.description && (
-              <p><span className="font-medium">説明:</span> {parentTemplate.description}</p>
+              <div className="bg-white p-2 rounded border border-gray-100">
+                <span className="font-medium">説明:</span> {parentTemplate.description}
+              </div>
             )}
           </div>
         </div>
@@ -232,11 +236,25 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
           />
           
           {/* フォーム送信ボタン */}
-          <FormSubmitButtons 
-            onCancel={onCancel} 
-            isSubmitting={isSubmitting} 
-            isEdit={!!templateTaskId} 
-          />
+          <div className="flex justify-end space-x-3 mt-6">
+            <button
+              type="button"
+              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              onClick={onCancel}
+              disabled={isSubmitting}
+            >
+              キャンセル
+            </button>
+            <button
+              type="submit"
+              className={`w-24 px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 ${
+                isSubmitting ? 'opacity-75 cursor-not-allowed' : ''
+              }`}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? '保存中...' : templateTaskId ? '更新' : '作成'}
+            </button>
+          </div>
         </div>
       </form>
     </div>
