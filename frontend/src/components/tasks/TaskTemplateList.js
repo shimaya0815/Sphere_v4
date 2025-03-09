@@ -83,13 +83,17 @@ const TaskTemplateList = () => {
   const fetchTemplates = async () => {
     setLoading(true);
     try {
+      // メソッド名が変更されたため、正しいメソッドを呼び出す
       const data = await tasksApi.getTemplates();
-      setTemplates(data);
+      // 配列でない場合は空配列に変換して設定
+      setTemplates(Array.isArray(data) ? data : []);
       setError(null);
     } catch (error) {
       console.error('Error fetching templates:', error);
       setError('テンプレートの取得に失敗しました');
       toast.error('テンプレートの取得に失敗しました');
+      // エラー時は空配列をセット
+      setTemplates([]);
     } finally {
       setLoading(false);
     }
@@ -153,45 +157,65 @@ const TaskTemplateList = () => {
       toast.loading('デフォルトテンプレートを作成中...', { id: 'default-templates' });
       
       // カテゴリとステータスを取得
-      const categories = await tasksApi.getCategories();
-      const priorities = await tasksApi.getPriorities();
-      const statuses = await tasksApi.getStatuses();
+      const categoriesResponse = await tasksApi.getCategories();
+      const prioritiesResponse = await tasksApi.getPriorities();
+      const statusesResponse = await tasksApi.getStatuses();
+      
+      // 配列化
+      const categories = Array.isArray(categoriesResponse) ? categoriesResponse : 
+                        (categoriesResponse?.results || []);
+      const priorities = Array.isArray(prioritiesResponse) ? prioritiesResponse : 
+                        (prioritiesResponse?.results || []);
+      const statuses = Array.isArray(statusesResponse) ? statusesResponse : 
+                       (statusesResponse?.results || []);
+      
+      console.log('Categories:', categories);
+      console.log('Priorities:', priorities);
+      console.log('Statuses:', statuses);
       
       let createdCount = 0;
       
       // 各デフォルトテンプレートを作成
       for (const template of DEFAULT_TEMPLATES) {
-        // カテゴリを検索
-        const category = categories.find(c => c.name === template.category_name);
-        
-        // 中程度の優先度を検索
-        const middlePriority = priorities.find(p => p.name === '中' || p.priority_value === 50);
-        
-        // デフォルトの未着手ステータスを検索
-        const defaultStatus = statuses.find(s => s.name === '未着手');
-        
-        // テンプレート作成データを準備
-        const templateData = {
-          title: template.title,
-          description: template.description,
-          category: category?.id,
-          priority: middlePriority?.id,
-          status: defaultStatus?.id,
-          is_template: true,
-          template_name: template.template_name,
-          recurrence_pattern: template.recurrence_pattern,
-          estimated_hours: template.estimated_hours,
-        };
-        
-        // 既存のテンプレートと重複がないか確認
-        const exists = templates.some(t => 
-          t.template_name === template.template_name || 
-          t.title === template.title
-        );
-        
-        if (!exists) {
-          await tasksApi.createTask(templateData);
-          createdCount++;
+        try {
+          // カテゴリを検索
+          const category = categories.find(c => c.name === template.category_name);
+          
+          // 中程度の優先度を検索
+          const middlePriority = priorities.find(p => p.name === '中' || p.priority_value === 50);
+          
+          // デフォルトの未着手ステータスを検索
+          const defaultStatus = statuses.find(s => s.name === '未着手');
+          
+          // テンプレート作成データを準備
+          const templateData = {
+            title: template.title,
+            description: template.description,
+            category: category?.id,
+            priority: middlePriority?.id,
+            status: defaultStatus?.id,
+            is_template: true,
+            template_name: template.template_name,
+            recurrence_pattern: template.recurrence_pattern,
+            estimated_hours: template.estimated_hours,
+          };
+          
+          console.log('Creating template:', templateData);
+          
+          // 既存のテンプレートと重複がないか確認
+          const exists = (templates || []).some(t => 
+            (t.template_name === template.template_name) || 
+            (t.title === template.title)
+          );
+          
+          if (!exists) {
+            await tasksApi.createTask(templateData);
+            createdCount++;
+          }
+        } catch (err) {
+          console.error(`Error creating template ${template.title}:`, err);
+          // 1つのテンプレート作成に失敗しても他は続ける
+          continue;
         }
       }
       

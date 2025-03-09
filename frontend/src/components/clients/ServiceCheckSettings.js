@@ -216,9 +216,19 @@ const ServiceCheckSettings = ({ clientId }) => {
       // グローバルテンプレートを取得
       try {
         const globalTemplatesData = await tasksApi.getTemplates();
-        globalTemplatesArray = Array.isArray(globalTemplatesData) ? globalTemplatesData : [];
+        // APIが配列でない場合は空配列として扱う
+        if (Array.isArray(globalTemplatesData)) {
+          globalTemplatesArray = globalTemplatesData;
+        } else if (globalTemplatesData && typeof globalTemplatesData === 'object') {
+          // オブジェクトの場合は結果を確認
+          globalTemplatesArray = globalTemplatesData.results || [];
+        } else {
+          globalTemplatesArray = [];
+        }
+        console.log('Global templates loaded:', globalTemplatesArray);
       } catch (error) {
         console.error('Error fetching global templates:', error);
+        globalTemplatesArray = [];
       }
       
       setTemplates(templatesArray);
