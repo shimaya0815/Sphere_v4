@@ -41,6 +41,36 @@ const DEFAULT_CYCLES = {
   social_insurance: 'monthly'
 };
 
+// デフォルトのスケジュールタイプ
+const DEFAULT_SCHEDULE_TYPES = {
+  monthly_check: 'monthly_start',
+  bookkeeping: 'monthly_end',
+  tax_return: 'fiscal_relative',
+  income_tax: 'monthly_end',
+  residence_tax: 'fiscal_relative',
+  social_insurance: 'monthly_end'
+};
+
+// デフォルトのテンプレートタイトル
+const DEFAULT_TEMPLATE_TITLES = {
+  monthly_check: '月次処理チェック',
+  bookkeeping: '記帳代行業務',
+  tax_return: '決算・法人税申告業務',
+  income_tax: '源泉所得税納付業務',
+  residence_tax: '住民税納付業務',
+  social_insurance: '社会保険対応業務'
+};
+
+// デフォルトのテンプレート説明
+const DEFAULT_TEMPLATE_DESCRIPTIONS = {
+  monthly_check: '毎月の処理状況を確認し、必要な対応を行います。',
+  bookkeeping: '請求書・領収書などに基づき会計データを作成します。',
+  tax_return: '決算期の法人税申告書を作成・提出します。',
+  income_tax: '源泉所得税の計算・納付手続きを行います。',
+  residence_tax: '住民税の納付手続き・特別徴収を行います。',
+  social_insurance: '社会保険の手続き・計算を行います。'
+};
+
 // スケジュールタイプのマッピング
 const SCHEDULE_TYPES = [
   { value: 'monthly_start', label: '月初作成（1日）・当月締め切り（5日）' },
@@ -62,10 +92,10 @@ const ServiceCheckSettings = ({ clientId }) => {
   const initialSettings = Object.keys(SERVICE_CATEGORIES).reduce((acc, service) => {
     acc[service] = {
       cycle: DEFAULT_CYCLES[service],
-      enabled: false,
+      enabled: true, // デフォルトで有効
       template_id: null,
       customized: false,
-      schedule_type: 'monthly_start',
+      schedule_type: DEFAULT_SCHEDULE_TYPES[service] || 'monthly_start',
       recurrence: DEFAULT_CYCLES[service],
       creation_day: null,
       deadline_day: null
@@ -90,6 +120,58 @@ const ServiceCheckSettings = ({ clientId }) => {
       fetchData();
     }
   }, [clientId]);
+  
+  // デフォルトのテンプレートを作成
+  useEffect(() => {
+    // クライアントテンプレートが空で、テンプレートが有効な場合、デフォルトテンプレートを作成
+    const createDefaultTemplates = async () => {
+      if (clientId && clientTemplates.length === 0 && settings.templates_enabled) {
+        // スタート状態を表示
+        toast.loading('デフォルトのテンプレートを準備中...', { id: 'default-templates' });
+        
+        const results = [];
+        
+        // 各サービスのテンプレートを順番に作成
+        for (const [service, serviceSettings] of Object.entries(settings)) {
+          if (service === 'templates_enabled') continue;
+          
+          if (serviceSettings.enabled) {
+            try {
+              const template = await createTemplateForService(service, serviceSettings);
+              if (template) {
+                results.push(template);
+                // 設定を更新
+                handleServiceChange(service, 'template_id', template.id);
+              }
+            } catch (error) {
+              console.error(`Error creating default template for ${service}:`, error);
+            }
+            
+            // 各テンプレート作成間に少し待機（APIへの負荷軽減）
+            await new Promise(resolve => setTimeout(resolve, 300));
+          }
+        }
+        
+        // すべて作成完了
+        if (results.length > 0) {
+          toast.success(`${results.length}個のデフォルトテンプレートを作成しました`, { id: 'default-templates' });
+          
+          // クライアントテンプレート一覧を更新
+          setClientTemplates(prevTemplates => [...prevTemplates, ...results]);
+          
+          // 最新データを再取得
+          fetchData();
+        } else {
+          toast.dismiss('default-templates');
+        }
+      }
+    };
+    
+    // データ取得後にのみ実行
+    if (!loading && clientId) {
+      createDefaultTemplates();
+    }
+  }, [loading, clientId, clientTemplates.length]);
   
   const fetchData = async () => {
     setLoading(true);
@@ -259,8 +341,8 @@ const ServiceCheckSettings = ({ clientId }) => {
         scheduleId = existingSchedule.id;
       } else {
         // 新規スケジュール作成
-        const scheduleType = serviceSettings.schedule_type || 'monthly_start';
-        const recurrence = serviceSettings.recurrence || serviceSettings.cycle || 'monthly';
+        const scheduleType = serviceSettings.schedule_type || DEFAULT_SCHEDULE_TYPES[service] || 'monthly_start';
+        const recurrence = serviceSettings.recurrence || serviceSettings.cycle || DEFAULT_CYCLES[service];
         const newSchedule = await createDefaultSchedule(scheduleName, scheduleType, recurrence);
         
         if (newSchedule) {
@@ -275,12 +357,58 @@ const ServiceCheckSettings = ({ clientId }) => {
         return null;
       }
       
+      // タスクカテゴリの取得
+      let categoryId = null;
+      let priorityId = null;
+      
+      try {
+        // カテゴリとプライオリティの取得（APIデータから）
+        const categoriesResponse = await clientsApi.getTaskCategories();
+        const prioritiesResponse = await clientsApi.getTaskPriorities();
+        
+        // カテゴリを特定（カテゴリ名から推測）
+        if (categoriesResponse && categoriesResponse.length > 0) {
+          const categoryMap = {
+            monthly_check: '一般',
+            bookkeeping: '記帳代行',
+            tax_return: '決算・申告',
+            income_tax: '税務顧問',
+            residence_tax: '税務顧問',
+            social_insurance: '給与計算'
+          };
+          
+          const categoryName = categoryMap[service] || '一般';
+          const category = categoriesResponse.find(c => c.name === categoryName);
+          if (category) {
+            categoryId = category.id;
+          } else {
+            categoryId = categoriesResponse[0].id; // デフォルトは最初のカテゴリ
+          }
+        }
+        
+        // 優先度を設定（中程度）
+        if (prioritiesResponse && prioritiesResponse.length > 0) {
+          // 中程度の優先度を検索
+          const middlePriority = prioritiesResponse.find(p => p.name === '中' || p.priority_value === 50);
+          if (middlePriority) {
+            priorityId = middlePriority.id;
+          } else {
+            priorityId = prioritiesResponse[0].id; // デフォルトは最初の優先度
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching categories or priorities:', error);
+        // エラーがあっても続行（カテゴリなしでも作成可能）
+      }
+      
       // テンプレートデータ作成
       const templateData = {
-        title: `${SERVICE_DISPLAY_NAMES[service]}`,
-        description: `${SERVICE_DISPLAY_NAMES[service]}のタスクテンプレート`,
+        title: DEFAULT_TEMPLATE_TITLES[service] || `${SERVICE_DISPLAY_NAMES[service]}`,
+        description: DEFAULT_TEMPLATE_DESCRIPTIONS[service] || `${SERVICE_DISPLAY_NAMES[service]}のタスクテンプレート`,
         schedule: scheduleId,
-        is_active: serviceSettings.enabled
+        is_active: serviceSettings.enabled,
+        category: categoryId,
+        priority: priorityId
       };
       
       // テンプレート作成

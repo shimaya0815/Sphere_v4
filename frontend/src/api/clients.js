@@ -452,6 +452,30 @@ const clientsApi = {
       throw error;
     }
   },
+  
+  // タスクカテゴリの取得
+  getTaskCategories: async () => {
+    try {
+      const response = await apiClient.get('/api/tasks/categories/');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching task categories:', error);
+      // エラーの場合は空の配列を返す
+      return [];
+    }
+  },
+  
+  // タスク優先度の取得
+  getTaskPriorities: async () => {
+    try {
+      const response = await apiClient.get('/api/tasks/priorities/');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching task priorities:', error);
+      // エラーの場合は空の配列を返す
+      return [];
+    }
+  },
 };
 
 export default clientsApi;
