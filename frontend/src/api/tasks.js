@@ -161,6 +161,20 @@ const tasksApi = {
     }
   },
   
+  // テンプレート詳細を取得
+  getTemplate: async (templateId) => {
+    try {
+      console.log('Fetching template details for ID:', templateId);
+      const response = await apiClient.get(`/api/tasks/templates/${templateId}/`);
+      console.log('Template details response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error in getTemplate:', error);
+      console.error('Error details:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+  
   // テンプレートからタスクを作成
   createFromTemplate: async (templateId, taskData = {}) => {
     try {
