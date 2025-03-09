@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { HiOutlineX, HiCheck, HiOutlineClock, HiUser, HiUserGroup } from 'react-icons/hi';
+import { 
+  HiOutlineX, 
+  HiCheck, 
+  HiOutlineClock, 
+  HiUser, 
+  HiUserGroup, 
+  HiOutlineTrash, 
+  HiExclamation 
+} from 'react-icons/hi';
 import { tasksApi, clientsApi, usersApi, timeManagementApi } from '../../../api';
 import toast from 'react-hot-toast';
 
@@ -23,6 +31,10 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
   // is_fiscal_task関連の状態管理は削除
   const [isAssigneeExpanded, setIsAssigneeExpanded] = useState(false);
   const [isDateExpanded, setIsDateExpanded] = useState(false);
+  
+  // 削除機能関連の状態
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // 共通スタイル
   const inputClassName = "shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-2 border-gray-300 rounded-md hover:border-gray-400";
@@ -453,6 +465,44 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       console.error('タスク保存エラー:', error);
       setSaveState('error');
       toast.error('タスクの保存に失敗しました');
+    }
+  };
+  
+  /**
+   * タスク削除確認モーダルを表示
+   */
+  const handleDeleteConfirm = () => {
+    if (isNewTask) return;
+    setIsDeleteModalOpen(true);
+  };
+  
+  /**
+   * タスク削除実行
+   */
+  const handleDeleteTask = async () => {
+    if (isNewTask || !task || !task.id || isDeleting) return;
+    
+    try {
+      setIsDeleting(true);
+      await tasksApi.deleteTask(task.id);
+      
+      // 削除成功
+      toast.success('タスクを削除しました');
+      
+      // モーダルを閉じる
+      setIsDeleteModalOpen(false);
+      
+      // スライドパネルを閉じる
+      onClose();
+      
+      // タスク一覧を更新 (カスタムイベントで通知)
+      window.dispatchEvent(new Event('task-update-force-refresh'));
+      
+    } catch (error) {
+      console.error('タスク削除エラー:', error);
+      toast.error('タスクの削除に失敗しました');
+    } finally {
+      setIsDeleting(false);
     }
   };
   
@@ -1823,24 +1873,89 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                 </form>
               </div>
               
-              {/* フッター（保存ボタン） */}
-              <div className="flex-shrink-0 px-4 py-4 border-t border-gray-200 flex justify-end">
-                <button
-                  type="button"
-                  className="mr-3 bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                  onClick={onClose}
-                >
-                  キャンセル
-                </button>
-                <button
-                  type="button"
-                  className="bg-primary-600 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                  onClick={handleSubmit(submitTask)}
-                  disabled={saveState === 'saving'}
-                >
-                  {saveState === 'saving' ? '保存中...' : isNewTask ? '作成' : '保存'}
-                </button>
+              {/* フッター（保存ボタンと削除ボタン） */}
+              <div className="flex-shrink-0 px-4 py-4 border-t border-gray-200 flex justify-between">
+                {/* 左側：削除ボタン（新規作成時は非表示） */}
+                <div>
+                  {!isNewTask && task && (
+                    <button
+                      type="button"
+                      className="bg-white py-2 px-4 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                      onClick={handleDeleteConfirm}
+                    >
+                      <HiOutlineTrash className="inline-block mr-1 -mt-1" />
+                      削除
+                    </button>
+                  )}
+                </div>
+                
+                {/* 右側：キャンセル・保存ボタン */}
+                <div className="flex">
+                  <button
+                    type="button"
+                    className="mr-3 bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                    onClick={onClose}
+                  >
+                    キャンセル
+                  </button>
+                  <button
+                    type="button"
+                    className="bg-primary-600 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                    onClick={handleSubmit(submitTask)}
+                    disabled={saveState === 'saving'}
+                  >
+                    {saveState === 'saving' ? '保存中...' : isNewTask ? '作成' : '保存'}
+                  </button>
+                </div>
               </div>
+              
+              {/* 削除確認モーダル */}
+              {isDeleteModalOpen && (
+                <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+                  <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                    {/* 背景オーバーレイ */}
+                    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setIsDeleteModalOpen(false)}></div>
+                    
+                    {/* モーダルパネル */}
+                    <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                      <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                        <div className="sm:flex sm:items-start">
+                          <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                            <HiExclamation className="h-6 w-6 text-red-600" />
+                          </div>
+                          <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                            <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                              タスクを削除
+                            </h3>
+                            <div className="mt-2">
+                              <p className="text-sm text-gray-500">
+                                タスク「{task?.title}」を削除してもよろしいですか？この操作は取り消せません。
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                        <button 
+                          type="button" 
+                          className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
+                          onClick={handleDeleteTask}
+                          disabled={isDeleting}
+                        >
+                          {isDeleting ? '削除中...' : '削除する'}
+                        </button>
+                        <button 
+                          type="button" 
+                          className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                          onClick={() => setIsDeleteModalOpen(false)}
+                        >
+                          キャンセル
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
