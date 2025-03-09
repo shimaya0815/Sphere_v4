@@ -232,337 +232,311 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
   }
   
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 p-6 bg-white rounded-lg shadow">
-      <div>
-        <h2 className="text-xl font-semibold text-gray-800 mb-6">
-          {templateTaskId ? 'テンプレートタスクの編集' : '新規テンプレートタスクの作成'}
-        </h2>
-        {parentTemplate && (
-          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-500">親テンプレート: {parentTemplate.template_name}</p>
-          </div>
-        )}
-      </div>
+    <div className="bg-white shadow-lg rounded-lg p-6">
+      <h2 className="text-xl font-bold mb-6">
+        {templateTaskId ? 'テンプレートタスクの編集' : '新規テンプレートタスクの作成'}
+      </h2>
+      {parentTemplate && (
+        <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+          <p className="text-sm text-gray-500">親テンプレート: {parentTemplate.template_name}</p>
+        </div>
+      )}
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* タスクタイトル */}
-        <div className="col-span-2">
-          <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-            タスクタイトル <span className="text-red-500">*</span>
-          </label>
-          <div className="flex">
-            <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
-              <HiOutlineDocumentText />
-            </span>
+      <form onSubmit={handleSubmit}>
+        <div className="space-y-4">
+          {/* タスクタイトル */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="title">
+              タイトル <span className="text-red-500">*</span>
+            </label>
             <input
-              type="text"
               id="title"
+              type="text"
+              className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm"
+              placeholder="タスクのタイトルを入力"
               name="title"
               value={formData.title}
               onChange={handleChange}
-              className="input input-bordered rounded-l-none w-full"
               required
-              placeholder="タスクのタイトル"
             />
           </div>
-        </div>
-        
-        {/* 説明 */}
-        <div className="col-span-2">
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-            説明
-          </label>
-          <textarea
-            id="description"
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            rows="3"
-            className="textarea textarea-bordered w-full"
-            placeholder="タスクの詳細な説明"
-          ></textarea>
-        </div>
-        
-        {/* 担当者とレビュアー */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 col-span-2">
-          {/* 作業担当者 */}
+          
+          {/* 説明 */}
           <div>
-            <label htmlFor="worker" className="block text-sm font-medium text-gray-700 mb-1">
-              作業担当者
+            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="description">
+              説明
             </label>
-            <select
-              id="worker"
-              name="worker"
-              value={formData.worker || ''}
+            <textarea
+              id="description"
+              rows="4"
+              className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm"
+              placeholder="タスクの詳細を入力"
+              name="description"
+              value={formData.description}
               onChange={handleChange}
-              className="select select-bordered w-full"
-            >
-              <option value="">選択してください</option>
-              {users.map(user => (
-                <option key={user.id} value={user.id}>
-                  {user.first_name} {user.last_name}
-                </option>
-              ))}
-            </select>
+            />
           </div>
           
-          {/* レビュー担当者 */}
-          <div>
-            <label htmlFor="reviewer" className="block text-sm font-medium text-gray-700 mb-1">
-              レビュー担当者
-            </label>
-            <select
-              id="reviewer"
-              name="reviewer"
-              value={formData.reviewer || ''}
-              onChange={handleChange}
-              className="select select-bordered w-full"
-            >
-              <option value="">選択してください</option>
-              {users.map(user => (
-                <option key={user.id} value={user.id}>
-                  {user.first_name} {user.last_name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        
-        {/* ステータスと優先度 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 col-span-2">
-          {/* ステータス */}
-          <div>
-            <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-              ステータス
-            </label>
-            <select
-              id="status"
-              name="status"
-              value={formData.status || ''}
-              onChange={handleChange}
-              className="select select-bordered w-full"
-            >
-              <option value="">選択してください</option>
-              {statuses.map(status => (
-                <option key={status.id} value={status.id}>
-                  {status.name}
-                </option>
-              ))}
-            </select>
+          {/* 担当者とレビュアー選択フィールド */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="worker">
+                担当者
+              </label>
+              <select
+                id="worker"
+                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm"
+                name="worker"
+                value={formData.worker || ''}
+                onChange={handleChange}
+              >
+                <option value="">担当者を選択</option>
+                {users.map(user => (
+                  <option key={user.id} value={user.id}>
+                    {user.first_name || ''} {user.last_name || ''} {(!user.first_name && !user.last_name) ? user.username || user.email || `User ${user.id}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="reviewer">
+                レビュアー
+              </label>
+              <select
+                id="reviewer"
+                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm"
+                name="reviewer"
+                value={formData.reviewer || ''}
+                onChange={handleChange}
+              >
+                <option value="">レビュアーを選択</option>
+                {users.map(reviewer => (
+                  <option key={reviewer.id} value={reviewer.id}>
+                    {reviewer.first_name || ''} {reviewer.last_name || ''} {(!reviewer.first_name && !reviewer.last_name) ? reviewer.username || reviewer.email || `User ${reviewer.id}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           
-          {/* 優先度 */}
-          <div>
-            <label htmlFor="priority" className="block text-sm font-medium text-gray-700 mb-1">
-              優先度
-            </label>
-            <select
-              id="priority"
-              name="priority"
-              value={formData.priority || ''}
-              onChange={handleChange}
-              className="select select-bordered w-full"
-            >
-              <option value="">選択してください</option>
-              {priorities.map(priority => (
-                <option key={priority.id} value={priority.id}>
-                  {priority.priority_value || '未設定'}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        
-        {/* カテゴリーと見積時間 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 col-span-2">
-          {/* カテゴリ */}
-          <div>
-            <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
-              カテゴリ
-            </label>
-            <select
-              id="category"
-              name="category"
-              value={formData.category || ''}
-              onChange={handleChange}
-              className="select select-bordered w-full"
-            >
-              <option value="">選択してください</option>
-              {categories.map(category => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="status">
+                ステータス
+              </label>
+              <select
+                id="status"
+                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm"
+                name="status"
+                value={formData.status || ''}
+                onChange={handleChange}
+              >
+                <option value="">ステータスを選択</option>
+                {statuses.map(status => (
+                  <option key={status.id} value={status.id}>{status.name}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="priority">
+                優先度
+              </label>
+              <select
+                id="priority"
+                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm"
+                name="priority"
+                value={formData.priority || ''}
+                onChange={handleChange}
+              >
+                <option value="">優先度を選択</option>
+                {priorities.map(priority => (
+                  <option key={priority.id} value={priority.id}>
+                    {priority.priority_value || '未設定'}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           
-          {/* 見積もり時間 */}
-          <div>
-            <label htmlFor="estimated_hours" className="block text-sm font-medium text-gray-700 mb-1">
-              見積もり時間
-            </label>
-            <div className="flex">
-              <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
-                <HiOutlineClock />
-              </span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="category">
+                カテゴリー
+              </label>
+              <select
+                id="category"
+                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm"
+                name="category"
+                value={formData.category || ''}
+                onChange={handleChange}
+              >
+                <option value="">カテゴリーを選択</option>
+                {categories.map(category => (
+                  <option key={category.id} value={category.id}>{category.name}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="estimated_hours">
+                見積時間 (時間)
+              </label>
               <input
-                type="number"
                 id="estimated_hours"
+                type="number"
+                step="0.5"
+                min="0"
+                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm"
+                placeholder="2.5"
                 name="estimated_hours"
                 value={formData.estimated_hours || ''}
                 onChange={handleChange}
-                min="0"
-                step="0.5"
-                className="input input-bordered rounded-l-none w-full"
-                placeholder="例: 2.5"
               />
             </div>
-            <p className="mt-1 text-xs text-gray-500">時間単位（小数点以下も可）</p>
           </div>
-        </div>
+          
+          {/* 実行順序 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="order">
+              実行順序
+            </label>
+            <input
+              id="order"
+              type="number"
+              className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm"
+              placeholder="1"
+              name="order"
+              value={formData.order || 1}
+              onChange={handleChange}
+              min="1"
+            />
+            <p className="mt-1 text-xs text-gray-500">複数タスクがある場合の実行順序</p>
+          </div>
         
-        {/* 実行順序 */}
-        <div className="col-span-2">
-          <label htmlFor="order" className="block text-sm font-medium text-gray-700 mb-1">
-            実行順序
-          </label>
-          <input
-            type="number"
-            id="order"
-            name="order"
-            value={formData.order || 1}
-            onChange={handleChange}
-            min="1"
-            className="input input-bordered w-full"
-          />
-          <p className="mt-1 text-xs text-gray-500">複数タスクがある場合の実行順序</p>
-        </div>
-        
-        {/* カスタムスケジュールの設定 */}
-        <div className="col-span-2">
-          <div className="form-control">
-            <label className="label cursor-pointer justify-start">
+          {/* カスタムスケジュールの設定 */}
+          <div>
+            <div className="flex items-center mt-2">
               <input
                 type="checkbox"
+                id="has_custom_schedule"
                 name="has_custom_schedule"
                 checked={formData.has_custom_schedule}
                 onChange={handleChange}
-                className="checkbox checkbox-primary mr-2"
+                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
               />
-              <span className="label-text">このタスク用にカスタムスケジュールを設定する</span>
-            </label>
-            <p className="text-xs text-gray-500 ml-7">
+              <label htmlFor="has_custom_schedule" className="ml-2 block text-sm text-gray-700">
+                このタスク用にカスタムスケジュールを設定する
+              </label>
+            </div>
+            <p className="mt-1 text-xs text-gray-500 ml-6">
               チェックしない場合は親テンプレートのスケジュール設定が使用されます
             </p>
           </div>
-        </div>
-        
-        {/* カスタムスケジュール設定フィールド（チェックボックスがオンの場合のみ表示） */}
-        {formData.has_custom_schedule && (
-          <div className="col-span-2 p-4 bg-gray-50 rounded-lg space-y-4">
-            <h3 className="font-medium text-gray-700">カスタムスケジュール設定</h3>
-            
-            <div>
-              <label htmlFor="reference_date_type" className="block text-sm font-medium text-gray-700 mb-1">
-                基準日タイプ
-              </label>
-              <select
-                id="reference_date_type"
-                name="reference_date_type"
-                value={formData.reference_date_type}
-                onChange={handleChange}
-                className="select select-bordered w-full"
-              >
-                <option value="parent_creation">親タスク作成日</option>
-                <option value="execution_date">実行日（バッチ処理実行日）</option>
-                <option value="fiscal_start">決算期開始日</option>
-                <option value="fiscal_end">決算期終了日</option>
-                <option value="month_start">当月初日</option>
-                <option value="month_end">当月末日</option>
-              </select>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          {/* カスタムスケジュール設定フィールド（チェックボックスがオンの場合のみ表示） */}
+          {formData.has_custom_schedule && (
+            <div className="p-4 bg-gray-50 rounded-lg space-y-4 mt-2">
+              <h3 className="font-medium text-gray-700">カスタムスケジュール設定</h3>
+              
               <div>
-                <label htmlFor="creation_date_offset" className="block text-sm font-medium text-gray-700 mb-1">
-                  作成日オフセット（日数）
+                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="reference_date_type">
+                  基準日タイプ
                 </label>
-                <input
-                  type="number"
-                  id="creation_date_offset"
-                  name="creation_date_offset"
-                  value={formData.creation_date_offset}
+                <select
+                  id="reference_date_type"
+                  className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm"
+                  name="reference_date_type"
+                  value={formData.reference_date_type}
                   onChange={handleChange}
-                  className="input input-bordered w-full"
-                  placeholder="基準日からの日数"
-                />
-                <p className="mt-1 text-xs text-gray-500">基準日から何日後に作成するか（0=当日）</p>
+                >
+                  <option value="parent_creation">親タスク作成日</option>
+                  <option value="execution_date">実行日（バッチ処理実行日）</option>
+                  <option value="fiscal_start">決算期開始日</option>
+                  <option value="fiscal_end">決算期終了日</option>
+                  <option value="month_start">当月初日</option>
+                  <option value="month_end">当月末日</option>
+                </select>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="creation_date_offset">
+                    作成日オフセット（日数）
+                  </label>
+                  <input
+                    type="number"
+                    id="creation_date_offset"
+                    className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm"
+                    placeholder="基準日からの日数"
+                    name="creation_date_offset"
+                    value={formData.creation_date_offset}
+                    onChange={handleChange}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">基準日から何日後に作成するか（0=当日）</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="deadline_date_offset">
+                    期限日オフセット（日数）
+                  </label>
+                  <input
+                    type="number"
+                    id="deadline_date_offset"
+                    className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm"
+                    placeholder="作成日からの日数"
+                    name="deadline_date_offset"
+                    value={formData.deadline_date_offset}
+                    onChange={handleChange}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">作成日から何日後を期限とするか</p>
+                </div>
               </div>
               
               <div>
-                <label htmlFor="deadline_date_offset" className="block text-sm font-medium text-gray-700 mb-1">
-                  期限日オフセット（日数）
+                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="recurrence">
+                  繰り返し
                 </label>
-                <input
-                  type="number"
-                  id="deadline_date_offset"
-                  name="deadline_date_offset"
-                  value={formData.deadline_date_offset}
+                <select
+                  id="recurrence"
+                  className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm"
+                  name="recurrence"
+                  value={formData.recurrence}
                   onChange={handleChange}
-                  className="input input-bordered w-full"
-                  placeholder="作成日からの日数"
-                />
-                <p className="mt-1 text-xs text-gray-500">作成日から何日後を期限とするか</p>
+                >
+                  <option value="with_parent">親テンプレートと同時</option>
+                  <option value="monthly">毎月</option>
+                  <option value="quarterly">四半期ごと</option>
+                  <option value="yearly">毎年</option>
+                  <option value="once">一度のみ</option>
+                </select>
               </div>
             </div>
-            
-            <div>
-              <label htmlFor="recurrence" className="block text-sm font-medium text-gray-700 mb-1">
-                繰り返し
-              </label>
-              <select
-                id="recurrence"
-                name="recurrence"
-                value={formData.recurrence}
-                onChange={handleChange}
-                className="select select-bordered w-full"
-              >
-                <option value="with_parent">親テンプレートと同時</option>
-                <option value="monthly">毎月</option>
-                <option value="quarterly">四半期ごと</option>
-                <option value="yearly">毎年</option>
-                <option value="once">一度のみ</option>
-              </select>
-            </div>
-          </div>
-        )}
-      </div>
-      
-      {/* 送信ボタン */}
-      <div className="flex justify-end space-x-3 mt-6">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="btn btn-ghost"
-          disabled={saving}
-        >
-          キャンセル
-        </button>
-        <button
-          type="submit"
-          className="btn btn-primary"
-          disabled={saving}
-        >
-          {saving ? (
-            <>
-              <span className="loading loading-spinner loading-sm mr-2"></span>
-              保存中...
-            </>
-          ) : (
-            templateTaskId ? '更新する' : '作成する'
           )}
-        </button>
-      </div>
+          
+          {/* 送信ボタン */}
+          <div className="flex justify-end space-x-3 mt-6">
+            <button
+              type="button"
+              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              onClick={onCancel}
+              disabled={saving}
+            >
+              キャンセル
+            </button>
+            <button
+              type="submit"
+              className={`w-24 px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 ${
+                saving ? 'opacity-75 cursor-not-allowed' : ''
+              }`}
+              disabled={saving}
+            >
+              {saving ? '保存中...' : templateTaskId ? '更新' : '作成'}
+            </button>
+          </div>
+        </div>
+      </form>
     </form>
   );
 };
