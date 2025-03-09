@@ -434,7 +434,6 @@ const TaskList = React.forwardRef((props, ref) => {
                 <th>優先度</th>
                 <th>クライアント</th>
                 <th>カテゴリー</th>
-                <th>操作</th>
               </tr>
             </thead>
             <tbody>
@@ -492,28 +491,6 @@ const TaskList = React.forwardRef((props, ref) => {
                         {task.category_data?.name || task.category_name || (typeof task.category === 'object' ? task.category.name : task.category)}
                       </span>
                     )}
-                  </td>
-                  <td onClick={(e) => e.stopPropagation()}>
-                    <div className="flex space-x-1">
-                      <button 
-                        className="btn btn-xs btn-outline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          props.onTaskSelect ? props.onTaskSelect(task) : handleEditTask(task);
-                        }}
-                      >
-                        編集
-                      </button>
-                      <button 
-                        className="btn btn-xs btn-outline btn-error"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteConfirm(task);
-                        }}
-                      >
-                        削除
-                      </button>
-                    </div>
                   </td>
                 </tr>
               ))}
