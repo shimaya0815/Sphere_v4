@@ -221,18 +221,38 @@ const tasksApi = {
   // テンプレートの内包タスク取得
   getTemplateChildTasks: async (templateId) => {
     try {
+      console.log('Fetching template child tasks for ID:', templateId);
       const response = await apiClient.get(`/api/tasks/templates/${templateId}/tasks/`);
       console.log('Template child tasks response:', response.data);
       
       // DRFのページネーション形式に対応
       if (response.data && response.data.results && Array.isArray(response.data.results)) {
+        console.log('Found results array in response');
         return response.data.results;
       }
       
-      return Array.isArray(response.data) ? response.data : [];
+      if (Array.isArray(response.data)) {
+        return response.data;
+      }
+      
+      console.warn('Unexpected response format:', response.data);
+      // 空の配列を返す前に親テンプレートが存在するか確認
+      try {
+        await apiClient.get(`/api/tasks/${templateId}/`);
+      } catch (templateError) {
+        console.error('Parent template does not exist:', templateError);
+        throw new Error('Parent template not found');
+      }
+      
+      return [];
     } catch (error) {
       console.error('Error fetching template child tasks:', error);
-      return [];
+      console.error('Error details:', error.response?.data || error.message);
+      // 親テンプレートが見つからない場合は特別なエラーを投げる
+      if (error.message === 'Parent template not found') {
+        throw new Error('親テンプレートが存在しません');
+      }
+      throw error; // エラーを再スローして呼び出し元でハンドリングできるようにする
     }
   },
   
