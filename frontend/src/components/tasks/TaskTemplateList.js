@@ -83,10 +83,16 @@ const TaskTemplateList = () => {
   const fetchTemplates = async () => {
     setLoading(true);
     try {
-      // メソッド名が変更されたため、正しいメソッドを呼び出す
+      // テンプレート一覧を取得
       const data = await tasksApi.getTemplates();
-      // 配列でない場合は空配列に変換して設定
-      setTemplates(Array.isArray(data) ? data : []);
+      console.log('Templates fetched for display:', data);
+      // データがあるか確認
+      if (data && data.length > 0) {
+        setTemplates(data);
+      } else {
+        console.warn('No templates returned from API');
+        setTemplates([]);
+      }
       setError(null);
     } catch (error) {
       console.error('Error fetching templates:', error);
@@ -161,13 +167,18 @@ const TaskTemplateList = () => {
       const prioritiesResponse = await tasksApi.getPriorities();
       const statusesResponse = await tasksApi.getStatuses();
       
-      // 配列化
+      // 配列化 - DRFのページネーション対応
       const categories = Array.isArray(categoriesResponse) ? categoriesResponse : 
-                        (categoriesResponse?.results || []);
+                        (categoriesResponse?.results && Array.isArray(categoriesResponse.results) ? 
+                         categoriesResponse.results : []);
+      
       const priorities = Array.isArray(prioritiesResponse) ? prioritiesResponse : 
-                        (prioritiesResponse?.results || []);
+                        (prioritiesResponse?.results && Array.isArray(prioritiesResponse.results) ? 
+                         prioritiesResponse.results : []);
+      
       const statuses = Array.isArray(statusesResponse) ? statusesResponse : 
-                       (statusesResponse?.results || []);
+                       (statusesResponse?.results && Array.isArray(statusesResponse.results) ? 
+                        statusesResponse.results : []);
       
       console.log('Categories:', categories);
       console.log('Priorities:', priorities);
