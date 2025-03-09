@@ -381,18 +381,11 @@ const TaskTemplateList = () => {
                     )}
                   </td>
                   <td>
-                    <span className="badge badge-secondary badge-sm">
-                      {template.child_tasks_count || 0}個
-                    </span>
-                    {(template.child_tasks_count > 0 || !template.child_tasks_count) && (
-                      <button
-                        className="btn btn-xs btn-ghost ml-2"
-                        onClick={() => navigate(`/tasks/templates/${template.id}/tasks`)}
-                        title="内包タスク管理"
-                      >
-                        <HiOutlineTemplate size={16} />
-                      </button>
-                    )}
+                    <div className="flex items-center">
+                      <span className="badge badge-secondary badge-sm">
+                        {template.child_tasks_count || 0}個
+                      </span>
+                    </div>
                   </td>
                   <td className="text-right">
                     <div className="flex justify-end space-x-1">
@@ -404,9 +397,16 @@ const TaskTemplateList = () => {
                         <HiOutlineDuplicate size={16} />
                       </button>
                       <button
+                        className="btn btn-xs btn-secondary"
+                        onClick={() => navigate(`/tasks/templates/${template.id}/tasks`)}
+                        title="内包タスク一覧"
+                      >
+                        <HiOutlineTemplate size={16} />
+                      </button>
+                      <button
                         className="btn btn-xs btn-primary"
                         onClick={() => handleEdit(template)}
-                        title="編集"
+                        title="テンプレート編集"
                       >
                         <HiOutlinePencilAlt size={16} />
                       </button>
