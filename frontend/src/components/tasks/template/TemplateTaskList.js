@@ -130,12 +130,16 @@ const TemplateTaskList = () => {
   // テンプレートタスクフォームを表示
   if (showForm) {
     return (
-      <TemplateTaskForm 
-        parentTemplateId={templateId}
-        templateTaskId={editingTask?.id}
-        onSuccess={handleFormSuccess}
-        onCancel={handleFormCancel}
-      />
+      <div className="container mx-auto py-6">
+        <div className="mx-auto">
+          <TemplateTaskForm 
+            parentTemplateId={templateId}
+            templateTaskId={editingTask?.id}
+            onSuccess={handleFormSuccess}
+            onCancel={handleFormCancel}
+          />
+        </div>
+      </div>
     );
   }
   
