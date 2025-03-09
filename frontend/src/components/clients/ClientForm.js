@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import clientsApi from '../../api/clients';
 import toast from 'react-hot-toast';
 import FiscalYearManagement from './FiscalYearManagement';
-import CheckSettingForm from './CheckSettingForm';
 import ClientTaskTemplateSettings from './ClientTaskTemplateSettings';
 import TaxRulesView from './tax/TaxRulesView';
 import ServiceCheckSettings from './ServiceCheckSettings';
@@ -36,9 +35,6 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
   
   // 追加のステート変数
   const [fiscalYears, setFiscalYears] = useState([]);
-  const [checkSettings, setCheckSettings] = useState([]);
-  const [showCheckSettingForm, setShowCheckSettingForm] = useState(false);
-  const [editingCheckSetting, setEditingCheckSetting] = useState(null);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -112,23 +108,8 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
       // Fetch fiscal years
       const fiscalYearsData = await clientsApi.getFiscalYears(clientId);
       setFiscalYears(fiscalYearsData);
-      
-      // Fetch check settings
-      const checkSettingsData = await clientsApi.getCheckSettings(clientId);
-      setCheckSettings(checkSettingsData);
     } catch (error) {
       console.error('Error fetching related data:', error);
-    }
-  };
-  
-  const fetchCheckSettings = async () => {
-    if (!clientId) return;
-    
-    try {
-      const data = await clientsApi.getCheckSettings(clientId);
-      setCheckSettings(data);
-    } catch (error) {
-      console.error('Error fetching check settings:', error);
     }
   };
   
@@ -148,17 +129,6 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
     }
   };
   
-  // チェック種別の表示名を取得する関数
-  const getCheckTypeDisplay = (type) => {
-    const types = {
-      'monthly': '月次チェック',
-      'bookkeeping': '記帳代行',
-      'tax_return': '税務申告書作成',
-      'withholding_tax': '源泉所得税対応',
-      'other': 'その他'
-    };
-    return types[type] || type;
-  };
   
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -338,13 +308,6 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
           type="button"
         >
           決算期管理
-        </button>
-        <button 
-          className={`tab ${activeTab === 'check' ? 'tab-active' : ''}`}
-          onClick={() => setActiveTab('check')}
-          type="button"
-        >
-          業務チェック設定
         </button>
         <button 
           className={`tab ${activeTab === 'templates' ? 'tab-active' : ''}`}
@@ -836,111 +799,6 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
         </div>
       )}
       
-      {/* 業務チェック設定タブ */}
-      {activeTab === 'check' && (
-        <div>
-          {clientId ? (
-            <>
-              <div className="flex justify-between mb-4">
-                <h2 className="text-xl font-semibold">業務チェック設定</h2>
-                <button 
-                  className="btn btn-primary btn-sm"
-                  onClick={() => {
-                    setEditingCheckSetting(null);
-                    setShowCheckSettingForm(true);
-                  }}
-                >
-                  <HiOutlinePlus className="mr-1" /> チェック設定を追加
-                </button>
-              </div>
-              
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {checkSettings && checkSettings.length > 0 ? (
-                  checkSettings.map(setting => (
-                    <div key={setting.id} className="bg-white rounded-lg shadow overflow-hidden">
-                      <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
-                        <h3 className="font-semibold text-gray-800 flex items-center">
-                          <HiOutlineClock className="mr-2" /> 
-                          {getCheckTypeDisplay(setting.check_type)}
-                        </h3>
-                        <div className="flex items-center">
-                          {setting.is_enabled ? (
-                            <span className="badge badge-success mr-3">有効</span>
-                          ) : (
-                            <span className="badge badge-ghost mr-3">無効</span>
-                          )}
-                          <div className="flex space-x-2">
-                            <button 
-                              className="btn btn-ghost btn-xs"
-                              onClick={() => {
-                                setEditingCheckSetting(setting);
-                                setShowCheckSettingForm(true);
-                              }}
-                            >
-                              <HiPencilAlt />
-                            </button>
-                            <button 
-                              className="btn btn-ghost btn-xs text-red-500"
-                              onClick={async () => {
-                                if (window.confirm(`チェック設定「${getCheckTypeDisplay(setting.check_type)}」を削除してもよろしいですか？`)) {
-                                  try {
-                                    await clientsApi.deleteCheckSetting(setting.id);
-                                    toast.success('チェック設定を削除しました');
-                                    fetchCheckSettings();
-                                  } catch (error) {
-                                    console.error('Error deleting check setting:', error);
-                                    toast.error('チェック設定の削除に失敗しました');
-                                  }
-                                }
-                              }}
-                            >
-                              <HiOutlineTrash />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="p-4">
-                        <table className="w-full">
-                          <tbody>
-                            <tr>
-                              <td className="py-2 text-sm font-medium text-gray-500 w-1/3">サイクル</td>
-                              <td className="py-2 text-sm">
-                                {setting.cycle === 'monthly' ? '毎月' : 
-                                 setting.cycle === 'yearly' ? '毎年' : 
-                                 setting.cycle}
-                              </td>
-                            </tr>
-                            <tr>
-                              <td className="py-2 text-sm font-medium text-gray-500">作成日</td>
-                              <td className="py-2 text-sm">
-                                {setting.create_day}日
-                              </td>
-                            </tr>
-                            <tr>
-                              <td className="py-2 text-sm font-medium text-gray-500">テンプレート</td>
-                              <td className="py-2 text-sm">
-                                {setting.template ? setting.template.title : 'なし'}
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="col-span-2 bg-gray-50 p-6 rounded-lg text-center text-gray-500">
-                    業務チェック設定が登録されていません
-                  </div>
-                )}
-              </div>
-            </>
-          ) : (
-            <div className="alert alert-info">
-              クライアントを作成してから業務チェック設定を行ってください。先に基本情報を入力して登録してください。
-            </div>
-          )}
-        </div>
-      )}
       
       {/* 源泉所得税・住民税ルールタブ */}
       {activeTab === 'tax_rules' && (
@@ -992,7 +850,7 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
               type="button"
               className="btn btn-outline"
               onClick={() => {
-                const tabs = ['overview', 'corporate', 'address', 'tax', 'tax_rules', 'salary', 'fiscal', 'check', 'templates', 'service_settings'];
+                const tabs = ['overview', 'corporate', 'address', 'tax', 'tax_rules', 'salary', 'fiscal', 'templates', 'service_settings'];
                 const currentIndex = tabs.indexOf(activeTab);
                 if (currentIndex > 0) {
                   setActiveTab(tabs[currentIndex - 1]);
@@ -1040,7 +898,7 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
               type="button"
               className="btn btn-primary"
               onClick={() => {
-                const tabs = ['overview', 'corporate', 'address', 'tax', 'tax_rules', 'salary', 'fiscal', 'check', 'templates', 'service_settings'];
+                const tabs = ['overview', 'corporate', 'address', 'tax', 'tax_rules', 'salary', 'fiscal', 'templates', 'service_settings'];
                 const currentIndex = tabs.indexOf(activeTab);
                 if (currentIndex < tabs.length - 1) {
                   setActiveTab(tabs[currentIndex + 1]);
@@ -1053,18 +911,6 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
         </div>
       </div>
       
-      {/* モーダルフォーム */}
-      {showCheckSettingForm && (
-        <CheckSettingForm 
-          clientId={clientId}
-          checkSetting={editingCheckSetting}
-          onClose={() => {
-            setShowCheckSettingForm(false);
-            setEditingCheckSetting(null);
-          }}
-          onSuccess={fetchCheckSettings}
-        />
-      )}
     </form>
   );
 };
