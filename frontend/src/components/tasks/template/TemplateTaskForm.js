@@ -232,9 +232,9 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
   }
   
   return (
-    <div className="bg-white shadow-lg rounded-lg p-6 max-w-4xl mx-auto">
+    <div className="bg-white shadow-lg rounded-lg p-6">
       <h2 className="text-xl font-bold mb-6">
-        {templateTaskId ? 'テンプレートタスクの編集' : '新規テンプレートタスクの作成'}
+        {templateTaskId ? 'テンプレートタスクを編集' : '新規テンプレートタスク作成'}
       </h2>
       {parentTemplate && (
         <div className="mb-4 p-3 bg-gray-50 rounded-lg">
@@ -247,7 +247,7 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
           {/* タスクタイトル */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="title">
-              タイトル <span className="text-red-500">*</span>
+              タイトル
             </label>
             <input
               id="title"
@@ -260,6 +260,133 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
               required
             />
           </div>
+          
+          {/* 実行順序 - 内包タスク固有のフィールド（クライアントフィールドの代わり） */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="order">
+                実行順序
+              </label>
+              <input
+                id="order"
+                type="number"
+                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm"
+                placeholder="1"
+                name="order"
+                value={formData.order || 1}
+                onChange={handleChange}
+                min="1"
+              />
+              <p className="mt-1 text-xs text-gray-500">複数タスクがある場合の実行順序</p>
+            </div>
+            
+            {/* カスタムスケジュール切り替え（タスク種別の代わり） */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                スケジュール設定
+              </label>
+              <div className="border border-gray-300 rounded-lg p-3">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="has_custom_schedule"
+                    name="has_custom_schedule"
+                    checked={formData.has_custom_schedule}
+                    onChange={handleChange}
+                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="has_custom_schedule" className="ml-2 block text-sm text-gray-700">
+                    カスタムスケジュールを設定する
+                  </label>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  未設定時は親テンプレートの設定を使用
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          {/* カスタムスケジュール設定フィールド（決算期選択の代わり） */}
+          {formData.has_custom_schedule && (
+            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">スケジュール設定</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="reference_date_type">
+                    基準日タイプ
+                  </label>
+                  <select
+                    id="reference_date_type"
+                    className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm"
+                    name="reference_date_type"
+                    value={formData.reference_date_type}
+                    onChange={handleChange}
+                  >
+                    <option value="parent_creation">親タスク作成日</option>
+                    <option value="execution_date">実行日（バッチ処理実行日）</option>
+                    <option value="fiscal_start">決算期開始日</option>
+                    <option value="fiscal_end">決算期終了日</option>
+                    <option value="month_start">当月初日</option>
+                    <option value="month_end">当月末日</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="recurrence">
+                    繰り返し
+                  </label>
+                  <select
+                    id="recurrence"
+                    className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm"
+                    name="recurrence"
+                    value={formData.recurrence}
+                    onChange={handleChange}
+                  >
+                    <option value="with_parent">親テンプレートと同時</option>
+                    <option value="monthly">毎月</option>
+                    <option value="quarterly">四半期ごと</option>
+                    <option value="yearly">毎年</option>
+                    <option value="once">一度のみ</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="creation_date_offset">
+                    作成日オフセット（日数）
+                  </label>
+                  <input
+                    type="number"
+                    id="creation_date_offset"
+                    className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm"
+                    placeholder="基準日からの日数"
+                    name="creation_date_offset"
+                    value={formData.creation_date_offset}
+                    onChange={handleChange}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">基準日から何日後に作成するか（0=当日）</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="deadline_date_offset">
+                    期限日オフセット（日数）
+                  </label>
+                  <input
+                    type="number"
+                    id="deadline_date_offset"
+                    className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm"
+                    placeholder="作成日からの日数"
+                    name="deadline_date_offset"
+                    value={formData.deadline_date_offset}
+                    onChange={handleChange}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">作成日から何日後を期限とするか</p>
+                </div>
+              </div>
+            </div>
+          )}
           
           {/* 説明 */}
           <div>
@@ -395,124 +522,6 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
                 onChange={handleChange}
               />
             </div>
-          </div>
-          
-          {/* 実行順序 - 内包タスク固有のフィールド */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="order">
-              実行順序
-            </label>
-            <input
-              id="order"
-              type="number"
-              className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm"
-              placeholder="1"
-              name="order"
-              value={formData.order || 1}
-              onChange={handleChange}
-              min="1"
-            />
-            <p className="mt-1 text-xs text-gray-500">複数タスクがある場合の実行順序</p>
-          </div>
-        
-          {/* カスタムスケジュールの設定 */}
-          <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="has_custom_schedule"
-                name="has_custom_schedule"
-                checked={formData.has_custom_schedule}
-                onChange={handleChange}
-                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-              />
-              <label htmlFor="has_custom_schedule" className="ml-2 block text-sm text-gray-700 font-medium">
-                このタスク用にカスタムスケジュールを設定する
-              </label>
-            </div>
-            <p className="mt-1 text-xs text-gray-500 ml-6">
-              チェックしない場合は親テンプレートのスケジュール設定が使用されます
-            </p>
-          
-            {/* カスタムスケジュール設定フィールド（チェックボックスがオンの場合のみ表示） */}
-            {formData.has_custom_schedule && (
-              <div className="mt-4 space-y-4">
-                <h3 className="font-medium text-gray-700 text-sm">スケジュール詳細設定</h3>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="reference_date_type">
-                    基準日タイプ
-                  </label>
-                  <select
-                    id="reference_date_type"
-                    className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm"
-                    name="reference_date_type"
-                    value={formData.reference_date_type}
-                    onChange={handleChange}
-                  >
-                    <option value="parent_creation">親タスク作成日</option>
-                    <option value="execution_date">実行日（バッチ処理実行日）</option>
-                    <option value="fiscal_start">決算期開始日</option>
-                    <option value="fiscal_end">決算期終了日</option>
-                    <option value="month_start">当月初日</option>
-                    <option value="month_end">当月末日</option>
-                  </select>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="creation_date_offset">
-                      作成日オフセット（日数）
-                    </label>
-                    <input
-                      type="number"
-                      id="creation_date_offset"
-                      className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm"
-                      placeholder="基準日からの日数"
-                      name="creation_date_offset"
-                      value={formData.creation_date_offset}
-                      onChange={handleChange}
-                    />
-                    <p className="mt-1 text-xs text-gray-500">基準日から何日後に作成するか（0=当日）</p>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="deadline_date_offset">
-                      期限日オフセット（日数）
-                    </label>
-                    <input
-                      type="number"
-                      id="deadline_date_offset"
-                      className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm"
-                      placeholder="作成日からの日数"
-                      name="deadline_date_offset"
-                      value={formData.deadline_date_offset}
-                      onChange={handleChange}
-                    />
-                    <p className="mt-1 text-xs text-gray-500">作成日から何日後を期限とするか</p>
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="recurrence">
-                    繰り返し
-                  </label>
-                  <select
-                    id="recurrence"
-                    className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm"
-                    name="recurrence"
-                    value={formData.recurrence}
-                    onChange={handleChange}
-                  >
-                    <option value="with_parent">親テンプレートと同時</option>
-                    <option value="monthly">毎月</option>
-                    <option value="quarterly">四半期ごと</option>
-                    <option value="yearly">毎年</option>
-                    <option value="once">一度のみ</option>
-                  </select>
-                </div>
-              </div>
-            )}
           </div>
           
           {/* 送信ボタン */}
