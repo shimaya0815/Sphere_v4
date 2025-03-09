@@ -4,10 +4,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db.models import Count, Q as models_Q
 from django.shortcuts import get_object_or_404
-from .models import Client, FiscalYear, ClientTaskTemplate, TaxRuleHistory
+from .models import Client, FiscalYear, TaxRuleHistory
 from .serializers import (
     ClientSerializer, FiscalYearSerializer,
-    ClientTaskTemplateSerializer, TaxRuleHistorySerializer
+    TaxRuleHistorySerializer
 )
 from business.permissions import IsSameBusiness
 from tasks.serializers import TaskSerializer
