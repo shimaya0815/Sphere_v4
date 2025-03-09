@@ -32,12 +32,18 @@ const TemplateTaskList = () => {
   
   const fetchParentTemplate = async () => {
     try {
+      console.log('Fetching parent template with ID:', templateId);
       const data = await tasksApi.getTask(templateId);
+      console.log('Parent template data:', data);
       setParentTemplate(data);
+      // 成功したらエラーをリセット
+      setError(null);
     } catch (error) {
       console.error('Error fetching parent template:', error);
+      console.error('Error details:', error.response?.data || error.message);
       toast.error('親テンプレートの取得に失敗しました');
-      setError('親テンプレートの取得に失敗しました');
+      // エラーを設定するがエラー画面には遷移しない
+      setParentTemplate(null);
     }
   };
   
@@ -92,7 +98,7 @@ const TemplateTaskList = () => {
     setEditingTask(null);
   };
   
-  if (loading && !parentTemplate) {
+  if (loading) {
     return (
       <div className="flex justify-center py-12">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
@@ -100,7 +106,8 @@ const TemplateTaskList = () => {
     );
   }
   
-  if (error && !parentTemplate) {
+  // 内包タスクの取得に失敗した場合のみエラー画面を表示
+  if (error && error.includes('テンプレートタスクの取得に失敗')) {
     return (
       <div className="bg-red-50 text-red-600 p-6 rounded-lg">
         <h3 className="text-lg font-medium">{error}</h3>
@@ -138,7 +145,7 @@ const TemplateTaskList = () => {
           <HiOutlineArrowLeft className="mr-2" /> テンプレート一覧に戻る
         </button>
         
-        {parentTemplate && (
+        {parentTemplate ? (
           <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
             <h1 className="text-2xl font-bold mb-2">{parentTemplate.template_name}</h1>
             <p className="text-gray-600 mb-2">{parentTemplate.description}</p>
@@ -154,6 +161,13 @@ const TemplateTaskList = () => {
                 </span>
               )}
             </div>
+          </div>
+        ) : (
+          <div className="bg-yellow-50 p-4 rounded-lg shadow-sm mb-6">
+            <h1 className="text-xl font-bold mb-2">テンプレート ID: {templateId}</h1>
+            <p className="text-yellow-600">
+              親テンプレート情報の取得に失敗しましたが、内包タスクの管理は引き続き行えます。
+            </p>
           </div>
         )}
       </div>
