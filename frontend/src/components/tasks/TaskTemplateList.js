@@ -84,10 +84,13 @@ const TaskTemplateList = () => {
     setLoading(true);
     try {
       // テンプレート一覧を取得
+      console.log('Getting templates...');
       const data = await tasksApi.getTemplates();
       console.log('Templates fetched for display:', data);
+      
       // データがあるか確認
       if (data && data.length > 0) {
+        console.log(`Setting ${data.length} templates`);
         setTemplates(data);
       } else {
         console.warn('No templates returned from API');
@@ -96,6 +99,7 @@ const TaskTemplateList = () => {
       setError(null);
     } catch (error) {
       console.error('Error fetching templates:', error);
+      console.error('Error details:', error.response?.data || error.message);
       setError('テンプレートの取得に失敗しました');
       toast.error('テンプレートの取得に失敗しました');
       // エラー時は空配列をセット
@@ -161,13 +165,21 @@ const TaskTemplateList = () => {
   // デフォルトのテンプレートを作成する関数
   const createDefaultTemplates = async () => {
     try {
+      console.log('Starting to create default templates...');
       setLoading(true);
       toast.loading('デフォルトテンプレートを作成中...', { id: 'default-templates' });
       
       // カテゴリとステータスを取得
+      console.log('Fetching categories, priorities, and statuses...');
       const categoriesResponse = await tasksApi.getCategories();
       const prioritiesResponse = await tasksApi.getPriorities();
       const statusesResponse = await tasksApi.getStatuses();
+      
+      console.log('Raw response data:', { 
+        categories: categoriesResponse, 
+        priorities: prioritiesResponse, 
+        statuses: statusesResponse 
+      });
       
       // 配列化 - DRFのページネーション対応
       const categories = Array.isArray(categoriesResponse) ? categoriesResponse : 
@@ -182,23 +194,48 @@ const TaskTemplateList = () => {
                        (statusesResponse?.results && Array.isArray(statusesResponse.results) ? 
                         statusesResponse.results : []);
       
-      console.log('Categories:', categories);
-      console.log('Priorities:', priorities);
-      console.log('Statuses:', statuses);
+      console.log('Processed data:', { 
+        categories, 
+        priorities, 
+        statuses 
+      });
+      
+      // データが取得できない場合、デフォルト値を設定
+      if (categories.length === 0) {
+        console.log('No categories found, adding defaults');
+        categories.push({ id: 1, name: '一般', color: '#3B82F6' });
+        categories.push({ id: 2, name: '記帳代行', color: '#F59E0B' });
+        categories.push({ id: 3, name: '決算・申告', color: '#8B5CF6' });
+      }
+      
+      if (priorities.length === 0) {
+        console.log('No priorities found, adding defaults');
+        priorities.push({ id: 1, name: '中', priority_value: 50, color: '#F59E0B' });
+      }
+      
+      if (statuses.length === 0) {
+        console.log('No statuses found, adding defaults');
+        statuses.push({ id: 1, name: '未着手', color: '#9CA3AF' });
+      }
       
       let createdCount = 0;
       
       // 各デフォルトテンプレートを作成
       for (const template of DEFAULT_TEMPLATES) {
         try {
+          console.log(`Processing template: ${template.template_name}`);
+          
           // カテゴリを検索
           const category = categories.find(c => c.name === template.category_name);
+          console.log('Found category:', category);
           
           // 中程度の優先度を検索
           const middlePriority = priorities.find(p => p.name === '中' || p.priority_value === 50);
+          console.log('Found priority:', middlePriority);
           
           // デフォルトの未着手ステータスを検索
           const defaultStatus = statuses.find(s => s.name === '未着手');
+          console.log('Found status:', defaultStatus);
           
           // テンプレート作成データを準備
           const templateData = {
@@ -213,7 +250,7 @@ const TaskTemplateList = () => {
             estimated_hours: template.estimated_hours,
           };
           
-          console.log('Creating template:', templateData);
+          console.log('Template data prepared:', templateData);
           
           // 既存のテンプレートと重複がないか確認
           const exists = (templates || []).some(t => 
@@ -221,14 +258,19 @@ const TaskTemplateList = () => {
             (t.title === template.title)
           );
           
+          console.log(`Template exists check: ${exists}`);
+          
           if (!exists) {
-            console.log('Creating template with data:', templateData);
+            console.log('Creating template via API...');
             const createdTemplate = await tasksApi.createTask(templateData);
             console.log('Template created successfully:', createdTemplate);
             createdCount++;
+          } else {
+            console.log('Skipping template creation as it already exists');
           }
         } catch (err) {
           console.error(`Error creating template ${template.title}:`, err);
+          console.error('Error details:', err.response?.data || err.message);
           // 1つのテンプレート作成に失敗しても他は続ける
           continue;
         }
