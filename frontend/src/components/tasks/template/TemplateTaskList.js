@@ -206,9 +206,6 @@ const TemplateTaskList = () => {
               >
                 <HiOutlinePlus className="mr-2" /> 内包タスクを追加
               </button>
-              <div className="text-sm text-amber-600 bg-amber-50 p-3 rounded-md max-w-md">
-                <strong>開発者向け注意：</strong> 内包タスク機能はプロトタイプ段階です。バックエンドAPIの実装が必要です。
-              </div>
             </div>
           </div>
         </div>
@@ -245,9 +242,33 @@ const TemplateTaskList = () => {
                   </td>
                   <td>
                     {task.has_custom_schedule ? (
-                      <span className="badge badge-success badge-sm">独自設定</span>
+                      <div>
+                        <span className="badge badge-success badge-sm mb-1">独自設定</span>
+                        {task.schedule && (
+                          <div className="text-xs">
+                            <div className="text-gray-600">
+                              {task.schedule.name}
+                            </div>
+                            <div className="flex items-center mt-1">
+                              <HiOutlineCalendar className="text-gray-500 mr-1" size={12} />
+                              <span className="text-gray-500">
+                                {task.schedule.schedule_type === 'monthly_start' && '月初作成'}
+                                {task.schedule.schedule_type === 'monthly_end' && '月末作成'}
+                                {task.schedule.schedule_type === 'fiscal_relative' && '決算日基準'}
+                                {task.schedule.schedule_type === 'custom' && 'カスタム'}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     ) : (
-                      <span className="badge badge-ghost badge-sm">親と同じ</span>
+                      <div>
+                        <span className="badge badge-ghost badge-sm">親と同じ</span>
+                        <div className="text-xs text-gray-500 mt-1">
+                          <HiOutlineClock className="inline mr-1" size={12} />
+                          親タスクのスケジュールを継承
+                        </div>
+                      </div>
                     )}
                   </td>
                   <td>
