@@ -4,9 +4,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db.models import Count, Q as models_Q
 from django.shortcuts import get_object_or_404
-from .models import Client, ClientCheckSetting, FiscalYear, ClientTaskTemplate, TaxRuleHistory
+from .models import Client, FiscalYear, ClientTaskTemplate, TaxRuleHistory
 from .serializers import (
-    ClientSerializer, ClientCheckSettingSerializer, FiscalYearSerializer,
+    ClientSerializer, FiscalYearSerializer,
     ClientTaskTemplateSerializer, TaxRuleHistorySerializer
 )
 from business.permissions import IsSameBusiness
@@ -81,83 +81,12 @@ class ClientViewSet(viewsets.ModelViewSet):
         serializer = FiscalYearSerializer(fiscal_years, many=True)
         return Response(serializer.data)
     
-    @action(detail=True, methods=['get'])
-    def check_settings(self, request, pk=None):
-        """Get check settings for this client."""
-        client = self.get_object()
-        check_settings = client.check_settings.all()
-        serializer = ClientCheckSettingSerializer(check_settings, many=True)
-        return Response(serializer.data)
+    # check_settings action was removed and merged into task_templates
         
-    @action(detail=True, methods=['get'])
-    def task_templates(self, request, pk=None):
-        """Get task templates for this client."""
-        client = self.get_object()
-        task_templates = client.task_templates.all()
-        serializer = ClientTaskTemplateSerializer(task_templates, many=True)
-        return Response(serializer.data)
-        
-    @action(detail=True, methods=['post'])
-    def copy_default_templates(self, request, pk=None):
-        """Copy default templates to client-specific templates."""
-        client = self.get_object()
-        created_templates = client.copy_default_templates()
-        serializer = ClientTaskTemplateSerializer(created_templates, many=True)
-        return Response(serializer.data)
-        
-    @action(detail=True, methods=['post'])
-    def apply_templates(self, request, pk=None):
-        """Apply templates to create tasks for this client."""
-        client = self.get_object()
-        
-        # Check if we should use a specific fiscal year
-        fiscal_year_id = request.data.get('fiscal_year_id', None)
-        fiscal_year = None
-        if fiscal_year_id:
-            try:
-                fiscal_year = FiscalYear.objects.get(id=fiscal_year_id, client=client)
-            except FiscalYear.DoesNotExist:
-                return Response(
-                    {"error": "指定された決算期が見つかりません。"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-                
-        # Apply templates and create tasks
-        created_tasks = client.apply_default_templates(fiscal_year=fiscal_year)
-        
-        # Return the created tasks
-        serializer = TaskSerializer(created_tasks, many=True)
-        return Response(serializer.data)
+    # タスクテンプレート関連のメソッドは削除されました
 
 
-class ClientCheckSettingViewSet(viewsets.ModelViewSet):
-    queryset = ClientCheckSetting.objects.all()
-    serializer_class = ClientCheckSettingSerializer
-    permission_classes = [permissions.IsAuthenticated, IsSameBusiness]
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['check_type', 'client__name']
-    ordering_fields = ['client__name', 'check_type']
-    ordering = ['client__name', 'check_type']
-    
-    def get_queryset(self):
-        """Return check settings for the authenticated user's business."""
-        queryset = ClientCheckSetting.objects.filter(client__business=self.request.user.business)
-        
-        # Apply additional filters from query parameters
-        client_id = self.request.query_params.get('client_id', None)
-        check_type = self.request.query_params.get('check_type', None)
-        
-        if client_id:
-            queryset = queryset.filter(client_id=client_id)
-            
-        if check_type:
-            queryset = queryset.filter(check_type=check_type)
-            
-        return queryset
-    
-    def perform_create(self, serializer):
-        """Create a check setting."""
-        serializer.save()
+# ClientCheckSettingViewSet was removed and merged into ClientTaskTemplateViewSet
 
 
 class FiscalYearViewSet(viewsets.ModelViewSet):
@@ -313,98 +242,10 @@ class ClientFiscalYearsView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ClientCheckSettingsView(APIView):
-    """View to manage check settings for a specific client."""
-    permission_classes = [permissions.IsAuthenticated, IsSameBusiness]
-    
-    def get_client(self, client_id, request):
-        """Get the client object ensuring it belongs to the user's business."""
-        return get_object_or_404(
-            Client, 
-            id=client_id, 
-            business=request.user.business
-        )
-    
-    def get(self, request, client_id):
-        """Get all check settings for a client."""
-        client = self.get_client(client_id, request)
-        check_settings = client.check_settings.all()
-        serializer = ClientCheckSettingSerializer(check_settings, many=True)
-        return Response(serializer.data)
-    
-    def post(self, request, client_id):
-        """Create a new check setting for a client."""
-        client = self.get_client(client_id, request)
-        
-        # リクエストデータのコピーを作成し、client_idを追加（もし存在しない場合）
-        data = request.data.copy()
-        data['client'] = client.id
-        
-        serializer = ClientCheckSettingSerializer(data=data)
-        
-        if serializer.is_valid():
-            serializer.save(client=client)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        
-        # エラーの詳細をログに出力（デバッグ用）
-        print(f"Validation errors: {serializer.errors}")
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+# ClientCheckSettingsView was removed and merged into ClientTaskTemplatesView
 
 
-class ClientTaskTemplateViewSet(viewsets.ModelViewSet):
-    """ViewSet for managing client task templates."""
-    queryset = ClientTaskTemplate.objects.all()
-    serializer_class = ClientTaskTemplateSerializer
-    permission_classes = [permissions.IsAuthenticated, IsSameBusiness]
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['title', 'client__name', 'template__title']
-    ordering_fields = ['order', 'title', 'client__name']
-    ordering = ['order', 'title']
-    
-    def get_queryset(self):
-        """Return templates for the authenticated user's business."""
-        queryset = ClientTaskTemplate.objects.filter(client__business=self.request.user.business)
-        
-        # Apply additional filters from query parameters
-        client_id = self.request.query_params.get('client_id', None)
-        is_active = self.request.query_params.get('is_active', None)
-        
-        if client_id:
-            queryset = queryset.filter(client_id=client_id)
-            
-        if is_active:
-            is_active_bool = is_active.lower() == 'true'
-            queryset = queryset.filter(is_active=is_active_bool)
-            
-        return queryset
-    
-    def perform_create(self, serializer):
-        """Create a task template."""
-        serializer.save()
-    
-    @action(detail=True, methods=['post'])
-    def create_task(self, request, pk=None):
-        """Create a task from this template."""
-        template = self.get_object()
-        
-        # Check if we should use a specific fiscal year
-        fiscal_year_id = request.data.get('fiscal_year_id', None)
-        fiscal_year = None
-        if fiscal_year_id:
-            try:
-                fiscal_year = FiscalYear.objects.get(id=fiscal_year_id, client=template.client)
-            except FiscalYear.DoesNotExist:
-                return Response(
-                    {"error": "指定された決算期が見つかりません。"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-                
-        # Create the task
-        task = template.create_task(fiscal_year=fiscal_year)
-        
-        # Return the created task
-        serializer = TaskSerializer(task)
-        return Response(serializer.data)
+# ClientTaskTemplateViewSetは削除されました
 
 
 class TaxRuleHistoryViewSet(viewsets.ModelViewSet):
@@ -512,61 +353,4 @@ class ClientTaxRulesView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ClientTaskTemplatesView(APIView):
-    """View to manage task templates for a specific client."""
-    permission_classes = [permissions.IsAuthenticated, IsSameBusiness]
-    
-    def get_client(self, client_id, request):
-        """Get the client object ensuring it belongs to the user's business."""
-        return get_object_or_404(
-            Client, 
-            id=client_id, 
-            business=request.user.business
-        )
-    
-    def get(self, request, client_id):
-        """Get all task templates for a client."""
-        client = self.get_client(client_id, request)
-        templates = client.task_templates.all()
-        
-        # Filter by is_active if requested
-        is_active = request.query_params.get('is_active', None)
-        if is_active:
-            is_active_bool = is_active.lower() == 'true'
-            templates = templates.filter(is_active=is_active_bool)
-        
-        serializer = ClientTaskTemplateSerializer(templates, many=True)
-        return Response(serializer.data)
-    
-    def post(self, request, client_id):
-        """Create a new task template for a client."""
-        client = self.get_client(client_id, request)
-        
-        # リクエストデータのコピーを作成し、client_idを追加
-        data = request.data.copy()
-        data['client'] = client.id
-        
-        # テンプレートの参照を取得
-        template_id = data.get('template')
-        if template_id:
-            try:
-                template = Task.objects.get(id=template_id, is_template=True)
-                # テンプレートの所属するビジネスとクライアントのビジネスが同じか確認
-                if template.business != client.business:
-                    return Response(
-                        {"error": "指定されたテンプレートはこのクライアントのビジネスに属していません。"},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-            except Task.DoesNotExist:
-                return Response(
-                    {"error": "指定されたテンプレートが見つかりません。"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        
-        serializer = ClientTaskTemplateSerializer(data=data)
-        
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+# ClientTaskTemplatesViewは削除されました

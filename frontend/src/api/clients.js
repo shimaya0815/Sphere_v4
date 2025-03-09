@@ -136,79 +136,13 @@ const clientsApi = {
     return response.data;
   },
   
-  // Get task templates
+  // Get task templates 
   getTaskTemplates: async () => {
     try {
       const response = await apiClient.get('/api/tasks/templates/');
       return response.data;
     } catch (error) {
       console.error('Error fetching task templates:', error);
-      throw error;
-    }
-  },
-  
-  // Get client task templates
-  getClientTaskTemplates: async (clientId) => {
-    try {
-      const response = await apiClient.get(`/api/clients/${clientId}/task-templates/`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching client task templates:', error);
-      throw error;
-    }
-  },
-  
-  // Create client task template
-  createClientTaskTemplate: async (clientId, templateData) => {
-    try {
-      const response = await apiClient.post(`/api/clients/${clientId}/task-templates/`, templateData);
-      return response.data;
-    } catch (error) {
-      console.error('Error creating client task template:', error);
-      throw error;
-    }
-  },
-  
-  // Update client task template
-  updateClientTaskTemplate: async (templateId, templateData) => {
-    try {
-      const response = await apiClient.patch(`/api/clients/task-templates/${templateId}/`, templateData);
-      return response.data;
-    } catch (error) {
-      console.error('Error updating client task template:', error);
-      throw error;
-    }
-  },
-  
-  // Delete client task template
-  deleteClientTaskTemplate: async (templateId) => {
-    try {
-      const response = await apiClient.delete(`/api/clients/task-templates/${templateId}/`);
-      return response.data;
-    } catch (error) {
-      console.error('Error deleting client task template:', error);
-      throw error;
-    }
-  },
-  
-  // Copy default templates to client-specific templates
-  copyDefaultTemplates: async (clientId) => {
-    try {
-      const response = await apiClient.post(`/api/clients/${clientId}/copy_default_templates/`);
-      return response.data;
-    } catch (error) {
-      console.error('Error copying default templates:', error);
-      throw error;
-    }
-  },
-  
-  // Apply templates to create tasks
-  applyTemplates: async (clientId, data = {}) => {
-    try {
-      const response = await apiClient.post(`/api/clients/${clientId}/apply_templates/`, data);
-      return response.data;
-    } catch (error) {
-      console.error('Error applying templates:', error);
       throw error;
     }
   },
