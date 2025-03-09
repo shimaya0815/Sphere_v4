@@ -10,8 +10,63 @@ import {
   HiOutlineDuplicate,
   HiOutlinePlus,
   HiOutlineTag,
-  HiOutlineClock
+  HiOutlineClock,
+  HiOutlineTemplate,
+  HiOutlineDocumentAdd,
+  HiOutlineLibrary
 } from 'react-icons/hi';
+
+// デフォルトのテンプレート定義
+const DEFAULT_TEMPLATES = [
+  {
+    title: '月次処理チェック',
+    description: '毎月の処理状況を確認し、必要な対応を行います。',
+    category_name: '一般',
+    estimated_hours: 2,
+    template_name: 'デフォルト月次チェック',
+    recurrence_pattern: 'monthly'
+  },
+  {
+    title: '記帳代行業務',
+    description: '請求書・領収書などに基づき会計データを作成します。',
+    category_name: '記帳代行',
+    estimated_hours: 3,
+    template_name: 'デフォルト記帳代行',
+    recurrence_pattern: 'monthly'
+  },
+  {
+    title: '決算・法人税申告業務',
+    description: '決算期の法人税申告書を作成・提出します。',
+    category_name: '決算・申告',
+    estimated_hours: 8,
+    template_name: 'デフォルト決算・申告',
+    recurrence_pattern: 'yearly'
+  },
+  {
+    title: '源泉所得税納付業務',
+    description: '源泉所得税の計算・納付手続きを行います。',
+    category_name: '税務顧問',
+    estimated_hours: 1,
+    template_name: 'デフォルト源泉所得税',
+    recurrence_pattern: 'monthly'
+  },
+  {
+    title: '住民税納付業務',
+    description: '住民税の納付手続き・特別徴収を行います。',
+    category_name: '税務顧問',
+    estimated_hours: 1,
+    template_name: 'デフォルト住民税',
+    recurrence_pattern: 'yearly'
+  },
+  {
+    title: '社会保険対応業務',
+    description: '社会保険の手続き・計算を行います。',
+    category_name: '給与計算',
+    estimated_hours: 2,
+    template_name: 'デフォルト社会保険',
+    recurrence_pattern: 'monthly'
+  }
+];
 
 const TaskTemplateList = () => {
   const navigate = useNavigate();
@@ -90,6 +145,72 @@ const TaskTemplateList = () => {
     setShowForm(false);
     setEditingTemplate(null);
   };
+  
+  // デフォルトのテンプレートを作成する関数
+  const createDefaultTemplates = async () => {
+    try {
+      setLoading(true);
+      toast.loading('デフォルトテンプレートを作成中...', { id: 'default-templates' });
+      
+      // カテゴリとステータスを取得
+      const categories = await tasksApi.getCategories();
+      const priorities = await tasksApi.getPriorities();
+      const statuses = await tasksApi.getStatuses();
+      
+      let createdCount = 0;
+      
+      // 各デフォルトテンプレートを作成
+      for (const template of DEFAULT_TEMPLATES) {
+        // カテゴリを検索
+        const category = categories.find(c => c.name === template.category_name);
+        
+        // 中程度の優先度を検索
+        const middlePriority = priorities.find(p => p.name === '中' || p.priority_value === 50);
+        
+        // デフォルトの未着手ステータスを検索
+        const defaultStatus = statuses.find(s => s.name === '未着手');
+        
+        // テンプレート作成データを準備
+        const templateData = {
+          title: template.title,
+          description: template.description,
+          category: category?.id,
+          priority: middlePriority?.id,
+          status: defaultStatus?.id,
+          is_template: true,
+          template_name: template.template_name,
+          recurrence_pattern: template.recurrence_pattern,
+          estimated_hours: template.estimated_hours,
+        };
+        
+        // 既存のテンプレートと重複がないか確認
+        const exists = templates.some(t => 
+          t.template_name === template.template_name || 
+          t.title === template.title
+        );
+        
+        if (!exists) {
+          await tasksApi.createTask(templateData);
+          createdCount++;
+        }
+      }
+      
+      // 成功メッセージを表示
+      if (createdCount > 0) {
+        toast.success(`${createdCount}個のデフォルトテンプレートを作成しました`, { id: 'default-templates' });
+      } else {
+        toast.success('すべてのデフォルトテンプレートは既に存在しています', { id: 'default-templates' });
+      }
+      
+      // テンプレート一覧を再取得
+      fetchTemplates();
+    } catch (error) {
+      console.error('Error creating default templates:', error);
+      toast.error('デフォルトテンプレートの作成に失敗しました', { id: 'default-templates' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -129,12 +250,20 @@ const TaskTemplateList = () => {
     <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">タスクテンプレート</h1>
-        <button 
-          className="btn btn-primary"
-          onClick={handleCreateNew}
-        >
-          <HiOutlinePlus className="mr-2" /> 新規テンプレート
-        </button>
+        <div className="flex space-x-3">
+          <button 
+            className="btn btn-outline btn-success"
+            onClick={createDefaultTemplates}
+          >
+            <HiOutlineLibrary className="mr-2" /> デフォルトテンプレート作成
+          </button>
+          <button 
+            className="btn btn-primary"
+            onClick={handleCreateNew}
+          >
+            <HiOutlinePlus className="mr-2" /> 新規テンプレート
+          </button>
+        </div>
       </div>
 
       {templates.length === 0 ? (
@@ -142,7 +271,13 @@ const TaskTemplateList = () => {
           <HiOutlineDocumentText className="mx-auto h-12 w-12 text-gray-400" />
           <h3 className="mt-2 text-lg font-medium text-gray-900">テンプレートがありません</h3>
           <p className="mt-1 text-gray-500">新しいテンプレートを作成して繰り返しタスクを効率化しましょう。</p>
-          <div className="mt-6">
+          <div className="mt-6 flex flex-col sm:flex-row justify-center space-y-2 sm:space-y-0 sm:space-x-3">
+            <button
+              onClick={createDefaultTemplates}
+              className="btn btn-success"
+            >
+              <HiOutlineLibrary className="mr-2" /> デフォルトテンプレート作成
+            </button>
             <button
               onClick={handleCreateNew}
               className="btn btn-primary"

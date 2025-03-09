@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { clientsApi } from '../../api';
+import tasksApi from '../../api/tasks';
 import { 
   HiOutlineTemplate, 
   HiOutlinePencilAlt, 
@@ -7,7 +8,9 @@ import {
   HiOutlineRefresh, 
   HiOutlineCalendar,
   HiOutlineClock,
-  HiOutlinePlay
+  HiOutlinePlay,
+  HiOutlineClipboardCopy,
+  HiOutlineLibrary
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 
@@ -111,8 +114,11 @@ const ServiceCheckSettings = ({ clientId }) => {
   const [templates, setTemplates] = useState([]);
   const [clientTemplates, setClientTemplates] = useState([]);
   const [schedules, setSchedules] = useState([]);
+  const [globalTemplates, setGlobalTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+  const [selectedService, setSelectedService] = useState(null);
   
   // 初期データの取得
   useEffect(() => {
@@ -182,6 +188,7 @@ const ServiceCheckSettings = ({ clientId }) => {
       let templatesArray = [];
       let schedulesArray = [];
       let clientTemplatesArray = [];
+      let globalTemplatesArray = [];
       
       try {
         const templatesData = await clientsApi.getTaskTemplates();
@@ -206,9 +213,18 @@ const ServiceCheckSettings = ({ clientId }) => {
         console.error('Error fetching client task templates:', error);
       }
       
+      // グローバルテンプレートを取得
+      try {
+        const globalTemplatesData = await tasksApi.getTemplates();
+        globalTemplatesArray = Array.isArray(globalTemplatesData) ? globalTemplatesData : [];
+      } catch (error) {
+        console.error('Error fetching global templates:', error);
+      }
+      
       setTemplates(templatesArray);
       setSchedules(schedulesArray);
       setClientTemplates(clientTemplatesArray);
+      setGlobalTemplates(globalTemplatesArray);
       
       // クライアントのテンプレート設定を基にサービス設定を構築
       const newSettings = {
@@ -423,10 +439,106 @@ const ServiceCheckSettings = ({ clientId }) => {
     }
   };
   
+  // グローバルテンプレートからコピーする関数
+  const copyFromGlobalTemplate = async (service, globalTemplateId) => {
+    try {
+      // 選択したグローバルテンプレートを取得
+      const selectedTemplate = globalTemplates.find(t => t.id === globalTemplateId);
+      if (!selectedTemplate) {
+        toast.error('選択したテンプレートが見つかりません');
+        return null;
+      }
+      
+      // サービス用のスケジュールを取得または作成
+      let scheduleId = null;
+      
+      // 既存のスケジュールを検索
+      const scheduleName = `${SERVICE_DISPLAY_NAMES[service]}スケジュール`;
+      const existingSchedule = schedules.find(s => s.name === scheduleName);
+      
+      if (existingSchedule) {
+        scheduleId = existingSchedule.id;
+      } else {
+        // 新規スケジュール作成
+        const serviceSettings = settings[service];
+        const scheduleType = serviceSettings?.schedule_type || DEFAULT_SCHEDULE_TYPES[service] || 'monthly_start';
+        const recurrence = serviceSettings?.recurrence || serviceSettings?.cycle || DEFAULT_CYCLES[service];
+        const newSchedule = await createDefaultSchedule(scheduleName, scheduleType, recurrence);
+        
+        if (newSchedule) {
+          scheduleId = newSchedule.id;
+          // スケジュール一覧を更新
+          setSchedules(prevSchedules => [...prevSchedules, newSchedule]);
+        }
+      }
+      
+      if (!scheduleId) {
+        toast.error(`${SERVICE_DISPLAY_NAMES[service]}のスケジュール作成に失敗しました`);
+        return null;
+      }
+      
+      // テンプレートデータ作成
+      const templateData = {
+        title: selectedTemplate.title || selectedTemplate.template_name,
+        description: selectedTemplate.description || `${SERVICE_DISPLAY_NAMES[service]}のタスクテンプレート`,
+        schedule: scheduleId,
+        is_active: true,
+        category: selectedTemplate.category?.id,
+        priority: selectedTemplate.priority?.id,
+        estimated_hours: selectedTemplate.estimated_hours
+      };
+      
+      // テンプレート作成
+      const newTemplate = await clientsApi.createClientTaskTemplate(clientId, templateData);
+      
+      toast.success(`${SERVICE_DISPLAY_NAMES[service]}のテンプレートをコピーしました`);
+      return newTemplate;
+    } catch (error) {
+      console.error(`Error copying template for ${service}:`, error);
+      toast.error(`テンプレートのコピーに失敗しました: ${error.message || 'エラーが発生しました'}`);
+      return null;
+    }
+  };
+  
+  // テンプレート選択モーダルを表示
+  const showGlobalTemplateSelector = (service) => {
+    setSelectedService(service);
+    setShowTemplateSelector(true);
+  };
+  
+  // テンプレートを選択してコピー
+  const handleSelectGlobalTemplate = async (templateId) => {
+    if (!selectedService) {
+      toast.error('サービスが選択されていません');
+      return;
+    }
+    
+    const newTemplate = await copyFromGlobalTemplate(selectedService, templateId);
+    if (newTemplate) {
+      // クライアントテンプレート一覧を更新
+      setClientTemplates(prevTemplates => [...prevTemplates, newTemplate]);
+      
+      // 設定を更新
+      handleServiceChange(selectedService, 'template_id', newTemplate.id);
+    }
+    
+    // モーダルを閉じる
+    setShowTemplateSelector(false);
+    setSelectedService(null);
+  };
+  
   // テンプレート編集画面に移動するハンドラ（フォーム内でのテンプレート編集）
   const handleCustomize = async (service, templateId) => {
-    // テンプレートがない場合は新規作成
+    // テンプレートがない場合は選択肢を表示
     if (!templateId) {
+      // グローバルテンプレートの数をチェック
+      if (globalTemplates.length > 0) {
+        // グローバルテンプレートから選択するオプションを表示
+        showGlobalTemplateSelector(service);
+        return;
+      }
+      
+      // グローバルテンプレートがない場合は新規作成
       const serviceSettings = settings[service];
       if (!serviceSettings) {
         toast.error(`サービス設定が見つかりません`);
@@ -640,8 +752,84 @@ const ServiceCheckSettings = ({ clientId }) => {
     );
   }
   
+  // グローバルテンプレート選択モーダル
+  const renderTemplateSelector = () => {
+    if (!showTemplateSelector) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] overflow-hidden">
+          <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+            <h3 className="font-semibold text-gray-800 flex items-center">
+              <HiOutlineLibrary className="mr-2 text-primary" />
+              {selectedService ? `${SERVICE_DISPLAY_NAMES[selectedService]}用テンプレートを選択` : 'テンプレートを選択'}
+            </h3>
+            <button 
+              className="btn btn-sm btn-ghost"
+              onClick={() => {
+                setShowTemplateSelector(false);
+                setSelectedService(null);
+              }}
+            >
+              ×
+            </button>
+          </div>
+          
+          <div className="p-4 overflow-y-auto max-h-[60vh]">
+            {globalTemplates.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">テンプレートがありません。まずはタスクテンプレートページでデフォルトテンプレートを作成してください。</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {globalTemplates.map(template => (
+                  <div 
+                    key={template.id} 
+                    className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer"
+                    onClick={() => handleSelectGlobalTemplate(template.id)}
+                  >
+                    <h4 className="font-medium">{template.template_name || template.title}</h4>
+                    <p className="text-sm text-gray-600 mt-1">{template.description || '説明なし'}</p>
+                    <div className="flex items-center mt-2 text-xs">
+                      {template.category && (
+                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full mr-2">
+                          {template.category.name}
+                        </span>
+                      )}
+                      {template.estimated_hours && (
+                        <span className="text-gray-500">
+                          <HiOutlineClock className="inline mr-1" />
+                          {template.estimated_hours}時間
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          <div className="p-4 border-t border-gray-200 flex justify-end">
+            <button 
+              className="btn btn-outline"
+              onClick={() => {
+                setShowTemplateSelector(false);
+                setSelectedService(null);
+              }}
+            >
+              キャンセル
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden mt-6">
+      {/* グローバルテンプレート選択モーダル */}
+      {renderTemplateSelector()}
+      
       <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
         <h3 className="font-semibold text-gray-800 flex items-center">
           <HiOutlineTemplate className="mr-2 text-primary" />
@@ -749,11 +937,19 @@ const ServiceCheckSettings = ({ clientId }) => {
                       ))}
                     </select>
                     <button 
-                      className="btn btn-sm btn-outline btn-primary"
+                      className={`btn btn-sm ${settings[service]?.template_id ? 'btn-outline btn-primary' : 'btn-outline btn-success'}`}
                       onClick={() => handleCustomize(service, settings[service]?.template_id)}
                       disabled={!settings.templates_enabled || !settings[service]?.enabled}
                     >
-                      <HiOutlinePencilAlt className="mr-1" /> {settings[service]?.template_id ? 'カスタマイズ' : 'テンプレート作成'}
+                      {settings[service]?.template_id ? (
+                        <>
+                          <HiOutlinePencilAlt className="mr-1" /> カスタマイズ
+                        </>
+                      ) : (
+                        <>
+                          <HiOutlineClipboardCopy className="mr-1" /> テンプレート選択/作成
+                        </>
+                      )}
                     </button>
                   </div>
                 </td>

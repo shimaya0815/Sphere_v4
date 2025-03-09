@@ -80,11 +80,23 @@ const tasksApi = {
   },
   
   // タスクテンプレート一覧を取得
-  getTaskTemplates: async () => {
+  getTemplates: async () => {
     try {
       const response = await apiClient.get('/api/tasks/templates/');
       return response.data;
     } catch (error) {
+      console.error('Error fetching templates:', error);
+      return [];
+    }
+  },
+  
+  // テンプレートからタスクを作成
+  createFromTemplate: async (templateId, taskData = {}) => {
+    try {
+      const response = await apiClient.post(`/api/tasks/templates/${templateId}/apply/`, taskData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating task from template:', error);
       throw error;
     }
   },
