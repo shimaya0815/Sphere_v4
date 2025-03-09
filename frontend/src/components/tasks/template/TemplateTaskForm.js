@@ -283,8 +283,146 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
           ></textarea>
         </div>
         
-        {/* 順番 */}
-        <div>
+        {/* 担当者とレビュアー */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 col-span-2">
+          {/* 作業担当者 */}
+          <div>
+            <label htmlFor="worker" className="block text-sm font-medium text-gray-700 mb-1">
+              作業担当者
+            </label>
+            <select
+              id="worker"
+              name="worker"
+              value={formData.worker || ''}
+              onChange={handleChange}
+              className="select select-bordered w-full"
+            >
+              <option value="">選択してください</option>
+              {users.map(user => (
+                <option key={user.id} value={user.id}>
+                  {user.first_name} {user.last_name}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          {/* レビュー担当者 */}
+          <div>
+            <label htmlFor="reviewer" className="block text-sm font-medium text-gray-700 mb-1">
+              レビュー担当者
+            </label>
+            <select
+              id="reviewer"
+              name="reviewer"
+              value={formData.reviewer || ''}
+              onChange={handleChange}
+              className="select select-bordered w-full"
+            >
+              <option value="">選択してください</option>
+              {users.map(user => (
+                <option key={user.id} value={user.id}>
+                  {user.first_name} {user.last_name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        
+        {/* ステータスと優先度 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 col-span-2">
+          {/* ステータス */}
+          <div>
+            <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+              ステータス
+            </label>
+            <select
+              id="status"
+              name="status"
+              value={formData.status || ''}
+              onChange={handleChange}
+              className="select select-bordered w-full"
+            >
+              <option value="">選択してください</option>
+              {statuses.map(status => (
+                <option key={status.id} value={status.id}>
+                  {status.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          {/* 優先度 */}
+          <div>
+            <label htmlFor="priority" className="block text-sm font-medium text-gray-700 mb-1">
+              優先度
+            </label>
+            <select
+              id="priority"
+              name="priority"
+              value={formData.priority || ''}
+              onChange={handleChange}
+              className="select select-bordered w-full"
+            >
+              <option value="">選択してください</option>
+              {priorities.map(priority => (
+                <option key={priority.id} value={priority.id}>
+                  {priority.priority_value || '未設定'}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        
+        {/* カテゴリーと見積時間 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 col-span-2">
+          {/* カテゴリ */}
+          <div>
+            <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+              カテゴリ
+            </label>
+            <select
+              id="category"
+              name="category"
+              value={formData.category || ''}
+              onChange={handleChange}
+              className="select select-bordered w-full"
+            >
+              <option value="">選択してください</option>
+              {categories.map(category => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          {/* 見積もり時間 */}
+          <div>
+            <label htmlFor="estimated_hours" className="block text-sm font-medium text-gray-700 mb-1">
+              見積もり時間
+            </label>
+            <div className="flex">
+              <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
+                <HiOutlineClock />
+              </span>
+              <input
+                type="number"
+                id="estimated_hours"
+                name="estimated_hours"
+                value={formData.estimated_hours || ''}
+                onChange={handleChange}
+                min="0"
+                step="0.5"
+                className="input input-bordered rounded-l-none w-full"
+                placeholder="例: 2.5"
+              />
+            </div>
+            <p className="mt-1 text-xs text-gray-500">時間単位（小数点以下も可）</p>
+          </div>
+        </div>
+        
+        {/* 実行順序 */}
+        <div className="col-span-2">
           <label htmlFor="order" className="block text-sm font-medium text-gray-700 mb-1">
             実行順序
           </label>
@@ -298,135 +436,6 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
             className="input input-bordered w-full"
           />
           <p className="mt-1 text-xs text-gray-500">複数タスクがある場合の実行順序</p>
-        </div>
-        
-        {/* 見積もり時間 */}
-        <div>
-          <label htmlFor="estimated_hours" className="block text-sm font-medium text-gray-700 mb-1">
-            見積もり時間
-          </label>
-          <div className="flex">
-            <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
-              <HiOutlineClock />
-            </span>
-            <input
-              type="number"
-              id="estimated_hours"
-              name="estimated_hours"
-              value={formData.estimated_hours || ''}
-              onChange={handleChange}
-              min="0"
-              step="0.5"
-              className="input input-bordered rounded-l-none w-full"
-              placeholder="例: 2.5"
-            />
-          </div>
-          <p className="mt-1 text-xs text-gray-500">時間単位（小数点以下も可）</p>
-        </div>
-        
-        {/* カテゴリ */}
-        <div>
-          <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
-            カテゴリ
-          </label>
-          <select
-            id="category"
-            name="category"
-            value={formData.category || ''}
-            onChange={handleChange}
-            className="select select-bordered w-full"
-          >
-            <option value="">選択してください</option>
-            {categories.map(category => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        
-        {/* 優先度 */}
-        <div>
-          <label htmlFor="priority" className="block text-sm font-medium text-gray-700 mb-1">
-            優先度
-          </label>
-          <select
-            id="priority"
-            name="priority"
-            value={formData.priority || ''}
-            onChange={handleChange}
-            className="select select-bordered w-full"
-          >
-            <option value="">選択してください</option>
-            {priorities.map(priority => (
-              <option key={priority.id} value={priority.id}>
-                {priority.priority_value || '未設定'}
-              </option>
-            ))}
-          </select>
-        </div>
-        
-        {/* ステータス */}
-        <div>
-          <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-            ステータス
-          </label>
-          <select
-            id="status"
-            name="status"
-            value={formData.status || ''}
-            onChange={handleChange}
-            className="select select-bordered w-full"
-          >
-            <option value="">選択してください</option>
-            {statuses.map(status => (
-              <option key={status.id} value={status.id}>
-                {status.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        
-        {/* 作業担当者 */}
-        <div>
-          <label htmlFor="worker" className="block text-sm font-medium text-gray-700 mb-1">
-            作業担当者
-          </label>
-          <select
-            id="worker"
-            name="worker"
-            value={formData.worker || ''}
-            onChange={handleChange}
-            className="select select-bordered w-full"
-          >
-            <option value="">選択してください</option>
-            {users.map(user => (
-              <option key={user.id} value={user.id}>
-                {user.first_name} {user.last_name}
-              </option>
-            ))}
-          </select>
-        </div>
-        
-        {/* レビュー担当者 */}
-        <div>
-          <label htmlFor="reviewer" className="block text-sm font-medium text-gray-700 mb-1">
-            レビュー担当者
-          </label>
-          <select
-            id="reviewer"
-            name="reviewer"
-            value={formData.reviewer || ''}
-            onChange={handleChange}
-            className="select select-bordered w-full"
-          >
-            <option value="">選択してください</option>
-            {users.map(user => (
-              <option key={user.id} value={user.id}>
-                {user.first_name} {user.last_name}
-              </option>
-            ))}
-          </select>
         </div>
         
         {/* カスタムスケジュールの設定 */}
