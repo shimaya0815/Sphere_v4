@@ -225,7 +225,7 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
             priorities={priorities} 
           />
           
-          {/* カテゴリーと見積時間フィールド */}
+          {/* カテゴリーフィールド */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="category">
@@ -244,30 +244,30 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
                 ))}
               </select>
             </div>
-            
-            {/* 見積時間フィールド */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="estimated_hours">
-                見積時間 (時間)
-              </label>
-              <input
-                id="estimated_hours"
-                type="number"
-                step="0.5"
-                min="0"
-                className={`appearance-none relative block w-full px-4 py-3 border ${
-                  errors.estimated_hours ? 'border-red-300 ring-1 ring-red-300' : 'border-gray-300'
-                } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm`}
-                placeholder="2.5"
-                {...register('estimated_hours', {
-                  valueAsNumber: true,
-                  validate: value => !value || value >= 0 || '正の数を入力してください'
-                })}
-              />
-              {errors.estimated_hours && (
-                <p className="mt-1 text-xs text-red-600">{errors.estimated_hours.message}</p>
-              )}
-            </div>
+          </div>
+          
+          {/* 見積時間フィールド */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="estimated_hours">
+              見積時間 (時間)
+            </label>
+            <input
+              id="estimated_hours"
+              type="number"
+              step="0.5"
+              min="0"
+              className={`appearance-none relative block w-full px-4 py-3 border ${
+                errors.estimated_hours ? 'border-red-300 ring-1 ring-red-300' : 'border-gray-300'
+              } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm`}
+              placeholder="2.5"
+              {...register('estimated_hours', {
+                valueAsNumber: true,
+                validate: value => !value || value >= 0 || '正の数を入力してください'
+              })}
+            />
+            {errors.estimated_hours && (
+              <p className="mt-1 text-xs text-red-600">{errors.estimated_hours.message}</p>
+            )}
           </div>
           
           {/* フォーム送信ボタン */}
