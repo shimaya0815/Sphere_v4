@@ -139,11 +139,13 @@ const clientsApi = {
   // Get task templates 
   getTaskTemplates: async () => {
     try {
+      // まずビジネス全体のタスクテンプレートを試みる
       const response = await apiClient.get('/api/tasks/templates/');
       return response.data;
     } catch (error) {
       console.error('Error fetching task templates:', error);
-      throw error;
+      // エラーの場合は空の配列を返す（APIエラーでフロントエンドを壊さない）
+      return [];
     }
   },
   
@@ -154,7 +156,8 @@ const clientsApi = {
       return response.data;
     } catch (error) {
       console.error('Error fetching task template schedules:', error);
-      throw error;
+      // エラーの場合は空の配列を返す（APIエラーでフロントエンドを壊さない）
+      return [];
     }
   },
   
@@ -194,11 +197,16 @@ const clientsApi = {
   // Get client task templates
   getClientTaskTemplates: async (clientId) => {
     try {
+      if (!clientId) {
+        console.error('Client ID is required to fetch client task templates');
+        return [];
+      }
       const response = await apiClient.get(`/api/clients/${clientId}/task-templates/`);
       return response.data;
     } catch (error) {
       console.error('Error fetching client task templates:', error);
-      throw error;
+      // エラーの場合は空の配列を返す（APIエラーでフロントエンドを壊さない）
+      return [];
     }
   },
   
