@@ -108,10 +108,7 @@ const TasksPage = ({ view }) => {
     }, 500); // さらに長めの遅延で確実にUIを更新
   };
   
-  // 詳細表示の場合 (URL経由での表示)
-  if (view === 'detail' && taskId) {
-    return <TaskDetail taskId={taskId} />;
-  }
+  // view="detail"パラメータは使わない（全てスライドパネルで表示）
   
   // 一覧表示の場合（デフォルト）
   return (
