@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import clientsApi from '../../api/clients';
 import toast from 'react-hot-toast';
 import FiscalYearManagement from './FiscalYearManagement';
-import ClientTaskTemplateSettings from './ClientTaskTemplateSettings';
 import TaxRulesView from './tax/TaxRulesView';
 import ServiceCheckSettings from './ServiceCheckSettings';
 import { 
@@ -810,24 +809,12 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
       {activeTab === 'service_settings' && (
         <div>
           {clientId ? (
-            <>
-              <div className="bg-white rounded-lg shadow p-6 mb-8">
-                <h3 className="text-lg font-medium mb-4 flex items-center">
-                  <HiOutlineTemplate className="mr-2" /> タスクテンプレート設定
-                </h3>
-                <ClientTaskTemplateSettings 
-                  clientId={clientId} 
-                  client={formData}
-                />
-              </div>
-              
-              <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-medium mb-4 flex items-center">
-                  <HiOutlineClipboardCheck className="mr-2" /> サービスチェック設定
-                </h3>
-                <ServiceCheckSettings clientId={clientId} />
-              </div>
-            </>
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-medium mb-4 flex items-center">
+                <HiOutlineClipboardCheck className="mr-2" /> サービス設定
+              </h3>
+              <ServiceCheckSettings clientId={clientId} />
+            </div>
           ) : (
             <div className="alert alert-info">
               クライアントを作成してからサービス設定を行ってください。先に基本情報を入力して登録してください。
