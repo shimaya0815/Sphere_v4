@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { clientsApi } from '../../api';
-import { HiOutlineTemplate, HiOutlinePencilAlt, HiOutlineCheck, HiOutlineRefresh } from 'react-icons/hi';
+import { 
+  HiOutlineTemplate, 
+  HiOutlinePencilAlt, 
+  HiOutlineCheck, 
+  HiOutlineRefresh, 
+  HiOutlineCalendar,
+  HiOutlineClock,
+  HiOutlinePlay
+} from 'react-icons/hi';
 import toast from 'react-hot-toast';
 
 // サービスカテゴリタイプのマッピング定義
@@ -33,6 +41,22 @@ const DEFAULT_CYCLES = {
   social_insurance: 'monthly'
 };
 
+// スケジュールタイプのマッピング
+const SCHEDULE_TYPES = [
+  { value: 'monthly_start', label: '月初作成（1日）・当月締め切り（5日）' },
+  { value: 'monthly_end', label: '月末作成（25日）・翌月締め切り（10日）' },
+  { value: 'fiscal_relative', label: '決算日基準' },
+  { value: 'custom', label: 'カスタム設定' }
+];
+
+// 繰り返しタイプのマッピング
+const RECURRENCE_TYPES = [
+  { value: 'monthly', label: '毎月' },
+  { value: 'quarterly', label: '四半期ごと' },
+  { value: 'yearly', label: '毎年' },
+  { value: 'once', label: '一度のみ' }
+];
+
 const ServiceCheckSettings = ({ clientId }) => {
   // サービス設定の初期状態
   const initialSettings = Object.keys(SERVICE_CATEGORIES).reduce((acc, service) => {
@@ -40,7 +64,11 @@ const ServiceCheckSettings = ({ clientId }) => {
       cycle: DEFAULT_CYCLES[service],
       enabled: false,
       template_id: null,
-      customized: false
+      customized: false,
+      schedule_type: 'monthly_start',
+      recurrence: DEFAULT_CYCLES[service],
+      creation_day: null,
+      deadline_day: null
     };
     return acc;
   }, {});
@@ -166,13 +194,25 @@ const ServiceCheckSettings = ({ clientId }) => {
   };
   
   const handleServiceChange = (service, field, value) => {
-    setSettings({
+    const updatedSettings = {
       ...settings,
       [service]: {
         ...settings[service],
         [field]: value
       }
-    });
+    };
+    
+    // 繰り返しタイプが変更された場合、cycleも同時に更新
+    if (field === 'recurrence') {
+      updatedSettings[service].cycle = value;
+    }
+    
+    // cycleが変更された場合、recurrenceも同時に更新
+    if (field === 'cycle') {
+      updatedSettings[service].recurrence = value;
+    }
+    
+    setSettings(updatedSettings);
   };
   
   // テンプレート編集画面に移動するハンドラ
@@ -191,14 +231,38 @@ const ServiceCheckSettings = ({ clientId }) => {
     }
   };
   
+  // テンプレートからタスクを生成するハンドラ
+  const handleGenerateTask = async (service, templateId) => {
+    if (!templateId) {
+      toast.error(`テンプレートを先に選択してください`);
+      return;
+    }
+    
+    try {
+      const task = await clientsApi.generateTaskFromTemplate(templateId);
+      if (task) {
+        toast.success(`${SERVICE_DISPLAY_NAMES[service]}のタスクを生成しました`);
+        return task;
+      } else {
+        toast.error(`タスク生成に失敗しました`);
+        return null;
+      }
+    } catch (error) {
+      console.error(`Error generating task for ${service}:`, error);
+      toast.error(`タスク生成に失敗しました: ${error.message || 'エラーが発生しました'}`);
+      return null;
+    }
+  };
+  
   // 設定保存ハンドラ
   const handleSave = async () => {
     setSaving(true);
     
     try {
       const updatePromises = [];
+      const scheduleUpdatePromises = [];
       
-      // サービスごとにタスクテンプレートを更新または作成
+      // サービスごとにタスクテンプレートとスケジュールを更新
       for (const [service, serviceSettings] of Object.entries(settings)) {
         if (service === 'templates_enabled') continue;
         
@@ -210,10 +274,61 @@ const ServiceCheckSettings = ({ clientId }) => {
           const existingTemplate = clientTemplates.find(t => t.id === serviceSettings.template_id);
           
           if (existingTemplate) {
-            // 既存のテンプレートを更新（is_activeのみ更新）
             try {
+              // ステップ1: テンプレートのスケジュール情報を取得または新規作成
+              let scheduleId = null;
+              
+              // 既存のスケジュールIDを取得
+              const templateScheduleId = typeof existingTemplate.schedule === 'object'
+                ? existingTemplate.schedule?.id
+                : existingTemplate.schedule;
+              
+              // 既存のスケジュールがあればそれを使う
+              const existingSchedule = schedules.find(s => s.id === templateScheduleId);
+              
+              if (existingSchedule) {
+                // 既存のスケジュールを更新
+                const scheduleData = {
+                  schedule_type: serviceSettings.schedule_type || 'monthly_start',
+                  recurrence: serviceSettings.recurrence || serviceSettings.cycle || 'monthly'
+                };
+                
+                // カスタム設定の場合は日付も追加
+                if (serviceSettings.schedule_type === 'custom') {
+                  if (serviceSettings.creation_day) {
+                    scheduleData.creation_day = serviceSettings.creation_day;
+                  }
+                  if (serviceSettings.deadline_day) {
+                    scheduleData.deadline_day = serviceSettings.deadline_day;
+                  }
+                }
+                
+                try {
+                  const updateSchedulePromise = clientsApi.updateTaskTemplateSchedule(existingSchedule.id, scheduleData)
+                    .then(updatedSchedule => {
+                      scheduleId = updatedSchedule.id;
+                      return updatedSchedule;
+                    })
+                    .catch(error => {
+                      console.error(`Error updating schedule for ${service}:`, error);
+                      scheduleId = existingSchedule.id; // エラー時は既存のスケジュールIDを使用
+                      return null;
+                    });
+                  
+                  scheduleUpdatePromises.push(updateSchedulePromise);
+                } catch (error) {
+                  console.error(`Error preparing schedule update for ${service}:`, error);
+                  scheduleId = existingSchedule.id;
+                }
+              } else if (templateScheduleId) {
+                // スケジュールIDはあるがオブジェクトが見つからない場合
+                scheduleId = templateScheduleId;
+              }
+              
+              // ステップ2: テンプレート自体を更新
               const updateData = {
-                is_active: serviceSettings.enabled
+                is_active: serviceSettings.enabled,
+                schedule: scheduleId // スケジュールIDがあれば設定
               };
               
               const updatePromise = clientsApi.updateClientTaskTemplate(existingTemplate.id, updateData)
@@ -249,10 +364,17 @@ const ServiceCheckSettings = ({ clientId }) => {
         }
       }
       
-      // すべての更新を実行（一部が失敗しても続行）
+      // スケジュール更新を先に実行
+      if (scheduleUpdatePromises.length > 0) {
+        await Promise.all(scheduleUpdatePromises);
+      }
+      
+      // テンプレート更新を実行
       if (updatePromises.length > 0) {
         await Promise.all(updatePromises);
         toast.success('サービス設定を保存しました');
+      } else if (scheduleUpdatePromises.length > 0) {
+        toast.success('スケジュール設定を保存しました');
       } else {
         toast.info('変更はありませんでした');
       }
@@ -330,6 +452,8 @@ const ServiceCheckSettings = ({ clientId }) => {
                   </div>
                 </div>
               </th>
+              <th className="px-4 py-2 text-left font-medium text-gray-500 text-sm border-b">スケジュール</th>
+              <th className="px-4 py-2 text-left font-medium text-gray-500 text-sm border-b">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -376,7 +500,7 @@ const ServiceCheckSettings = ({ clientId }) => {
                     >
                       <option value="">テンプレート選択</option>
                       {Array.isArray(templates) && templates
-                        .filter(t => t && (t.category === category || t.title.includes(SERVICE_DISPLAY_NAMES[service])))
+                        .filter(t => t && (t.category === category || t.title?.includes(SERVICE_DISPLAY_NAMES[service])))
                         .map(template => (
                           <option key={template.id} value={template.id}>{template.title}</option>
                       ))}
@@ -389,6 +513,84 @@ const ServiceCheckSettings = ({ clientId }) => {
                       <HiOutlinePencilAlt className="mr-1" /> カスタマイズ
                     </button>
                   </div>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-col space-y-2">
+                    {/* スケジュールタイプ選択 */}
+                    <select 
+                      className="select select-bordered select-sm w-full max-w-xs"
+                      value={settings[service]?.schedule_type || 'monthly_start'}
+                      onChange={(e) => handleServiceChange(service, 'schedule_type', e.target.value)}
+                      disabled={!settings.templates_enabled || !settings[service]?.enabled || !settings[service]?.template_id}
+                    >
+                      {SCHEDULE_TYPES.map(type => (
+                        <option key={type.value} value={type.value}>{type.label}</option>
+                      ))}
+                    </select>
+                    
+                    {/* 繰り返しタイプ選択 */}
+                    <select 
+                      className="select select-bordered select-sm w-full max-w-xs"
+                      value={settings[service]?.recurrence || settings[service]?.cycle || 'monthly'}
+                      onChange={(e) => handleServiceChange(service, 'recurrence', e.target.value)}
+                      disabled={!settings.templates_enabled || !settings[service]?.enabled || !settings[service]?.template_id}
+                    >
+                      {RECURRENCE_TYPES.map(type => (
+                        <option key={type.value} value={type.value}>{type.label}</option>
+                      ))}
+                    </select>
+                    
+                    {/* カスタム設定の場合は日付入力も表示 */}
+                    {settings[service]?.schedule_type === 'custom' && (
+                      <div className="flex space-x-2">
+                        <div className="form-control">
+                          <label className="label">
+                            <span className="label-text text-xs">作成日</span>
+                          </label>
+                          <input
+                            type="number"
+                            className="input input-bordered input-sm w-20"
+                            min="1"
+                            max="31"
+                            value={settings[service]?.creation_day || ''}
+                            onChange={(e) => handleServiceChange(
+                              service, 
+                              'creation_day', 
+                              e.target.value ? parseInt(e.target.value, 10) : null
+                            )}
+                            disabled={!settings.templates_enabled || !settings[service]?.enabled || !settings[service]?.template_id}
+                          />
+                        </div>
+                        <div className="form-control">
+                          <label className="label">
+                            <span className="label-text text-xs">期限日</span>
+                          </label>
+                          <input
+                            type="number"
+                            className="input input-bordered input-sm w-20"
+                            min="1"
+                            max="31"
+                            value={settings[service]?.deadline_day || ''}
+                            onChange={(e) => handleServiceChange(
+                              service, 
+                              'deadline_day', 
+                              e.target.value ? parseInt(e.target.value, 10) : null
+                            )}
+                            disabled={!settings.templates_enabled || !settings[service]?.enabled || !settings[service]?.template_id}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <button 
+                    className="btn btn-sm btn-primary"
+                    onClick={() => handleGenerateTask(service, settings[service]?.template_id)}
+                    disabled={!settings.templates_enabled || !settings[service]?.enabled || !settings[service]?.template_id}
+                  >
+                    <HiOutlinePlay className="mr-1" /> タスク生成
+                  </button>
                 </td>
               </tr>
             ))}
