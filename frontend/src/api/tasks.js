@@ -85,12 +85,21 @@ const tasksApi = {
       console.log('Fetching templates from API...');
       const response = await apiClient.get('/api/tasks/templates/');
       console.log('Templates response:', response.data);
-      // 明示的に配列でなければ空配列を返す
-      if (!Array.isArray(response.data)) {
-        console.warn('API response is not an array:', response.data);
-        return [];
+      
+      // DRFのページネーション形式（results配列を含むオブジェクト）に対応
+      if (response.data && response.data.results && Array.isArray(response.data.results)) {
+        console.log('Found results array in response:', response.data.results);
+        return response.data.results;
       }
-      return response.data;
+      
+      // 直接配列の場合
+      if (Array.isArray(response.data)) {
+        return response.data;
+      }
+      
+      // それ以外の形式の場合（想定外のレスポンス）
+      console.warn('API response has unexpected format:', response.data);
+      return [];
     } catch (error) {
       console.error('Error fetching templates:', error);
       return [];
