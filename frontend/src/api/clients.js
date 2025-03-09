@@ -129,43 +129,6 @@ const clientsApi = {
     }
   },
   
-  // Get check settings for a client
-  getCheckSettings: async (clientId) => {
-    const response = await apiClient.get(`/api/clients/${clientId}/check-settings/`);
-    return response.data;
-  },
-  
-  // Create check setting for a client
-  createCheckSetting: async (clientId, checkSettingData) => {
-    console.log(`API - Creating check setting for client ${clientId}:`, checkSettingData);
-    try {
-      const response = await apiClient.post(`/api/clients/${clientId}/check-settings/`, checkSettingData);
-      console.log('API - Check setting created successfully:', response.data);
-      return response.data;
-    } catch (error) {
-      console.error('API - Failed to create check setting:', error.response?.data || error.message);
-      throw error;
-    }
-  },
-  
-  // Update check setting
-  updateCheckSetting: async (checkSettingId, checkSettingData) => {
-    console.log(`API - Updating check setting ${checkSettingId}:`, checkSettingData);
-    try {
-      const response = await apiClient.patch(`/api/clients/check-settings/${checkSettingId}/`, checkSettingData);
-      console.log('API - Check setting updated successfully:', response.data);
-      return response.data;
-    } catch (error) {
-      console.error('API - Failed to update check setting:', error.response?.data || error.message);
-      throw error;
-    }
-  },
-  
-  // Delete check setting
-  deleteCheckSetting: async (checkSettingId) => {
-    const response = await apiClient.delete(`/api/clients/check-settings/${checkSettingId}/`);
-    return response.data;
-  },
   
   // Get all contracts with optional filters
   getContracts: async (filters = {}) => {
