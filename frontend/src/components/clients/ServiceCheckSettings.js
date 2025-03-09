@@ -185,6 +185,36 @@ const ServiceCheckSettings = ({ clientId }) => {
     return DEFAULT_CYCLES[serviceKey] || 'monthly';
   };
   
+  // デフォルトのスケジュールを作成する関数
+  const createDefaultSchedule = async (name, scheduleType, recurrence) => {
+    try {
+      const scheduleData = {
+        name: name,
+        schedule_type: scheduleType,
+        recurrence: recurrence
+      };
+      
+      // スケジュールタイプに応じてデフォルト値を設定
+      if (scheduleType === 'monthly_start') {
+        scheduleData.creation_day = 1;  // 1日作成
+        scheduleData.deadline_day = 5;  // 5日締め切り
+      } else if (scheduleType === 'monthly_end') {
+        scheduleData.creation_day = 25;  // 25日作成
+        scheduleData.deadline_day = 10;  // 翌月10日締め切り
+        scheduleData.deadline_next_month = true;
+      } else if (scheduleType === 'custom') {
+        scheduleData.creation_day = 1;
+        scheduleData.deadline_day = 10;
+      }
+      
+      const newSchedule = await clientsApi.createTaskTemplateSchedule(scheduleData);
+      return newSchedule;
+    } catch (error) {
+      console.error('Error creating default schedule:', error);
+      return null;
+    }
+  };
+  
   // フィールド変更ハンドラ
   const handleTemplatesEnabledChange = (e) => {
     setSettings({
@@ -215,27 +245,112 @@ const ServiceCheckSettings = ({ clientId }) => {
     setSettings(updatedSettings);
   };
   
-  // テンプレート編集画面に移動するハンドラ
-  const handleCustomize = (service, templateId) => {
+  // テンプレート作成
+  const createTemplateForService = async (service, serviceSettings) => {
+    try {
+      // サービス用のスケジュールを取得または作成
+      let scheduleId = null;
+      
+      // 既存のスケジュールを検索
+      const scheduleName = `${SERVICE_DISPLAY_NAMES[service]}スケジュール`;
+      const existingSchedule = schedules.find(s => s.name === scheduleName);
+      
+      if (existingSchedule) {
+        scheduleId = existingSchedule.id;
+      } else {
+        // 新規スケジュール作成
+        const scheduleType = serviceSettings.schedule_type || 'monthly_start';
+        const recurrence = serviceSettings.recurrence || serviceSettings.cycle || 'monthly';
+        const newSchedule = await createDefaultSchedule(scheduleName, scheduleType, recurrence);
+        
+        if (newSchedule) {
+          scheduleId = newSchedule.id;
+          // スケジュール一覧を更新
+          setSchedules(prevSchedules => [...prevSchedules, newSchedule]);
+        }
+      }
+      
+      if (!scheduleId) {
+        toast.error(`${SERVICE_DISPLAY_NAMES[service]}のスケジュール作成に失敗しました`);
+        return null;
+      }
+      
+      // テンプレートデータ作成
+      const templateData = {
+        title: `${SERVICE_DISPLAY_NAMES[service]}`,
+        description: `${SERVICE_DISPLAY_NAMES[service]}のタスクテンプレート`,
+        schedule: scheduleId,
+        is_active: serviceSettings.enabled
+      };
+      
+      // テンプレート作成
+      const newTemplate = await clientsApi.createClientTaskTemplate(clientId, templateData);
+      
+      toast.success(`${SERVICE_DISPLAY_NAMES[service]}のテンプレートを作成しました`);
+      return newTemplate;
+    } catch (error) {
+      console.error(`Error creating template for ${service}:`, error);
+      toast.error(`テンプレート作成に失敗しました: ${error.message || 'エラーが発生しました'}`);
+      return null;
+    }
+  };
+  
+  // テンプレート編集画面に移動するハンドラ（フォーム内でのテンプレート編集）
+  const handleCustomize = async (service, templateId) => {
+    // テンプレートがない場合は新規作成
     if (!templateId) {
-      toast.error(`テンプレートを先に選択してください`);
+      const serviceSettings = settings[service];
+      if (!serviceSettings) {
+        toast.error(`サービス設定が見つかりません`);
+        return;
+      }
+      
+      // 新しいテンプレートを作成
+      const newTemplate = await createTemplateForService(service, serviceSettings);
+      if (newTemplate) {
+        // クライアントテンプレート一覧を更新
+        setClientTemplates(prevTemplates => [...prevTemplates, newTemplate]);
+        
+        // 設定を更新
+        handleServiceChange(service, 'template_id', newTemplate.id);
+        toast.success(`${SERVICE_DISPLAY_NAMES[service]}のテンプレートを作成しました`);
+      }
       return;
     }
     
-    // 既存のテンプレート編集機能を呼び出す
+    // 既存のテンプレート編集機能
     const existingTemplate = clientTemplates.find(t => t.id === templateId);
     if (existingTemplate) {
-      // テンプレート編集モーダルを開く（現在の実装では別コンポーネントとして存在）
-      toast.success(`${SERVICE_DISPLAY_NAMES[service]} テンプレートをカスタマイズします`);
-      // ClientTaskTemplateSettingsの編集機能を使うべきだが、現在の実装では直接呼び出せない
+      // テンプレート編集は直接このフォームで行うようになったので、メッセージだけ表示
+      toast.success(`${SERVICE_DISPLAY_NAMES[service]} テンプレートの設定を更新します`);
     }
   };
   
   // テンプレートからタスクを生成するハンドラ
   const handleGenerateTask = async (service, templateId) => {
+    // テンプレートがない場合は新規作成して生成
     if (!templateId) {
-      toast.error(`テンプレートを先に選択してください`);
-      return;
+      const serviceSettings = settings[service];
+      if (!serviceSettings) {
+        toast.error(`サービス設定が見つかりません`);
+        return null;
+      }
+      
+      // 新しいテンプレートを作成
+      const newTemplate = await createTemplateForService(service, serviceSettings);
+      if (newTemplate) {
+        // クライアントテンプレート一覧を更新
+        setClientTemplates(prevTemplates => [...prevTemplates, newTemplate]);
+        
+        // 設定を更新
+        handleServiceChange(service, 'template_id', newTemplate.id);
+        
+        // 新しいテンプレートからタスクを生成
+        templateId = newTemplate.id;
+      } else {
+        toast.error(`テンプレート作成に失敗したため、タスクを生成できません`);
+        return null;
+      }
     }
     
     try {
@@ -402,7 +517,7 @@ const ServiceCheckSettings = ({ clientId }) => {
       <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
         <h3 className="font-semibold text-gray-800 flex items-center">
           <HiOutlineTemplate className="mr-2 text-primary" />
-          サービス設定
+          サービスチェック設定
         </h3>
         <div className="flex items-center space-x-2">
           <button 
@@ -506,11 +621,11 @@ const ServiceCheckSettings = ({ clientId }) => {
                       ))}
                     </select>
                     <button 
-                      className="btn btn-sm btn-outline"
+                      className="btn btn-sm btn-outline btn-primary"
                       onClick={() => handleCustomize(service, settings[service]?.template_id)}
-                      disabled={!settings.templates_enabled || !settings[service]?.enabled || !settings[service]?.template_id}
+                      disabled={!settings.templates_enabled || !settings[service]?.enabled}
                     >
-                      <HiOutlinePencilAlt className="mr-1" /> カスタマイズ
+                      <HiOutlinePencilAlt className="mr-1" /> {settings[service]?.template_id ? 'カスタマイズ' : 'テンプレート作成'}
                     </button>
                   </div>
                 </td>
@@ -585,11 +700,11 @@ const ServiceCheckSettings = ({ clientId }) => {
                 </td>
                 <td className="px-4 py-3">
                   <button 
-                    className="btn btn-sm btn-primary"
+                    className="btn btn-sm btn-success"
                     onClick={() => handleGenerateTask(service, settings[service]?.template_id)}
-                    disabled={!settings.templates_enabled || !settings[service]?.enabled || !settings[service]?.template_id}
+                    disabled={!settings.templates_enabled || !settings[service]?.enabled}
                   >
-                    <HiOutlinePlay className="mr-1" /> タスク生成
+                    <HiOutlinePlay className="mr-1" /> {settings[service]?.template_id ? 'タスク生成' : 'テンプレート作成＆タスク生成'}
                   </button>
                 </td>
               </tr>
