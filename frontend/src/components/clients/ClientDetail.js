@@ -7,6 +7,8 @@ import FiscalYearTimeline from './FiscalYearTimeline';
 import FiscalYearTaskGenerator from './FiscalYearTaskGenerator';
 import FiscalYearManagement from './FiscalYearManagement';
 import ClientTaskTemplateSettings from './ClientTaskTemplateSettings';
+import TaxRulesView from './tax/TaxRulesView';
+import ServiceCheckSettings from './ServiceCheckSettings';
 import { 
   HiOutlineOfficeBuilding, 
   HiOutlinePhone, 
@@ -179,6 +181,12 @@ const ClientDetail = ({ id, client: initialClient }) => {
           税務情報
         </button>
         <button 
+          className={`tab ${activeTab === 'tax_rules' ? 'tab-active' : ''}`}
+          onClick={() => setActiveTab('tax_rules')}
+        >
+          源泉/住民税
+        </button>
+        <button 
           className={`tab ${activeTab === 'salary' ? 'tab-active' : ''}`}
           onClick={() => setActiveTab('salary')}
         >
@@ -191,8 +199,14 @@ const ClientDetail = ({ id, client: initialClient }) => {
           決算期管理
         </button>
         <button 
-          className={`tab ${activeTab === 'services' ? 'tab-active' : ''}`}
-          onClick={() => setActiveTab('services')}
+          className={`tab ${activeTab === 'templates' ? 'tab-active' : ''}`}
+          onClick={() => setActiveTab('templates')}
+        >
+          タスクテンプレート
+        </button>
+        <button 
+          className={`tab ${activeTab === 'service_settings' ? 'tab-active' : ''}`}
+          onClick={() => setActiveTab('service_settings')}
         >
           サービス設定
         </button>
@@ -267,10 +281,29 @@ const ClientDetail = ({ id, client: initialClient }) => {
         </div>
       )}
       
-      {activeTab === 'services' && (
+      {activeTab === 'tax_rules' && (
+        <div className="w-full max-w-3xl mx-auto">
+          <TaxRulesView 
+            clientId={id} 
+            client={client}
+          />
+        </div>
+      )}
+      
+      {activeTab === 'templates' && (
+        <div>
+          <h2 className="text-xl font-semibold mb-4">タスクテンプレート</h2>
+          <ClientTaskTemplateSettings 
+            clientId={id} 
+            client={client}
+          />
+        </div>
+      )}
+      
+      {activeTab === 'service_settings' && (
         <div>
           <h2 className="text-xl font-semibold mb-4">サービス設定</h2>
-          <ClientTaskTemplateSettings 
+          <ServiceCheckSettings 
             clientId={id} 
             client={client}
           />
