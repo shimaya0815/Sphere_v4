@@ -228,6 +228,17 @@ const tasksApi = {
     }
   },
   
+  // ユーザー一覧を取得
+  getUsers: async () => {
+    try {
+      const response = await apiClient.get('/api/users/');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      return [];
+    }
+  },
+  
   // テンプレートスケジュール一覧を取得
   getTemplateSchedules: async () => {
     try {

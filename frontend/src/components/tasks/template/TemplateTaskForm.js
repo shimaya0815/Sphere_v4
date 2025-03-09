@@ -18,6 +18,7 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
   const [categories, setCategories] = useState([]);
   const [priorities, setPriorities] = useState([]);
   const [statuses, setStatuses] = useState([]);
+  const [users, setUsers] = useState([]);
   
   const [parentTemplate, setParentTemplate] = useState(null);
   
@@ -29,6 +30,8 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
     status: null,
     estimated_hours: '',
     order: 1,
+    worker: null,
+    reviewer: null,
     has_custom_schedule: false,
     // カスタムスケジュール用のフィールド
     schedule_type: 'custom',
@@ -88,11 +91,12 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
   
   const fetchReferenceData = async () => {
     try {
-      // カテゴリ、優先度、ステータスを取得
-      const [categoriesData, prioritiesData, statusesData] = await Promise.all([
+      // カテゴリ、優先度、ステータス、ユーザー一覧を取得
+      const [categoriesData, prioritiesData, statusesData, usersData] = await Promise.all([
         tasksApi.getCategories(),
         tasksApi.getPriorities(),
         tasksApi.getStatuses(),
+        tasksApi.getUsers(),
       ]);
       
       setCategories(Array.isArray(categoriesData) ? categoriesData : 
@@ -101,6 +105,8 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
                    (prioritiesData?.results || []));
       setStatuses(Array.isArray(statusesData) ? statusesData : 
                  (statusesData?.results || []));
+      setUsers(Array.isArray(usersData) ? usersData : 
+               (usersData?.results || []));
       
     } catch (error) {
       console.error('Error fetching reference data:', error);
@@ -376,6 +382,48 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
             {statuses.map(status => (
               <option key={status.id} value={status.id}>
                 {status.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        
+        {/* 作業担当者 */}
+        <div>
+          <label htmlFor="worker" className="block text-sm font-medium text-gray-700 mb-1">
+            作業担当者
+          </label>
+          <select
+            id="worker"
+            name="worker"
+            value={formData.worker || ''}
+            onChange={handleChange}
+            className="select select-bordered w-full"
+          >
+            <option value="">選択してください</option>
+            {users.map(user => (
+              <option key={user.id} value={user.id}>
+                {user.first_name} {user.last_name}
+              </option>
+            ))}
+          </select>
+        </div>
+        
+        {/* レビュー担当者 */}
+        <div>
+          <label htmlFor="reviewer" className="block text-sm font-medium text-gray-700 mb-1">
+            レビュー担当者
+          </label>
+          <select
+            id="reviewer"
+            name="reviewer"
+            value={formData.reviewer || ''}
+            onChange={handleChange}
+            className="select select-bordered w-full"
+          >
+            <option value="">選択してください</option>
+            {users.map(user => (
+              <option key={user.id} value={user.id}>
+                {user.first_name} {user.last_name}
               </option>
             ))}
           </select>
