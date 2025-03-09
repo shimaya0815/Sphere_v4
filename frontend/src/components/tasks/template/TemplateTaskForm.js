@@ -54,7 +54,9 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
   
   const fetchParentTemplate = async () => {
     try {
-      const data = await tasksApi.getTask(parentTemplateId);
+      console.log('Fetching parent template details with getTemplate:', parentTemplateId);
+      const data = await tasksApi.getTemplate(parentTemplateId);
+      console.log('Parent template data received:', data);
       setParentTemplate(data);
     } catch (error) {
       console.error('Error fetching parent template:', error);
