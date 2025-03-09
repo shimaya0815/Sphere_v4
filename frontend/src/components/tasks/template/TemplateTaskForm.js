@@ -537,7 +537,7 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
           </div>
         </div>
       </form>
-    </form>
+    </div>
   );
 };
 
