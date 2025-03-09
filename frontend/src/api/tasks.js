@@ -143,6 +143,61 @@ const tasksApi = {
     }
   },
   
+  // テンプレートスケジュール一覧を取得
+  getTemplateSchedules: async () => {
+    try {
+      const response = await apiClient.get('/api/clients/task-template-schedules/');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching template schedules:', error);
+      return [];
+    }
+  },
+  
+  // テンプレートスケジュールを作成
+  createTemplateSchedule: async (scheduleData) => {
+    try {
+      const response = await apiClient.post('/api/clients/task-template-schedules/', scheduleData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating template schedule:', error);
+      throw error;
+    }
+  },
+  
+  // テンプレートスケジュールを更新
+  updateTemplateSchedule: async (scheduleId, scheduleData) => {
+    try {
+      const response = await apiClient.patch(`/api/clients/task-template-schedules/${scheduleId}/`, scheduleData);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating template schedule:', error);
+      throw error;
+    }
+  },
+  
+  // デフォルトのテンプレートスケジュールを作成
+  createDefaultTemplateSchedule: async (scheduleData) => {
+    try {
+      const response = await apiClient.post('/api/clients/default-task-template-schedules/', scheduleData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating default template schedule:', error);
+      throw error;
+    }
+  },
+  
+  // デフォルトのテンプレートスケジュールを取得
+  getDefaultTemplateSchedules: async () => {
+    try {
+      const response = await apiClient.get('/api/clients/default-task-template-schedules/');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching default template schedules:', error);
+      return [];
+    }
+  },
+  
   // タスクコメント関連API
   
   // タスクのコメント一覧を取得

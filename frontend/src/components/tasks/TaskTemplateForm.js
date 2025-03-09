@@ -20,6 +20,7 @@ const TaskTemplateForm = ({ templateId = null, onSuccess, onCancel }) => {
   const [priorities, setPriorities] = useState([]);
   const [statuses, setStatuses] = useState([]);
   const [workspaces, setWorkspaces] = useState([]);
+  const [schedules, setSchedules] = useState([]);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -31,6 +32,18 @@ const TaskTemplateForm = ({ templateId = null, onSuccess, onCancel }) => {
     estimated_hours: '',
     template_name: '',
     is_template: true,
+    // スケジュール関連のフィールド
+    schedule: null,
+    schedule_type: 'monthly_start',
+    recurrence: 'monthly',
+    creation_day: '',
+    deadline_day: '',
+    deadline_next_month: false,
+    fiscal_date_reference: 'end_date',
+    // 追加: カスタム設定用のフィールド
+    creation_date_offset: 0,  // 基準日からの作成日オフセット（日数）
+    deadline_date_offset: 5,  // 作成日からの期日オフセット（日数）
+    reference_date_type: 'execution_date' // 基準日タイプ（実行日/決算日/当月初日/当月末日）
   });
   
   useEffect(() => {
@@ -46,13 +59,42 @@ const TaskTemplateForm = ({ templateId = null, onSuccess, onCancel }) => {
   const fetchTemplateData = async () => {
     try {
       const data = await tasksApi.getTask(templateId);
+      
+      // スケジュール情報をテンプレートから取得
+      let scheduleData = {};
+      if (data.schedule) {
+        try {
+          const scheduleResponse = await tasksApi.getTemplateSchedules();
+          const matchingSchedule = scheduleResponse.find(s => s.id === data.schedule);
+          
+          if (matchingSchedule) {
+            scheduleData = {
+              schedule: matchingSchedule.id,
+              schedule_type: matchingSchedule.schedule_type || 'monthly_start',
+              recurrence: matchingSchedule.recurrence || 'monthly',
+              creation_day: matchingSchedule.creation_day || '',
+              deadline_day: matchingSchedule.deadline_day || '',
+              deadline_next_month: matchingSchedule.deadline_next_month || false,
+              fiscal_date_reference: matchingSchedule.fiscal_date_reference || 'end_date',
+              creation_date_offset: matchingSchedule.creation_date_offset || 0,
+              deadline_date_offset: matchingSchedule.deadline_date_offset || 5,
+              reference_date_type: matchingSchedule.reference_date_type || 'execution_date'
+            };
+          }
+        } catch (scheduleError) {
+          console.error('Error fetching schedule data:', scheduleError);
+        }
+      }
+      
       setFormData({
         ...data,
         category: data.category?.id || null,
         priority: data.priority?.id || null,
         status: data.status?.id || null,
         workspace: data.workspace?.id || null,
+        ...scheduleData
       });
+      
       setError(null);
     } catch (error) {
       console.error('Error fetching template:', error);
@@ -65,16 +107,18 @@ const TaskTemplateForm = ({ templateId = null, onSuccess, onCancel }) => {
   
   const fetchReferenceData = async () => {
     try {
-      // Load categories, priorities, statuses in parallel
-      const [categoriesData, prioritiesData, statusesData] = await Promise.all([
+      // Load categories, priorities, statuses, schedules in parallel
+      const [categoriesData, prioritiesData, statusesData, schedulesData] = await Promise.all([
         tasksApi.getCategories(),
         tasksApi.getPriorities(),
         tasksApi.getStatuses(),
+        tasksApi.getTemplateSchedules(),
       ]);
       
       setCategories(categoriesData);
       setPriorities(prioritiesData);
       setStatuses(statusesData);
+      setSchedules(schedulesData);
       
       // For simplicity, assuming we have a function to get workspaces
       // Replace with actual API call
@@ -122,19 +166,44 @@ const TaskTemplateForm = ({ templateId = null, onSuccess, onCancel }) => {
     setSaving(true);
     
     try {
+      // スケジュール情報を保存または更新
+      let scheduleId = formData.schedule;
+      const scheduleData = {
+        name: `${formData.template_name}のスケジュール`,
+        schedule_type: formData.schedule_type,
+        recurrence: formData.recurrence,
+        creation_day: formData.creation_day,
+        deadline_day: formData.deadline_day,
+        deadline_next_month: formData.deadline_next_month,
+        fiscal_date_reference: formData.fiscal_date_reference,
+        creation_date_offset: formData.creation_date_offset,
+        deadline_date_offset: formData.deadline_date_offset,
+        reference_date_type: formData.reference_date_type
+      };
+      
+      // 既存のスケジュールを更新するか、新規作成するか
+      if (scheduleId) {
+        await tasksApi.updateTemplateSchedule(scheduleId, scheduleData);
+      } else {
+        // 新規スケジュール作成
+        const newSchedule = await tasksApi.createDefaultTemplateSchedule(scheduleData);
+        scheduleId = newSchedule.id;
+      }
+      
+      // テンプレートタスクの保存/更新
+      const taskData = {
+        ...formData,
+        is_template: true,
+        schedule: scheduleId
+      };
+      
       if (templateId) {
-        // Update existing template
-        await tasksApi.updateTask(templateId, {
-          ...formData,
-          is_template: true,
-        });
+        // 既存テンプレート更新
+        await tasksApi.updateTask(templateId, taskData);
         toast.success('テンプレートを更新しました');
       } else {
-        // Create new template
-        await tasksApi.createTask({
-          ...formData,
-          is_template: true,
-        });
+        // 新規テンプレート作成
+        await tasksApi.createTask(taskData);
         toast.success('新規テンプレートを作成しました');
       }
       
@@ -254,6 +323,227 @@ const TaskTemplateForm = ({ templateId = null, onSuccess, onCancel }) => {
             className="textarea textarea-bordered w-full"
             placeholder="タスクの詳細な説明"
           ></textarea>
+        </div>
+        
+        {/* スケジュール設定セクション */}
+        <div className="col-span-2">
+          <h3 className="text-lg font-medium text-gray-700 mb-3">スケジュール設定</h3>
+          
+          {/* スケジュールタイプ選択 */}
+          <div className="mb-4">
+            <label htmlFor="schedule_type" className="block text-sm font-medium text-gray-700 mb-1">
+              スケジュールタイプ
+            </label>
+            <select
+              id="schedule_type"
+              name="schedule_type"
+              value={formData.schedule_type}
+              onChange={handleChange}
+              className="select select-bordered w-full"
+            >
+              <option value="monthly_start">月初作成・当月締め切り</option>
+              <option value="monthly_end">月末作成・翌月締め切り</option>
+              <option value="fiscal_relative">決算日基準</option>
+              <option value="custom">カスタム設定</option>
+            </select>
+          </div>
+          
+          {/* 共通スケジュール設定 */}
+          <div className="mb-4">
+            <label htmlFor="recurrence" className="block text-sm font-medium text-gray-700 mb-1">
+              繰り返し
+            </label>
+            <select
+              id="recurrence"
+              name="recurrence"
+              value={formData.recurrence}
+              onChange={handleChange}
+              className="select select-bordered w-full"
+            >
+              <option value="monthly">毎月</option>
+              <option value="quarterly">四半期ごと</option>
+              <option value="yearly">毎年</option>
+              <option value="once">一度のみ</option>
+            </select>
+          </div>
+          
+          {/* スケジュールタイプに応じた設定フィールド */}
+          {formData.schedule_type === 'monthly_start' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="creation_day" className="block text-sm font-medium text-gray-700 mb-1">
+                  作成日（毎月の日）
+                </label>
+                <input
+                  type="number"
+                  id="creation_day"
+                  name="creation_day"
+                  value={formData.creation_day || 1}
+                  onChange={handleChange}
+                  min="1"
+                  max="28"
+                  className="input input-bordered w-full"
+                />
+                <p className="mt-1 text-xs text-gray-500">1〜28日の間で指定</p>
+              </div>
+              <div>
+                <label htmlFor="deadline_day" className="block text-sm font-medium text-gray-700 mb-1">
+                  期限日（毎月の日）
+                </label>
+                <input
+                  type="number"
+                  id="deadline_day"
+                  name="deadline_day"
+                  value={formData.deadline_day || 5}
+                  onChange={handleChange}
+                  min="1"
+                  max="31"
+                  className="input input-bordered w-full"
+                />
+              </div>
+            </div>
+          )}
+          
+          {formData.schedule_type === 'monthly_end' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="creation_day" className="block text-sm font-medium text-gray-700 mb-1">
+                  作成日（月末から逆算した日）
+                </label>
+                <input
+                  type="number"
+                  id="creation_day"
+                  name="creation_day"
+                  value={formData.creation_day || 5}
+                  onChange={handleChange}
+                  min="1"
+                  max="15"
+                  className="input input-bordered w-full"
+                />
+                <p className="mt-1 text-xs text-gray-500">例: 5は「月末5日前」を意味します</p>
+              </div>
+              <div>
+                <label htmlFor="deadline_day" className="block text-sm font-medium text-gray-700 mb-1">
+                  期限日（翌月の日）
+                </label>
+                <input
+                  type="number"
+                  id="deadline_day"
+                  name="deadline_day"
+                  value={formData.deadline_day || 10}
+                  onChange={handleChange}
+                  min="1"
+                  max="28"
+                  className="input input-bordered w-full"
+                />
+                <div className="form-control">
+                  <label className="label cursor-pointer">
+                    <span className="label-text">翌月の日付を使用</span>
+                    <input
+                      type="checkbox"
+                      name="deadline_next_month"
+                      checked={formData.deadline_next_month}
+                      onChange={(e) => setFormData({...formData, deadline_next_month: e.target.checked})}
+                      className="checkbox checkbox-sm"
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {formData.schedule_type === 'fiscal_relative' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="fiscal_date_reference" className="block text-sm font-medium text-gray-700 mb-1">
+                  決算日基準
+                </label>
+                <select
+                  id="fiscal_date_reference"
+                  name="fiscal_date_reference"
+                  value={formData.fiscal_date_reference}
+                  onChange={handleChange}
+                  className="select select-bordered w-full"
+                >
+                  <option value="start_date">決算期開始日</option>
+                  <option value="end_date">決算期終了日</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="deadline_day" className="block text-sm font-medium text-gray-700 mb-1">
+                  基準日からの日数（期限）
+                </label>
+                <input
+                  type="number"
+                  id="deadline_day"
+                  name="deadline_day"
+                  value={formData.deadline_day || 30}
+                  onChange={handleChange}
+                  min="1"
+                  max="90"
+                  className="input input-bordered w-full"
+                />
+                <p className="mt-1 text-xs text-gray-500">基準日から何日後を期限とするか</p>
+              </div>
+            </div>
+          )}
+          
+          {formData.schedule_type === 'custom' && (
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="reference_date_type" className="block text-sm font-medium text-gray-700 mb-1">
+                  基準日タイプ
+                </label>
+                <select
+                  id="reference_date_type"
+                  name="reference_date_type"
+                  value={formData.reference_date_type}
+                  onChange={handleChange}
+                  className="select select-bordered w-full"
+                >
+                  <option value="execution_date">実行日（バッチ処理実行日）</option>
+                  <option value="fiscal_start">決算期開始日</option>
+                  <option value="fiscal_end">決算期終了日</option>
+                  <option value="month_start">当月初日</option>
+                  <option value="month_end">当月末日</option>
+                </select>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="creation_date_offset" className="block text-sm font-medium text-gray-700 mb-1">
+                    作成日オフセット（日数）
+                  </label>
+                  <input
+                    type="number"
+                    id="creation_date_offset"
+                    name="creation_date_offset"
+                    value={formData.creation_date_offset}
+                    onChange={handleChange}
+                    className="input input-bordered w-full"
+                    placeholder="基準日からの日数"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">基準日から何日後に作成するか（0=当日）</p>
+                </div>
+                
+                <div>
+                  <label htmlFor="deadline_date_offset" className="block text-sm font-medium text-gray-700 mb-1">
+                    期限日オフセット（日数）
+                  </label>
+                  <input
+                    type="number"
+                    id="deadline_date_offset"
+                    name="deadline_date_offset"
+                    value={formData.deadline_date_offset}
+                    onChange={handleChange}
+                    className="input input-bordered w-full"
+                    placeholder="作成日からの日数"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">作成日から何日後を期限とするか</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         
         {/* カテゴリ */}
