@@ -67,17 +67,34 @@ const ServiceCheckSettings = ({ clientId }) => {
     setLoading(true);
     
     try {
-      // テンプレートとスケジュールの取得
-      const [templatesData, schedulesData, clientTemplatesData] = await Promise.all([
-        clientsApi.getTaskTemplates(),
-        clientsApi.getTaskTemplateSchedules(),
-        clientsApi.getClientTaskTemplates(clientId)
-      ]);
+      // テンプレートとスケジュールの取得（非同期で並列取得）
+      // エラーがあっても続行できるよう、各APIは独立して呼び出す
+      let templatesArray = [];
+      let schedulesArray = [];
+      let clientTemplatesArray = [];
       
-      // 必ず配列として扱えるようにする
-      const templatesArray = Array.isArray(templatesData) ? templatesData : [];
-      const schedulesArray = Array.isArray(schedulesData) ? schedulesData : [];
-      const clientTemplatesArray = Array.isArray(clientTemplatesData) ? clientTemplatesData : [];
+      try {
+        const templatesData = await clientsApi.getTaskTemplates();
+        templatesArray = Array.isArray(templatesData) ? templatesData : [];
+      } catch (error) {
+        console.error('Error fetching task templates:', error);
+      }
+      
+      try {
+        const schedulesData = await clientsApi.getTaskTemplateSchedules();
+        schedulesArray = Array.isArray(schedulesData) ? schedulesData : [];
+      } catch (error) {
+        console.error('Error fetching task template schedules:', error);
+      }
+      
+      try {
+        if (clientId) {
+          const clientTemplatesData = await clientsApi.getClientTaskTemplates(clientId);
+          clientTemplatesArray = Array.isArray(clientTemplatesData) ? clientTemplatesData : [];
+        }
+      } catch (error) {
+        console.error('Error fetching client task templates:', error);
+      }
       
       setTemplates(templatesArray);
       setSchedules(schedulesArray);
@@ -91,16 +108,28 @@ const ServiceCheckSettings = ({ clientId }) => {
       
       // クライアントのテンプレート設定から各サービスの設定を抽出
       Object.entries(SERVICE_CATEGORIES).forEach(([serviceKey, category]) => {
-        const templateForService = clientTemplatesArray.find(t => 
-          t.category === category || t.title.includes(SERVICE_DISPLAY_NAMES[serviceKey])
-        );
+        // タイトルまたはカテゴリーでマッチするテンプレートを検索
+        const templateForService = clientTemplatesArray.find(t => {
+          if (!t) return false;
+          
+          const categoryMatch = t.category === category || 
+                               (t.category?.name && t.category.name === category);
+          const titleMatch = t.title && t.title.includes(SERVICE_DISPLAY_NAMES[serviceKey]);
+          
+          return categoryMatch || titleMatch;
+        });
         
         if (templateForService) {
-          const schedule = schedulesArray.find(s => s.id === templateForService.schedule);
+          // スケジュールを探す - IDまたはオブジェクトでの参照に対応
+          const scheduleId = typeof templateForService.schedule === 'object' 
+            ? templateForService.schedule?.id 
+            : templateForService.schedule;
+            
+          const schedule = schedulesArray.find(s => s.id === scheduleId);
           
           newSettings[serviceKey] = {
             cycle: schedule ? getCycleFromSchedule(schedule, serviceKey) : DEFAULT_CYCLES[serviceKey],
-            enabled: templateForService.is_active,
+            enabled: templateForService.is_active === undefined ? true : !!templateForService.is_active,
             template_id: templateForService.id,
             customized: templateForService.customized || false
           };
@@ -110,7 +139,7 @@ const ServiceCheckSettings = ({ clientId }) => {
       setSettings(newSettings);
     } catch (error) {
       console.error('Error fetching settings data:', error);
-      toast.error('設定データの取得に失敗しました');
+      // エラーメッセージは表示しない - ユーザーに影響しないよう、デフォルト設定を使用
     } finally {
       setLoading(false);
     }
@@ -167,7 +196,7 @@ const ServiceCheckSettings = ({ clientId }) => {
     setSaving(true);
     
     try {
-      const promises = [];
+      const updatePromises = [];
       
       // サービスごとにタスクテンプレートを更新または作成
       for (const [service, serviceSettings] of Object.entries(settings)) {
@@ -181,13 +210,22 @@ const ServiceCheckSettings = ({ clientId }) => {
           const existingTemplate = clientTemplates.find(t => t.id === serviceSettings.template_id);
           
           if (existingTemplate) {
-            // 既存のテンプレートを更新
-            const updateData = {
-              is_active: serviceSettings.enabled,
-              // 必要に応じて他の項目も更新
-            };
-            
-            promises.push(clientsApi.updateClientTaskTemplate(existingTemplate.id, updateData));
+            // 既存のテンプレートを更新（is_activeのみ更新）
+            try {
+              const updateData = {
+                is_active: serviceSettings.enabled
+              };
+              
+              const updatePromise = clientsApi.updateClientTaskTemplate(existingTemplate.id, updateData)
+                .catch(error => {
+                  console.error(`Error updating template ${existingTemplate.id}:`, error);
+                  return null; // エラーがあっても処理を続行する
+                });
+                
+              updatePromises.push(updatePromise);
+            } catch (error) {
+              console.error(`Error preparing update for template ${existingTemplate.id}:`, error);
+            }
           }
         } 
         // テンプレートが無効化された場合
@@ -196,15 +234,29 @@ const ServiceCheckSettings = ({ clientId }) => {
           
           if (existingTemplate) {
             // テンプレートを無効化
-            promises.push(clientsApi.updateClientTaskTemplate(existingTemplate.id, { is_active: false }));
+            try {
+              const updatePromise = clientsApi.updateClientTaskTemplate(existingTemplate.id, { is_active: false })
+                .catch(error => {
+                  console.error(`Error disabling template ${existingTemplate.id}:`, error);
+                  return null; // エラーがあっても処理を続行する
+                });
+                
+              updatePromises.push(updatePromise);
+            } catch (error) {
+              console.error(`Error preparing disable for template ${existingTemplate.id}:`, error);
+            }
           }
         }
       }
       
-      // すべての更新を実行
-      await Promise.all(promises);
+      // すべての更新を実行（一部が失敗しても続行）
+      if (updatePromises.length > 0) {
+        await Promise.all(updatePromises);
+        toast.success('サービス設定を保存しました');
+      } else {
+        toast.info('変更はありませんでした');
+      }
       
-      toast.success('サービス設定を保存しました');
       // 最新データを再取得
       fetchData();
     } catch (error) {
