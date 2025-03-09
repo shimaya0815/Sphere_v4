@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { clientsApi } from '../../api';
 import toast from 'react-hot-toast';
 import FiscalYearForm from './FiscalYearForm';
-import CheckSettingForm from './CheckSettingForm';
 import FiscalYearTimeline from './FiscalYearTimeline';
 import FiscalYearTaskGenerator from './FiscalYearTaskGenerator';
 import FiscalYearManagement from './FiscalYearManagement';
@@ -32,14 +31,11 @@ const ClientDetail = ({ id, client: initialClient }) => {
   const navigate = useNavigate();
   const [client, setClient] = useState(initialClient || null);
   const [fiscalYears, setFiscalYears] = useState([]);
-  const [checkSettings, setCheckSettings] = useState([]);
   const [loading, setLoading] = useState(!initialClient);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [showFiscalYearForm, setShowFiscalYearForm] = useState(false);
-  const [showCheckSettingForm, setShowCheckSettingForm] = useState(false);
   const [editingFiscalYear, setEditingFiscalYear] = useState(null);
-  const [editingCheckSetting, setEditingCheckSetting] = useState(null);
   
   useEffect(() => {
     console.log('ClientDetail received id:', id, 'and client:', initialClient);
@@ -52,7 +48,6 @@ const ClientDetail = ({ id, client: initialClient }) => {
       // 関連データの取得
       if (id) {
         fetchFiscalYears();
-        fetchCheckSettings();
       }
     } 
     // そうでなく、IDが提供されている場合は、データをフェッチ
@@ -73,7 +68,6 @@ const ClientDetail = ({ id, client: initialClient }) => {
       
       // 関連データの取得
       fetchFiscalYears();
-      fetchCheckSettings();
       
       setError(null);
     } catch (error) {
@@ -95,27 +89,6 @@ const ClientDetail = ({ id, client: initialClient }) => {
     }
   };
   
-  const fetchCheckSettings = async () => {
-    try {
-      // APIエンドポイントは実際の実装に合わせて調整してください
-      const response = await clientsApi.getCheckSettings(id);
-      setCheckSettings(response);
-    } catch (error) {
-      console.error('Error fetching check settings:', error);
-    }
-  };
-  
-  // チェック種別の表示名を取得する関数
-  const getCheckTypeDisplay = (type) => {
-    const types = {
-      'monthly': '月次チェック',
-      'bookkeeping': '記帳代行',
-      'tax_return': '税務申告書作成',
-      'withholding_tax': '源泉所得税対応',
-      'other': 'その他'
-    };
-    return types[type] || type;
-  };
   
   if (loading) {
     return (
@@ -218,12 +191,6 @@ const ClientDetail = ({ id, client: initialClient }) => {
           決算期管理
         </button>
         <button 
-          className={`tab ${activeTab === 'check' ? 'tab-active' : ''}`}
-          onClick={() => setActiveTab('check')}
-        >
-          業務チェック設定
-        </button>
-        <button 
           className={`tab ${activeTab === 'templates' ? 'tab-active' : ''}`}
           onClick={() => setActiveTab('templates')}
         >
@@ -300,53 +267,6 @@ const ClientDetail = ({ id, client: initialClient }) => {
         </div>
       )}
       
-      {activeTab === 'check' && (
-        <div>
-          <div className="flex justify-between mb-4">
-            <h2 className="text-xl font-semibold">業務チェック設定</h2>
-            <button 
-              className="btn btn-primary btn-sm"
-              onClick={() => {
-                setEditingCheckSetting(null);
-                setShowCheckSettingForm(true);
-              }}
-            >
-              <HiOutlinePlus className="mr-1" /> チェック設定を追加
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {checkSettings && checkSettings.length > 0 ? (
-              checkSettings.map(setting => (
-                <CheckSettingCard 
-                  key={setting.id} 
-                  checkSetting={setting}
-                  onEdit={() => {
-                    setEditingCheckSetting(setting);
-                    setShowCheckSettingForm(true);
-                  }}
-                  onDelete={async () => {
-                    if (window.confirm(`チェック設定「${getCheckTypeDisplay(setting.check_type)}」を削除してもよろしいですか？`)) {
-                      try {
-                        await clientsApi.deleteCheckSetting(setting.id);
-                        toast.success('チェック設定を削除しました');
-                        fetchCheckSettings();
-                      } catch (error) {
-                        console.error('Error deleting check setting:', error);
-                        toast.error('チェック設定の削除に失敗しました');
-                      }
-                    }
-                  }}
-                />
-              ))
-            ) : (
-              <div className="col-span-2 bg-gray-50 p-6 rounded-lg text-center text-gray-500">
-                業務チェック設定が登録されていません
-              </div>
-            )}
-          </div>
-        </div>
-      )}
       
       {activeTab === 'templates' && (
         <ClientTaskTemplateSettings 
@@ -368,17 +288,6 @@ const ClientDetail = ({ id, client: initialClient }) => {
         />
       )}
       
-      {showCheckSettingForm && (
-        <CheckSettingForm 
-          clientId={id}
-          checkSetting={editingCheckSetting}
-          onClose={() => {
-            setShowCheckSettingForm(false);
-            setEditingCheckSetting(null);
-          }}
-          onSuccess={fetchCheckSettings}
-        />
-      )}
     </div>
   );
 };
@@ -684,82 +593,5 @@ const FiscalYearCard = ({ fiscalYear, onEdit, onDelete }) => {
   );
 };
 
-// 業務チェック設定カード
-const CheckSettingCard = ({ checkSetting, onEdit, onDelete }) => {
-  const getCheckTypeDisplay = (type) => {
-    const types = {
-      'monthly': '月次チェック',
-      'bookkeeping': '記帳代行',
-      'tax_return': '税務申告書作成',
-      'withholding_tax': '源泉所得税対応',
-      'other': 'その他'
-    };
-    return types[type] || type;
-  };
-  
-  const getCycleDisplay = (cycle) => {
-    const cycles = {
-      'monthly': '毎月',
-      'yearly': '毎年'
-    };
-    return cycles[cycle] || cycle;
-  };
-  
-  return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
-        <h3 className="font-semibold text-gray-800 flex items-center">
-          <HiOutlineClock className="mr-2" /> 
-          {getCheckTypeDisplay(checkSetting.check_type)}
-        </h3>
-        <div className="flex items-center">
-          {checkSetting.is_enabled ? (
-            <span className="badge badge-success mr-3">有効</span>
-          ) : (
-            <span className="badge badge-ghost mr-3">無効</span>
-          )}
-          <div className="flex space-x-2">
-            <button 
-              className="btn btn-ghost btn-xs"
-              onClick={onEdit}
-            >
-              <HiPencilAlt />
-            </button>
-            <button 
-              className="btn btn-ghost btn-xs text-red-500"
-              onClick={onDelete}
-            >
-              <HiOutlineTrash />
-            </button>
-          </div>
-        </div>
-      </div>
-      <div className="p-4">
-        <table className="w-full">
-          <tbody>
-            <tr>
-              <td className="py-2 text-sm font-medium text-gray-500 w-1/3">サイクル</td>
-              <td className="py-2">
-                {getCycleDisplay(checkSetting.cycle)}
-              </td>
-            </tr>
-            <tr>
-              <td className="py-2 text-sm font-medium text-gray-500">作成日</td>
-              <td className="py-2">
-                {checkSetting.create_day}日
-              </td>
-            </tr>
-            <tr>
-              <td className="py-2 text-sm font-medium text-gray-500">テンプレート</td>
-              <td className="py-2">
-                {checkSetting.template ? checkSetting.template.title : 'なし'}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-};
 
 export default ClientDetail;
