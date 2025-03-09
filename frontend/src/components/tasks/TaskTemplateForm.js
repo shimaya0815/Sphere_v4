@@ -150,6 +150,8 @@ const TaskTemplateForm = ({ templateId = null, templateData = null, onSuccess, o
   
   const fetchReferenceData = async () => {
     try {
+      console.log('Fetching reference data...');
+      
       // Load categories, priorities, statuses, schedules in parallel
       const [categoriesData, prioritiesData, statusesData, schedulesData] = await Promise.all([
         tasksApi.getCategories(),
@@ -158,10 +160,44 @@ const TaskTemplateForm = ({ templateId = null, templateData = null, onSuccess, o
         tasksApi.getTemplateSchedules(),
       ]);
       
-      setCategories(categoriesData);
-      setPriorities(prioritiesData);
-      setStatuses(statusesData);
-      setSchedules(schedulesData);
+      console.log('Reference data received:', { 
+        categories: categoriesData, 
+        priorities: prioritiesData,
+        statuses: statusesData,
+        schedules: schedulesData
+      });
+      
+      // DRFのページネーション形式（results配列を含むオブジェクト）に対応
+      const processData = (data) => {
+        if (!data) return [];
+        
+        if (Array.isArray(data)) {
+          return data;
+        }
+        
+        if (data.results && Array.isArray(data.results)) {
+          return data.results;
+        }
+        
+        return [];
+      };
+      
+      const processedCategories = processData(categoriesData);
+      const processedPriorities = processData(prioritiesData);
+      const processedStatuses = processData(statusesData);
+      const processedSchedules = processData(schedulesData);
+      
+      console.log('Processed reference data:', { 
+        categories: processedCategories, 
+        priorities: processedPriorities,
+        statuses: processedStatuses,
+        schedules: processedSchedules
+      });
+      
+      setCategories(processedCategories);
+      setPriorities(processedPriorities);
+      setStatuses(processedStatuses);
+      setSchedules(processedSchedules);
       
       // For simplicity, assuming we have a function to get workspaces
       // Replace with actual API call
@@ -602,7 +638,7 @@ const TaskTemplateForm = ({ templateId = null, templateData = null, onSuccess, o
             className="select select-bordered w-full"
           >
             <option value="">選択してください</option>
-            {categories.map(category => (
+            {Array.isArray(categories) && categories.map(category => (
               <option key={category.id} value={category.id}>
                 {category.name}
               </option>
@@ -623,7 +659,7 @@ const TaskTemplateForm = ({ templateId = null, templateData = null, onSuccess, o
             className="select select-bordered w-full"
           >
             <option value="">選択してください</option>
-            {priorities.map(priority => (
+            {Array.isArray(priorities) && priorities.map(priority => (
               <option key={priority.id} value={priority.id}>
                 {priority.priority_value || '未設定'}
               </option>
@@ -644,7 +680,7 @@ const TaskTemplateForm = ({ templateId = null, templateData = null, onSuccess, o
             className="select select-bordered w-full"
           >
             <option value="">選択してください</option>
-            {statuses.map(status => (
+            {Array.isArray(statuses) && statuses.map(status => (
               <option key={status.id} value={status.id}>
                 {status.name}
               </option>
@@ -665,7 +701,7 @@ const TaskTemplateForm = ({ templateId = null, templateData = null, onSuccess, o
             className="select select-bordered w-full"
           >
             <option value="">選択してください</option>
-            {workspaces.map(workspace => (
+            {Array.isArray(workspaces) && workspaces.map(workspace => (
               <option key={workspace.id} value={workspace.id}>
                 {workspace.name}
               </option>
