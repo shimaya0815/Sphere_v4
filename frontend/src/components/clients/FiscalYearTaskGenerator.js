@@ -86,9 +86,9 @@ const FiscalYearTaskGenerator = ({ fiscalYear, clientId, clientName, onTasksGene
           const taskData = {
             title: `${clientName} - ${taskType.name}（第${fiscalYear.fiscal_period}期）`,
             description: `${clientName}の第${fiscalYear.fiscal_period}期の${taskType.name}タスクです。\n\n期間：${dayjs(fiscalYear.start_date).format('YYYY/MM/DD')} 〜 ${dayjs(fiscalYear.end_date).format('YYYY/MM/DD')}`,
-            status: data.status || (statuses.length > 0 ? statuses[0].id : null),
-            category: data.category || (categories.length > 0 ? categories[0].id : null),
-            priority: data.priority || (priorities.length > 0 ? priorities[0].id : null),
+            status: data.status || (Array.isArray(statuses) && statuses.length > 0 ? statuses[0].id : null),
+            category: data.category || (Array.isArray(categories) && categories.length > 0 ? categories[0].id : null),
+            priority: data.priority || (Array.isArray(priorities) && priorities.length > 0 ? priorities[0].id : null),
             client: clientId,
             due_date: dueDate,
             assigned_user: data.assignToCurrentUser ? null : data.assigned_user, // nullにすると現在のユーザーに割り当て
@@ -159,11 +159,13 @@ const FiscalYearTaskGenerator = ({ fiscalYear, clientId, clientName, onTasksGene
                 {...register("category")}
                 className="select select-bordered w-full"
               >
-                {categories.map(category => (
+                {Array.isArray(categories) && categories.length > 0 ? categories.map(category => (
                   <option key={category.id} value={category.id}>
                     {category.name}
                   </option>
-                ))}
+                )) : (
+                  <option value="">カテゴリーがありません</option>
+                )}
               </select>
             </div>
             
@@ -177,11 +179,13 @@ const FiscalYearTaskGenerator = ({ fiscalYear, clientId, clientName, onTasksGene
                 {...register("status")}
                 className="select select-bordered w-full"
               >
-                {statuses.map(status => (
+                {Array.isArray(statuses) && statuses.length > 0 ? statuses.map(status => (
                   <option key={status.id} value={status.id}>
                     {status.name}
                   </option>
-                ))}
+                )) : (
+                  <option value="">ステータスがありません</option>
+                )}
               </select>
             </div>
             
@@ -195,11 +199,13 @@ const FiscalYearTaskGenerator = ({ fiscalYear, clientId, clientName, onTasksGene
                 {...register("priority")}
                 className="select select-bordered w-full"
               >
-                {priorities.map(priority => (
+                {Array.isArray(priorities) && priorities.length > 0 ? priorities.map(priority => (
                   <option key={priority.id} value={priority.id}>
                     {priority.name}
                   </option>
-                ))}
+                )) : (
+                  <option value="">優先度がありません</option>
+                )}
               </select>
             </div>
           </div>
