@@ -2,11 +2,16 @@ from rest_framework import viewsets, permissions, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
-from .models import Task, TaskCategory, TaskStatus, TaskPriority, TaskComment, TaskAttachment, TaskTimer, TaskHistory, TaskNotification
+from .models import (
+    Task, TaskCategory, TaskStatus, TaskPriority, TaskComment, 
+    TaskAttachment, TaskTimer, TaskHistory, TaskNotification,
+    TaskSchedule, TemplateChildTask
+)
 from .serializers import (
     TaskSerializer, TaskCategorySerializer, TaskStatusSerializer, 
     TaskPrioritySerializer, TaskCommentSerializer, TaskAttachmentSerializer, 
-    TaskTimerSerializer, TaskHistorySerializer, TaskNotificationSerializer
+    TaskTimerSerializer, TaskHistorySerializer, TaskNotificationSerializer,
+    TaskTemplateSerializer, TaskScheduleSerializer, TemplateChildTaskSerializer
 )
 from business.permissions import IsSameBusiness
 from django.db.models import Q
@@ -535,7 +540,7 @@ class TaskNotificationViewSet(viewsets.ModelViewSet):
 
 class TaskTemplateViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.filter(is_template=True)
-    serializer_class = TaskSerializer
+    serializer_class = TaskTemplateSerializer
     permission_classes = [permissions.IsAuthenticated, IsSameBusiness]
     
     def get_queryset(self):
@@ -549,23 +554,75 @@ class TaskTemplateViewSet(viewsets.ModelViewSet):
     def apply_template(self, request, pk=None):
         template = self.get_object()
         
-        # Create a new task from the template
-        new_task = Task.objects.create(
-            title=request.data.get('title', template.title),
-            description=template.description,
-            business=request.user.business,
-            workspace=request.data.get('workspace_id', template.workspace_id),
-            status=template.status,
-            priority=template.priority,
-            category=template.category,
-            creator=request.user,
-            assignee=request.data.get('assignee_id', None),
-            due_date=request.data.get('due_date', None),
-            estimated_hours=template.estimated_hours,
-            client=request.data.get('client_id', None),
-            is_recurring=request.data.get('is_recurring', False),
-            recurrence_pattern=request.data.get('recurrence_pattern', None),
+        # テンプレートから新しいタスクを生成
+        new_task = template.generate_task_from_template(
+            user=request.user,
+            client_id=request.data.get('client_id'),
+            fiscal_year_id=request.data.get('fiscal_year_id'),
+            workspace_id=request.data.get('workspace_id'),
+            title=request.data.get('title', template.title)
         )
         
-        serializer = self.get_serializer(new_task)
+        serializer = TaskSerializer(new_task)
+        return Response(serializer.data)
+        
+    @action(detail=True, methods=['get'], url_path='tasks')
+    def get_child_tasks(self, request, pk=None):
+        """
+        テンプレートに関連付けられた内包タスクを取得する
+        """
+        template = self.get_object()
+        child_tasks = TemplateChildTask.objects.filter(parent_template=template)
+        serializer = TemplateChildTaskSerializer(child_tasks, many=True)
+        return Response(serializer.data)
+
+
+class TaskScheduleViewSet(viewsets.ModelViewSet):
+    """タスクスケジュール管理API"""
+    
+    queryset = TaskSchedule.objects.all()
+    serializer_class = TaskScheduleSerializer
+    permission_classes = [permissions.IsAuthenticated, IsSameBusiness]
+    
+    def get_queryset(self):
+        """Return schedules for the authenticated user's business."""
+        return TaskSchedule.objects.filter(business=self.request.user.business)
+    
+    def perform_create(self, serializer):
+        serializer.save(business=self.request.user.business)
+
+
+class TemplateChildTaskViewSet(viewsets.ModelViewSet):
+    """テンプレート内包タスク管理API"""
+    
+    queryset = TemplateChildTask.objects.all()
+    serializer_class = TemplateChildTaskSerializer
+    permission_classes = [permissions.IsAuthenticated, IsSameBusiness]
+    
+    def get_queryset(self):
+        """Return template child tasks for the authenticated user's business."""
+        return TemplateChildTask.objects.filter(business=self.request.user.business)
+    
+    def perform_create(self, serializer):
+        serializer.save(business=self.request.user.business)
+    
+    @action(detail=False, methods=['get'], url_path='template/(?P<template_id>\d+)')
+    def get_by_template(self, request, template_id=None):
+        """
+        指定されたテンプレートIDに関連付けられた内包タスクを取得する
+        """
+        try:
+            template = Task.objects.get(
+                id=template_id, 
+                is_template=True,
+                business=request.user.business
+            )
+        except Task.DoesNotExist:
+            return Response(
+                {"detail": "Template not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+            
+        child_tasks = self.get_queryset().filter(parent_template=template)
+        serializer = self.get_serializer(child_tasks, many=True)
         return Response(serializer.data)
