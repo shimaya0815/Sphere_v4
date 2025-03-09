@@ -25,7 +25,8 @@ import {
   HiOutlineChevronDown,
   HiOutlineChevronUp,
   HiOutlineBriefcase,
-  HiOutlineTemplate
+  HiOutlineTemplate,
+  HiOutlineClipboardCheck
 } from 'react-icons/hi';
 
 const ClientDetail = ({ id, client: initialClient }) => {
