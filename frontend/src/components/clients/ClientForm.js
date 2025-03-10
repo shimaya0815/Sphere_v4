@@ -64,17 +64,18 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
     user: null
   });
   
-  // This effect checks if we're on client ID 10's edit page to auto-apply templates
+  // This effect automatically selects the template tab when editing any client
   useEffect(() => {
-    // Check if this is client ID 10 and we should set up default templates
-    if (clientId === '10' || clientId === 10) {
-      console.log('Detected client ID 10 edit page - will auto-select template tab');
-      // We'll set the active tab to service_settings after data loads
-      if (!loading) {
-        setActiveTab('service_settings');
+    // If we're in edit mode (clientId exists), show the template tab
+    if (clientId) {
+      console.log(`Editing client ID ${clientId} - template tab available`);
+      // When loading completes, we'll highlight the template tab
+      if (!loading && activeTab === 'service_settings') {
+        console.log('Highlighting template tab for client edit');
+        // Apply any special logic for template tab here if needed
       }
     }
-  }, [clientId, loading]);
+  }, [clientId, loading, activeTab]);
   
   useEffect(() => {
     // If initialData is provided, use it

@@ -125,24 +125,32 @@ const ServiceCheckSettings = ({ clientId }) => {
   useEffect(() => {
     if (clientId) {
       console.log('ServiceCheckSettings initialized with client ID:', clientId);
-      fetchData();
+      
+      // 初期データ取得
+      fetchData().then(() => {
+        console.log('Initial data fetch completed, settings loaded');
+        
+        // クライアントテンプレートの有無をチェック
+        if (clientTemplates && clientTemplates.length === 0) {
+          console.log(`No templates found for client ID ${clientId}, applying default templates`);
+          // データ取得完了後に実行するため十分な遅延を設ける
+          setTimeout(() => {
+            setupDefaultTemplates();
+          }, 1000);
+        } else {
+          console.log(`Found ${clientTemplates.length} templates for client ID ${clientId}`);
+        }
+      }).catch(err => {
+        console.error('Error during initial data fetch:', err);
+      });
       
       // テンプレートを自動で有効化
       setSettings(prevSettings => ({
         ...prevSettings,
         templates_enabled: true
       }));
-      
-      // クライアントID 10の場合は、自動的にデフォルトテンプレートを設定
-      if (clientId === '10' || clientId === 10) {
-        console.log('Auto-applying default templates for client ID 10');
-        // データ取得後に実行するため少し遅延させる
-        setTimeout(() => {
-          setupDefaultTemplates();
-        }, 1000);
-      }
     }
-  }, [clientId]);
+  }, [clientId, clientTemplates]);
   
   // デフォルトのテンプレートを一括設定する関数
   const setupDefaultTemplates = async () => {
@@ -257,24 +265,20 @@ const ServiceCheckSettings = ({ clientId }) => {
           // 最新データを再取得
           fetchData();
           
-          // クライアントID 10の場合は自動保存する
-          if (clientId === '10' || clientId === 10) {
-            console.log('Auto-saving template settings for client ID 10');
-            setTimeout(() => {
-              handleSave();
-            }, 1500);
-          }
+          // 自動的にテンプレート設定を保存
+          console.log(`Auto-saving template settings for client ID ${clientId}`);
+          setTimeout(() => {
+            handleSave();
+          }, 1500);
         } else {
           toast.dismiss('default-templates');
           toast.info('すべてのテンプレートが既に設定されています');
           
-          // クライアントID 10の場合はすでに設定されていても保存を試みる
-          if (clientId === '10' || clientId === 10) {
-            console.log('Templates already exist, saving settings for client ID 10');
-            setTimeout(() => {
-              handleSave();
-            }, 1000);
-          }
+          // 既にテンプレートが存在する場合も設定を保存
+          console.log(`Templates already exist, saving settings for client ID ${clientId}`);
+          setTimeout(() => {
+            handleSave();
+          }, 1000);
         }
       } catch (error) {
         console.error('Error applying default templates:', error);
@@ -350,21 +354,43 @@ const ServiceCheckSettings = ({ clientId }) => {
       // クライアントのテンプレート設定から各サービスの設定を抽出
       Object.entries(SERVICE_CATEGORIES).forEach(([serviceKey, category]) => {
         // タイトルまたはカテゴリーでマッチするテンプレートを検索
+        console.log(`Searching for template for ${SERVICE_DISPLAY_NAMES[serviceKey]} in:`, clientTemplatesArray);
+        
         const templateForService = clientTemplatesArray.find(t => {
           if (!t) return false;
           
           // まず、タイトルで完全一致を試みる
           const exactTitleMatch = t.title === SERVICE_DISPLAY_NAMES[serviceKey];
-          if (exactTitleMatch) return true;
+          if (exactTitleMatch) {
+            console.log(`Found exact title match for ${SERVICE_DISPLAY_NAMES[serviceKey]}`);
+            return true;
+          }
+          
+          // DEFAULT_TEMPLATE_TITLESとの一致を確認
+          const defaultTitleMatch = t.title === DEFAULT_TEMPLATE_TITLES[serviceKey];
+          if (defaultTitleMatch) {
+            console.log(`Found default title match for ${SERVICE_DISPLAY_NAMES[serviceKey]}`);
+            return true;
+          }
           
           // 次にタイトルに含まれるか確認
           const titleMatch = t.title && t.title.includes(SERVICE_DISPLAY_NAMES[serviceKey]);
+          
+          // 逆にサービス名がタイトルに含まれるか確認
+          const reverseTitleMatch = SERVICE_DISPLAY_NAMES[serviceKey] && 
+                                  t.title && 
+                                  SERVICE_DISPLAY_NAMES[serviceKey].includes(t.title);
           
           // カテゴリ名で確認
           const categoryMatch = t.category === category || 
                                (t.category?.name && t.category.name === category);
           
-          return titleMatch || categoryMatch;
+          const isMatch = titleMatch || reverseTitleMatch || categoryMatch;
+          if (isMatch) {
+            console.log(`Found partial match for ${SERVICE_DISPLAY_NAMES[serviceKey]}: ${t.title}`);
+          }
+          
+          return isMatch;
         });
         
         if (templateForService) {
