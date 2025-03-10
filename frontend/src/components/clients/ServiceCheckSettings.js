@@ -135,54 +135,7 @@ const ServiceCheckSettings = ({ clientId }) => {
     }
   }, [clientId]);
   
-  // デフォルトのテンプレートを作成関数を定義
-  const createDefaultTemplates = async () => {
-    if (clientId) {
-      console.log('Creating default templates for new client:', clientId);
-      // テンプレートの使用を有効化
-      setSettings(prev => ({
-        ...prev,
-        templates_enabled: true
-      }));
-      // スタート状態を表示
-      toast.loading('デフォルトのテンプレートを準備中...', { id: 'default-templates' });
-      
-      const results = [];
-      
-      // 各サービスのテンプレートを順番に作成
-      for (const [service, serviceSettings] of Object.entries(settings)) {
-        if (service === 'templates_enabled') continue;
-        
-        // 常に有効として扱う
-        try {
-          const template = await createTemplateForService(service, {...serviceSettings, enabled: true});
-          if (template) {
-            results.push(template);
-            // 設定を更新
-            handleServiceChange(service, 'template_id', template.id);
-          }
-        } catch (error) {
-          console.error(`Error creating default template for ${service}:`, error);
-        }
-        
-        // 各テンプレート作成間に少し待機（APIへの負荷軽減）
-        await new Promise(resolve => setTimeout(resolve, 300));
-      }
-        
-      // すべて作成完了
-      if (results.length > 0) {
-        toast.success(`${results.length}個のデフォルトテンプレートを作成しました`, { id: 'default-templates' });
-        
-        // クライアントテンプレート一覧を更新
-        setClientTemplates(prevTemplates => [...prevTemplates, ...results]);
-        
-        // 最新データを再取得
-        fetchData();
-      } else {
-        toast.dismiss('default-templates');
-      }
-    }
-  };
+  // この関数はもう使いません - すべて自動化されています
   
   const fetchData = async () => {
     setLoading(true);
