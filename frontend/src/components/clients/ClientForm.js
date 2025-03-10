@@ -290,11 +290,29 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
                   continue;
                 }
                 
-                // マッチするスケジュールを検索
-                let schedule = schedules.find(s => s.name === mapping.schedule);
+                // スケジュールを再取得して最新のリストを確認
+                let latestSchedules;
+                try {
+                  const schedulesResponse = await clientsApi.getTaskTemplateSchedules();
+                  latestSchedules = Array.isArray(schedulesResponse) ? schedulesResponse : [];
+                  console.log("Latest schedules before creating:", latestSchedules);
+                } catch (err) {
+                  console.error("Error fetching latest schedules:", err);
+                  latestSchedules = schedules;
+                }
                 
-                // スケジュールが見つからない場合は新規作成
-                if (!schedule) {
+                // 名前の完全一致または部分一致でスケジュールを検索
+                let schedule = latestSchedules.find(s => 
+                  s.name === mapping.schedule || 
+                  (s.name && mapping.schedule && (
+                    s.name.includes(mapping.schedule) || 
+                    mapping.schedule.includes(s.name)
+                  ))
+                );
+                
+                if (schedule) {
+                  console.log(`Found matching schedule for ${mapping.schedule}:`, schedule);
+                } else {
                   console.log(`No matching schedule found for ${mapping.schedule}, creating new one...`);
                   
                   try {
@@ -305,9 +323,13 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
                                        
                     const recurrence = mapping.schedule === "決算スケジュール" ? "yearly" : "monthly";
                     
+                    // 一意なスケジュール名を生成（重複回避）
+                    const timestamp = new Date().getTime().toString().slice(-4);
+                    const uniqueName = `${mapping.schedule}_${timestamp}`;
+                    
                     // スケジュールデータを準備
                     const scheduleData = {
-                      name: mapping.schedule,
+                      name: uniqueName,
                       schedule_type: scheduleType,
                       recurrence: recurrence
                     };
@@ -334,8 +356,35 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
                     schedule = newSchedule;
                   } catch (schErr) {
                     console.error(`Error creating schedule for ${mapping.schedule}:`, schErr);
-                    console.log(`Skipping template creation due to schedule error`);
-                    continue;
+                    
+                    // エラーが重複キーのエラーの場合は、既存のスケジュールを再度検索
+                    if (schErr.response && schErr.response.data && 
+                        (schErr.response.data.includes('duplicate key') || 
+                         schErr.response.data.includes('already exists'))) {
+                      console.log("Duplicate key error detected, trying to find existing schedule");
+                      
+                      try {
+                        // 最新のスケジュールを再取得
+                        const refreshedSchedules = await clientsApi.getTaskTemplateSchedules();
+                        const existingSchedule = Array.isArray(refreshedSchedules) ? 
+                          refreshedSchedules.find(s => s.name === mapping.schedule) : null;
+                          
+                        if (existingSchedule) {
+                          console.log(`Found existing schedule after error:`, existingSchedule);
+                          schedule = existingSchedule;
+                          // 見つかったのでcontinueしない
+                        } else {
+                          console.log(`Still cannot find schedule for ${mapping.schedule}, skipping...`);
+                          continue; // テンプレート作成をスキップ
+                        }
+                      } catch (refreshErr) {
+                        console.error("Error refreshing schedules after duplicate key error:", refreshErr);
+                        continue; // テンプレート作成をスキップ
+                      }
+                    } else {
+                      console.log(`Skipping template creation due to schedule error`);
+                      continue; // テンプレート作成をスキップ
+                    }
                   }
                 }
                 
