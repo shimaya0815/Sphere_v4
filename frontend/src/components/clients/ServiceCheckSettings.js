@@ -61,7 +61,7 @@ const DEFAULT_TEMPLATE_TITLES = {
   tax_return: '決算・法人税申告業務',
   income_tax: '源泉所得税納付業務',
   residence_tax: '住民税納付業務',
-  social_insurance: '社会保険対応業務'
+  social_insurance: '社会保険手続き'
 };
 
 // デフォルトのテンプレート説明
@@ -1233,7 +1233,11 @@ const ServiceCheckSettings = ({ clientId }) => {
                         .filter(t => t && (
                           t.title === SERVICE_DISPLAY_NAMES[service] || 
                           t.title === DEFAULT_TEMPLATE_TITLES[service] ||
-                          (t.title && t.title.includes(SERVICE_DISPLAY_NAMES[service]))
+                          (t.title && t.title.includes(SERVICE_DISPLAY_NAMES[service])) ||
+                          (service === 'social_insurance' && t.title && 
+                           (t.title.includes('社会保険') || t.title.includes('社保'))) ||
+                          (t.title && SERVICE_DISPLAY_NAMES[service] && 
+                           SERVICE_DISPLAY_NAMES[service].includes(t.title.split(' ')[0]))
                         ))
                         .map(template => (
                           <option key={`client-${template.id}`} value={template.id}>
@@ -1246,7 +1250,11 @@ const ServiceCheckSettings = ({ clientId }) => {
                         .filter(t => t && (
                           t.category === category || 
                           t.title?.includes(SERVICE_DISPLAY_NAMES[service]) ||
-                          t.title === DEFAULT_TEMPLATE_TITLES[service]
+                          t.title === DEFAULT_TEMPLATE_TITLES[service] ||
+                          (service === 'social_insurance' && t.title && 
+                           (t.title.includes('社会保険') || t.title.includes('社保'))) ||
+                          (t.title && SERVICE_DISPLAY_NAMES[service] && 
+                           SERVICE_DISPLAY_NAMES[service].includes(t.title?.split(' ')[0]))
                         ))
                         .map(template => (
                           <option key={template.id} value={template.id}>{template.title}</option>
