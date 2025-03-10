@@ -164,10 +164,53 @@ const clientsApi = {
   // Create task template schedule
   createTaskTemplateSchedule: async (scheduleData) => {
     try {
-      const response = await apiClient.post('/api/clients/task-template-schedules/', scheduleData);
+      const response = await apiClient.post('/api/clients/task-template-schedules/', scheduleData, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
       return response.data;
     } catch (error) {
       console.error('Error creating task template schedule:', error);
+      
+      // HTMLレスポンスをより詳細に解析してエラーメッセージを抽出
+      if (error.response && error.response.data && typeof error.response.data === 'string' && 
+          error.response.data.includes('<!DOCTYPE html>')) {
+        
+        // エラーメッセージを抽出
+        const htmlData = error.response.data;
+        let errorMsg = "サーバーエラーが発生しました";
+        
+        // integrity error (duplicate key) の検出
+        if (htmlData.includes('IntegrityError') && 
+            (htmlData.includes('duplicate key') || htmlData.includes('already exists'))) {
+          
+          // 情報を付加したエラーオブジェクトを作成
+          const enhancedError = new Error('重複キーエラー：同じ名前のスケジュールが既に存在します');
+          enhancedError.response = error.response;
+          enhancedError.isDuplicateKeyError = true;
+          enhancedError.originalError = error;
+          enhancedError.originalData = htmlData;
+          
+          console.warn('重複キーエラーを検出しました。既存のスケジュールを検索してください。');
+          throw enhancedError;
+        }
+        
+        // エラーメッセージの抽出を試みる
+        const exceptionMatch = htmlData.match(/<pre class="exception_value">(.*?)<\/pre>/s);
+        if (exceptionMatch && exceptionMatch[1]) {
+          errorMsg = exceptionMatch[1].trim();
+        }
+        
+        // 拡張エラーオブジェクト
+        const enhancedError = new Error(errorMsg);
+        enhancedError.response = error.response;
+        enhancedError.originalError = error;
+        
+        throw enhancedError;
+      }
+      
       throw error;
     }
   },
