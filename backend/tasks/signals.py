@@ -15,5 +15,5 @@ def create_default_task_metadata(sender, instance, created, **kwargs):
         TaskStatus.create_defaults(instance)
         TaskPriority.create_defaults(instance)
         
-        # 注: 「標準月次チェック」と「記帳代行作業」のデフォルトテンプレートは
-        # 要件に基づき削除しました。テンプレートは setup_templates コマンドで作成されます。
+        # テンプレートは setup_templates コマンドで作成されるため、
+        # ここでは基本的なタスクメタデータの作成のみを行う
