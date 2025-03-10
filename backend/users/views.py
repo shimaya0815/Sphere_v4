@@ -83,10 +83,52 @@ class BusinessAuthTokenView(APIView):
             user.save()
             
             # ビジネスを作成した後、タスク関連のメタデータを作成
-            from tasks.models import TaskCategory, TaskStatus, TaskPriority
+            from tasks.models import TaskCategory, TaskStatus, TaskPriority, Task
+            from clients.models import TaskTemplateSchedule, ClientTaskTemplate
             TaskCategory.create_defaults(business)
             TaskStatus.create_defaults(business)
             TaskPriority.create_defaults(business)
+            
+            # デフォルトのタスクテンプレートを作成
+            try:
+                # デフォルトカテゴリの取得
+                default_category = TaskCategory.objects.filter(business=business).first()
+                default_priority = TaskPriority.objects.filter(business=business).first()
+                
+                # デフォルトのスケジュール作成
+                default_schedule = TaskTemplateSchedule.objects.create(
+                    name="標準スケジュール",
+                    schedule_type="monthly_start",
+                    recurrence="monthly",
+                    creation_day=1,
+                    deadline_day=10
+                )
+                
+                # ビジネス用のデフォルトテンプレートを作成
+                template_data = {
+                    'title': "標準タスクテンプレート",
+                    'description': "システムが自動生成した標準テンプレートです",
+                    'category': default_category,
+                    'priority': default_priority,
+                    'schedule': default_schedule,
+                    'is_active': True
+                }
+                
+                # グローバルなタスクテンプレートを作成し、それをビジネスのデフォルトとして設定
+                Task.objects.create(
+                    title="標準タスク",
+                    description="自動生成された標準タスク",
+                    business=business,
+                    is_template=True,
+                    category=default_category,
+                    priority=default_priority
+                )
+                
+                print(f"Default task templates created for business: {business.name}")
+            except Exception as e:
+                print(f"Error creating default templates: {e}")
+                # エラーがあっても続行
+                pass
             
             # Ensure workspace exists
             from business.models import Workspace
