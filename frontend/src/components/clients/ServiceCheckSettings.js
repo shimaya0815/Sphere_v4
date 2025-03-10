@@ -136,9 +136,14 @@ const ServiceCheckSettings = ({ clientId }) => {
   
   // デフォルトのテンプレートを作成
   useEffect(() => {
-    // クライアントが設定されていて、テンプレートが有効な場合、デフォルトテンプレートを作成
+    // クライアントが設定されていれば、常にテンプレートを適用する
     const createDefaultTemplates = async () => {
-      if (clientId && settings.templates_enabled) {
+      if (clientId) {
+        // テンプレートの使用を有効化
+        setSettings(prev => ({
+          ...prev,
+          templates_enabled: true
+        }));
         // スタート状態を表示
         toast.loading('デフォルトのテンプレートを準備中...', { id: 'default-templates' });
         
