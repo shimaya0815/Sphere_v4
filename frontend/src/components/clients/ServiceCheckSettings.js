@@ -121,10 +121,17 @@ const ServiceCheckSettings = ({ clientId }) => {
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
   
-  // 初期データの取得
+  // 初期データの取得 - コンポーネントのマウント時に1回だけ実行
   useEffect(() => {
     if (clientId) {
       console.log('ServiceCheckSettings initialized with client ID:', clientId);
+      setLoading(true);
+      
+      // テンプレートを自動で有効化
+      setSettings(prevSettings => ({
+        ...prevSettings,
+        templates_enabled: true
+      }));
       
       // 初期データ取得
       fetchData().then(() => {
@@ -139,18 +146,23 @@ const ServiceCheckSettings = ({ clientId }) => {
           }, 1000);
         } else {
           console.log(`Found ${clientTemplates.length} templates for client ID ${clientId}`);
+          // 明示的にローディング状態を解除
+          setLoading(false);
         }
       }).catch(err => {
         console.error('Error during initial data fetch:', err);
+        // エラー時にもローディング状態を解除
+        setLoading(false);
+        
+        // エラー通知
+        toast('テンプレート情報の取得に失敗しました', {
+          icon: '❌',
+          style: { background: '#FEE', color: '#E00' }
+        });
       });
-      
-      // テンプレートを自動で有効化
-      setSettings(prevSettings => ({
-        ...prevSettings,
-        templates_enabled: true
-      }));
     }
-  }, [clientId, clientTemplates]);
+    // clientTemplatesを依存配列から削除して無限ループを防ぐ
+  }, [clientId]);
   
   // デフォルトのテンプレートを一括設定する関数
   const setupDefaultTemplates = async () => {
@@ -302,6 +314,9 @@ const ServiceCheckSettings = ({ clientId }) => {
           icon: '❌',
           style: { background: '#FEE', color: '#E00' }
         });
+      } finally {
+        // 処理完了後は必ずローディング状態を解除
+        setLoading(false);
       }
     }
   };
