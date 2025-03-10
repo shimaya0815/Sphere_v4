@@ -170,6 +170,68 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
         console.log('Full response structure:', JSON.stringify(newClient));
         
         if (newClient && newClient.id) {
+          // 新規クライアント作成後に自動的にタスクテンプレートを適用する処理
+          try {
+            console.log('Automatically applying default templates for new client:', newClient.id);
+            // クライアントのタスクテンプレート一覧を取得
+            const clientTemplates = await clientsApi.getClientTaskTemplates(newClient.id);
+            
+            // タスクテンプレートが存在しない場合のみデフォルトを適用
+            if (!clientTemplates || clientTemplates.length === 0) {
+              console.log('No existing templates found, creating defaults');
+              
+              // 利用可能なテンプレートとスケジュールを取得
+              const [templates, schedules] = await Promise.all([
+                clientsApi.getTaskTemplates(),
+                clientsApi.getTaskTemplateSchedules()
+              ]);
+              
+              // デフォルトテンプレートの各サービスに対する設定
+              const services = ['monthly_check', 'bookkeeping', 'tax_return', 'income_tax', 'residence_tax', 'social_insurance'];
+              const serviceDisplayNames = {
+                monthly_check: '月次チェック',
+                bookkeeping: '記帳代行',
+                tax_return: '税務申告書作成',
+                income_tax: '源泉所得税',
+                residence_tax: '住民税対応',
+                social_insurance: '社会保険対応'
+              };
+              
+              // 各サービスに対してテンプレートを作成
+              for (const service of services) {
+                const title = serviceDisplayNames[service];
+                
+                // マッチするテンプレートを探す
+                const template = Array.isArray(templates) ? 
+                  templates.find(t => t.title === title || t.template_name === title) : null;
+                
+                if (template) {
+                  // マッチするスケジュールを探す
+                  const scheduleName = `${title}スケジュール`;
+                  const schedule = Array.isArray(schedules) ?
+                    schedules.find(s => s.name === scheduleName) : null;
+                  
+                  if (schedule) {
+                    // テンプレートを作成
+                    await clientsApi.createClientTaskTemplate(newClient.id, {
+                      title: title,
+                      description: `${title}のタスクテンプレート`,
+                      template_task: template.id,
+                      schedule: schedule.id,
+                      is_active: true
+                    });
+                    console.log(`Created template for ${title} with schedule ${scheduleName}`);
+                  }
+                }
+              }
+            } else {
+              console.log('Client already has templates, skipping default creation');
+            }
+          } catch (templateError) {
+            console.error('Error setting up default templates:', templateError);
+            // テンプレート適用エラーでもクライアント作成は続行
+          }
+          
           toast.success('新規クライアントを作成しました');
           navigate(`/clients/${newClient.id}`);
         } else {
