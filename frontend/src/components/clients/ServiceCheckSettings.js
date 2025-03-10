@@ -324,6 +324,8 @@ const ServiceCheckSettings = ({ clientId }) => {
   const fetchData = async () => {
     setLoading(true);
     
+    console.log('Fetching data for client ID:', clientId);
+    
     try {
       // テンプレートとスケジュールの取得（非同期で並列取得）
       // エラーがあっても続行できるよう、各APIは独立して呼び出す
@@ -348,8 +350,10 @@ const ServiceCheckSettings = ({ clientId }) => {
       
       try {
         if (clientId) {
+          console.log(`Fetching client templates for client ID ${clientId}...`);
           const clientTemplatesData = await clientsApi.getClientTaskTemplates(clientId);
           clientTemplatesArray = Array.isArray(clientTemplatesData) ? clientTemplatesData : [];
+          console.log(`Retrieved ${clientTemplatesArray.length} client templates:`, clientTemplatesArray);
         }
       } catch (error) {
         console.error('Error fetching client task templates:', error);
@@ -385,10 +389,19 @@ const ServiceCheckSettings = ({ clientId }) => {
         ...initialSettings
       };
       
+      console.log('==== CURRENT STATE DEBUG INFO ====');
+      console.log(`Client ID: ${clientId}`);
+      console.log('Client templates array:', clientTemplatesArray);
+      console.log('Current settings:', settings);
+      console.log('Templates array:', templatesArray);
+      console.log('Schedules array:', schedulesArray);
+      console.log('Global templates:', globalTemplatesArray);
+      console.log('================================');
+      
       // クライアントのテンプレート設定から各サービスの設定を抽出
       Object.entries(SERVICE_CATEGORIES).forEach(([serviceKey, category]) => {
         // タイトルまたはカテゴリーでマッチするテンプレートを検索
-        console.log(`Searching for template for ${SERVICE_DISPLAY_NAMES[serviceKey]} in:`, clientTemplatesArray);
+        console.log(`Searching for template for ${SERVICE_DISPLAY_NAMES[serviceKey]} (${DEFAULT_TEMPLATE_TITLES[serviceKey]}) in client templates...`);
         
         const templateForService = clientTemplatesArray.find(t => {
           if (!t) return false;
@@ -428,12 +441,15 @@ const ServiceCheckSettings = ({ clientId }) => {
         });
         
         if (templateForService) {
+          console.log(`Found template for ${serviceKey}:`, templateForService);
+          
           // スケジュールを探す - IDまたはオブジェクトでの参照に対応
           const scheduleId = typeof templateForService.schedule === 'object' 
             ? templateForService.schedule?.id 
             : templateForService.schedule;
             
           const schedule = schedulesArray.find(s => s.id === scheduleId);
+          console.log(`Schedule for ${serviceKey}:`, schedule);
           
           newSettings[serviceKey] = {
             cycle: schedule ? getCycleFromSchedule(schedule, serviceKey) : DEFAULT_CYCLES[serviceKey],
@@ -441,8 +457,14 @@ const ServiceCheckSettings = ({ clientId }) => {
             template_id: templateForService.id,
             customized: templateForService.customized || false
           };
+          
+          console.log(`Set settings for ${serviceKey}:`, newSettings[serviceKey]);
+        } else {
+          console.log(`No matching template found for ${serviceKey}`);
         }
       });
+      
+      console.log('Final settings after extraction:', newSettings);
       
       setSettings(newSettings);
     } catch (error) {
@@ -1205,8 +1227,27 @@ const ServiceCheckSettings = ({ clientId }) => {
                       disabled={!settings.templates_enabled || !settings[service]?.enabled}
                     >
                       <option value="">テンプレート選択</option>
+                      
+                      {/* クライアント固有のテンプレートがある場合はそれを優先表示 */}
+                      {Array.isArray(clientTemplates) && clientTemplates
+                        .filter(t => t && (
+                          t.title === SERVICE_DISPLAY_NAMES[service] || 
+                          t.title === DEFAULT_TEMPLATE_TITLES[service] ||
+                          (t.title && t.title.includes(SERVICE_DISPLAY_NAMES[service]))
+                        ))
+                        .map(template => (
+                          <option key={`client-${template.id}`} value={template.id}>
+                            {template.title} (クライアント固有)
+                          </option>
+                      ))}
+                      
+                      {/* 次にグローバルテンプレートを表示 */}
                       {Array.isArray(templates) && templates
-                        .filter(t => t && (t.category === category || t.title?.includes(SERVICE_DISPLAY_NAMES[service])))
+                        .filter(t => t && (
+                          t.category === category || 
+                          t.title?.includes(SERVICE_DISPLAY_NAMES[service]) ||
+                          t.title === DEFAULT_TEMPLATE_TITLES[service]
+                        ))
                         .map(template => (
                           <option key={template.id} value={template.id}>{template.title}</option>
                       ))}
