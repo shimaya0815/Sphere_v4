@@ -127,27 +127,11 @@ const ServiceCheckSettings = ({ clientId }) => {
       console.log('ServiceCheckSettings initialized with client ID:', clientId);
       fetchData();
       
-      // 新規クライアント作成時はテンプレートを自動で有効化
+      // テンプレートを自動で有効化
       setSettings(prevSettings => ({
         ...prevSettings,
         templates_enabled: true
       }));
-      
-      // 強制的にデフォルトテンプレートを適用する処理を実行
-      // より確実に適用するため、まずテンプレートをチェックしてから処理
-      setTimeout(async () => {
-        await fetchData(); // 最新データを取得
-        
-        // もしクライアントテンプレートが空の場合のみデフォルト作成を行う
-        setTimeout(() => {
-          if (clientTemplates.length === 0) {
-            console.log('No client templates found, creating defaults...');
-            createDefaultTemplates();
-          } else {
-            console.log('Client templates already exist:', clientTemplates.length);
-          }
-        }, 500);
-      }, 1000);
     }
   }, [clientId]);
   

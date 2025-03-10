@@ -378,10 +378,170 @@ class UserCreateView(APIView):
                         logger.info(f"Created business for user: {business.name} (ID: {business.id})")
                         
                         # タスク関連のメタデータを作成
-                        from tasks.models import TaskCategory, TaskStatus, TaskPriority
+                        from tasks.models import TaskCategory, TaskStatus, TaskPriority, Task
+                        from clients.models import TaskTemplateSchedule, ClientTaskTemplate
                         TaskCategory.create_defaults(business)
                         TaskStatus.create_defaults(business)
                         TaskPriority.create_defaults(business)
+                        
+                        # デフォルトのタスクテンプレートを作成
+                        try:
+                            # デフォルトカテゴリの取得
+                            default_category = TaskCategory.objects.filter(business=business).first()
+                            bookkeeping_category = TaskCategory.objects.filter(business=business, name="記帳代行").first() or default_category
+                            tax_category = TaskCategory.objects.filter(business=business, name="決算・申告").first() or default_category
+                            insurance_category = TaskCategory.objects.filter(business=business, name="給与計算").first() or default_category
+                            
+                            # 優先度の取得
+                            default_priority = TaskPriority.objects.filter(business=business).first()
+                            
+                            # ステータスの取得
+                            not_started_status = TaskStatus.objects.filter(business=business, name="未着手").first()
+                            
+                            # デフォルトのスケジュール作成
+                            schedules = {
+                                "monthly": TaskTemplateSchedule.objects.create(
+                                    name="月次スケジュール",
+                                    business=business,
+                                    schedule_type="monthly_start",
+                                    recurrence="monthly",
+                                    creation_day=1,
+                                    deadline_day=10,
+                                    reference_date_type="execution_date",
+                                    creation_date_offset=0,
+                                    deadline_date_offset=5
+                                ),
+                                "quarterly": TaskTemplateSchedule.objects.create(
+                                    name="四半期スケジュール",
+                                    business=business,
+                                    schedule_type="quarterly",
+                                    recurrence="quarterly",
+                                    creation_day=1,
+                                    deadline_day=15,
+                                    reference_date_type="execution_date",
+                                    creation_date_offset=0,
+                                    deadline_date_offset=15
+                                ),
+                                "yearly": TaskTemplateSchedule.objects.create(
+                                    name="年次スケジュール",
+                                    business=business,
+                                    schedule_type="fiscal_relative",
+                                    recurrence="yearly",
+                                    creation_day=1,
+                                    deadline_day=28,
+                                    fiscal_date_reference="end_date",
+                                    reference_date_type="fiscal_end",
+                                    creation_date_offset=0,
+                                    deadline_date_offset=60
+                                )
+                            }
+                            
+                            # 各サービス用のテンプレートを作成
+                            template_configs = [
+                                {
+                                    "title": "月次チェック",
+                                    "description": "毎月実施する標準チェック項目",
+                                    "category": default_category,
+                                    "schedule": schedules["monthly"],
+                                    "child_tasks": [
+                                        {"title": "帳簿・台帳チェック", "description": "月次の帳簿確認と台帳との整合性チェック"},
+                                        {"title": "残高確認", "description": "現金・預金・売掛金等の残高確認"},
+                                        {"title": "請求書確認", "description": "未払い・未収の請求書確認"}
+                                    ]
+                                },
+                                {
+                                    "title": "記帳代行",
+                                    "description": "月次の記帳代行業務",
+                                    "category": bookkeeping_category,
+                                    "schedule": schedules["monthly"],
+                                    "child_tasks": [
+                                        {"title": "仕訳入力", "description": "月次の仕訳入力作業"},
+                                        {"title": "経費精算", "description": "経費精算処理と確認"},
+                                        {"title": "試算表作成", "description": "月次試算表の作成と確認"}
+                                    ]
+                                },
+                                {
+                                    "title": "税務申告書作成",
+                                    "description": "確定申告業務",
+                                    "category": tax_category,
+                                    "schedule": schedules["yearly"],
+                                    "child_tasks": [
+                                        {"title": "決算準備", "description": "期末決算の準備作業と資料収集"},
+                                        {"title": "決算書作成", "description": "確定決算書の作成"},
+                                        {"title": "申告書作成", "description": "確定申告書の作成と提出"}
+                                    ]
+                                },
+                                {
+                                    "title": "源泉所得税",
+                                    "description": "源泉所得税の納付手続き",
+                                    "category": tax_category,
+                                    "schedule": schedules["monthly"],
+                                    "child_tasks": [
+                                        {"title": "源泉税計算", "description": "源泉所得税の計算"},
+                                        {"title": "納付書作成", "description": "源泉所得税の納付書作成"},
+                                        {"title": "納付", "description": "源泉所得税の納付手続き"}
+                                    ]
+                                },
+                                {
+                                    "title": "住民税対応",
+                                    "description": "従業員の住民税納付手続き",
+                                    "category": tax_category,
+                                    "schedule": schedules["monthly"],
+                                    "child_tasks": [
+                                        {"title": "住民税通知確認", "description": "住民税決定通知書の確認"},
+                                        {"title": "給与天引き設定", "description": "給与システムへの住民税設定"},
+                                        {"title": "納付手続き", "description": "住民税の納付手続き"}
+                                    ]
+                                },
+                                {
+                                    "title": "社会保険対応",
+                                    "description": "社会保険関連手続き",
+                                    "category": insurance_category,
+                                    "schedule": schedules["monthly"],
+                                    "child_tasks": [
+                                        {"title": "算定基礎確認", "description": "社会保険の算定基礎の確認"},
+                                        {"title": "保険料計算", "description": "社会保険料の計算"},
+                                        {"title": "書類提出", "description": "社会保険関連書類の提出"}
+                                    ]
+                                }
+                            ]
+                            
+                            # テンプレートを作成
+                            for config in template_configs:
+                                # メインテンプレートを作成
+                                template = Task.objects.create(
+                                    title=config["title"],
+                                    description=config["description"],
+                                    business=business,
+                                    workspace=workspace,
+                                    is_template=True,
+                                    template_name=config["title"],
+                                    category=config["category"],
+                                    priority=default_priority,
+                                    status=not_started_status
+                                )
+                                
+                                # 内包タスクを作成
+                                for index, child_task in enumerate(config.get("child_tasks", [])):
+                                    from tasks.models import TemplateChildTask
+                                    TemplateChildTask.objects.create(
+                                        parent_template=template,
+                                        title=child_task["title"],
+                                        description=child_task["description"],
+                                        order=index + 1,
+                                        business=business,
+                                        category=config["category"],
+                                        priority=default_priority,
+                                        status=not_started_status
+                                    )
+                            
+                            logger.info(f"Default task templates created for business: {business.name}")
+                        except Exception as e:
+                            logger.error(f"Error creating default templates: {e}")
+                            import traceback
+                            traceback.print_exc()
+                            # エラーがあっても続行
+                            pass
                         
                         # ビジネスのsave()メソッドでワークスペースが自動作成されるはずだが、
                         # 念のため明示的に作成も試みる
