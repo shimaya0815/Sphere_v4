@@ -383,27 +383,153 @@ class UserCreateView(APIView):
                         TaskStatus.create_defaults(business)
                         TaskPriority.create_defaults(business)
                         
-                        # setup_templates コマンドを使用してテンプレートを作成
+                        # デフォルトのタスクテンプレートを作成
                         try:
-                            # 非同期でテンプレート作成を実行（サインアップのレスポンス時間を短縮するため）
-                            import threading
+                            # デフォルトカテゴリの取得
+                            default_category = TaskCategory.objects.filter(business=business).first()
+                            bookkeeping_category = TaskCategory.objects.filter(business=business, name="記帳代行").first() or default_category
+                            tax_category = TaskCategory.objects.filter(business=business, name="決算・申告").first() or default_category
+                            insurance_category = TaskCategory.objects.filter(business=business, name="給与計算").first() or default_category
                             
-                            def create_templates_for_business():
+                            # 優先度の取得
+                            default_priority = TaskPriority.objects.filter(business=business).first()
+                            
+                            # ステータスの取得
+                            not_started_status = TaskStatus.objects.filter(business=business, name="未着手").first()
+                            
+                            # デフォルトのスケジュール作成
+                            from tasks.models import TaskSchedule
+                            schedules = {
+                                "monthly_start": TaskSchedule.objects.create(
+                                    name="月次スケジュール",
+                                    business=business,
+                                    schedule_type="monthly_start",
+                                    recurrence="monthly",
+                                    reference_date_type="execution_date",
+                                    creation_date_offset=0,
+                                    deadline_date_offset=5
+                                ),
+                                "fiscal": TaskSchedule.objects.create(
+                                    name="決算スケジュール",
+                                    business=business,
+                                    schedule_type="fiscal_relative",
+                                    recurrence="yearly",
+                                    reference_date_type="fiscal_end",
+                                    creation_date_offset=0,
+                                    deadline_date_offset=60
+                                ),
+                                "monthly_end": TaskSchedule.objects.create(
+                                    name="月末スケジュール",
+                                    business=business,
+                                    schedule_type="monthly_end",
+                                    recurrence="monthly",
+                                    reference_date_type="execution_date",
+                                    creation_date_offset=0,
+                                    deadline_date_offset=5
+                                )
+                            }
+                            
+                            # ワークスペースの確認
+                            workspace = business.workspaces.first()
+                            
+                            # 各テンプレートの作成
+                            templates = [
+                                # 月次処理チェック
+                                {
+                                    "name": "月次処理チェック",
+                                    "description": "毎月の会計処理状況を確認します。",
+                                    "category": default_category,
+                                    "schedule": schedules["monthly_start"],
+                                    "child_tasks": [
+                                        {"title": "帳簿確認", "description": "帳簿の確認と更新", "order": 1},
+                                        {"title": "残高確認", "description": "残高の確認と更新", "order": 2},
+                                        {"title": "請求書確認", "description": "請求書の確認と発行", "order": 3}
+                                    ]
+                                },
+                                # 記帳代行作業
+                                {
+                                    "name": "記帳代行作業",
+                                    "description": "月次の記帳代行業務を行います。",
+                                    "category": bookkeeping_category,
+                                    "schedule": schedules["monthly_start"],
+                                    "child_tasks": [
+                                        {"title": "領収書整理", "description": "領収書の整理と分類", "order": 1},
+                                        {"title": "仕訳入力", "description": "会計データの仕訳入力", "order": 2},
+                                        {"title": "月次レポート", "description": "月次レポートの作成", "order": 3}
+                                    ]
+                                },
+                                # 決算・法人税申告業務
+                                {
+                                    "name": "決算・法人税申告業務",
+                                    "description": "決算期の法人税申告書作成業務を行います。",
+                                    "category": tax_category,
+                                    "schedule": schedules["fiscal"],
+                                    "child_tasks": [
+                                        {"title": "決算整理", "description": "決算整理仕訳の作成", "order": 1},
+                                        {"title": "決算書作成", "description": "決算書の作成", "order": 2},
+                                        {"title": "申告書作成", "description": "法人税申告書の作成", "order": 3}
+                                    ]
+                                },
+                                # 源泉所得税納付業務
+                                {
+                                    "name": "源泉所得税納付業務",
+                                    "description": "毎月の源泉所得税の納付手続きを行います。",
+                                    "category": tax_category,
+                                    "schedule": schedules["monthly_end"],
+                                    "child_tasks": [
+                                        {"title": "源泉税計算", "description": "源泉所得税の計算", "order": 1},
+                                        {"title": "納付書作成", "description": "納付書の作成", "order": 2},
+                                        {"title": "納付手続き", "description": "納付手続きの実施", "order": 3}
+                                    ]
+                                },
+                                # 住民税納付業務
+                                {
+                                    "name": "住民税納付業務",
+                                    "description": "従業員の住民税特別徴収の納付手続きを行います。",
+                                    "category": tax_category,
+                                    "schedule": schedules["monthly_start"],
+                                    "child_tasks": [
+                                        {"title": "住民税通知確認", "description": "住民税通知書の確認", "order": 1},
+                                        {"title": "給与天引き設定", "description": "給与システムへの反映", "order": 2},
+                                        {"title": "納付手続き", "description": "納付手続きの実施", "order": 3}
+                                    ]
+                                }
+                            ]
+                            
+                            # 一括でテンプレートを作成
+                            created_templates = []
+                            for template_config in templates:
                                 try:
-                                    from django.core.management import call_command
-                                    call_command('setup_templates', business_id=business.id)
-                                    logger.info(f"Default task templates created for business: {business.name}")
-                                except Exception as te:
-                                    logger.error(f"Error running setup_templates command: {str(te)}")
-                                    import traceback
-                                    traceback.print_exc()
+                                    template = Task.objects.create(
+                                        title=template_config["name"],
+                                        description=template_config["description"],
+                                        business=business,
+                                        workspace=workspace,
+                                        is_template=True,
+                                        template_name=template_config["name"],
+                                        category=template_config["category"],
+                                        priority=default_priority,
+                                        status=not_started_status
+                                    )
+                                    created_templates.append(template)
+                                    
+                                    # 内包タスクを作成
+                                    for task_data in template_config["child_tasks"]:
+                                        from tasks.models import TemplateChildTask
+                                        TemplateChildTask.objects.create(
+                                            parent_template=template,
+                                            title=task_data["title"],
+                                            description=task_data["description"],
+                                            order=task_data["order"],
+                                            business=business,
+                                            category=template_config["category"],
+                                            priority=default_priority,
+                                            status=not_started_status
+                                        )
+                                except Exception as template_error:
+                                    logger.error(f"Error creating template {template_config['name']}: {str(template_error)}")
                             
-                            # 別スレッドでテンプレート作成を実行
-                            template_thread = threading.Thread(target=create_templates_for_business)
-                            template_thread.daemon = True  # メインスレッドが終了したら終了するように
-                            template_thread.start()
-                            logger.info(f"Started template creation thread for business: {business.name}")
-                            
+                            logger.info(f"Created {len(created_templates)} default templates for business: {business.name}")
                         except Exception as e:
                             logger.error(f"Error creating default templates: {e}")
                             import traceback
