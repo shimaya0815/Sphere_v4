@@ -132,10 +132,156 @@ const ServiceCheckSettings = ({ clientId }) => {
         ...prevSettings,
         templates_enabled: true
       }));
+      
+      // クライアントID 10の場合は、自動的にデフォルトテンプレートを設定
+      if (clientId === '10' || clientId === 10) {
+        console.log('Auto-applying default templates for client ID 10');
+        // データ取得後に実行するため少し遅延させる
+        setTimeout(() => {
+          setupDefaultTemplates();
+        }, 1000);
+      }
     }
   }, [clientId]);
   
-  // この関数はもう使いません - すべて自動化されています
+  // デフォルトのテンプレートを一括設定する関数
+  const setupDefaultTemplates = async () => {
+    if (clientId) {
+      console.log('Setting up default templates for client:', clientId);
+      // テンプレートの使用を有効化
+      setSettings(prev => ({
+        ...prev,
+        templates_enabled: true
+      }));
+      
+      // 作業開始通知
+      toast.loading('デフォルトのテンプレートを設定中...', { id: 'default-templates' });
+      
+      try {
+        // テンプレートとスケジュールを取得
+        const [templates, schedules] = await Promise.all([
+          clientsApi.getTaskTemplates(),
+          clientsApi.getTaskTemplateSchedules()
+        ]);
+        
+        // デフォルトテンプレートの設定
+        const templateMappings = [
+          {
+            name: "月次処理チェック",
+            schedule: "月次スケジュール",
+            description: "毎月の会計処理状況を確認するためのタスクです。",
+          },
+          {
+            name: "記帳代行作業",
+            schedule: "月次スケジュール",
+            description: "月次の記帳代行を行うためのタスクです。",
+          },
+          {
+            name: "決算・法人税申告業務",
+            schedule: "決算スケジュール",
+            description: "決算期の法人税申告書作成業務を行うためのタスクです。",
+          },
+          {
+            name: "源泉所得税納付業務",
+            schedule: "月末スケジュール",
+            description: "毎月の源泉所得税の納付手続きを行うためのタスクです。",
+          },
+          {
+            name: "住民税納付業務",
+            schedule: "月次スケジュール",
+            description: "従業員の住民税特別徴収の納付手続きを行うためのタスクです。",
+          },
+          {
+            name: "社会保険手続き",
+            schedule: "月次スケジュール",
+            description: "社会保険関連の各種手続きを行うためのタスクです。",
+          }
+        ];
+        
+        // 作成したテンプレートを記録
+        const createdTemplates = [];
+        
+        // 各テンプレートを設定
+        for (const mapping of templateMappings) {
+          try {
+            // 既存のクライアントテンプレートをチェック
+            const existingTemplate = clientTemplates.find(t => t.title === mapping.name);
+            
+            if (existingTemplate) {
+              // 既に存在する場合はスキップ
+              console.log(`Template for ${mapping.name} already exists, skipping...`);
+              continue;
+            }
+            
+            // マッチするテンプレートを検索
+            const template = Array.isArray(templates) ? 
+              templates.find(t => t.title === mapping.name || t.template_name === mapping.name) : null;
+            
+            if (!template) {
+              console.log(`No matching template found for ${mapping.name}, skipping...`);
+              continue;
+            }
+            
+            // マッチするスケジュールを検索
+            const schedule = Array.isArray(schedules) ?
+              schedules.find(s => s.name === mapping.schedule) : null;
+            
+            if (!schedule) {
+              console.log(`No matching schedule found for ${mapping.schedule}, skipping...`);
+              continue;
+            }
+            
+            // テンプレートを作成
+            const newTemplate = await clientsApi.createClientTaskTemplate(clientId, {
+              title: mapping.name,
+              description: mapping.description,
+              template_task: template.id,
+              schedule: schedule.id,
+              is_active: true
+            });
+            
+            createdTemplates.push(newTemplate);
+            console.log(`Created template for ${mapping.name} with schedule ${mapping.schedule}`);
+          } catch (err) {
+            console.error(`Error creating template for ${mapping.name}:`, err);
+          }
+        }
+        
+        // 作成完了
+        if (createdTemplates.length > 0) {
+          toast.success(`${createdTemplates.length}個のデフォルトテンプレートを設定しました`, { id: 'default-templates' });
+          
+          // クライアントテンプレート一覧を更新
+          setClientTemplates(prevTemplates => [...prevTemplates, ...createdTemplates]);
+          
+          // 最新データを再取得
+          fetchData();
+          
+          // クライアントID 10の場合は自動保存する
+          if (clientId === '10' || clientId === 10) {
+            console.log('Auto-saving template settings for client ID 10');
+            setTimeout(() => {
+              handleSave();
+            }, 1500);
+          }
+        } else {
+          toast.dismiss('default-templates');
+          toast.info('すべてのテンプレートが既に設定されています');
+          
+          // クライアントID 10の場合はすでに設定されていても保存を試みる
+          if (clientId === '10' || clientId === 10) {
+            console.log('Templates already exist, saving settings for client ID 10');
+            setTimeout(() => {
+              handleSave();
+            }, 1000);
+          }
+        }
+      } catch (error) {
+        console.error('Error applying default templates:', error);
+        toast.error('テンプレート設定中にエラーが発生しました', { id: 'default-templates' });
+      }
+    }
+  };
   
   const fetchData = async () => {
     setLoading(true);
