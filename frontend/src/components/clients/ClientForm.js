@@ -313,7 +313,7 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
           onClick={() => setActiveTab('service_settings')}
           type="button"
         >
-          サービス設定
+          タスクテンプレート
         </button>
       </div>
       
@@ -811,7 +811,7 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
           {clientId ? (
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="text-lg font-medium mb-4 flex items-center">
-                <HiOutlineClipboardCheck className="mr-2" /> サービス設定
+                <HiOutlineClipboardCheck className="mr-2" /> タスクテンプレート
               </h3>
               <ServiceCheckSettings clientId={clientId} />
             </div>
