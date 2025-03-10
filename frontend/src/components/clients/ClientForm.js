@@ -189,10 +189,30 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
             const clientTemplates = await clientsApi.getClientTaskTemplates(newClient.id);
             
             // 利用可能なテンプレートとスケジュールを取得
-            const [templates, schedules] = await Promise.all([
-              clientsApi.getTaskTemplates(),
-              clientsApi.getTaskTemplateSchedules()
-            ]);
+            let templatesData, schedulesData;
+            try {
+              [templatesData, schedulesData] = await Promise.all([
+                clientsApi.getTaskTemplates(),
+                clientsApi.getTaskTemplateSchedules()
+              ]);
+              
+              console.log('Templates API response:', templatesData);
+              console.log('Schedules API response:', schedulesData);
+            } catch (err) {
+              console.error('Error fetching templates or schedules:', err);
+              toast.error('テンプレートのフェッチに失敗しました');
+              return;
+            }
+            
+            // APIレスポンスを正規化してエラーを防ぐ
+            const templates = Array.isArray(templatesData) ? templatesData : 
+                             (templatesData && templatesData.results ? templatesData.results : []);
+            
+            const schedules = Array.isArray(schedulesData) ? schedulesData : 
+                             (schedulesData && schedulesData.results ? schedulesData.results : []);
+                             
+            console.log('Normalized templates:', templates);
+            console.log('Normalized schedules:', schedules);
             
             // デフォルトテンプレートの設定
             const templateMappings = [
@@ -246,6 +266,13 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
                   continue;
                 }
                 
+                // APIレスポンスが配列でない場合の対応
+                if (!Array.isArray(templates)) {
+                  console.error('Templates is not an array:', templates);
+                  console.log(`Cannot find template for ${mapping.name}, skipping...`);
+                  continue;
+                }
+                
                 // マッチするテンプレートを検索
                 const template = templates.find(t => 
                   t.title === mapping.name || t.template_name === mapping.name
@@ -253,6 +280,13 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
                 
                 if (!template) {
                   console.log(`No matching template found for ${mapping.name}, skipping...`);
+                  continue;
+                }
+                
+                // APIレスポンスが配列でない場合の対応
+                if (!Array.isArray(schedules)) {
+                  console.error('Schedules is not an array:', schedules);
+                  console.log(`Cannot find schedule for ${mapping.schedule}, skipping...`);
                   continue;
                 }
                 
