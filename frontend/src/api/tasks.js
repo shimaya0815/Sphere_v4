@@ -87,7 +87,7 @@ const tasksApi = {
   getTemplates: async () => {
     try {
       console.log('Fetching templates from API...');
-      const response = await apiClient.get('/api/tasks/templates/');
+      const response = await apiClient.get('/api/tasks/templates/?limit=100');
       console.log('Templates response:', response.data);
       
       // DRFのページネーション形式（results配列を含むオブジェクト）に対応
