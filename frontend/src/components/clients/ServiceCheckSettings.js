@@ -413,10 +413,16 @@ const ServiceCheckSettings = ({ clientId }) => {
       // 既存のスケジュールをもう一度チェック（APIから最新情報を取得）
       const schedulesResponse = await clientsApi.getTaskTemplateSchedules();
       const updatedSchedules = Array.isArray(schedulesResponse) ? schedulesResponse : [];
-      const existingSchedule = updatedSchedules.find(s => s.name === name);
+      
+      // 名前の完全一致または類似するスケジュールを探す（柔軟性を持たせる）
+      const existingSchedule = updatedSchedules.find(s => 
+        s.name === name || 
+        (s.name && name && s.name.includes(name.substring(0, 5))) ||
+        (name && s.name && name.includes(s.name.substring(0, 5)))
+      );
       
       if (existingSchedule) {
-        console.log(`Found existing schedule with name ${name}:`, existingSchedule);
+        console.log(`Found existing schedule with name ${existingSchedule.name} that matches ${name}:`, existingSchedule);
         return existingSchedule;
       }
       

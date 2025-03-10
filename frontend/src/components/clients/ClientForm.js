@@ -291,11 +291,52 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
                 }
                 
                 // マッチするスケジュールを検索
-                const schedule = schedules.find(s => s.name === mapping.schedule);
+                let schedule = schedules.find(s => s.name === mapping.schedule);
                 
+                // スケジュールが見つからない場合は新規作成
                 if (!schedule) {
-                  console.log(`No matching schedule found for ${mapping.schedule}, skipping...`);
-                  continue;
+                  console.log(`No matching schedule found for ${mapping.schedule}, creating new one...`);
+                  
+                  try {
+                    // スケジュールタイプとリカレンスを決定
+                    const scheduleType = mapping.schedule === "月次スケジュール" ? "monthly_start" : 
+                                       mapping.schedule === "月末スケジュール" ? "monthly_end" :
+                                       mapping.schedule === "決算スケジュール" ? "fiscal_relative" : "monthly_start";
+                                       
+                    const recurrence = mapping.schedule === "決算スケジュール" ? "yearly" : "monthly";
+                    
+                    // スケジュールデータを準備
+                    const scheduleData = {
+                      name: mapping.schedule,
+                      schedule_type: scheduleType,
+                      recurrence: recurrence
+                    };
+                    
+                    // スケジュールタイプに応じたデフォルト値を設定
+                    if (scheduleType === 'monthly_start') {
+                      scheduleData.creation_day = 1;  // 1日作成
+                      scheduleData.deadline_day = 5;  // 5日締め切り
+                    } else if (scheduleType === 'monthly_end') {
+                      scheduleData.creation_day = 25;  // 25日作成
+                      scheduleData.deadline_day = 10;  // 翌月10日締め切り
+                      scheduleData.deadline_next_month = true;
+                    } else if (scheduleType === 'fiscal_relative') {
+                      // 決算日基準の場合
+                      scheduleData.fiscal_date_reference = 'end_date';  // 終了日基準
+                      scheduleData.deadline_day = 60;  // 決算日から60日後
+                    }
+                    
+                    console.log(`Creating new schedule with data:`, scheduleData);
+                    
+                    // スケジュール作成APIを呼び出し
+                    const newSchedule = await clientsApi.createTaskTemplateSchedule(scheduleData);
+                    console.log(`Created new schedule:`, newSchedule);
+                    schedule = newSchedule;
+                  } catch (schErr) {
+                    console.error(`Error creating schedule for ${mapping.schedule}:`, schErr);
+                    console.log(`Skipping template creation due to schedule error`);
+                    continue;
+                  }
                 }
                 
                 // テンプレートを作成
