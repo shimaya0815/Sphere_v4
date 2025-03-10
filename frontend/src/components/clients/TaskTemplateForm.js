@@ -198,7 +198,7 @@ const TaskTemplateForm = ({ clientId, template, schedules, onSubmit, onClose }) 
                 className={`select select-bordered w-full ${errors.schedule ? 'select-error' : ''}`}
               >
                 <option value="">スケジュールを選択</option>
-                {schedules.map(schedule => (
+                {Array.isArray(schedules) && schedules.map(schedule => (
                   <option key={schedule.id} value={schedule.id}>
                     {schedule.name} ({schedule.schedule_type_display})
                   </option>
@@ -206,7 +206,7 @@ const TaskTemplateForm = ({ clientId, template, schedules, onSubmit, onClose }) 
               </select>
               {errors.schedule && <span className="text-error text-sm mt-1">{errors.schedule}</span>}
               
-              {schedules.length === 0 && (
+              {(!Array.isArray(schedules) || schedules.length === 0) && (
                 <div className="alert alert-warning mt-2">
                   <HiOutlineExclamation className="h-5 w-5" />
                   <span>先にスケジュール設定を作成してください</span>
@@ -229,7 +229,7 @@ const TaskTemplateForm = ({ clientId, template, schedules, onSubmit, onClose }) 
                 className={`select select-bordered w-full ${errors.template_task ? 'select-error' : ''}`}
               >
                 <option value="">テンプレートを選択</option>
-                {templateTasks.map(task => (
+                {Array.isArray(templateTasks) && templateTasks.map(task => (
                   <option key={task.id} value={task.id}>
                     {task.title}
                   </option>
@@ -250,7 +250,7 @@ const TaskTemplateForm = ({ clientId, template, schedules, onSubmit, onClose }) 
                   className="select select-bordered w-full"
                 >
                   <option value="">カテゴリを選択</option>
-                  {categories.map(category => (
+                  {Array.isArray(categories) && categories.map(category => (
                     <option key={category.id} value={category.id}>
                       {category.name}
                     </option>
@@ -269,7 +269,7 @@ const TaskTemplateForm = ({ clientId, template, schedules, onSubmit, onClose }) 
                   className="select select-bordered w-full"
                 >
                   <option value="">優先度を選択</option>
-                  {priorities.map(priority => (
+                  {Array.isArray(priorities) && priorities.map(priority => (
                     <option key={priority.id} value={priority.id}>
                       {priority.priority_value} - {priority.name}
                     </option>
@@ -311,7 +311,7 @@ const TaskTemplateForm = ({ clientId, template, schedules, onSubmit, onClose }) 
                   className="select select-bordered w-full"
                 >
                   <option value="">担当者を選択</option>
-                  {users.map(user => (
+                  {Array.isArray(users) && users.map(user => (
                     <option key={user.id} value={user.id}>
                       {user.full_name || user.username}
                     </option>
@@ -330,7 +330,7 @@ const TaskTemplateForm = ({ clientId, template, schedules, onSubmit, onClose }) 
                   className="select select-bordered w-full"
                 >
                   <option value="">担当者を選択</option>
-                  {users.map(user => (
+                  {Array.isArray(users) && users.map(user => (
                     <option key={user.id} value={user.id}>
                       {user.full_name || user.username}
                     </option>

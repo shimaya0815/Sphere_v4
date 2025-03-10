@@ -36,8 +36,9 @@ const ClientTaskTemplateSettings = ({ clientId, client }) => {
         clientsApi.getClientTaskTemplates(clientId),
         clientsApi.getTaskTemplateSchedules()
       ]);
-      setTemplates(templatesData);
-      setSchedules(schedulesData);
+      // 配列かどうかを確認してから設定
+      setTemplates(Array.isArray(templatesData) ? templatesData : []);
+      setSchedules(Array.isArray(schedulesData) ? schedulesData : []);
       setError(null);
     } catch (error) {
       console.error('Error fetching task template data:', error);
@@ -203,7 +204,7 @@ const ClientTaskTemplateSettings = ({ clientId, client }) => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {schedules.map(schedule => (
+              {Array.isArray(schedules) ? schedules.map(schedule => (
                 <div 
                   key={schedule.id} 
                   className={`border rounded-lg shadow-sm hover:shadow-md transition-shadow p-4 ${
@@ -245,7 +246,11 @@ const ClientTaskTemplateSettings = ({ clientId, client }) => {
                     <span className="font-medium">繰り返し:</span> {schedule.recurrence_display}
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="col-span-3 text-center py-4 text-gray-500">
+                  <p>スケジュールデータの読み込みに失敗しました。</p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -294,7 +299,7 @@ const ClientTaskTemplateSettings = ({ clientId, client }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {templates.map(template => (
+                  {Array.isArray(templates) ? templates.map(template => (
                     <tr key={template.id} className="hover">
                       <td>{template.title}</td>
                       <td>{template.schedule_name}</td>
@@ -332,7 +337,13 @@ const ClientTaskTemplateSettings = ({ clientId, client }) => {
                         </button>
                       </td>
                     </tr>
-                  ))}
+                  )) : (
+                    <tr>
+                      <td colSpan="6" className="text-center py-4 text-gray-500">
+                        <p>テンプレートデータの読み込みに失敗しました。</p>
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
