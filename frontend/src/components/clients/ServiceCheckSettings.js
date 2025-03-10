@@ -120,12 +120,25 @@ const ServiceCheckSettings = ({ clientId }) => {
   const [saving, setSaving] = useState(false);
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
+  const [clientInfo, setClientInfo] = useState(null);
+  const [showCustomizeModal, setShowCustomizeModal] = useState(false);
+  const [customTemplate, setCustomTemplate] = useState(null);
   
   // 初期データの取得 - コンポーネントのマウント時に1回だけ実行
   useEffect(() => {
     if (clientId) {
       console.log('ServiceCheckSettings initialized with client ID:', clientId);
       setLoading(true);
+      
+      // クライアント情報を取得
+      clientsApi.getClient(clientId)
+        .then(data => {
+          setClientInfo(data);
+          console.log('Client info fetched:', data);
+        })
+        .catch(err => {
+          console.error('Error fetching client info:', err);
+        });
       
       // テンプレートを自動で有効化
       setSettings(prevSettings => ({
@@ -806,6 +819,51 @@ const ServiceCheckSettings = ({ clientId }) => {
     setShowTemplateSelector(true);
   };
   
+  // カスタマイズしたテンプレートをグローバルに保存する
+  const saveCustomizedTemplate = async (customizedTemplate) => {
+    try {
+      // 1. 既存のクライアントテンプレートから必要な情報を取得
+      const sourceTemplate = clientTemplates.find(t => t.id === customizedTemplate.id);
+      if (!sourceTemplate) {
+        throw new Error('ソーステンプレートが見つかりません');
+      }
+      
+      // 2. グローバルテンプレートとして保存するデータの準備
+      const globalTemplateData = {
+        title: customizedTemplate.title,
+        description: customizedTemplate.description || sourceTemplate.description,
+        is_template: true, // テンプレートフラグを設定
+        category: sourceTemplate.category?.id || null,
+        priority: sourceTemplate.priority?.id || null,
+        estimated_hours: sourceTemplate.estimated_hours || 0
+      };
+      
+      console.log('Creating global template with data:', globalTemplateData);
+      
+      // 3. タスクテンプレートAPIを使用してグローバルテンプレートを作成
+      const newGlobalTemplate = await tasksApi.createTemplateTask(globalTemplateData);
+      console.log('Created global template:', newGlobalTemplate);
+      
+      // 4. グローバルテンプレート一覧を更新
+      setGlobalTemplates(prev => [...prev, newGlobalTemplate]);
+      
+      // 5. 成功通知
+      toast(`グローバルテンプレート「${customizedTemplate.title}」を保存しました`, {
+        icon: '✅',
+        style: { background: '#EFE', color: '#080' }
+      });
+      
+      return newGlobalTemplate;
+    } catch (error) {
+      console.error('Error saving customized template:', error);
+      toast(`テンプレートの保存に失敗しました: ${error.message || 'エラーが発生しました'}`, {
+        icon: '❌',
+        style: { background: '#FEE', color: '#E00' }
+      });
+      return null;
+    }
+  };
+  
   // テンプレートを選択してコピー
   const handleSelectGlobalTemplate = async (templateId) => {
     if (!selectedService) {
@@ -861,8 +919,16 @@ const ServiceCheckSettings = ({ clientId }) => {
     // 既存のテンプレート編集機能
     const existingTemplate = clientTemplates.find(t => t.id === templateId);
     if (existingTemplate) {
-      // テンプレート編集は直接このフォームで行うようになったので、メッセージだけ表示
-      toast.success(`${SERVICE_DISPLAY_NAMES[service]} テンプレートの設定を更新します`);
+      // カスタマイズするテンプレートを設定しモーダルを表示
+      const templateToCustomize = {
+        ...existingTemplate,
+        originalTitle: existingTemplate.title,
+        title: clientInfo ? `${clientInfo.name}_${existingTemplate.title}` : existingTemplate.title
+      };
+      
+      setCustomTemplate(templateToCustomize);
+      setSelectedService(service);
+      setShowCustomizeModal(true);
     }
   };
   
@@ -1125,10 +1191,99 @@ const ServiceCheckSettings = ({ clientId }) => {
     );
   };
 
+  // テンプレートカスタマイズモーダル
+  const renderCustomizeModal = () => {
+    if (!showCustomizeModal || !customTemplate) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] overflow-hidden">
+          <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+            <h3 className="font-semibold text-gray-800 flex items-center">
+              <HiOutlinePencilAlt className="mr-2 text-primary" />
+              テンプレートをカスタマイズしてグローバルに保存
+            </h3>
+            <button 
+              className="btn btn-sm btn-ghost"
+              onClick={() => {
+                setShowCustomizeModal(false);
+                setCustomTemplate(null);
+              }}
+            >
+              ×
+            </button>
+          </div>
+          
+          <div className="p-6">
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 mb-4">
+                このテンプレートをカスタマイズして、グローバルに保存します。
+                保存したテンプレートは <a href="/tasks/templates" className="text-blue-600 underline" target="_blank" rel="noopener noreferrer">タスクテンプレート一覧</a> で確認できます。
+              </p>
+              
+              <div className="form-control w-full mb-4">
+                <label className="label">
+                  <span className="label-text">テンプレート名</span>
+                </label>
+                <input 
+                  type="text" 
+                  className="input input-bordered w-full" 
+                  value={customTemplate.title} 
+                  onChange={(e) => setCustomTemplate({...customTemplate, title: e.target.value})}
+                />
+                <label className="label">
+                  <span className="label-text-alt">デフォルト: {customTemplate.originalTitle}</span>
+                </label>
+              </div>
+              
+              <div className="form-control w-full mb-4">
+                <label className="label">
+                  <span className="label-text">説明</span>
+                </label>
+                <textarea 
+                  className="textarea textarea-bordered w-full" 
+                  value={customTemplate.description || ''} 
+                  onChange={(e) => setCustomTemplate({...customTemplate, description: e.target.value})}
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3">
+              <button 
+                className="btn btn-outline"
+                onClick={() => {
+                  setShowCustomizeModal(false);
+                  setCustomTemplate(null);
+                }}
+              >
+                キャンセル
+              </button>
+              <button 
+                className="btn btn-primary"
+                onClick={async () => {
+                  const savedTemplate = await saveCustomizedTemplate(customTemplate);
+                  if (savedTemplate) {
+                    setShowCustomizeModal(false);
+                    setCustomTemplate(null);
+                  }
+                }}
+              >
+                保存する
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden mt-6">
       {/* グローバルテンプレート選択モーダル */}
       {renderTemplateSelector()}
+      
+      {/* テンプレートカスタマイズモーダル */}
+      {renderCustomizeModal()}
       
       <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
         <h3 className="font-semibold text-gray-800 flex items-center">
