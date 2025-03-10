@@ -174,10 +174,6 @@ const FiscalYearManagement = ({ clientId }) => {
         </div>
       ) : (
         <>
-          <div className="mb-6">
-            <FiscalYearTimeline fiscalYears={fiscalYears} />
-          </div>
-        
           <div className="overflow-x-auto rounded-lg border">
             <table className="table w-full">
               <thead>

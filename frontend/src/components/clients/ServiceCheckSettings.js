@@ -843,7 +843,6 @@ const ServiceCheckSettings = ({ clientId }) => {
       <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
         <h3 className="font-semibold text-gray-800 flex items-center">
           <HiOutlineTemplate className="mr-2 text-primary" />
-          サービスチェック設定
         </h3>
         <div className="flex items-center space-x-2">
           <button 
@@ -893,8 +892,6 @@ const ServiceCheckSettings = ({ clientId }) => {
                   </div>
                 </div>
               </th>
-              <th className="px-4 py-2 text-left font-medium text-gray-500 text-sm border-b">スケジュール</th>
-              <th className="px-4 py-2 text-left font-medium text-gray-500 text-sm border-b">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -962,84 +959,6 @@ const ServiceCheckSettings = ({ clientId }) => {
                       )}
                     </button>
                   </div>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-col space-y-2">
-                    {/* スケジュールタイプ選択 */}
-                    <select 
-                      className="select select-bordered select-sm w-full max-w-xs"
-                      value={settings[service]?.schedule_type || 'monthly_start'}
-                      onChange={(e) => handleServiceChange(service, 'schedule_type', e.target.value)}
-                      disabled={!settings.templates_enabled || !settings[service]?.enabled || !settings[service]?.template_id}
-                    >
-                      {SCHEDULE_TYPES.map(type => (
-                        <option key={type.value} value={type.value}>{type.label}</option>
-                      ))}
-                    </select>
-                    
-                    {/* 繰り返しタイプ選択 */}
-                    <select 
-                      className="select select-bordered select-sm w-full max-w-xs"
-                      value={settings[service]?.recurrence || settings[service]?.cycle || 'monthly'}
-                      onChange={(e) => handleServiceChange(service, 'recurrence', e.target.value)}
-                      disabled={!settings.templates_enabled || !settings[service]?.enabled || !settings[service]?.template_id}
-                    >
-                      {RECURRENCE_TYPES.map(type => (
-                        <option key={type.value} value={type.value}>{type.label}</option>
-                      ))}
-                    </select>
-                    
-                    {/* カスタム設定の場合は日付入力も表示 */}
-                    {settings[service]?.schedule_type === 'custom' && (
-                      <div className="flex space-x-2">
-                        <div className="form-control">
-                          <label className="label">
-                            <span className="label-text text-xs">作成日</span>
-                          </label>
-                          <input
-                            type="number"
-                            className="input input-bordered input-sm w-20"
-                            min="1"
-                            max="31"
-                            value={settings[service]?.creation_day || ''}
-                            onChange={(e) => handleServiceChange(
-                              service, 
-                              'creation_day', 
-                              e.target.value ? parseInt(e.target.value, 10) : null
-                            )}
-                            disabled={!settings.templates_enabled || !settings[service]?.enabled || !settings[service]?.template_id}
-                          />
-                        </div>
-                        <div className="form-control">
-                          <label className="label">
-                            <span className="label-text text-xs">期限日</span>
-                          </label>
-                          <input
-                            type="number"
-                            className="input input-bordered input-sm w-20"
-                            min="1"
-                            max="31"
-                            value={settings[service]?.deadline_day || ''}
-                            onChange={(e) => handleServiceChange(
-                              service, 
-                              'deadline_day', 
-                              e.target.value ? parseInt(e.target.value, 10) : null
-                            )}
-                            disabled={!settings.templates_enabled || !settings[service]?.enabled || !settings[service]?.template_id}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <button 
-                    className="btn btn-sm btn-success"
-                    onClick={() => handleGenerateTask(service, settings[service]?.template_id)}
-                    disabled={!settings.templates_enabled || !settings[service]?.enabled}
-                  >
-                    <HiOutlinePlay className="mr-1" /> {settings[service]?.template_id ? 'タスク生成' : 'テンプレート作成＆タスク生成'}
-                  </button>
                 </td>
               </tr>
             ))}
