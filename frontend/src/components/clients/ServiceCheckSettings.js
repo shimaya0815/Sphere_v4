@@ -163,7 +163,13 @@ const ServiceCheckSettings = ({ clientId }) => {
       }));
       
       // 作業開始通知
-      toast.loading('デフォルトのテンプレートを設定中...', { id: 'default-templates' });
+      toast.promise(
+        new Promise(r => setTimeout(r, 500)), // ダミープロミス
+        {
+          loading: 'デフォルトのテンプレートを設定中...',
+          id: 'default-templates'
+        }
+      );
       
       try {
         // テンプレートとスケジュールを取得
@@ -257,7 +263,11 @@ const ServiceCheckSettings = ({ clientId }) => {
         
         // 作成完了
         if (createdTemplates.length > 0) {
-          toast.success(`${createdTemplates.length}個のデフォルトテンプレートを設定しました`, { id: 'default-templates' });
+          toast(`${createdTemplates.length}個のデフォルトテンプレートを設定しました`, { 
+            id: 'default-templates',
+            icon: '✅',
+            style: { background: '#EFE', color: '#080' }
+          });
           
           // クライアントテンプレート一覧を更新
           setClientTemplates(prevTemplates => [...prevTemplates, ...createdTemplates]);
@@ -272,7 +282,11 @@ const ServiceCheckSettings = ({ clientId }) => {
           }, 1500);
         } else {
           toast.dismiss('default-templates');
-          toast.info('すべてのテンプレートが既に設定されています');
+          // toast.info が機能しない場合は toast() を使用
+          toast('すべてのテンプレートが既に設定されています', { 
+            icon: 'ℹ️',
+            duration: 3000
+          });
           
           // 既にテンプレートが存在する場合も設定を保存
           console.log(`Templates already exist, saving settings for client ID ${clientId}`);
@@ -282,7 +296,12 @@ const ServiceCheckSettings = ({ clientId }) => {
         }
       } catch (error) {
         console.error('Error applying default templates:', error);
-        toast.error('テンプレート設定中にエラーが発生しました', { id: 'default-templates' });
+        // toast.error が機能しない場合は toast() を使用
+        toast('テンプレート設定中にエラーが発生しました', { 
+          id: 'default-templates',
+          icon: '❌',
+          style: { background: '#FEE', color: '#E00' }
+        });
       }
     }
   };
