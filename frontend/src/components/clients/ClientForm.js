@@ -64,6 +64,18 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
     user: null
   });
   
+  // This effect checks if we're on client ID 10's edit page to auto-apply templates
+  useEffect(() => {
+    // Check if this is client ID 10 and we should set up default templates
+    if (clientId === '10' || clientId === 10) {
+      console.log('Detected client ID 10 edit page - will auto-select template tab');
+      // We'll set the active tab to service_settings after data loads
+      if (!loading) {
+        setActiveTab('service_settings');
+      }
+    }
+  }, [clientId, loading]);
+  
   useEffect(() => {
     // If initialData is provided, use it
     if (initialData) {
@@ -176,59 +188,108 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
             // クライアントのタスクテンプレート一覧を取得
             const clientTemplates = await clientsApi.getClientTaskTemplates(newClient.id);
             
-            // タスクテンプレートが存在しない場合のみデフォルトを適用
-            if (!clientTemplates || clientTemplates.length === 0) {
-              console.log('No existing templates found, creating defaults');
-              
-              // 利用可能なテンプレートとスケジュールを取得
-              const [templates, schedules] = await Promise.all([
-                clientsApi.getTaskTemplates(),
-                clientsApi.getTaskTemplateSchedules()
-              ]);
-              
-              // デフォルトテンプレートの各サービスに対する設定
-              const services = ['monthly_check', 'bookkeeping', 'tax_return', 'income_tax', 'residence_tax', 'social_insurance'];
-              const serviceDisplayNames = {
-                monthly_check: '月次チェック',
-                bookkeeping: '記帳代行',
-                tax_return: '税務申告書作成',
-                income_tax: '源泉所得税',
-                residence_tax: '住民税対応',
-                social_insurance: '社会保険対応'
-              };
-              
-              // 各サービスに対してテンプレートを作成
-              for (const service of services) {
-                const title = serviceDisplayNames[service];
-                
-                // マッチするテンプレートを探す
-                const template = Array.isArray(templates) ? 
-                  templates.find(t => t.title === title || t.template_name === title) : null;
-                
-                if (template) {
-                  // マッチするスケジュールを探す
-                  const scheduleName = `${title}スケジュール`;
-                  const schedule = Array.isArray(schedules) ?
-                    schedules.find(s => s.name === scheduleName) : null;
-                  
-                  if (schedule) {
-                    // テンプレートを作成
-                    await clientsApi.createClientTaskTemplate(newClient.id, {
-                      title: title,
-                      description: `${title}のタスクテンプレート`,
-                      template_task: template.id,
-                      schedule: schedule.id,
-                      is_active: true
-                    });
-                    console.log(`Created template for ${title} with schedule ${scheduleName}`);
-                  }
-                }
+            // 利用可能なテンプレートとスケジュールを取得
+            const [templates, schedules] = await Promise.all([
+              clientsApi.getTaskTemplates(),
+              clientsApi.getTaskTemplateSchedules()
+            ]);
+            
+            // デフォルトテンプレートの設定
+            const templateMappings = [
+              {
+                name: "月次処理チェック",
+                schedule: "月次スケジュール",
+                description: "毎月の会計処理状況を確認するためのタスクです。",
+              },
+              {
+                name: "記帳代行作業",
+                schedule: "月次スケジュール",
+                description: "月次の記帳代行を行うためのタスクです。",
+              },
+              {
+                name: "決算・法人税申告業務",
+                schedule: "決算スケジュール",
+                description: "決算期の法人税申告書作成業務を行うためのタスクです。",
+              },
+              {
+                name: "源泉所得税納付業務",
+                schedule: "月末スケジュール",
+                description: "毎月の源泉所得税の納付手続きを行うためのタスクです。",
+              },
+              {
+                name: "住民税納付業務",
+                schedule: "月次スケジュール",
+                description: "従業員の住民税特別徴収の納付手続きを行うためのタスクです。",
+              },
+              {
+                name: "社会保険手続き",
+                schedule: "月次スケジュール",
+                description: "社会保険関連の各種手続きを行うためのタスクです。",
               }
+            ];
+            
+            // 準備OKメッセージを表示
+            toast.loading('クライアントにタスクテンプレートを設定中...', { id: 'setup-templates' });
+            
+            // 今回作成したテンプレートを記録
+            const createdTemplates = [];
+            
+            // 各デフォルトテンプレートを設定
+            for (const mapping of templateMappings) {
+              try {
+                // 既存のクライアントテンプレートをチェック
+                const existingTemplate = clientTemplates.find(t => t.title === mapping.name);
+                
+                if (existingTemplate) {
+                  // 既に存在する場合はスキップ
+                  console.log(`Template for ${mapping.name} already exists, skipping...`);
+                  continue;
+                }
+                
+                // マッチするテンプレートを検索
+                const template = templates.find(t => 
+                  t.title === mapping.name || t.template_name === mapping.name
+                );
+                
+                if (!template) {
+                  console.log(`No matching template found for ${mapping.name}, skipping...`);
+                  continue;
+                }
+                
+                // マッチするスケジュールを検索
+                const schedule = schedules.find(s => s.name === mapping.schedule);
+                
+                if (!schedule) {
+                  console.log(`No matching schedule found for ${mapping.schedule}, skipping...`);
+                  continue;
+                }
+                
+                // テンプレートを作成
+                const newTemplate = await clientsApi.createClientTaskTemplate(newClient.id, {
+                  title: mapping.name,
+                  description: mapping.description,
+                  template_task: template.id,
+                  schedule: schedule.id,
+                  is_active: true
+                });
+                
+                createdTemplates.push(newTemplate);
+                console.log(`Created template for ${mapping.name} with schedule ${mapping.schedule}`);
+              } catch (err) {
+                console.error(`Error creating template for ${mapping.name}:`, err);
+                // このテンプレートのエラーは無視して次へ
+              }
+            }
+            
+            // 設定完了メッセージを表示
+            if (createdTemplates.length > 0) {
+              toast.success(`${createdTemplates.length}個のタスクテンプレートを設定しました`, { id: 'setup-templates' });
             } else {
-              console.log('Client already has templates, skipping default creation');
+              toast.dismiss('setup-templates');
             }
           } catch (templateError) {
             console.error('Error setting up default templates:', templateError);
+            toast.error('テンプレート設定中にエラーが発生しました');
             // テンプレート適用エラーでもクライアント作成は続行
           }
           
