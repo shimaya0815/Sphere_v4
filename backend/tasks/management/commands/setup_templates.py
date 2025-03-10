@@ -300,21 +300,20 @@ def create_template_for_business(business):
                 schedule = existing_schedule
             else:
                 # 新規スケジュール作成
-                if "月次" in template_config["name"] or "記帳" in template_config["name"]:
-                    schedule_type = "monthly_start"
-                    recurrence = "monthly"
-                elif "決算" in template_config["name"] or "法人税" in template_config["name"]:
-                    schedule_type = "fiscal_relative"
-                    recurrence = "yearly"
-                elif "源泉" in template_config["name"]:
-                    schedule_type = "monthly_end"
-                    recurrence = "monthly"
-                elif "住民税" in template_config["name"]:
-                    schedule_type = "monthly_start"
-                    recurrence = "monthly"
-                elif "社会保険" in template_config["name"]:
-                    schedule_type = "monthly_start"
-                    recurrence = "monthly"
+                # テンプレート名と一致するスケジュール設定
+                schedule_settings = {
+                    "月次処理チェック": {"type": "monthly_start", "recurrence": "monthly"},
+                    "記帳代行作業": {"type": "monthly_start", "recurrence": "monthly"},
+                    "決算・法人税申告業務": {"type": "fiscal_relative", "recurrence": "yearly"},
+                    "源泉所得税納付業務": {"type": "monthly_end", "recurrence": "monthly"},
+                    "住民税納付業務": {"type": "monthly_start", "recurrence": "monthly"},
+                    "社会保険手続き": {"type": "monthly_start", "recurrence": "monthly"}
+                }
+                
+                # 設定を取得（見つからない場合はデフォルト値を使用）
+                if template_config["name"] in schedule_settings:
+                    schedule_type = schedule_settings[template_config["name"]]["type"]
+                    recurrence = schedule_settings[template_config["name"]]["recurrence"]
                 else:
                     schedule_type = "monthly_start"
                     recurrence = "monthly"
