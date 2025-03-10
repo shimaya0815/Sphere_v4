@@ -35,86 +35,6 @@ def create_template_for_business(business):
     # 標準テンプレート構成を作成
     template_configs = [
         {
-            "name": "月次処理チェック",
-            "description": "毎月の会計処理状況を確認します。",
-            "category": default_category,
-            "tasks": [
-                {
-                    "title": "帳簿確認",
-                    "description": "月次の帳簿が正確に更新されているか確認します。",
-                    "estimated_hours": 1.5,
-                    "order": 1
-                },
-                {
-                    "title": "仕訳チェック",
-                    "description": "仕訳が適切に行われているか確認し、必要に応じて修正します。",
-                    "estimated_hours": 2.0,
-                    "order": 2
-                },
-                {
-                    "title": "請求書確認",
-                    "description": "未払いの請求書がないか確認し、支払い状況を更新します。",
-                    "estimated_hours": 1.0,
-                    "order": 3
-                },
-                {
-                    "title": "売上集計",
-                    "description": "当月の売上を集計し、前月と比較します。",
-                    "estimated_hours": 1.0,
-                    "order": 4
-                },
-                {
-                    "title": "経費集計",
-                    "description": "当月の経費を集計し、予算との差異を分析します。",
-                    "estimated_hours": 1.0,
-                    "order": 5
-                }
-            ]
-        },
-        {
-            "name": "記帳代行作業",
-            "description": "月次の記帳代行を行います。",
-            "category": bookkeeping_category,
-            "tasks": [
-                {
-                    "title": "資料受領確認",
-                    "description": "必要な書類や領収書がすべて揃っているか確認します。",
-                    "estimated_hours": 0.5,
-                    "order": 1
-                },
-                {
-                    "title": "領収書の整理",
-                    "description": "領収書を日付順に整理し、分類します。",
-                    "estimated_hours": 1.0,
-                    "order": 2
-                },
-                {
-                    "title": "データ入力",
-                    "description": "会計ソフトに取引データを入力します。",
-                    "estimated_hours": 3.0,
-                    "order": 3
-                },
-                {
-                    "title": "現金出納帳の更新",
-                    "description": "現金出納帳を最新の情報に更新します。",
-                    "estimated_hours": 0.5,
-                    "order": 4
-                },
-                {
-                    "title": "預金帳の更新",
-                    "description": "預金帳を最新の情報に更新します。",
-                    "estimated_hours": 0.5,
-                    "order": 5
-                },
-                {
-                    "title": "月次レポート作成",
-                    "description": "当月の収支状況を要約したレポートを作成します。",
-                    "estimated_hours": 1.5,
-                    "order": 6
-                }
-            ]
-        },
-        {
             "name": "決算・法人税申告業務",
             "description": "決算期の法人税申告書作成業務を行います。",
             "category": tax_category,
@@ -302,8 +222,6 @@ def create_template_for_business(business):
                 # 新規スケジュール作成
                 # テンプレート名と一致するスケジュール設定
                 schedule_settings = {
-                    "月次処理チェック": {"type": "monthly_start", "recurrence": "monthly"},
-                    "記帳代行作業": {"type": "monthly_start", "recurrence": "monthly"},
                     "決算・法人税申告業務": {"type": "fiscal_relative", "recurrence": "yearly"},
                     "源泉所得税納付業務": {"type": "monthly_end", "recurrence": "monthly"},
                     "住民税納付業務": {"type": "monthly_start", "recurrence": "monthly"},
