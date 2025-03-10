@@ -124,6 +124,7 @@ const ServiceCheckSettings = ({ clientId }) => {
   // 初期データの取得
   useEffect(() => {
     if (clientId) {
+      console.log('ServiceCheckSettings initialized with client ID:', clientId);
       fetchData();
       
       // 新規クライアント作成時はテンプレートを自動で有効化
@@ -131,65 +132,62 @@ const ServiceCheckSettings = ({ clientId }) => {
         ...prevSettings,
         templates_enabled: true
       }));
+      
+      // 強制的にデフォルトテンプレートを適用する処理を1秒後に実行
+      setTimeout(() => {
+        createDefaultTemplates();
+      }, 1000);
     }
   }, [clientId]);
   
-  // デフォルトのテンプレートを作成
-  useEffect(() => {
-    // クライアントが設定されていれば、常にテンプレートを適用する
-    const createDefaultTemplates = async () => {
-      if (clientId) {
-        // テンプレートの使用を有効化
-        setSettings(prev => ({
-          ...prev,
-          templates_enabled: true
-        }));
-        // スタート状態を表示
-        toast.loading('デフォルトのテンプレートを準備中...', { id: 'default-templates' });
+  // デフォルトのテンプレートを作成関数を定義
+  const createDefaultTemplates = async () => {
+    if (clientId) {
+      console.log('Creating default templates for new client:', clientId);
+      // テンプレートの使用を有効化
+      setSettings(prev => ({
+        ...prev,
+        templates_enabled: true
+      }));
+      // スタート状態を表示
+      toast.loading('デフォルトのテンプレートを準備中...', { id: 'default-templates' });
+      
+      const results = [];
+      
+      // 各サービスのテンプレートを順番に作成
+      for (const [service, serviceSettings] of Object.entries(settings)) {
+        if (service === 'templates_enabled') continue;
         
-        const results = [];
-        
-        // 各サービスのテンプレートを順番に作成
-        for (const [service, serviceSettings] of Object.entries(settings)) {
-          if (service === 'templates_enabled') continue;
-          
-          if (serviceSettings.enabled) {
-            try {
-              const template = await createTemplateForService(service, serviceSettings);
-              if (template) {
-                results.push(template);
-                // 設定を更新
-                handleServiceChange(service, 'template_id', template.id);
-              }
-            } catch (error) {
-              console.error(`Error creating default template for ${service}:`, error);
-            }
-            
-            // 各テンプレート作成間に少し待機（APIへの負荷軽減）
-            await new Promise(resolve => setTimeout(resolve, 300));
+        // 常に有効として扱う
+        try {
+          const template = await createTemplateForService(service, {...serviceSettings, enabled: true});
+          if (template) {
+            results.push(template);
+            // 設定を更新
+            handleServiceChange(service, 'template_id', template.id);
           }
+        } catch (error) {
+          console.error(`Error creating default template for ${service}:`, error);
         }
         
-        // すべて作成完了
-        if (results.length > 0) {
-          toast.success(`${results.length}個のデフォルトテンプレートを作成しました`, { id: 'default-templates' });
-          
-          // クライアントテンプレート一覧を更新
-          setClientTemplates(prevTemplates => [...prevTemplates, ...results]);
-          
-          // 最新データを再取得
-          fetchData();
-        } else {
-          toast.dismiss('default-templates');
-        }
+        // 各テンプレート作成間に少し待機（APIへの負荷軽減）
+        await new Promise(resolve => setTimeout(resolve, 300));
       }
-    };
-    
-    // データ取得後にのみ実行
-    if (!loading && clientId) {
-      createDefaultTemplates();
+        
+      // すべて作成完了
+      if (results.length > 0) {
+        toast.success(`${results.length}個のデフォルトテンプレートを作成しました`, { id: 'default-templates' });
+        
+        // クライアントテンプレート一覧を更新
+        setClientTemplates(prevTemplates => [...prevTemplates, ...results]);
+        
+        // 最新データを再取得
+        fetchData();
+      } else {
+        toast.dismiss('default-templates');
+      }
     }
-  }, [loading, clientId, clientTemplates.length]);
+  };
   
   const fetchData = async () => {
     setLoading(true);
@@ -261,11 +259,18 @@ const ServiceCheckSettings = ({ clientId }) => {
         const templateForService = clientTemplatesArray.find(t => {
           if (!t) return false;
           
-          const categoryMatch = t.category === category || 
-                               (t.category?.name && t.category.name === category);
+          // まず、タイトルで完全一致を試みる
+          const exactTitleMatch = t.title === SERVICE_DISPLAY_NAMES[serviceKey];
+          if (exactTitleMatch) return true;
+          
+          // 次にタイトルに含まれるか確認
           const titleMatch = t.title && t.title.includes(SERVICE_DISPLAY_NAMES[serviceKey]);
           
-          return categoryMatch || titleMatch;
+          // カテゴリ名で確認
+          const categoryMatch = t.category === category || 
+                               (t.category?.name && t.category.name === category);
+          
+          return titleMatch || categoryMatch;
         });
         
         if (templateForService) {
