@@ -1237,7 +1237,7 @@ const ServiceCheckSettings = ({ clientId }) => {
                         ))
                         .map(template => (
                           <option key={`client-${template.id}`} value={template.id}>
-                            {template.title} (クライアント固有)
+                            {template.title}
                           </option>
                       ))}
                       
