@@ -133,9 +133,20 @@ const ServiceCheckSettings = ({ clientId }) => {
         templates_enabled: true
       }));
       
-      // 強制的にデフォルトテンプレートを適用する処理を1秒後に実行
-      setTimeout(() => {
-        createDefaultTemplates();
+      // 強制的にデフォルトテンプレートを適用する処理を実行
+      // より確実に適用するため、まずテンプレートをチェックしてから処理
+      setTimeout(async () => {
+        await fetchData(); // 最新データを取得
+        
+        // もしクライアントテンプレートが空の場合のみデフォルト作成を行う
+        setTimeout(() => {
+          if (clientTemplates.length === 0) {
+            console.log('No client templates found, creating defaults...');
+            createDefaultTemplates();
+          } else {
+            console.log('Client templates already exist:', clientTemplates.length);
+          }
+        }, 500);
       }, 1000);
     }
   }, [clientId]);
@@ -314,6 +325,18 @@ const ServiceCheckSettings = ({ clientId }) => {
   // デフォルトのスケジュールを作成する関数
   const createDefaultSchedule = async (name, scheduleType, recurrence) => {
     try {
+      console.log(`Creating schedule: name=${name}, type=${scheduleType}, recurrence=${recurrence}`);
+      
+      // 既存のスケジュールをもう一度チェック（APIから最新情報を取得）
+      const schedulesResponse = await clientsApi.getTaskTemplateSchedules();
+      const updatedSchedules = Array.isArray(schedulesResponse) ? schedulesResponse : [];
+      const existingSchedule = updatedSchedules.find(s => s.name === name);
+      
+      if (existingSchedule) {
+        console.log(`Found existing schedule with name ${name}:`, existingSchedule);
+        return existingSchedule;
+      }
+      
       const scheduleData = {
         name: name,
         schedule_type: scheduleType,
@@ -328,15 +351,35 @@ const ServiceCheckSettings = ({ clientId }) => {
         scheduleData.creation_day = 25;  // 25日作成
         scheduleData.deadline_day = 10;  // 翌月10日締め切り
         scheduleData.deadline_next_month = true;
+      } else if (scheduleType === 'fiscal_relative') {
+        // 決算日基準の場合
+        scheduleData.fiscal_date_reference = 'end_date';  // 終了日基準
+        scheduleData.deadline_day = 60;  // 決算日から60日後
       } else if (scheduleType === 'custom') {
         scheduleData.creation_day = 1;
         scheduleData.deadline_day = 10;
+        
+        // カスタムスケジュール用の追加設定
+        scheduleData.reference_date_type = 'execution_date';
+        scheduleData.creation_date_offset = 0;
+        scheduleData.deadline_date_offset = 10;
       }
       
+      console.log(`Creating schedule with data:`, scheduleData);
+      
       const newSchedule = await clientsApi.createTaskTemplateSchedule(scheduleData);
+      console.log(`Created new schedule:`, newSchedule);
+      
       return newSchedule;
     } catch (error) {
       console.error('Error creating default schedule:', error);
+      
+      // エラーの詳細をログに出力
+      if (error.response) {
+        console.error('Response data:', error.response.data);
+        console.error('Status code:', error.response.status);
+      }
+      
       return null;
     }
   };
@@ -374,25 +417,47 @@ const ServiceCheckSettings = ({ clientId }) => {
   // テンプレート作成
   const createTemplateForService = async (service, serviceSettings) => {
     try {
+      // グローバルでこのサービスに対応するテンプレートを探す
+      let globalTemplateId = null;
+      let globalTemplateTitle = DEFAULT_TEMPLATE_TITLES[service] || `${SERVICE_DISPLAY_NAMES[service]}`;
+      
+      // グローバルテンプレートの検索
+      const serviceTemplates = globalTemplates.filter(t => {
+        const titleMatch = t.title === globalTemplateTitle || t.template_name === globalTemplateTitle;
+        const keywordMatch = t.title?.toLowerCase().includes(SERVICE_DISPLAY_NAMES[service].toLowerCase());
+        return titleMatch || keywordMatch;
+      });
+      
+      if (serviceTemplates.length > 0) {
+        // 名前が一致するテンプレートがあればそれを使用
+        globalTemplateId = serviceTemplates[0].id;
+        console.log(`Found global template for ${service}:`, serviceTemplates[0].title);
+      }
+      
       // サービス用のスケジュールを取得または作成
       let scheduleId = null;
       
       // 既存のスケジュールを検索
       const scheduleName = `${SERVICE_DISPLAY_NAMES[service]}スケジュール`;
-      const existingSchedule = schedules.find(s => s.name === scheduleName);
+      let existingSchedule = schedules.find(s => s.name === scheduleName);
       
       if (existingSchedule) {
         scheduleId = existingSchedule.id;
+        console.log(`Using existing schedule for ${service}:`, existingSchedule.name);
       } else {
         // 新規スケジュール作成
         const scheduleType = serviceSettings.schedule_type || DEFAULT_SCHEDULE_TYPES[service] || 'monthly_start';
         const recurrence = serviceSettings.recurrence || serviceSettings.cycle || DEFAULT_CYCLES[service];
+        console.log(`Creating new schedule for ${service} with type=${scheduleType}, recurrence=${recurrence}`);
+        
         const newSchedule = await createDefaultSchedule(scheduleName, scheduleType, recurrence);
         
         if (newSchedule) {
           scheduleId = newSchedule.id;
           // スケジュール一覧を更新
           setSchedules(prevSchedules => [...prevSchedules, newSchedule]);
+          existingSchedule = newSchedule;
+          console.log(`Created new schedule for ${service}:`, newSchedule.id);
         }
       }
       
@@ -425,19 +490,46 @@ const ServiceCheckSettings = ({ clientId }) => {
           const category = categoriesResponse.find(c => c.name === categoryName);
           if (category) {
             categoryId = category.id;
+            console.log(`Found category for ${service}:`, category.name);
           } else {
             categoryId = categoriesResponse[0].id; // デフォルトは最初のカテゴリ
+            console.log(`Using default category for ${service}:`, categoriesResponse[0].name);
           }
         }
         
         // 優先度を設定（中程度）
         if (prioritiesResponse && prioritiesResponse.length > 0) {
-          // 中程度の優先度を検索
-          const middlePriority = prioritiesResponse.find(p => p.name === '中' || p.priority_value === 50);
+          // 中程度の優先度を検索 (優先度値50前後)
+          let middlePriority = null;
+          
+          // 優先度50をまず探す
+          middlePriority = prioritiesResponse.find(p => p.priority_value === 50);
+          
+          // なければ名前で「中」を探す
+          if (!middlePriority) {
+            middlePriority = prioritiesResponse.find(p => p.name === '中');
+          }
+          
+          // それでもなければ優先度値が30-70の範囲で一番50に近いものを探す
+          if (!middlePriority) {
+            const mediumPriorities = prioritiesResponse.filter(p => 
+              p.priority_value >= 30 && p.priority_value <= 70
+            );
+            
+            if (mediumPriorities.length > 0) {
+              // 50に一番近い値を持つものを探す
+              middlePriority = mediumPriorities.reduce((closest, current) => {
+                return Math.abs(current.priority_value - 50) < Math.abs(closest.priority_value - 50) ? current : closest;
+              });
+            }
+          }
+          
           if (middlePriority) {
             priorityId = middlePriority.id;
+            console.log(`Found priority for ${service}:`, middlePriority.priority_value);
           } else {
             priorityId = prioritiesResponse[0].id; // デフォルトは最初の優先度
+            console.log(`Using default priority for ${service}:`, prioritiesResponse[0].priority_value);
           }
         }
       } catch (error) {
@@ -450,13 +542,22 @@ const ServiceCheckSettings = ({ clientId }) => {
         title: DEFAULT_TEMPLATE_TITLES[service] || `${SERVICE_DISPLAY_NAMES[service]}`,
         description: DEFAULT_TEMPLATE_DESCRIPTIONS[service] || `${SERVICE_DISPLAY_NAMES[service]}のタスクテンプレート`,
         schedule: scheduleId,
-        is_active: serviceSettings.enabled,
+        is_active: serviceSettings.enabled !== false, // デフォルトで有効
         category: categoryId,
-        priority: priorityId
+        priority: priorityId,
+        template_task: globalTemplateId // グローバルテンプレートが見つかった場合は参照を設定
       };
+      
+      console.log(`Creating template for ${service} with data:`, templateData);
       
       // テンプレート作成
       const newTemplate = await clientsApi.createClientTaskTemplate(clientId, templateData);
+      
+      // サーバー側での変更をフロントエンドの状態に反映
+      if (newTemplate && existingSchedule) {
+        // スケジュール名を設定
+        newTemplate.schedule_name = existingSchedule.name;
+      }
       
       toast.success(`${SERVICE_DISPLAY_NAMES[service]}のテンプレートを作成しました`);
       return newTemplate;
