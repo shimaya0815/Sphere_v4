@@ -1,7 +1,6 @@
 import React from 'react';
 import { Controller } from 'react-hook-form';
 import { HiOutlineCalendar } from 'react-icons/hi';
-import { formatDateForInput } from '../../../../../utils/dateUtils';
 
 /**
  * タスクの日付と優先度を表示・編集するコンポーネント
