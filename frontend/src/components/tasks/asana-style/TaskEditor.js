@@ -227,6 +227,20 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
     if (!task && !isNewTask) return;
     
     const setupTaskForm = () => {
+      // 新しいタスクデータが取得された時にコンソールログに出力
+      if (task && !isNewTask) {
+        console.log('Setting up task form with data:', task);
+        console.log('Assignee info:', {
+          assignee: task.assignee,
+          assignee_name: task.assignee_name,
+          status_data: task.status_data,
+          worker: task.worker,
+          worker_name: task.worker_name,
+          reviewer: task.reviewer,
+          reviewer_name: task.reviewer_name
+        });
+      }
+      
       if (isNewTask) {
         // 新規タスクの場合のデフォルト値
         const defaultValues = {
@@ -256,6 +270,17 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       
       // 既存タスクの編集
       if (task) {
+        // タスク情報をデバッグ
+        console.log('Task assignee info:', {
+          assignee: task.assignee,
+          assignee_name: task.assignee_name,
+          assignee_type: task.assignee_type,
+          worker: task.worker,
+          worker_name: task.worker_name,
+          reviewer: task.reviewer,
+          reviewer_name: task.reviewer_name
+        });
+        
         // IDを文字列に変換する関数
         const getIdAsString = (field) => {
           if (!field) return '';
@@ -1105,12 +1130,19 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                         
                         <div className="flex items-center text-sm">
                           {/* 現在の担当者表示 - シンプルな形で右側に表示 */}
-                          {task && task.assignee_name && (
+                          {task && (
                             <div className="bg-blue-50 px-3 py-1.5 rounded-md border border-blue-200 flex items-center">
                               <HiUser className="mr-1.5 text-blue-500" />
                               <div className="flex items-center">
                                 <span className="text-blue-700 mr-1">現在の担当者:</span>
-                                <span className="text-blue-800 font-medium">{task.assignee_name}</span>
+                                <span className="text-blue-800 font-medium">
+                                  {task.assignee_name ||
+                                   (task.worker_name && task.status_data?.assignee_type === 'worker' ? task.worker_name : 
+                                    task.reviewer_name && task.status_data?.assignee_type === 'reviewer' ? task.reviewer_name :
+                                    task.status_data?.assignee_type === 'worker' ? '作業担当者' :
+                                    task.status_data?.assignee_type === 'reviewer' ? 'レビュー担当者' :
+                                    '担当者なし')}
+                                </span>
                               </div>
                             </div>
                           )}
