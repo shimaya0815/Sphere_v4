@@ -8,20 +8,20 @@ import toast from 'react-hot-toast';
  */
 const TimeTracking = ({ 
   task, 
-  isRecordingTime, 
-  timeEntry, 
-  elapsedTime, 
-  cachedTimeEntries, 
-  isLoadingTimeEntries,
-  editingTimeEntry,
-  timeEntryForm,
-  startTimeRecording,
-  stopTimeRecording,
-  startEditingTimeEntry,
-  cancelEditingTimeEntry,
-  saveTimeEntryEdit,
-  deleteTimeEntry,
-  setTimeEntryForm
+  isRecordingTime = false, 
+  timeEntry = null, 
+  elapsedTime = 0, 
+  cachedTimeEntries = [], 
+  isLoadingTimeEntries = false,
+  editingTimeEntry = null,
+  timeEntryForm = {},
+  startTimeRecording = () => {},
+  stopTimeRecording = () => {},
+  startEditingTimeEntry = () => {},
+  cancelEditingTimeEntry = () => {},
+  saveTimeEntryEdit = () => {},
+  deleteTimeEntry = () => {},
+  setTimeEntryForm = () => {}
 }) => {
   const [showTimeEntries, setShowTimeEntries] = useState(false);
 
