@@ -229,15 +229,22 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
     const setupTaskForm = () => {
       // 新しいタスクデータが取得された時にコンソールログに出力
       if (task && !isNewTask) {
-        console.log('Setting up task form with data:', task);
+        console.log('Setting up task form with data:', JSON.stringify(task, null, 2));
         console.log('Assignee info:', {
           assignee: task.assignee,
           assignee_name: task.assignee_name,
-          status_data: task.status_data,
+          status_data: task.status_data ? {
+            id: task.status_data.id,
+            name: task.status_data.name,
+            assignee_type: task.status_data.assignee_type
+          } : 'No status data',
           worker: task.worker,
           worker_name: task.worker_name,
+          worker_data: task.worker_data,
           reviewer: task.reviewer,
-          reviewer_name: task.reviewer_name
+          reviewer_name: task.reviewer_name,
+          reviewer_data: task.reviewer_data,
+          status: task.status
         });
       }
       
@@ -1136,12 +1143,47 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                               <div className="flex items-center">
                                 <span className="text-blue-700 mr-1">現在の担当者:</span>
                                 <span className="text-blue-800 font-medium">
-                                  {task.assignee_name ||
-                                   (task.worker_name && task.status_data?.assignee_type === 'worker' ? task.worker_name : 
-                                    task.reviewer_name && task.status_data?.assignee_type === 'reviewer' ? task.reviewer_name :
-                                    task.status_data?.assignee_type === 'worker' ? '作業担当者' :
-                                    task.status_data?.assignee_type === 'reviewer' ? 'レビュー担当者' :
-                                    '担当者なし')}
+                                  {(() => {
+                                    // 担当者表示のための関数
+                                    if (task.assignee_name) return task.assignee_name;
+                                    
+                                    // status_dataが取得できている場合
+                                    if (task.status_data && task.status_data.assignee_type) {
+                                      const assigneeType = task.status_data.assignee_type;
+                                      
+                                      // 作業者タイプの場合
+                                      if (assigneeType === 'worker') {
+                                        // worker_nameが利用可能ならそれを使う
+                                        if (task.worker_name) return task.worker_name;
+                                        // worker_dataが利用可能ならそれを使う
+                                        if (task.worker_data && task.worker_data.get_full_name) 
+                                          return task.worker_data.get_full_name;
+                                        // workerのIDがあり、usersリストで見つかれば名前を表示
+                                        if (task.worker && users.find(u => u.id === task.worker || u.id === parseInt(task.worker)))
+                                          return users.find(u => u.id === task.worker || u.id === parseInt(task.worker)).get_full_name || 
+                                                 users.find(u => u.id === task.worker || u.id === parseInt(task.worker)).email;
+                                        
+                                        return '作業担当者';
+                                      }
+                                      
+                                      // レビュアータイプの場合
+                                      if (assigneeType === 'reviewer') {
+                                        // reviewer_nameが利用可能ならそれを使う
+                                        if (task.reviewer_name) return task.reviewer_name;
+                                        // reviewer_dataが利用可能ならそれを使う
+                                        if (task.reviewer_data && task.reviewer_data.get_full_name) 
+                                          return task.reviewer_data.get_full_name;
+                                        // reviewerのIDがあり、usersリストで見つかれば名前を表示
+                                        if (task.reviewer && users.find(u => u.id === task.reviewer || u.id === parseInt(task.reviewer)))
+                                          return users.find(u => u.id === task.reviewer || u.id === parseInt(task.reviewer)).get_full_name || 
+                                                 users.find(u => u.id === task.reviewer || u.id === parseInt(task.reviewer)).email;
+                                        
+                                        return 'レビュー担当者';
+                                      }
+                                    }
+                                    
+                                    return '担当者なし';
+                                  })()}
                                 </span>
                               </div>
                             </div>
