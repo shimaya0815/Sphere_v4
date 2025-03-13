@@ -56,7 +56,13 @@ const tasksApi = {
             // 日付の妥当性チェック - 有効な日付文字列であればそのまま使用
             const date = new Date(taskData[key]);
             if (!isNaN(date.getTime())) {
-              requiredData[key] = taskData[key];
+              // YYYY-MM-DD形式の場合、ISO 8601形式に変換
+              if (/^\d{4}-\d{2}-\d{2}$/.test(taskData[key])) {
+                requiredData[key] = `${taskData[key]}T00:00:00Z`;
+                console.log(`Converted ${key} to ISO format:`, requiredData[key]);
+              } else {
+                requiredData[key] = taskData[key];
+              }
             } else {
               requiredData[key] = null;
             }
@@ -112,17 +118,32 @@ const tasksApi = {
       const DEBUG_MODE = true;
       const SAFE_MODE = true;
       
+      // 日付フィールドのISO 8601形式への変換
+      const dateFields = ['due_date', 'start_date', 'completed_at', 'recurrence_end_date'];
+      const processedData = { ...taskData };
+      
+      // 日付フィールドをISO 8601形式に変換
+      dateFields.forEach(field => {
+        if (field in processedData && processedData[field]) {
+          // YYYY-MM-DD形式の場合、ISO 8601形式に変換
+          if (/^\d{4}-\d{2}-\d{2}$/.test(processedData[field])) {
+            processedData[field] = `${processedData[field]}T00:00:00Z`;
+            console.log(`Converted ${field} to ISO format:`, processedData[field]);
+          }
+        }
+      });
+      
       if (DEBUG_MODE) {
         console.log('🔍 TASK UPDATE DEBUGGING');
         console.log('Task ID:', taskId);
-        console.log('Update data (full):', JSON.stringify(taskData, null, 2));
-        console.log('Update data keys:', Object.keys(taskData));
+        console.log('Update data (full):', JSON.stringify(processedData, null, 2));
+        console.log('Update data keys:', Object.keys(processedData));
         
         if (SAFE_MODE) {
           // セーフモード：タイトルが空の場合は削除し、他のデータのみを更新
-          if ('title' in taskData && (!taskData.title || taskData.title.trim() === '')) {
+          if ('title' in processedData && (!processedData.title || processedData.title.trim() === '')) {
             console.warn('🔴 SAFE MODE: Removing empty title from update data');
-            const safeData = { ...taskData };
+            const safeData = { ...processedData };
             delete safeData.title;
             
             // タイトル以外のデータがなければ、更新自体をスキップ
@@ -145,7 +166,7 @@ const tasksApi = {
       }
       
       // タイトルのバリデーション - 空の場合はエラーを投げる
-      if ('title' in taskData && (!taskData.title || taskData.title.trim() === '')) {
+      if ('title' in processedData && (!processedData.title || processedData.title.trim() === '')) {
         console.error('タイトルは必須項目です。空のタイトルで更新できません。');
         throw new Error('タイトルは必須項目です');
       }
@@ -153,7 +174,7 @@ const tasksApi = {
       // PUTではなくPATCHメソッドを使用して部分更新する
       // （PUTは全てのフィールドを必要とするが、PATCHは変更されたフィールドだけを更新）
       console.log('Using PATCH method for partial update');
-      const response = await apiClient.patch(`/api/tasks/${taskId}/`, taskData);
+      const response = await apiClient.patch(`/api/tasks/${taskId}/`, processedData);
       return response.data;
     } catch (error) {
       console.error('Error updating task:', error);
