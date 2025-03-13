@@ -13,11 +13,11 @@ urlpatterns = [
     path('', include(router.urls)),
     path('dashboard/', views.DashboardSummaryView.as_view(), name='dashboard'),
     path('timer/start/', views.StartTimeEntryViewSet.as_view({'post': 'create'}), name='start-time-entry'),
+    path('timer/active/', views.StartTimeEntryViewSet.as_view({'get': 'active'}), name='active-time-entry'),
     path('timer/<int:entry_id>/stop/', views.StopTimeEntryViewSet.as_view({'post': 'create'}), name='stop-time-entry'),
     path('entries/<int:entry_id>/breaks/start/', views.StartBreakView.as_view(), name='start-break'),
     path('breaks/<int:break_id>/stop/', views.StopBreakView.as_view(), name='stop-break'),
     path('reports/generate/', views.GenerateReportView.as_view(), name='generate-report'),
-    # 以下の2行のコメントを解除して、上に移動
-    # path('analytics/generate/', views.DailyAnalyticsViewSet.as_view({'get': 'generate'}), name='generate-analytics'),
-    # path('analytics/chart-data/', views.DailyAnalyticsViewSet.as_view({'get': 'chart_data'}), name='analytics-chart-data'),
+    # Analytics endpoints
+    path('analytics/chart_data/', views.DailyAnalyticsViewSet.as_view({'get': 'chart_data'}), name='analytics-chart-data'),
 ]

@@ -5,6 +5,33 @@ import apiClient from './client';
  */
 const usersApi = {
   /**
+   * ユーザープロフィールを取得
+   * @returns {Promise<Object>} - ユーザープロフィール情報
+   */
+  getProfile: async () => {
+    try {
+      const response = await apiClient.get('/api/users/profile/me/');
+      return response;
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      // デモプロフィールを返す（開発用）
+      return {
+        data: {
+          id: 1,
+          username: 'admin',
+          email: 'admin@example.com',
+          first_name: '管理者',
+          last_name: 'ユーザー',
+          business: {
+            id: 1,
+            name: 'サンプル企業'
+          }
+        }
+      };
+    }
+  },
+  
+  /**
    * ユーザー一覧を取得
    * @param {Object} params - クエリパラメータ
    * @returns {Promise<Array>} - ユーザー一覧

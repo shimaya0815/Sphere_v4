@@ -389,8 +389,31 @@ class DashboardSummaryView(APIView):
 
 
 class StartTimeEntryViewSet(viewsets.ViewSet):
-    """API view to start a time entry."""
+    """API view to start and manage time entries."""
     permission_classes = [permissions.IsAuthenticated]
+    
+    def active(self, request):
+        """Get the active time entry for the current user or for a specific task."""
+        task_id = request.query_params.get('task_id')
+        
+        # Base query for active time entries
+        query_filter = {
+            'user': request.user,
+            'end_time__isnull': True
+        }
+        
+        # Add task filter if specified
+        if task_id:
+            query_filter['task_id'] = task_id
+        
+        # Get the active time entry
+        active_timer = TimeEntry.objects.filter(**query_filter).first()
+        
+        if active_timer:
+            serializer = TimeEntrySerializer(active_timer)
+            return Response(serializer.data)
+        else:
+            return Response({'active': False}, status=status.HTTP_404_NOT_FOUND)
     
     def create(self, request):
         """Start a time entry."""
