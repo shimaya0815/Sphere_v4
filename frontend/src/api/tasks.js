@@ -249,10 +249,39 @@ const tasksApi = {
   // タスクカテゴリー一覧を取得
   getCategories: async () => {
     try {
+      console.log('API - Fetching task categories');
       const response = await apiClient.get('/api/tasks/categories/');
-      return response.data;
+      console.log('API - Categories response:', response);
+      
+      // レスポンスの形式に応じて適切に処理
+      if (response.data && Array.isArray(response.data)) {
+        console.log('API - Returning array format categories:', response.data.length);
+        return {
+          data: response.data
+        };
+      } else if (response.data && response.data.results && Array.isArray(response.data.results)) {
+        console.log('API - Returning paginated categories:', response.data.results.length);
+        return {
+          data: response.data.results
+        };
+      } else if (response.data) {
+        console.log('API - Returning object format categories');
+        return {
+          data: [response.data]
+        };
+      }
+      
+      // 空の場合はデフォルト値を返す
+      console.warn('API - No categories found, returning default');
+      return {
+        data: [{ id: 1, name: '一般', color: '#6366F1' }]
+      };
     } catch (error) {
-      throw error;
+      console.error('Error fetching categories:', error);
+      // エラーの場合はデフォルト値を返し、UIが壊れないようにする
+      return {
+        data: [{ id: 1, name: '一般', color: '#6366F1' }]
+      };
     }
   },
   
