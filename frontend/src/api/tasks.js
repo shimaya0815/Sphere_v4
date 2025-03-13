@@ -36,9 +36,23 @@ const tasksApi = {
   // 新規タスク作成
   createTask: async (taskData) => {
     try {
-      const response = await apiClient.post('/api/tasks/', taskData);
+      console.log('Create task data:', taskData);
+      // デフォルトの必須データを確実に設定
+      const requiredData = {
+        title: taskData.title || '新規タスク', // タイトルが必須
+        ...taskData
+      };
+      
+      // ステータスがない場合は先頭のステータスを自動選択（後でサーバー側のデフォルト処理に任せる）
+      if (!requiredData.status) {
+        console.log('No status in task data, server will assign default');
+      }
+      
+      const response = await apiClient.post('/api/tasks/', requiredData);
       return response.data;
     } catch (error) {
+      console.error('Error creating task:', error);
+      console.error('Error details:', error.response?.data || error.message);
       throw error;
     }
   },
