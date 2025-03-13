@@ -95,11 +95,11 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       completed_at: '',
       priority: '',
       priority_value: '',
-      is_fiscal_task: '',
-      is_recurring: '',
+      is_fiscal_task: 'false',
+      is_recurring: 'false',
       recurrence_pattern: '',
       recurrence_end_date: '',
-      is_template: '',
+      is_template: 'false', // 明示的にfalseを設定
       template_name: ''
     },
   });
