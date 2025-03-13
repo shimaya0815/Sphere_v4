@@ -51,8 +51,20 @@ const clientsApi = {
   
   // Get fiscal years for a client
   getFiscalYears: async (clientId) => {
-    const response = await apiClient.get(`/api/clients/${clientId}/fiscal-years/`);
-    return response.data;
+    try {
+      // クライアントIDがない場合は早期リターン
+      if (!clientId || clientId === 'undefined') {
+        console.log('クライアントIDが未指定のため、決算期情報を取得せずに空配列を返します');
+        return { results: [] };
+      }
+      
+      const response = await apiClient.get(`/api/clients/${clientId}/fiscal-years/`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching fiscal years for client ${clientId}:`, error);
+      // エラーの場合は空の配列を返して、フロントエンドが中断しないようにする
+      return { results: [] };
+    }
   },
   
   // Create fiscal year for a client
