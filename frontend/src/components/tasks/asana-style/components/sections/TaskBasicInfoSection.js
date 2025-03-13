@@ -181,9 +181,9 @@ const TaskBasicInfoSection = ({
                   {filteredFiscalYears.map((fiscalYear) => (
                     <option key={fiscalYear.id} value={fiscalYear.id}>
                       {fiscalYear.end_date 
-                        ? `${new Date(fiscalYear.end_date).getFullYear()}年${new Date(fiscalYear.end_date).getMonth() + 1}月期` 
-                        : (fiscalYear.year ? `${fiscalYear.year}年度` : '決算期')}
-                      {(fiscalYear.fiscal_period || fiscalYear.period) ? ` （第${fiscalYear.fiscal_period || fiscalYear.period}期）` : ''}
+                        ? fiscalYear.end_date.substring(0, 10) // YYYY-MM-DD形式で表示
+                        : (fiscalYear.year ? `${fiscalYear.year}-12-31` : '決算期')}
+                      {(fiscalYear.fiscal_period || fiscalYear.period) ? `(第${fiscalYear.fiscal_period || fiscalYear.period}期)` : ''}
                       {fiscalYear.is_current && ' (現在)'}
                     </option>
                   ))}
