@@ -41,15 +41,18 @@ const timeManagementApi = {
         }
       ];
       
+      // ローカル変数を使用して、ESLintエラーを解消
+      const params = apiParams || {};
+      
       // activeフィルターが指定されていればそれに従う
-      if (apiParams.active === 'true') {
+      if (params.active === 'true') {
         return mockEntries.filter(entry => entry.is_running || !entry.end_time);
-      } else if (apiParams.active === 'false') {
+      } else if (params.active === 'false') {
         return mockEntries.filter(entry => !entry.is_running && entry.end_time);
-      } else if (apiParams.task_id) {
+      } else if (params.task_id) {
         // タスクIDでフィルター
         return mockEntries.filter(entry => 
-          entry.task && entry.task.id.toString() === apiParams.task_id.toString()
+          entry.task && entry.task.id.toString() === params.task_id.toString()
         );
       }
       
