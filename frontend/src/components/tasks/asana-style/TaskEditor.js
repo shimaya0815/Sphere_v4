@@ -443,12 +443,27 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       
       // 親コンポーネントに通知
       if (onTaskUpdated) {
-        onTaskUpdated(response.data);
+        // データを取り出して確実に更新する
+        const taskData = response.data || response;
+        console.log("Sending updated task data to parent:", taskData);
+        onTaskUpdated(taskData);
       }
+      
+      // タスク更新イベントをグローバルに発火して確実に更新
+      console.log("Dispatching global task-updated event with isNew flag:", isNewTask);
+      window.dispatchEvent(new CustomEvent('task-updated', { 
+        detail: { 
+          task: response.data || response,
+          isNew: isNewTask
+        }
+      }));
       
       // 作成後は閉じる
       if (isNewTask) {
-        onClose();
+        // 閉じる前に十分な時間を設けて、タスク一覧の更新を確実にする
+        setTimeout(() => {
+          onClose();
+        }, 500);
       }
     } catch (error) {
       console.error('Error submitting task:', error);

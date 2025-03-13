@@ -180,9 +180,16 @@ const TaskList = React.forwardRef((props, ref) => {
   
   // 親コンポーネントからタスク更新通知を受け取るためのイベントハンドラ
   useEffect(() => {
-    const handleTaskUpdate = () => {
-      console.log("Task updated event received");
-      fetchTasks();
+    const handleTaskUpdate = (event) => {
+      console.log("Task updated event received", event.detail);
+      // 新規作成されたタスクがあれば、タスクリストに追加する
+      if (event.detail && event.detail.task && event.detail.isNew) {
+        console.log("Adding new task to the list", event.detail.task);
+        setTasks(prevTasks => [event.detail.task, ...prevTasks]);
+      } else {
+        // 既存のタスクが更新された場合やイベントに詳細がない場合は再取得
+        fetchTasks();
+      }
     };
     
     const handleForceRefresh = () => {
@@ -214,6 +221,14 @@ const TaskList = React.forwardRef((props, ref) => {
     refreshTasks: () => {
       console.log("Refresh tasks method called");
       fetchTasks();
+    },
+    refreshTasksWithData: (newTask) => {
+      console.log("Refresh with task data", newTask);
+      if (newTask) {
+        setTasks(prevTasks => [newTask, ...prevTasks]);
+      } else {
+        fetchTasks();
+      }
     }
   }));
 
