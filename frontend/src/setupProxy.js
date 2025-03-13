@@ -126,6 +126,17 @@ module.exports = function(app) {
     // WebSocketリクエストとAPIリクエストを区別
     const isWebSocketUpgrade = req.headers.upgrade && req.headers.upgrade.toLowerCase() === 'websocket';
     
+    // まず、React Routerに任せるべきパスパターンをチェック
+    // ルートパス、または数字のみのパス（タスク詳細ページ）の場合はReactに戻す
+    const isReactRouterPath = req.url === '/' || req.url === '' || 
+                             /^\/\d+\/?$/.test(req.url) || // /123/ や /123 など
+                             /^\/templates\/?/.test(req.url); // /templates/ など
+    
+    if (isReactRouterPath && !isWebSocketUpgrade) {
+      console.log(`[Tasks Proxy] React Router path detected: "${req.url}", returning to React router`);
+      return next();
+    }
+    
     if (isWebSocketUpgrade) {
       // WebSocketのアップグレードリクエストはWebSocketサーバーにプロキシ
       console.log(`[WS Proxy] WebSocket upgrade request: ${req.method} ${req.url}`);
@@ -154,13 +165,7 @@ module.exports = function(app) {
       return wsProxy(req, res, next);
     } else {
       // HTTPリクエストは通常のAPIにプロキシ
-      console.log(`[API Proxy] Regular request: ${req.method} ${req.url}`);
-      
-      // /tasks パスのみの場合はReactアプリケーションに戻す
-      if (req.url === '/' || req.url === '') {
-        console.log('[Tasks Proxy] Root path detected, returning to React router');
-        return next();
-      }
+      console.log(`[API Proxy] Regular API request: ${req.method} ${req.url}`);
       
       const apiProxy = createProxyMiddleware({
         target: BACKEND_HOST,
