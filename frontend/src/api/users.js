@@ -10,8 +10,30 @@ const usersApi = {
    */
   getProfile: async () => {
     try {
-      const response = await apiClient.get('/api/users/profile/me/');
-      return response;
+      // 最初に認証済みユーザー情報を取得
+      const userResponse = await apiClient.get('/api/auth/users/me/');
+      
+      if (userResponse.data && userResponse.data.id) {
+        // 取得したユーザーIDでプロフィール詳細を取得
+        try {
+          const profileResponse = await apiClient.get(`/api/users/profile/${userResponse.data.id}/`);
+          return profileResponse;
+        } catch (profileError) {
+          console.error('Error fetching detailed profile:', profileError);
+          // ユーザー基本情報だけでもレスポンス形式に合わせて返す
+          return {
+            data: {
+              ...userResponse.data,
+              business: {
+                id: userResponse.data.business || 1,
+                name: userResponse.data.business_name || 'サンプル企業'
+              }
+            }
+          };
+        }
+      }
+      
+      throw new Error('User data not found');
     } catch (error) {
       console.error('Error fetching user profile:', error);
       // デモプロフィールを返す（開発用）

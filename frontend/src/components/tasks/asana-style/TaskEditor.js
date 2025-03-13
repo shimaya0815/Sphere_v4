@@ -167,39 +167,128 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
    */
   useEffect(() => {
     const fetchMasterData = async () => {
+      let hasErrors = false;
+      
+      // ビジネスIDを取得
       try {
-        // ビジネスIDを取得
         const profileResponse = await usersApi.getProfile();
         if (profileResponse.data && profileResponse.data.business) {
           setBusinessId(profileResponse.data.business.id);
+        } else {
+          console.warn('Business ID not found in profile response. Using default value 1.');
+          setBusinessId(1); // フォールバック値
         }
-        
-        // ステータス一覧を取得
-        const statusesResponse = await tasksApi.getStatuses();
-        setStatuses(statusesResponse.data);
-        
-        // カテゴリー一覧を取得
-        const categoriesResponse = await tasksApi.getCategories();
-        setCategories(categoriesResponse.data);
-        
-        // 優先度一覧を取得
-        const prioritiesResponse = await tasksApi.getPriorities();
-        setPriorities(prioritiesResponse.data);
-        
-        // クライアント一覧を取得
-        const clientsResponse = await clientsApi.getClients();
-        setClients(clientsResponse.data);
-        
-        // 決算期一覧を取得
-        const fiscalYearsResponse = await clientsApi.getFiscalYears();
-        setFiscalYears(fiscalYearsResponse.data);
-        
-        // ユーザー一覧を取得
-        const usersResponse = await usersApi.getUsers();
-        setUsers(usersResponse.data);
       } catch (error) {
-        console.error('Error fetching master data:', error);
-        toast.error('マスターデータの取得に失敗しました');
+        console.error('Error fetching profile:', error);
+        setBusinessId(1); // フォールバック値
+        hasErrors = true;
+      }
+      
+      // ステータス一覧を取得
+      try {
+        const statusesResponse = await tasksApi.getStatuses();
+        if (statusesResponse.data) {
+          setStatuses(statusesResponse.data);
+        } else {
+          // デフォルト値を設定
+          setStatuses([
+            { id: 1, name: '未着手', order: 1 },
+            { id: 2, name: '進行中', order: 2 },
+            { id: 3, name: '完了', order: 3 }
+          ]);
+        }
+      } catch (error) {
+        console.error('Error fetching statuses:', error);
+        // デフォルト値を設定
+        setStatuses([
+          { id: 1, name: '未着手', order: 1 },
+          { id: 2, name: '進行中', order: 2 },
+          { id: 3, name: '完了', order: 3 }
+        ]);
+        hasErrors = true;
+      }
+      
+      // カテゴリー一覧を取得
+      try {
+        const categoriesResponse = await tasksApi.getCategories();
+        if (categoriesResponse.data) {
+          setCategories(categoriesResponse.data);
+        } else {
+          setCategories([{ id: 1, name: '一般', color: '#6366F1' }]);
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+        setCategories([{ id: 1, name: '一般', color: '#6366F1' }]);
+        hasErrors = true;
+      }
+      
+      // 優先度一覧を取得
+      try {
+        const prioritiesResponse = await tasksApi.getPriorities();
+        if (prioritiesResponse.data) {
+          setPriorities(prioritiesResponse.data);
+        } else {
+          setPriorities([
+            { id: 1, name: '低', priority_value: 1 },
+            { id: 2, name: '中', priority_value: 2 },
+            { id: 3, name: '高', priority_value: 3 }
+          ]);
+        }
+      } catch (error) {
+        console.error('Error fetching priorities:', error);
+        setPriorities([
+          { id: 1, name: '低', priority_value: 1 },
+          { id: 2, name: '中', priority_value: 2 },
+          { id: 3, name: '高', priority_value: 3 }
+        ]);
+        hasErrors = true;
+      }
+      
+      // クライアント一覧を取得
+      try {
+        const clientsResponse = await clientsApi.getClients();
+        if (clientsResponse.data) {
+          setClients(clientsResponse.data);
+        } else {
+          setClients([]);
+        }
+      } catch (error) {
+        console.error('Error fetching clients:', error);
+        setClients([]);
+        hasErrors = true;
+      }
+      
+      // 決算期一覧を取得
+      try {
+        const fiscalYearsResponse = await clientsApi.getFiscalYears();
+        if (fiscalYearsResponse.data) {
+          setFiscalYears(fiscalYearsResponse.data);
+        } else {
+          setFiscalYears([]);
+        }
+      } catch (error) {
+        console.error('Error fetching fiscal years:', error);
+        setFiscalYears([]);
+        hasErrors = true;
+      }
+      
+      // ユーザー一覧を取得
+      try {
+        const usersResponse = await usersApi.getUsers();
+        if (usersResponse.data) {
+          setUsers(usersResponse.data);
+        } else {
+          setUsers([]);
+        }
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        setUsers([]);
+        hasErrors = true;
+      }
+      
+      // エラーがあった場合のみ通知
+      if (hasErrors) {
+        toast.error('一部のマスターデータの取得に失敗しました。一部機能が制限される場合があります。');
       }
     };
     
