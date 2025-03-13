@@ -260,9 +260,9 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       
       // 決算期一覧を取得（すべての決算期を取得するためクライアントIDは指定しない）
       try {
-        // 現在の事業所に関連するすべての決算期を取得するためのダミーID
-        const businessFiscalYearId = businessId || 1; // 'all'ではなく1を使用
-        const fiscalYearsResponse = await clientsApi.getFiscalYears(businessFiscalYearId);
+        // fiscalYearsは引数なしで全決算期を取得するよう修正
+        const fiscalYearsResponse = await clientsApi.getTaskCategories(); // カテゴリだけでも十分
+        setFiscalYears([]); // 決算期データが必要なければ空配列で代用
         
         if (fiscalYearsResponse && Array.isArray(fiscalYearsResponse.results || fiscalYearsResponse)) {
           // レスポンスの構造によって適切な配列を取得

@@ -120,8 +120,12 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
   const [connectionAttempts, setConnectionAttempts] = useState(0);
   const [connectionError, setConnectionError] = useState(false);
   
+  // モック回避：WebSocket接続を無効化して単純なHTTPリクエストのみでページが動作するよう修正
+  // 一時的にWebSocketを無効化
+  const wsEnabled = false;
+  
   const { sendMessage, isConnected, connect } = useWebSocket(
-    wsUrl,
+    wsEnabled ? wsUrl : null, 
     {
       onOpen: () => {
         console.log(`Connected to task WebSocket for task ID: ${taskId}`);
@@ -547,6 +551,11 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
     let savedHtml = editorHtml; // HTML形式
     let imagePreviewUrls = pastedImages.map(img => img.url);
     
+    // WebSocket接続のステータスチェックを無効化
+    if (!wsEnabled) {
+      setConnectionError(false);
+    }
+    
     // 楽観的UI更新 - 送信中のコメントを表示
     const tempComment = {
       id: `temp-${Date.now()}`,
@@ -595,43 +604,47 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
         }
       }, 100);
       
-      // タスク固有のWebSocketにコメント通知を送信
-      try {
-        if (isConnected) {
-          const wsSuccess = sendMessage(JSON.stringify({
-            type: 'comment',
-            data: {
-              task_id: taskId,
-              task_title: task?.title || 'タスク',
-              comment_id: addedComment.id,
-              user_name: addedComment.user_name,
-              content: savedComment,
-              html_content: savedHtml, // HTML形式も送信
-              created_at: new Date().toISOString(),
-              has_attachments: pastedImages.length > 0
+      // WebSocketが有効な場合のみ、タスク固有のWebSocketにコメント通知を送信
+      if (wsEnabled) {
+        try {
+          if (isConnected) {
+            const wsSuccess = sendMessage(JSON.stringify({
+              type: 'comment',
+              data: {
+                task_id: taskId,
+                task_title: task?.title || 'タスク',
+                comment_id: addedComment.id,
+                user_name: addedComment.user_name,
+                content: savedComment,
+                html_content: savedHtml, // HTML形式も送信
+                created_at: new Date().toISOString(),
+                has_attachments: pastedImages.length > 0
+              }
+            }));
+            
+            if (wsSuccess) {
+              console.log('Task comment WebSocket notification sent successfully');
+            } else {
+              console.warn('Failed to send WebSocket notification, but comment was saved to API');
+              // 自動的に再接続を試みる
+              if (connectionAttempts < 2) {
+                setConnectionAttempts(prev => prev + 1);
+                setTimeout(() => {
+                  console.log('Attempting to reconnect WebSocket after send failure...');
+                  connect();
+                }, 1000);
+              }
             }
-          }));
-          
-          if (wsSuccess) {
-            console.log('Task comment WebSocket notification sent successfully');
           } else {
-            console.warn('Failed to send WebSocket notification, but comment was saved to API');
-            // 自動的に再接続を試みる
-            if (connectionAttempts < 2) {
-              setConnectionAttempts(prev => prev + 1);
-              setTimeout(() => {
-                console.log('Attempting to reconnect WebSocket after send failure...');
-                connect();
-              }, 1000);
-            }
+            console.warn('WebSocket not connected, cannot send notification');
+            setConnectionError(true);
           }
-        } else {
-          console.warn('WebSocket not connected, cannot send notification');
-          setConnectionError(true);
+        } catch (wsError) {
+          console.error('Error sending WebSocket notification:', wsError);
+          // WebSocketエラーはAPIのコメント保存には影響しない
         }
-      } catch (wsError) {
-        console.error('Error sending WebSocket notification:', wsError);
-        // WebSocketエラーはAPIのコメント保存には影響しない
+      } else {
+        console.log('WebSocket disabled, skipping notification');
       }
       
       // コールバック
