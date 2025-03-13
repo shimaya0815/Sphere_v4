@@ -1104,7 +1104,18 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                         </div>
                         
                         {/* 作業担当者・レビュー担当者の表示 */}
-                        <div className="flex items-center space-x-2 text-sm">
+                        <div className="flex items-center space-x-3 text-sm">
+                          {/* 現在の担当者表示 - 枠付きハイライト */}
+                          {task && task.assignee && (
+                            <div className="bg-blue-50 px-3 py-1.5 rounded-md border border-blue-200 flex items-center">
+                              <HiUser className="mr-1.5 text-blue-500" />
+                              <div className="flex items-center">
+                                <span className="text-blue-700 mr-1">現在:</span>
+                                <span className="text-blue-800 font-medium">{task.assignee_name || (typeof task.assignee === 'object' ? task.assignee.get_full_name || task.assignee.email : '不明')}</span>
+                              </div>
+                            </div>
+                          )}
+                          
                           <div className="flex items-center">
                             <span className="text-gray-500 mr-1">作業:</span>
                             <span className="font-medium text-gray-700">
@@ -1144,16 +1155,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                         </button>
                       </div>
                       
-                      {/* 現在の担当者表示 */}
-                      {task && task.assignee && (
-                        <div className="mt-2 bg-blue-50 px-3 py-2 rounded-md border border-blue-200 shadow-sm flex items-center">
-                          <HiUser className="mr-2 text-blue-500" />
-                          <div className="flex items-center text-sm">
-                            <span className="text-blue-700 mr-1">現在の担当者:</span>
-                            <span className="text-blue-800 font-medium">{task.assignee_name || (typeof task.assignee === 'object' ? task.assignee.get_full_name || task.assignee.email : '不明')}</span>
-                          </div>
-                        </div>
-                      )}
+                      {/* 現在の担当者表示は上部に移動済み */}
                       
                       {/* 作業者とレビュー担当者 - 折りたたみ可能 */}
                       {isAssigneeExpanded && (
