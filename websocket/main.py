@@ -100,7 +100,7 @@ class ReadStatusData(BaseModel):
 # Socket.IOイベントハンドラ
 @sio.event
 async def connect(sid, environ, auth):
-    """クライアント接続時の処理 - 現在メンテナンス中"""
+    """クライアント接続処理 - チャットはメンテナンス中、タスク関連の接続は許可"""
     try:
         # ヘッダーとトランスポート情報をログ出力
         transport = environ.get('asgi.scope', {}).get('type', 'unknown')
@@ -108,28 +108,42 @@ async def connect(sid, environ, auth):
                   for k, v in environ.get('asgi.scope', {}).get('headers', [])
                   if k.decode('utf-8').lower() in ['origin', 'user-agent', 'x-forwarded-for']}
         
-        logger.info(f"Client attempted to connect: {sid} via {transport}")
+        logger.info(f"Client connecting: {sid} via {transport}")
         logger.info(f"Headers: {headers}")
+
+        # パスを取得してタスク関連の接続かチェック
+        path = environ.get('asgi.scope', {}).get('path', '')
+        is_task_connection = path and 'tasks' in path
         
-        # クライアント情報を保存するが、チャンネル機能は停止
+        # クライアント情報を保存
         connected_clients[sid] = {
             'connected_at': datetime.now().isoformat(),
             'channels': set(),
             'transport': transport,
             'ip': headers.get('x-forwarded-for', 'unknown'),
             'user_agent': headers.get('user-agent', 'unknown'),
-            'origin': headers.get('origin', 'unknown')
+            'origin': headers.get('origin', 'unknown'),
+            'is_task_connection': is_task_connection
         }
         
-        # メンテナンス中メッセージを送信
-        await sio.emit('connection_status', {
-            'status': 'maintenance',
-            'sid': sid,
-            'server_time': datetime.now().isoformat(),
-            'message': 'Chat system is currently under maintenance. Please try again later.'
-        }, to=sid)
+        if is_task_connection:
+            # タスク関連の接続は許可
+            logger.info(f"Task connection allowed: {sid}")
+            await sio.emit('connection_established', {
+                'status': 'connected',
+                'connection_id': sid,
+                'server_time': datetime.now().isoformat(),
+            }, to=sid)
+        else:
+            # チャット関連の接続はメンテナンス中
+            logger.info(f"Chat connection in maintenance: {sid}")
+            await sio.emit('connection_status', {
+                'status': 'maintenance',
+                'sid': sid,
+                'server_time': datetime.now().isoformat(),
+                'message': 'Chat system is currently under maintenance. Please try again later.'
+            }, to=sid)
         
-        logger.info(f"Maintenance message sent to client: {sid}")
         return True
     except Exception as e:
         logger.error(f"Error during connection handling: {str(e)}")
@@ -179,23 +193,58 @@ async def disconnect(sid):
 
 @sio.event
 async def join_channel(sid, data):
-    """チャンネル参加処理 - 現在メンテナンス中"""
+    """チャンネル参加処理 - タスク関連は許可、チャットはメンテナンス中"""
     try:
-        # メンテナンス情報を送信
-        await sio.emit('channel_status', {
-            'status': 'maintenance',
-            'server_time': datetime.now().isoformat(),
-            'message': 'Chat system is currently under maintenance. Channels cannot be joined at this time.'
-        }, to=sid)
+        # クライアントがタスク接続か確認
+        client = connected_clients.get(sid, {})
+        is_task_connection = client.get('is_task_connection', False)
         
-        logger.info(f"Maintenance message sent to client attempting to join channel: {sid}")
-        
-        return {
-            'status': 'maintenance',
-            'message': 'Chat system is currently under maintenance'
-        }
+        if is_task_connection:
+            # タスク関連の接続は許可
+            channel_id = data.get('channel_id')
+            if not channel_id:
+                return {'status': 'error', 'message': 'Channel ID is required'}
+            
+            # チャンネルが存在しなければ初期化
+            if channel_id not in channel_members:
+                channel_members[channel_id] = set()
+            
+            # チャンネルにクライアントを追加
+            channel_members[channel_id].add(sid)
+            
+            # クライアントの参加チャンネルリストを更新
+            if sid in connected_clients:
+                connected_clients[sid]['channels'].add(channel_id)
+                
+                # ユーザー情報があれば保存
+                if 'user_info' in data:
+                    connected_clients[sid]['user_info'] = data['user_info']
+            
+            # チャンネルルームに参加
+            sio.enter_room(sid, f'channel_{channel_id}')
+            
+            logger.info(f"User joined task channel {channel_id}")
+            
+            return {
+                'status': 'success',
+                'message': f'Joined task channel {channel_id}'
+            }
+        else:
+            # チャット関連のチャンネル参加はメンテナンス中
+            await sio.emit('channel_status', {
+                'status': 'maintenance',
+                'server_time': datetime.now().isoformat(),
+                'message': 'Chat system is currently under maintenance. Channels cannot be joined at this time.'
+            }, to=sid)
+            
+            logger.info(f"Maintenance message sent to client attempting to join channel: {sid}")
+            
+            return {
+                'status': 'maintenance',
+                'message': 'Chat system is currently under maintenance'
+            }
     except Exception as e:
-        logger.error(f"Error handling join channel during maintenance: {str(e)}")
+        logger.error(f"Error handling join channel: {str(e)}")
         # スタックトレースも出力
         import traceback
         logger.error(traceback.format_exc())
@@ -254,23 +303,49 @@ async def leave_channel(sid, data):
 
 @sio.event
 async def chat_message(sid, data):
-    """チャットメッセージ送信処理 - 現在メンテナンス中"""
+    """メッセージ送信処理 - タスク関連メッセージは許可、チャットはメンテナンス中"""
     try:
-        # メンテナンス情報を送信
-        await sio.emit('chat_status', {
-            'status': 'maintenance',
-            'server_time': datetime.now().isoformat(),
-            'message': 'Chat system is currently under maintenance. Messages cannot be sent at this time.'
-        }, to=sid)
+        # クライアントがタスク接続か確認
+        client = connected_clients.get(sid, {})
+        is_task_connection = client.get('is_task_connection', False)
         
-        logger.info(f"Maintenance message sent to client attempting to send message: {sid}")
-        
-        return {
-            'status': 'maintenance',
-            'message': 'Chat system is currently under maintenance'
-        }
+        # メッセージタイプを確認 - タスク関連のメッセージであれば許可
+        message_type = data.get('type', '')
+        if is_task_connection or message_type in ['comment', 'task_update', 'task_notification']:
+            # タスク関連メッセージの処理
+            channel_id = data.get('channel_id') or data.get('task_id')
+            message_content = data.get('content') or data.get('data', {})
+            
+            logger.info(f"Task message from {sid} to {channel_id}: {message_type}")
+            
+            # チャンネルのメンバーにブロードキャスト
+            await sio.emit(message_type or 'chat_message', {
+                'type': message_type,
+                'data': message_content,
+                'sender_id': sid,
+                'timestamp': datetime.now().isoformat()
+            }, room=f'channel_{channel_id}')
+            
+            return {
+                'status': 'success',
+                'message': 'Message sent successfully'
+            }
+        else:
+            # チャット関連のメッセージはメンテナンス中
+            await sio.emit('chat_status', {
+                'status': 'maintenance',
+                'server_time': datetime.now().isoformat(),
+                'message': 'Chat system is currently under maintenance. Messages cannot be sent at this time.'
+            }, to=sid)
+            
+            logger.info(f"Maintenance message sent to client attempting to send chat message: {sid}")
+            
+            return {
+                'status': 'maintenance',
+                'message': 'Chat system is currently under maintenance'
+            }
     except Exception as e:
-        logger.error(f"Error handling chat message during maintenance: {str(e)}")
+        logger.error(f"Error handling message: {str(e)}")
         return {
             'status': 'error',
             'message': f'Failed to process message: {str(e)}'
