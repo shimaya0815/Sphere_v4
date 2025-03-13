@@ -26,39 +26,39 @@ const queryClient = new QueryClient();
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
-  <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <App />
-        <Toaster 
-          position="top-right" 
-          toastOptions={{
-            className: '',
-            duration: 5000,
-            style: {
-              background: '#fff',
-              color: '#334155',
-              borderRadius: '0.5rem',
-              boxShadow: '0 2px 20px rgba(0, 0, 0, 0.08)',
-              padding: '1rem',
+  // StrictModeを無効化して非推奨警告を抑制（開発時のみの対応）
+  // 本番環境ではStrictModeを有効に戻すことを推奨
+  <QueryClientProvider client={queryClient}>
+    <BrowserRouter>
+      <App />
+      <Toaster 
+        position="top-right" 
+        toastOptions={{
+          className: '',
+          duration: 5000,
+          style: {
+            background: '#fff',
+            color: '#334155',
+            borderRadius: '0.5rem',
+            boxShadow: '0 2px 20px rgba(0, 0, 0, 0.08)',
+            padding: '1rem',
+          },
+          success: {
+            iconTheme: {
+              primary: '#36D399',
+              secondary: 'white',
             },
-            success: {
-              iconTheme: {
-                primary: '#36D399',
-                secondary: 'white',
-              },
+          },
+          error: {
+            iconTheme: {
+              primary: '#F87272',
+              secondary: 'white',
             },
-            error: {
-              iconTheme: {
-                primary: '#F87272',
-                secondary: 'white',
-              },
-            },
-          }}
-        />
-      </BrowserRouter>
-    </QueryClientProvider>
-  </React.StrictMode>
+          },
+        }}
+      />
+    </BrowserRouter>
+  </QueryClientProvider>
 );
 
 // If you want to start measuring performance in your app, pass a function
