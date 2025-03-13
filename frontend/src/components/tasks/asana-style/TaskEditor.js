@@ -345,22 +345,13 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         hasErrors = true;
       }
       
-      // 決算期一覧を取得（すべての決算期を取得するためクライアントIDは指定しない）
+      // 決算期一覧は初期状態では空配列にして、クライアント選択時に取得
       try {
-        // fiscalYearsは引数なしで全決算期を取得するよう修正
-        const fiscalYearsResponse = await clientsApi.getTaskCategories(); // カテゴリだけでも十分
-        setFiscalYears([]); // 決算期データが必要なければ空配列で代用
-        
-        if (fiscalYearsResponse && Array.isArray(fiscalYearsResponse.results || fiscalYearsResponse)) {
-          // レスポンスの構造によって適切な配列を取得
-          const fiscalYearsArray = fiscalYearsResponse.results || fiscalYearsResponse;
-          setFiscalYears(fiscalYearsArray);
-        } else {
-          console.warn('決算期データの形式が想定と異なります:', fiscalYearsResponse);
-          setFiscalYears([]);
-        }
+        // デフォルトでは空の配列を設定
+        console.log('初期化時は決算期を空配列に設定します');
+        setFiscalYears([]);
       } catch (error) {
-        console.error('Error fetching fiscal years:', error);
+        console.error('Error initializing fiscal years:', error);
         setFiscalYears([]);
         hasErrors = true;
       }
@@ -389,14 +380,38 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
   }, []);
   
   /**
-   * クライアント変更時の処理
+   * クライアント変更時の処理 - 決算期も取得
    */
   useEffect(() => {
     if (watchedClient) {
       const clientId = parseInt(watchedClient);
       setSelectedClient(clientId);
+      
+      // クライアントの決算期を取得
+      const fetchFiscalYears = async () => {
+        console.log(`クライアント(ID: ${clientId})の決算期を取得します`);
+        try {
+          const response = await clientsApi.getFiscalYears(clientId);
+          console.log('決算期データ取得結果:', response);
+          
+          if (response && Array.isArray(response.results || response)) {
+            const fiscalYearsArray = response.results || response;
+            console.log('設定する決算期データ:', fiscalYearsArray);
+            setFiscalYears(fiscalYearsArray);
+          } else {
+            console.warn('決算期データが正しい形式ではありません:', response);
+            setFiscalYears([]);
+          }
+        } catch (error) {
+          console.error('決算期データの取得に失敗しました:', error);
+          setFiscalYears([]);
+        }
+      };
+      
+      fetchFiscalYears();
     } else {
       setSelectedClient(null);
+      setFiscalYears([]); // クライアントがnullの場合は決算期も空に
     }
   }, [watchedClient]);
   
