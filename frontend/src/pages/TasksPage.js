@@ -87,25 +87,30 @@ const TasksPage = ({ view }) => {
     // 更新されたタスクを選択状態にセット（スライドオーバーの表示を更新）
     setSelectedTask(taskCopy);
     
-    // リスト更新を即時実行して状態を同期
-    console.log("Immediately refreshing task list");
-    if (taskListRef.current && typeof taskListRef.current.refreshTasks === 'function') {
-      console.log("Refreshing task list via ref - immediate");
-      taskListRef.current.refreshTasks();
-    }
-    
-    // 念のため、少し遅延させた再読み込みも行う（UI更新を確実にするため）
-    setTimeout(() => {
-      console.log("Refreshing task list again after delay");
-      if (taskListRef.current && typeof taskListRef.current.refreshTasks === 'function') {
-        console.log("Refreshing task list via ref - delayed");
-        taskListRef.current.refreshTasks();
+    // リスト更新を直接データで更新
+    if (isNewTask && taskCopy) {
+      console.log("New task created, directly updating task list with data");
+      if (taskListRef.current && typeof taskListRef.current.refreshTasksWithData === 'function') {
+        taskListRef.current.refreshTasksWithData(taskCopy);
       } else {
-        console.log("Could not refresh tasks via ref - using event fallback");
-        // フォールバック: カスタムイベントを発火
-        window.dispatchEvent(new Event('task-update-force-refresh'));
+        console.log("Could not update with new task data, using event fallback");
+        window.dispatchEvent(new CustomEvent('task-updated', { 
+          detail: { task: taskCopy, isNew: true }
+        }));
       }
-    }, 500); // さらに長めの遅延で確実にUIを更新
+    } else {
+      // 既存タスクの更新の場合
+      console.log("Existing task updated, refreshing task list");
+      if (taskListRef.current && typeof taskListRef.current.refreshTasks === 'function') {
+        console.log("Refreshing task list via ref - immediate");
+        taskListRef.current.refreshTasks();
+      }
+      
+      // フォールバック: カスタムイベントを発火
+      window.dispatchEvent(new CustomEvent('task-updated', { 
+        detail: { task: taskCopy, isNew: false }
+      }));
+    }
   };
   
   // view="detail"パラメータは使わない（全てスライドパネルで表示）
