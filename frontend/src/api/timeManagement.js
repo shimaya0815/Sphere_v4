@@ -41,8 +41,8 @@ const timeManagementApi = {
         }
       ];
       
-      // ローカル変数を使用して、ESLintエラーを解消
-      const params = apiParams || {};
+      // エラー回避のため、filtersを直接使用
+      const params = filters || {};
       
       // activeフィルターが指定されていればそれに従う
       if (params.active === 'true') {
