@@ -450,6 +450,13 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
   const handleFieldChange = (fieldName, value) => {
     setIsDirty(true);
     
+    // タイトルフィールドが空の場合は変更を無視（タイトルは必須）
+    if (fieldName === 'title' && (!value || value.trim() === '')) {
+      console.warn('タイトルは空にできません');
+      toast.error('タイトルは必須項目です');
+      return;
+    }
+    
     if (!isNewTask && task) {
       setPendingChanges(prev => ({
         ...prev,
@@ -471,6 +478,21 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         const updateData = { ...pendingChanges };
         
         console.log('Saving changes:', updateData);
+        
+        // タイトルが含まれている場合、空でないことを確認
+        if ('title' in updateData) {
+          if (!updateData.title || updateData.title.trim() === '') {
+            console.warn('タイトルが空のため保存をスキップします');
+            toast.error('タイトルは必須項目です');
+            setPendingChanges(prev => {
+              const newChanges = {...prev};
+              delete newChanges.title; // 無効なタイトル変更を削除
+              return newChanges;
+            });
+            setSaveState('error');
+            return; // 保存処理を中断
+          }
+        }
         
         // boolean値の変換
         if ('is_fiscal_task' in updateData) {
@@ -556,6 +578,14 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
     
     try {
       const submitData = { ...data };
+      
+      // タイトルは必須項目なのでチェック
+      if (!submitData.title || submitData.title.trim() === '') {
+        console.error('タイトルは必須項目です');
+        toast.error('タイトルを入力してください');
+        setSaveState('error');
+        return; // 送信処理を中断
+      }
       
       // boolean値の変換
       if ('is_fiscal_task' in submitData) {
