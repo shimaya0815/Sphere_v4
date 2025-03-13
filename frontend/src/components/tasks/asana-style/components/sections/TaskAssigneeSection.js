@@ -2,6 +2,7 @@ import React from 'react';
 import { Controller } from 'react-hook-form';
 import { HiUser, HiUserGroup } from 'react-icons/hi';
 import CurrentAssignee from '../CurrentAssignee';
+import toast from 'react-hot-toast';
 
 /**
  * タスクの担当者を表示・編集するコンポーネント
@@ -64,6 +65,7 @@ const TaskAssigneeSection = ({
                     onChange={(e) => {
                       field.onChange(e);
                       handleFieldChange('worker', e.target.value);
+                      toast.info('作業者を変更しました。保存ボタンで確定してください');
                     }}
                   >
                     <option value="">担当者なし</option>
@@ -96,6 +98,7 @@ const TaskAssigneeSection = ({
                     onChange={(e) => {
                       field.onChange(e);
                       handleFieldChange('reviewer', e.target.value);
+                      toast.info('レビュアーを変更しました。保存ボタンで確定してください');
                     }}
                   >
                     <option value="">担当者なし</option>
