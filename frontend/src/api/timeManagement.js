@@ -6,12 +6,12 @@ const timeManagementApi = {
   getTimeEntries: async (filters = {}) => {
     try {
       // Handle both formats: getTimeEntries(taskId) and getTimeEntries({filters})
-      let params = filters;
+      let apiParams = filters;
       if (typeof filters === 'number' || typeof filters === 'string') {
-        params = { task_id: filters };
+        apiParams = { task_id: filters };
       }
       
-      const response = await apiClient.get('/api/time-management/entries/', { params });
+      const response = await apiClient.get('/api/time-management/entries/', { params: apiParams });
       return response.data.results || response.data;
     } catch (error) {
       console.error('Error fetching time entries:', error);
@@ -42,14 +42,14 @@ const timeManagementApi = {
       ];
       
       // activeフィルターが指定されていればそれに従う
-      if (params.active === 'true') {
+      if (apiParams.active === 'true') {
         return mockEntries.filter(entry => entry.is_running || !entry.end_time);
-      } else if (params.active === 'false') {
+      } else if (apiParams.active === 'false') {
         return mockEntries.filter(entry => !entry.is_running && entry.end_time);
-      } else if (params.task_id) {
+      } else if (apiParams.task_id) {
         // タスクIDでフィルター
         return mockEntries.filter(entry => 
-          entry.task && entry.task.id.toString() === params.task_id.toString()
+          entry.task && entry.task.id.toString() === apiParams.task_id.toString()
         );
       }
       
