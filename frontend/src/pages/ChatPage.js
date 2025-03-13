@@ -746,13 +746,14 @@ const ChatPage = () => {
         </div>
       </div>
     </div>
-    
-    {/* 元のコードをコメントアウトして保持
-    <ChatProvider>
-      <ChatContent />
-    </ChatProvider>
-    */}
   );
+  
+  // 元のコードをコメントアウトして保持
+  // return (
+  //   <ChatProvider>
+  //     <ChatContent />
+  //   </ChatProvider>
+  // );
 };
 
 export default ChatPage;
