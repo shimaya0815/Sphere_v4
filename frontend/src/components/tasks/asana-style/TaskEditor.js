@@ -470,6 +470,8 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       try {
         const updateData = { ...pendingChanges };
         
+        console.log('Saving changes:', updateData);
+        
         // boolean値の変換
         if ('is_fiscal_task' in updateData) {
           updateData.is_fiscal_task = updateData.is_fiscal_task === 'true';
@@ -480,6 +482,42 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         if ('is_template' in updateData) {
           updateData.is_template = updateData.is_template === 'true';
         }
+        
+        // 数値フィールドの処理
+        try {
+          // IDフィールドの変換
+          ['worker', 'reviewer', 'status', 'category', 'client', 'fiscal_year', 'priority'].forEach(field => {
+            if (field in updateData) {
+              if (updateData[field] && updateData[field] !== '') {
+                const parsedValue = parseInt(updateData[field]);
+                updateData[field] = !isNaN(parsedValue) ? parsedValue : null;
+              } else {
+                updateData[field] = null;
+              }
+            }
+          });
+          
+          // 数値フィールドの変換
+          if ('priority_value' in updateData && updateData.priority_value !== '') {
+            const parsedValue = parseInt(updateData.priority_value);
+            updateData.priority_value = !isNaN(parsedValue) ? parsedValue : null;
+          }
+          
+          // 日付フィールドの検証
+          ['due_date', 'start_date', 'completed_at', 'recurrence_end_date'].forEach(dateField => {
+            if (dateField in updateData && updateData[dateField]) {
+              if (!isValidDate(updateData[dateField])) {
+                console.warn(`Invalid date in ${dateField}: ${updateData[dateField]}. Setting to null.`);
+                updateData[dateField] = null;
+              }
+            }
+          });
+        } catch (conversionError) {
+          console.error('Error converting field values:', conversionError);
+          // エラーが発生してもプロセスは継続
+        }
+        
+        console.log('Processed update data:', updateData);
         
         // タスク更新処理
         await tasksApi.updateTask(task.id, updateData);
@@ -500,6 +538,10 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         }
       } catch (error) {
         console.error('Error saving task:', error);
+        if (error.response) {
+          console.error('Response data:', error.response.data);
+          console.error('Status code:', error.response.status);
+        }
         setSaveState('error');
         toast.error('タスクの保存に失敗しました');
       }
