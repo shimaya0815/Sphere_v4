@@ -63,7 +63,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
   const [elapsedTime, setElapsedTime] = useState(0);
   const [startTime, setStartTime] = useState(null);
   const [timerIntervalId, setTimerIntervalId] = useState(null);
-  const [cachedTimeEntries, setCachedTimeEntries] = useState([]);
+  const [cachedTimeEntries, setCachedTimeEntries] = useState([]);  // 必ず空配列で初期化
   const [isLoadingTimeEntries, setIsLoadingTimeEntries] = useState(false);
   const [editingTimeEntry, setEditingTimeEntry] = useState(null);
   const [timeEntryForm, setTimeEntryForm] = useState({
@@ -497,7 +497,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
     if (!task || !task.id) return;
     
     // キャッシュがあれば使用
-    if (cachedTimeEntries.length > 0) {
+    if (cachedTimeEntries && cachedTimeEntries.length > 0) {
       return;
     }
     
@@ -505,10 +505,12 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
     
     try {
       const response = await timeManagementApi.getTimeEntries(task.id);
-      setCachedTimeEntries(response.data);
+      setCachedTimeEntries(response.data || []);
     } catch (error) {
       console.error('Error fetching time entries:', error);
       toast.error('時間記録の取得に失敗しました');
+      // エラー時は空の配列を設定して、以降のエラーを防止
+      setCachedTimeEntries([]);
     } finally {
       setIsLoadingTimeEntries(false);
     }
