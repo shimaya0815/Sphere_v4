@@ -17,6 +17,18 @@ import CurrentAssignee from './components/CurrentAssignee';
 import TimeTracking from './components/TimeTracking';
 import DeleteTaskModal from './components/DeleteTaskModal';
 
+// セクションコンポーネントのインポート
+import {
+  TaskEditorHeader,
+  TaskEditorFooter,
+  TaskBasicInfoSection,
+  TaskAssigneeSection,
+  TaskDatePrioritySection,
+  TaskDescriptionSection,
+  TaskMetaInfoSection,
+  TaskAdditionalSettingsSection
+} from './components/sections';
+
 /**
  * Asana風タスク編集コンポーネント
  * - 編集状態のリアルタイム監視
@@ -928,489 +940,50 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
           <div className="relative w-screen max-w-2xl transform transition ease-in-out duration-300">
             <div className="h-full flex flex-col bg-white shadow-xl overflow-y-auto">
               {/* ヘッダー */}
-              <div className="px-4 py-6 bg-white border-b border-gray-200 sm:px-6">
-                <div className="flex items-start justify-between">
-                  <h2 className="text-lg font-medium text-gray-900">
-                    {isNewTask ? 'タスクを作成' : 'タスクを編集'}
-                  </h2>
-                  <div className="ml-3 h-7 flex items-center">
-                    <button
-                      onClick={onClose}
-                      className="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    >
-                      <span className="sr-only">閉じる</span>
-                      <HiOutlineX className="h-6 w-6" />
-                    </button>
-                  </div>
-                </div>
-                
-                {/* 保存状態表示 */}
-                <div className="mt-2 text-sm">
-                  {renderSaveStatus()}
-                </div>
-              </div>
+              <TaskEditorHeader 
+                isNewTask={isNewTask}
+                onClose={onClose}
+                saveState={saveState}
+                isDirty={isDirty}
+                saveChanges={saveChanges}
+              />
               
               {/* フォーム本体 */}
               <div className="flex-1 py-6 px-4 sm:px-6 overflow-auto">
                 <form onSubmit={handleSubmit(submitTask)}>
                   <div className="space-y-6">
-                    {/* ステータスとタイトルを1行に */}
-                    <div className="grid grid-cols-3 gap-4 items-start">
-                      {/* ステータス */}
-                      <div>
-                        <label htmlFor="status" className="block text-sm font-medium text-gray-700">
-                          ステータス
-                        </label>
-                        <div className="mt-1">
-                          <Controller
-                            name="status"
-                            control={control}
-                            render={({ field }) => (
-                              <select
-                                id="status"
-                                className={selectClassName}
-                                {...field}
-                                onChange={(e) => {
-                                  field.onChange(e);
-                                  handleFieldChange('status', e.target.value);
-                                }}
-                              >
-                                <option value="">選択してください</option>
-                                {statuses.map((status) => (
-                                  <option key={status.id} value={status.id}>
-                                    {status.name}
-                                  </option>
-                                ))}
-                              </select>
-                            )}
-                          />
-                        </div>
-                      </div>
-                      
-                      {/* タイトル (大きく表示) */}
-                      <div className="col-span-2">
-                        <label htmlFor="title" className="block text-sm font-medium text-gray-700">
-                          タイトル
-                        </label>
-                        <div className="mt-1">
-                          <Controller
-                            name="title"
-                            control={control}
-                            rules={{ required: 'タイトルは必須です' }}
-                            render={({ field, fieldState }) => (
-                              <div>
-                                <input
-                                  type="text"
-                                  id="title"
-                                  className={`${inputClassName} text-lg font-medium ${
-                                    fieldState.error ? 'border-red-300' : ''
-                                  }`}
-                                  placeholder="タスクのタイトルを入力"
-                                  {...field}
-                                  onChange={(e) => {
-                                    field.onChange(e);
-                                    handleFieldChange('title', e.target.value);
-                                  }}
-                                />
-                                {fieldState.error && (
-                                  <p className="mt-1 text-sm text-red-600">{fieldState.error.message}</p>
-                                )}
-                              </div>
-                            )}
-                          />
-                        </div>
-                      </div>
-
-                      {/* カテゴリー、クライアント、決算期 - タイトルの直後に配置 */}
-                      <div className="grid grid-cols-3 gap-4 mt-4">
-                        {/* カテゴリー */}
-                        <div>
-                          <label htmlFor="category" className="block text-sm font-medium text-gray-700">
-                            カテゴリー
-                          </label>
-                          <div className="mt-1">
-                            <Controller
-                              name="category"
-                              control={control}
-                              render={({ field }) => (
-                                <select
-                                  id="category"
-                                  className={selectClassName}
-                                  {...field}
-                                  onChange={(e) => {
-                                    field.onChange(e);
-                                    handleFieldChange('category', e.target.value);
-                                  }}
-                                >
-                                  <option value="">選択してください</option>
-                                  {categories.map((category) => (
-                                    <option key={category.id} value={category.id}>
-                                      {category.name}
-                                    </option>
-                                  ))}
-                                </select>
-                              )}
-                            />
-                          </div>
-                        </div>
-                        
-                        {/* クライアント */}
-                        <div>
-                          <label htmlFor="client" className="block text-sm font-medium text-gray-700">
-                            クライアント
-                          </label>
-                          <div className="mt-1">
-                            <Controller
-                              name="client"
-                              control={control}
-                              render={({ field }) => (
-                                <select
-                                  id="client"
-                                  className={selectClassName}
-                                  {...field}
-                                  onChange={(e) => {
-                                    field.onChange(e);
-                                    handleFieldChange('client', e.target.value);
-                                  }}
-                                >
-                                  <option value="">選択してください</option>
-                                  {clients.map((client) => (
-                                    <option key={client.id} value={client.id}>
-                                      {client.name}
-                                    </option>
-                                  ))}
-                                </select>
-                              )}
-                            />
-                          </div>
-                        </div>
-                        
-                        {/* 決算期 */}
-                        <div>
-                          <label htmlFor="fiscal_year" className="block text-sm font-medium text-gray-700">
-                            決算期
-                          </label>
-                          <div className="mt-1">
-                            <Controller
-                              name="fiscal_year"
-                              control={control}
-                              render={({ field }) => (
-                                <select
-                                  id="fiscal_year"
-                                  className={selectClassName}
-                                  disabled={!watchedClient}
-                                  {...field}
-                                  onChange={(e) => {
-                                    field.onChange(e);
-                                    handleFieldChange('fiscal_year', e.target.value);
-                                  }}
-                                >
-                                  <option value="">選択してください</option>
-                                  {fiscalYears.map((fiscalYear) => (
-                                    <option key={fiscalYear.id} value={fiscalYear.id}>
-                                      第{fiscalYear.fiscal_period}期
-                                    </option>
-                                  ))}
-                                </select>
-                              )}
-                            />
-                          </div>
-                        </div>
-                    </div>
+                    <TaskBasicInfoSection 
+                      control={control}
+                      statuses={statuses}
+                      categories={categories}
+                      clients={clients}
+                      fiscalYears={fiscalYears}
+                      formState={formState}
+                      handleFieldChange={handleFieldChange}
+                      watch={watch}
+                    />
                     
-                    {/* 担当者設定セクション - ステータス/タイトルの直後に移動 */}
-                    <div className="border-t border-gray-200 pt-4">
-                      <div className="flex flex-wrap items-center justify-between gap-2 cursor-pointer"
-                           onClick={() => setIsAssigneeExpanded(!isAssigneeExpanded)}>
-                        <div className="flex items-center">
-                          <h3 className="text-md font-medium text-gray-700 flex items-center">
-                            <HiUserGroup className="mr-2 text-gray-500" />
-                            担当者設定
-                          </h3>
-                          
-                          {/* 注意事項をツールチップに変更 */}
-                          <div className="ml-2 group relative inline-block" onClick={e => e.stopPropagation()}>
-                            <span className="bg-amber-100 text-amber-600 rounded-full w-5 h-5 flex items-center justify-center cursor-help">
-                              ?
-                            </span>
-                            <div className="opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity absolute z-10 w-64 p-3 bg-white border border-gray-200 rounded-lg shadow-lg text-xs text-gray-700 top-full left-0 mt-1">
-                              タスクのステータスによって担当者は自動的に切り替わります。作業者ステータスでは作業担当者が、レビューステータスではレビュー担当者が担当になります。
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center text-sm">
-                          {/* 現在の担当者表示 - 外部コンポーネント化 */}
-                          {task && <CurrentAssignee task={task} users={users} />}
-                        </div>
-                        
-                        {/* 折りたたみ展開ボタン */}
-                        <button 
-                          type="button" 
-                          className="text-gray-500 hover:text-gray-700 focus:outline-none"
-                          aria-expanded={isAssigneeExpanded}
-                        >
-                          {isAssigneeExpanded ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                            </svg>
-                          ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          )}
-                        </button>
-                      </div>
-                      
-                      {/* 現在の担当者表示は上部に移動済み */}
-                      
-                      {/* 作業者とレビュー担当者 - 折りたたみ可能 */}
-                      {isAssigneeExpanded && (
-                        <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
-                          {/* 作業者 */}
-                          <div className="flex items-center gap-3">
-                            <label htmlFor="worker" className="block text-sm font-medium text-gray-700 w-24 flex-shrink-0">
-                              作業担当者
-                            </label>
-                            <div className="flex-grow">
-                              <Controller
-                                name="worker"
-                                control={control}
-                                render={({ field }) => (
-                                  <select
-                                    id="worker"
-                                    className={selectClassName}
-                                    {...field}
-                                    onChange={(e) => {
-                                      field.onChange(e);
-                                      handleFieldChange('worker', e.target.value);
-                                    }}
-                                  >
-                                    <option value="">選択してください</option>
-                                    {users.map((user) => (
-                                      <option key={user.id} value={user.id}>
-                                        {user.get_full_name || user.email}
-                                      </option>
-                                    ))}
-                                  </select>
-                                )}
-                              />
-                            </div>
-                          </div>
-                          
-                          {/* レビュー担当者 */}
-                          <div className="flex items-center gap-3">
-                            <label htmlFor="reviewer" className="block text-sm font-medium text-gray-700 w-24 flex-shrink-0">
-                              レビュー担当者
-                            </label>
-                            <div className="flex-grow">
-                              <Controller
-                                name="reviewer"
-                                control={control}
-                                render={({ field }) => (
-                                  <select
-                                    id="reviewer"
-                                    className={selectClassName}
-                                    {...field}
-                                    onChange={(e) => {
-                                      field.onChange(e);
-                                      handleFieldChange('reviewer', e.target.value);
-                                    }}
-                                  >
-                                    <option value="">選択してください</option>
-                                    {users.map((user) => (
-                                      <option key={user.id} value={user.id}>
-                                        {user.get_full_name || user.email}
-                                      </option>
-                                    ))}
-                                  </select>
-                                )}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                    <TaskAssigneeSection 
+                      task={task}
+                      users={users}
+                      control={control}
+                      handleFieldChange={handleFieldChange}
+                      formState={formState}
+                      watch={watch}
+                    />
                     
-                    {/* 期限日と優先度 */}
-                    <div className="border-t border-gray-200 pt-4">
-                      <div className="grid grid-cols-2 gap-6">
-                        {/* 期限日 */}
-                        <div>
-                          <label htmlFor="due_date" className="block text-sm font-medium text-gray-700">
-                            期限日
-                          </label>
-                          <div className="mt-1">
-                            <Controller
-                              name="due_date"
-                              control={control}
-                              render={({ field }) => (
-                                <input
-                                  type="date"
-                                  id="due_date"
-                                  className={inputClassName}
-                                  {...field}
-                                  onChange={(e) => {
-                                    field.onChange(e);
-                                    handleFieldChange('due_date', e.target.value);
-                                  }}
-                                />
-                              )}
-                            />
-                          </div>
-                        </div>
-                        
-                        {/* 優先度 */}
-                        <div>
-                          <label htmlFor="priority_value" className="block text-sm font-medium text-gray-700 flex items-center">
-                            優先度
-                            <div className="relative ml-2 group">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              <div className="absolute left-0 bottom-6 w-52 p-2 bg-gray-800 text-white text-xs rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                                <p>優先度は1〜100の数値で指定します。</p>
-                                <p className="mt-1">数値が小さいほど優先度が高くなります。</p>
-                                <div className="absolute bottom-0 left-3 transform translate-y-full w-2 h-2 bg-gray-800 rotate-45"></div>
-                              </div>
-                            </div>
-                          </label>
-                          <div className="mt-1">
-                            <Controller
-                              name="priority_value"
-                              control={control}
-                              render={({ field }) => (
-                                <input
-                                  type="number"
-                                  id="priority_value"
-                                  min="1"
-                                  max="100"
-                                  placeholder="1-100の数値を入力"
-                                  className={inputClassName}
-                                  {...field}
-                                  onChange={(e) => {
-                                    field.onChange(e);
-                                    handleFieldChange('priority_value', e.target.value);
-                                  }}
-                                />
-                              )}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {/* 開始日と完了日（折りたたみ可能） */}
-                      <div className="mt-3">
-                        {/* 折りたたみヘッダー */}
-                        <div 
-                          className="flex items-center justify-between cursor-pointer border-t border-gray-100 pt-3"
-                          onClick={() => setIsDateExpanded(!isDateExpanded)}
-                        >
-                          <h4 className="text-sm font-medium text-gray-700 flex items-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            詳細日付設定
-                          </h4>
-                          <button 
-                            type="button" 
-                            className="text-gray-500 hover:text-gray-700 focus:outline-none"
-                            aria-expanded={isDateExpanded}
-                          >
-                            {isDateExpanded ? (
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                              </svg>
-                            ) : (
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
-                            )}
-                          </button>
-                        </div>
-                        
-                        {/* 折りたたみコンテンツ */}
-                        {isDateExpanded && (
-                          <div className="grid grid-cols-2 gap-6 mt-3">
-                            {/* 開始日 */}
-                            <div>
-                              <label htmlFor="start_date" className="block text-sm font-medium text-gray-700">
-                                開始日
-                              </label>
-                              <div className="mt-1">
-                                <Controller
-                                  name="start_date"
-                                  control={control}
-                                  render={({ field }) => (
-                                    <input
-                                      type="date"
-                                      id="start_date"
-                                      className={inputClassName}
-                                      {...field}
-                                      onChange={(e) => {
-                                        field.onChange(e);
-                                        handleFieldChange('start_date', e.target.value);
-                                      }}
-                                    />
-                                  )}
-                                />
-                              </div>
-                            </div>
-                            
-                            {/* 完了日 */}
-                            <div>
-                              <label htmlFor="completed_at" className="block text-sm font-medium text-gray-700">
-                                完了日
-                              </label>
-                              <div className="mt-1">
-                                <Controller
-                                  name="completed_at"
-                                  control={control}
-                                  render={({ field }) => (
-                                    <input
-                                      type="date"
-                                      id="completed_at"
-                                      className={inputClassName}
-                                      {...field}
-                                      onChange={(e) => {
-                                        field.onChange(e);
-                                        handleFieldChange('completed_at', e.target.value);
-                                      }}
-                                    />
-                                  )}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                    <TaskDatePrioritySection 
+                      control={control}
+                      priorities={priorities}
+                      handleFieldChange={handleFieldChange}
+                      formState={formState}
+                      watch={watch}
+                    />
                     
-                    {/* 説明 */}
-                    <div className="border-t border-gray-200 pt-4">
-                      <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                        説明
-                      </label>
-                      <div className="mt-1">
-                        <Controller
-                          name="description"
-                          control={control}
-                          render={({ field }) => (
-                            <textarea
-                              id="description"
-                              rows={4}
-                              className={inputClassName}
-                              placeholder="詳細な説明を入力"
-                              {...field}
-                              onChange={(e) => {
-                                field.onChange(e);
-                                handleFieldChange('description', e.target.value);
-                              }}
-                            />
-                          )}
-                        />
-                      </div>
-                    </div>
+                    <TaskDescriptionSection 
+                      control={control}
+                      handleFieldChange={handleFieldChange}
+                    />
                     
                     {/* 作業時間記録セクション - コンポーネント化 */}
                     {!isNewTask && task && (
@@ -1709,141 +1282,12 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                     
                     {/* タスク種別（決算期関連）セクションは削除 */}
                     
-                    {/* 追加設定（繰り返し、テンプレート） */}
-                    <div className="border-t border-gray-200 pt-4">
-                      <h3 className="text-md font-medium text-gray-700 mb-3">追加設定</h3>
-                      
-                      {/* 繰り返しタスク設定 */}
-                      <div className="mb-3">
-                        <div className="flex items-center">
-                          <Controller
-                            name="is_recurring"
-                            control={control}
-                            render={({ field }) => (
-                              <div className="flex items-center">
-                                <input
-                                  type="checkbox"
-                                  id="is_recurring"
-                                  className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                                  checked={field.value === 'true'}
-                                  onChange={(e) => {
-                                    const newValue = e.target.checked ? 'true' : 'false';
-                                    field.onChange(newValue);
-                                    handleFieldChange('is_recurring', newValue);
-                                  }}
-                                />
-                                <label htmlFor="is_recurring" className="ml-2 block text-sm font-medium text-gray-700">
-                                  繰り返しタスク
-                                </label>
-                              </div>
-                            )}
-                          />
-                        </div>
-                        
-                        {/* 繰り返し設定（繰り返しの場合のみ表示） */}
-                        {watchedIsRecurring === 'true' && (
-                          <div className="ml-6 mt-2 space-y-3">
-                            <div>
-                              <label htmlFor="recurrence_pattern" className="block text-sm font-medium text-gray-700">
-                                繰り返しパターン
-                              </label>
-                              <div className="mt-1">
-                                <Controller
-                                  name="recurrence_pattern"
-                                  control={control}
-                                  render={({ field }) => (
-                                    <select
-                                      id="recurrence_pattern"
-                                      className={selectClassName}
-                                      {...field}
-                                      onChange={(e) => {
-                                        field.onChange(e);
-                                        handleFieldChange('recurrence_pattern', e.target.value);
-                                      }}
-                                    >
-                                      <option value="">選択してください</option>
-                                      <option value="daily">毎日</option>
-                                      <option value="weekly">毎週</option>
-                                      <option value="monthly">毎月</option>
-                                      <option value="yearly">毎年</option>
-                                    </select>
-                                  )}
-                                />
-                              </div>
-                            </div>
-                            
-                            <div>
-                              <label htmlFor="recurrence_end_date" className="block text-sm font-medium text-gray-700">
-                                繰り返し終了日
-                              </label>
-                              <div className="mt-1">
-                                <Controller
-                                  name="recurrence_end_date"
-                                  control={control}
-                                  render={({ field }) => (
-                                    <input
-                                      type="date"
-                                      id="recurrence_end_date"
-                                      className={inputClassName}
-                                      {...field}
-                                      onChange={(e) => {
-                                        field.onChange(e);
-                                        handleFieldChange('recurrence_end_date', e.target.value);
-                                      }}
-                                    />
-                                  )}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* テンプレート設定 */}
-                      <div className="mb-3">
-                        <div className="flex items-center">
-                          <Controller
-                            name="is_template"
-                            control={control}
-                            render={({ field }) => (
-                              <div className="flex items-center">
-                                <input
-                                  type="checkbox"
-                                  id="is_template"
-                                  className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                                  checked={field.value === 'true'}
-                                  onChange={(e) => {
-                                    const newValue = e.target.checked ? 'true' : 'false';
-                                    field.onChange(newValue);
-                                    handleFieldChange('is_template', newValue);
-                                  }}
-                                />
-                                <label htmlFor="is_template" className="ml-2 block text-sm font-medium text-gray-700">
-                                  テンプレートとして保存
-                                </label>
-                              </div>
-                            )}
-                          />
-                        </div>
-                        
-                        {/* テンプレート名（テンプレートの場合のみ表示） */}
-                        {watchedIsTemplate === 'true' && (
-                          <div className="ml-6 mt-2">
-                            <label htmlFor="template_name" className="block text-sm font-medium text-gray-700">
-                              テンプレート名
-                            </label>
-                            <div className="mt-1">
-                              <Controller
-                                name="template_name"
-                                control={control}
-                                rules={{ required: watchedIsTemplate === 'true' ? 'テンプレート名は必須です' : false }}
-                                render={({ field, fieldState }) => (
-                                  <div>
-                                    <input
-                                      type="text"
-                                      id="template_name"
-                                      className={`${inputClassName} ${
-                                        fieldState.error ? 'border-red-300' : ''
+                    <TaskAdditionalSettingsSection 
+                      control={control}
+                      handleFieldChange={handleFieldChange}
+                      isNewTask={isNewTask}
+                      watch={watch}
+                    />
                                       }`}
                                       placeholder="テンプレート名を入力"
                                       {...field}
@@ -1885,52 +1329,22 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
 
                     {/* タスク作成日時（新規作成時は表示しない） */}
                     {!isNewTask && task && (
-                      <div className="pt-4 border-t border-gray-200">
-                        <div className="flex justify-between text-sm text-gray-500">
-                          <span>作成日: {task.created_at ? new Date(task.created_at).toLocaleString() : '-'}</span>
-                          <span>更新日: {task.updated_at ? new Date(task.updated_at).toLocaleString() : '-'}</span>
-                        </div>
-                      </div>
+                      <TaskMetaInfoSection task={task} />
                     )}
                   </div>
                 </form>
               </div>
               
               {/* フッター（保存ボタンと削除ボタン） */}
-              <div className="flex-shrink-0 px-4 py-4 border-t border-gray-200 flex justify-between">
-                {/* 左側：削除ボタン（新規作成時は非表示） */}
-                <div>
-                  {!isNewTask && task && (
-                    <button
-                      type="button"
-                      className="bg-white py-2 px-4 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                      onClick={handleDeleteConfirm}
-                    >
-                      <HiOutlineTrash className="inline-block mr-1 -mt-1" />
-                      削除
-                    </button>
-                  )}
-                </div>
-                
-                {/* 右側：キャンセル・保存ボタン */}
-                <div className="flex">
-                  <button
-                    type="button"
-                    className="mr-3 bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                    onClick={onClose}
-                  >
-                    キャンセル
-                  </button>
-                  <button
-                    type="button"
-                    className="bg-primary-600 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                    onClick={handleSubmit(submitTask)}
-                    disabled={saveState === 'saving'}
-                  >
-                    {saveState === 'saving' ? '保存中...' : isNewTask ? '作成' : '保存'}
-                  </button>
-                </div>
-              </div>
+              <TaskEditorFooter
+                isNewTask={isNewTask}
+                task={task}
+                onClose={onClose}
+                handleSubmit={handleSubmit}
+                submitTask={submitTask}
+                saveState={saveState}
+                handleDeleteConfirm={handleDeleteConfirm}
+              />
               
               {/* 削除確認モーダル */}
               <DeleteTaskModal 
