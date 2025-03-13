@@ -182,13 +182,41 @@ const TaskList = React.forwardRef((props, ref) => {
   useEffect(() => {
     const handleTaskUpdate = (event) => {
       console.log("Task updated event received", event.detail);
-      // 新規作成されたタスクがあれば、タスクリストに追加する
-      if (event.detail && event.detail.task && event.detail.isNew) {
-        console.log("Adding new task to the list", event.detail.task);
-        setTasks(prevTasks => [event.detail.task, ...prevTasks]);
+      
+      // イベント詳細とタスクデータの確認
+      if (!event.detail || !event.detail.task) {
+        console.warn("Invalid task update event with no task data");
+        fetchTasks(); // 無効なイベントの場合は全体を再取得
+        return;
+      }
+      
+      const updatedTask = event.detail.task;
+      console.log("Handling task update for task:", updatedTask);
+      
+      if (event.detail.isNew) {
+        // 新規作成されたタスクの場合はリストの先頭に追加
+        console.log("Adding new task to the list", updatedTask);
+        setTasks(prevTasks => [updatedTask, ...prevTasks]);
       } else {
-        // 既存のタスクが更新された場合やイベントに詳細がない場合は再取得
-        fetchTasks();
+        // 既存タスクの更新の場合は、そのタスクだけを置き換える
+        console.log("Updating existing task in the list", updatedTask);
+        setTasks(prevTasks => {
+          // 更新されたタスクが既存リストに含まれているか確認
+          const taskIndex = prevTasks.findIndex(t => t.id === updatedTask.id);
+          
+          if (taskIndex >= 0) {
+            // タスクが見つかった場合は置き換え
+            console.log(`Task found at index ${taskIndex}, replacing with updated version`);
+            const newTasks = [...prevTasks];
+            newTasks[taskIndex] = updatedTask;
+            return newTasks;
+          } else {
+            // 更新されたタスクがリストにない場合は追加（または完全再取得）
+            console.log("Updated task not found in current list, fetching all tasks");
+            // APIから再取得する前に一時的に表示するため、先頭に追加
+            return [updatedTask, ...prevTasks];
+          }
+        });
       }
     };
     
@@ -222,12 +250,38 @@ const TaskList = React.forwardRef((props, ref) => {
       console.log("Refresh tasks method called");
       fetchTasks();
     },
-    refreshTasksWithData: (newTask) => {
-      console.log("Refresh with task data", newTask);
-      if (newTask) {
+    refreshTasksWithData: (newTask, isNewTask = false) => {
+      console.log("Refresh with task data", newTask, "isNew:", isNewTask);
+      
+      if (!newTask) {
+        console.warn("No task data provided for refresh");
+        fetchTasks();
+        return;
+      }
+      
+      if (isNewTask) {
+        // 新規タスクの場合はリストの先頭に追加
+        console.log("Adding new task to list");
         setTasks(prevTasks => [newTask, ...prevTasks]);
       } else {
-        fetchTasks();
+        // 既存タスクの更新の場合は、そのタスクだけを置き換える
+        console.log("Updating existing task in list");
+        setTasks(prevTasks => {
+          // 更新されたタスクが既存リストに含まれているか確認
+          const taskIndex = prevTasks.findIndex(t => t.id === newTask.id);
+          
+          if (taskIndex >= 0) {
+            // タスクが見つかった場合は置き換え
+            console.log(`Task found at index ${taskIndex}, replacing with updated version`);
+            const newTasks = [...prevTasks];
+            newTasks[taskIndex] = newTask;
+            return newTasks;
+          } else {
+            // タスクが見つからない場合は先頭に追加
+            console.log("Task not found in current list, adding to top");
+            return [newTask, ...prevTasks];
+          }
+        });
       }
     }
   }));

@@ -93,7 +93,7 @@ const TasksPage = ({ view }) => {
     if (isNewTask && taskCopy) {
       console.log("New task created, directly updating task list with data");
       if (taskListRef.current && typeof taskListRef.current.refreshTasksWithData === 'function') {
-        taskListRef.current.refreshTasksWithData(taskCopy);
+        taskListRef.current.refreshTasksWithData(taskCopy, true); // 第2引数にisNewTask=trueを渡す
       } else {
         console.log("Could not update with new task data, using event fallback");
         window.dispatchEvent(new CustomEvent('task-updated', { 
@@ -102,16 +102,16 @@ const TasksPage = ({ view }) => {
       }
     } else {
       // 既存タスクの更新の場合
-      console.log("Existing task updated, refreshing task list");
-      if (taskListRef.current && typeof taskListRef.current.refreshTasks === 'function') {
-        console.log("Refreshing task list via ref - immediate");
-        taskListRef.current.refreshTasks();
+      console.log("Existing task updated, updating specific task in list");
+      if (taskListRef.current && typeof taskListRef.current.refreshTasksWithData === 'function') {
+        console.log("Updating specific task in list with data");
+        taskListRef.current.refreshTasksWithData(taskCopy, false); // isNewTask=falseを明示的に渡す
+      } else {
+        console.log("Could not update with task data, using event fallback");
+        window.dispatchEvent(new CustomEvent('task-updated', { 
+          detail: { task: taskCopy, isNew: false }
+        }));
       }
-      
-      // フォールバック: カスタムイベントを発火
-      window.dispatchEvent(new CustomEvent('task-updated', { 
-        detail: { task: taskCopy, isNew: false }
-      }));
     }
   };
   
