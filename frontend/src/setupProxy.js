@@ -60,14 +60,12 @@ module.exports = function(app) {
   // API URLパターンのプロキシ設定
   app.use('/api', createApiProxy('/api'));
   
-  // バックエンドの非APIパスもプロキシ（直接バックエンドパス）
-  app.use('/time-management', createApiProxy('/time-management'));
-  app.use('/tasks', createApiProxy('/tasks'));
-  app.use('/clients', createApiProxy('/clients'));
-  app.use('/business', createApiProxy('/business'));
-  app.use('/users', createApiProxy('/users'));
-  app.use('/chat', createApiProxy('/chat'));
-  app.use('/wiki', createApiProxy('/wiki'));
+  // 以下の非APIパスのプロキシ設定は削除
+  // フロントエンドのReactルーターでこれらのパスを処理する必要があり、
+  // 誤ってバックエンドにリクエストが送信されないようにする
+  
+  // フロントエンドAPIリクエスト用のプロキシ設定（バックエンドにAPI呼び出しを転送）
+  // 例: フロントエンドからのリクエスト /api/tasks/ はバックエンドの /api/tasks/ に転送される
   
   // 認証用URLパターンのプロキシ設定
   app.use('/auth', createApiProxy('/auth'));
