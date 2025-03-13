@@ -12,6 +12,11 @@ import {
 import { tasksApi, clientsApi, usersApi, timeManagementApi } from '../../../api';
 import toast from 'react-hot-toast';
 
+// 分割コンポーネントのインポート
+import CurrentAssignee from './components/CurrentAssignee';
+import TimeTracking from './components/TimeTracking';
+import DeleteTaskModal from './components/DeleteTaskModal';
+
 /**
  * Asana風タスク編集コンポーネント
  * - 編集状態のリアルタイム監視
@@ -1136,58 +1141,8 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                         </div>
                         
                         <div className="flex items-center text-sm">
-                          {/* 現在の担当者表示 - シンプルな形で右側に表示 */}
-                          {task && (
-                            <div className="bg-blue-50 px-3 py-1.5 rounded-md border border-blue-200 flex items-center">
-                              <HiUser className="mr-1.5 text-blue-500" />
-                              <div className="flex items-center">
-                                <span className="text-blue-700 mr-1">現在の担当者:</span>
-                                <span className="text-blue-800 font-medium">
-                                  {(() => {
-                                    // 担当者表示のための関数
-                                    if (task.assignee_name) return task.assignee_name;
-                                    
-                                    // status_dataが取得できている場合
-                                    if (task.status_data && task.status_data.assignee_type) {
-                                      const assigneeType = task.status_data.assignee_type;
-                                      
-                                      // 作業者タイプの場合
-                                      if (assigneeType === 'worker') {
-                                        // worker_nameが利用可能ならそれを使う
-                                        if (task.worker_name) return task.worker_name;
-                                        // worker_dataが利用可能ならそれを使う
-                                        if (task.worker_data && task.worker_data.get_full_name) 
-                                          return task.worker_data.get_full_name;
-                                        // workerのIDがあり、usersリストで見つかれば名前を表示
-                                        if (task.worker && users.find(u => u.id === task.worker || u.id === parseInt(task.worker)))
-                                          return users.find(u => u.id === task.worker || u.id === parseInt(task.worker)).get_full_name || 
-                                                 users.find(u => u.id === task.worker || u.id === parseInt(task.worker)).email;
-                                        
-                                        return '作業担当者';
-                                      }
-                                      
-                                      // レビュアータイプの場合
-                                      if (assigneeType === 'reviewer') {
-                                        // reviewer_nameが利用可能ならそれを使う
-                                        if (task.reviewer_name) return task.reviewer_name;
-                                        // reviewer_dataが利用可能ならそれを使う
-                                        if (task.reviewer_data && task.reviewer_data.get_full_name) 
-                                          return task.reviewer_data.get_full_name;
-                                        // reviewerのIDがあり、usersリストで見つかれば名前を表示
-                                        if (task.reviewer && users.find(u => u.id === task.reviewer || u.id === parseInt(task.reviewer)))
-                                          return users.find(u => u.id === task.reviewer || u.id === parseInt(task.reviewer)).get_full_name || 
-                                                 users.find(u => u.id === task.reviewer || u.id === parseInt(task.reviewer)).email;
-                                        
-                                        return 'レビュー担当者';
-                                      }
-                                    }
-                                    
-                                    return '担当者なし';
-                                  })()}
-                                </span>
-                              </div>
-                            </div>
-                          )}
+                          {/* 現在の担当者表示 - 外部コンポーネント化 */}
+                          {task && <CurrentAssignee task={task} users={users} />}
                         </div>
                         
                         {/* 折りたたみ展開ボタン */}
@@ -1458,12 +1413,26 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                       </div>
                     </div>
                     
-                    {/* 作業時間記録セクション - 説明の下に移動 */}
-                    <div className="border-t border-gray-200 pt-4">
-                      <h3 className="text-md font-medium text-gray-700 flex items-center mb-3">
-                        <HiOutlineClock className="mr-2 text-gray-500" />
-                        作業時間記録
-                      </h3>
+                    {/* 作業時間記録セクション - コンポーネント化 */}
+                    {!isNewTask && task && (
+                      <TimeTracking 
+                        task={task}
+                        isRecordingTime={isRecordingTime}
+                        timeEntry={timeEntry}
+                        elapsedTime={elapsedTime}
+                        cachedTimeEntries={cachedTimeEntries}
+                        isLoadingTimeEntries={isLoadingTimeEntries}
+                        editingTimeEntry={editingTimeEntry}
+                        timeEntryForm={timeEntryForm}
+                        startTimeRecording={startTimeRecording}
+                        stopTimeRecording={stopTimeRecording}
+                        startEditingTimeEntry={startEditingTimeEntry}
+                        cancelEditingTimeEntry={cancelEditingTimeEntry}
+                        saveTimeEntryEdit={saveTimeEntryEdit}
+                        deleteTimeEntry={deleteTimeEntry}
+                        setTimeEntryForm={setTimeEntryForm}
+                      />
+                    )}
                       
                       <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                         {!isNewTask && task ? (
@@ -1965,52 +1934,13 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
               </div>
               
               {/* 削除確認モーダル */}
-              {isDeleteModalOpen && (
-                <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-                  <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                    {/* 背景オーバーレイ */}
-                    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setIsDeleteModalOpen(false)}></div>
-                    
-                    {/* モーダルパネル */}
-                    <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                      <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                        <div className="sm:flex sm:items-start">
-                          <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                            <HiExclamation className="h-6 w-6 text-red-600" />
-                          </div>
-                          <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                            <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                              タスクを削除
-                            </h3>
-                            <div className="mt-2">
-                              <p className="text-sm text-gray-500">
-                                タスク「{task?.title}」を削除してもよろしいですか？この操作は取り消せません。
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                        <button 
-                          type="button" 
-                          className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
-                          onClick={handleDeleteTask}
-                          disabled={isDeleting}
-                        >
-                          {isDeleting ? '削除中...' : '削除する'}
-                        </button>
-                        <button 
-                          type="button" 
-                          className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                          onClick={() => setIsDeleteModalOpen(false)}
-                        >
-                          キャンセル
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+              <DeleteTaskModal 
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={handleDeleteTask}
+                isDeleting={isDeleting}
+                taskTitle={task?.title}
+              />
             </div>
           </div>
         </div>
