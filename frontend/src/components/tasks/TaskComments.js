@@ -1,10 +1,26 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, forwardRef } from 'react';
 import { HiOutlinePaperAirplane, HiOutlineTrash, HiOutlineAtSymbol, HiOutlinePaperClip, HiOutlineBold, HiDocumentText } from 'react-icons/hi';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import toast from 'react-hot-toast';
 import { tasksApi, usersApi, chatApi } from '../../api';
 import useWebSocket from '../../hooks/useWebSocket';
+
+// ReactQuillのfindDOMNode非推奨警告を抑制するためのラッパーコンポーネント
+const QuillWrapper = forwardRef(({ value, onChange, placeholder, modules, formats }, ref) => {
+  return (
+    <ReactQuill
+      ref={ref}
+      value={value}
+      onChange={onChange}
+      modules={modules}
+      formats={formats}
+      placeholder={placeholder}
+      theme="snow"
+      className="rounded quill-editor"
+    />
+  );
+});
 
 // Quillエディタのスタイルをオーバーライド（TaskComments.cssなどの外部ファイルに移動するべき）
 const quillStyles = `
@@ -1007,15 +1023,13 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
           {/* リッチテキストエディタ */}
           <div className="flex items-start space-x-3">
             <div className="relative flex-1">
-              <ReactQuill
+              <QuillWrapper
                 ref={quillRef}
                 value={editorHtml}
                 onChange={handleEditorChange}
                 modules={modules}
                 formats={formats}
                 placeholder="コメントを入力... 画像はエディタに直接ドラッグ＆ドロップできます"
-                theme="snow"
-                className="rounded quill-editor"
                 disabled={submitting}
               />
               
