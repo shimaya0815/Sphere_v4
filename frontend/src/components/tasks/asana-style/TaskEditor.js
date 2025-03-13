@@ -261,7 +261,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       // 決算期一覧を取得（すべての決算期を取得するためクライアントIDは指定しない）
       try {
         // 現在の事業所に関連するすべての決算期を取得するためのダミーID
-        const businessFiscalYearId = businessId || 'all';
+        const businessFiscalYearId = businessId || 1; // 'all'ではなく1を使用
         const fiscalYearsResponse = await clientsApi.getFiscalYears(businessFiscalYearId);
         
         if (fiscalYearsResponse && Array.isArray(fiscalYearsResponse.results || fiscalYearsResponse)) {
