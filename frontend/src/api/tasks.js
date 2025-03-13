@@ -259,9 +259,31 @@ const tasksApi = {
   // タスクステータス一覧を取得
   getStatuses: async () => {
     try {
+      console.log('Calling API: /api/tasks/statuses/');
       const response = await apiClient.get('/api/tasks/statuses/');
-      return response.data;
+      console.log('API response for statuses:', response);
+      
+      // レスポンスがpaginationフォーマットかどうかをチェック
+      if (response.data && response.data.results) {
+        console.log('Pagination format detected, returning results array');
+        return {
+          data: response.data.results
+        };
+      }
+      
+      // 配列形式のレスポンスをチェック
+      if (Array.isArray(response.data)) {
+        console.log('Array format detected, returning as is');
+        return {
+          data: response.data
+        };
+      }
+      
+      // その他の形式
+      console.log('Unknown format, returning raw data');
+      return response;
     } catch (error) {
+      console.error('Error fetching statuses:', error);
       throw error;
     }
   },
