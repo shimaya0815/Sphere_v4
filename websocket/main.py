@@ -100,7 +100,7 @@ class ReadStatusData(BaseModel):
 # Socket.IOイベントハンドラ
 @sio.event
 async def connect(sid, environ, auth):
-    """クライアント接続時の処理"""
+    """クライアント接続時の処理 - 現在メンテナンス中"""
     try:
         # ヘッダーとトランスポート情報をログ出力
         transport = environ.get('asgi.scope', {}).get('type', 'unknown')
@@ -108,10 +108,10 @@ async def connect(sid, environ, auth):
                   for k, v in environ.get('asgi.scope', {}).get('headers', [])
                   if k.decode('utf-8').lower() in ['origin', 'user-agent', 'x-forwarded-for']}
         
-        logger.info(f"Client connected: {sid} via {transport}")
+        logger.info(f"Client attempted to connect: {sid} via {transport}")
         logger.info(f"Headers: {headers}")
         
-        # クライアント情報を保存
+        # クライアント情報を保存するが、チャンネル機能は停止
         connected_clients[sid] = {
             'connected_at': datetime.now().isoformat(),
             'channels': set(),
@@ -121,16 +121,15 @@ async def connect(sid, environ, auth):
             'origin': headers.get('origin', 'unknown')
         }
         
-        # 接続確認メッセージ送信
+        # メンテナンス中メッセージを送信
         await sio.emit('connection_status', {
-            'status': 'connected',
+            'status': 'maintenance',
             'sid': sid,
             'server_time': datetime.now().isoformat(),
-            'transport': transport,
-            'connection_count': len(connected_clients)
+            'message': 'Chat system is currently under maintenance. Please try again later.'
         }, to=sid)
         
-        logger.info(f"Active connections: {len(connected_clients)}")
+        logger.info(f"Maintenance message sent to client: {sid}")
         return True
     except Exception as e:
         logger.error(f"Error during connection handling: {str(e)}")
@@ -180,90 +179,29 @@ async def disconnect(sid):
 
 @sio.event
 async def join_channel(sid, data):
-    """チャンネル参加処理"""
+    """チャンネル参加処理 - 現在メンテナンス中"""
     try:
-        # データバリデーションをより寛容に
-        channel_id = None
-        user_info = {}
+        # メンテナンス情報を送信
+        await sio.emit('channel_status', {
+            'status': 'maintenance',
+            'server_time': datetime.now().isoformat(),
+            'message': 'Chat system is currently under maintenance. Channels cannot be joined at this time.'
+        }, to=sid)
         
-        # データ形式チェック - 辞書/オブジェクト
-        if isinstance(data, dict):
-            channel_id = data.get('channel_id')
-            user_info = data.get('user_info', {})
-        
-        # データバリデーション失敗時のフォールバック
-        if not channel_id:
-            logger.warning(f"Invalid channel join data: {data}")
-            return {
-                'status': 'error',
-                'message': 'Invalid channel data: channel_id is required'
-            }
-            
-        # チャンネルIDを文字列に変換
-        channel_id = str(channel_id)
-        
-        # チャンネルルームに参加
-        room_name = f'channel_{channel_id}'
-        sio.enter_room(sid, room_name)
-        logger.info(f"SID {sid} entered room: {room_name}")
-        
-        # チャンネルメンバー管理に追加
-        if channel_id not in channel_members:
-            channel_members[channel_id] = set()
-        channel_members[channel_id].add(sid)
-        
-        # クライアント情報を更新
-        if sid in connected_clients:
-            connected_clients[sid]['channels'].add(channel_id)
-            connected_clients[sid]['user_info'] = user_info
-            logger.info(f"Updated client info for SID {sid}: {connected_clients[sid]}")
-        else:
-            # 接続情報がない場合は新規作成
-            connected_clients[sid] = {
-                'connected_at': datetime.now().isoformat(),
-                'channels': {channel_id},
-                'user_info': user_info
-            }
-            logger.info(f"Created new client info for SID {sid}")
-        
-        # 参加者数
-        member_count = len(channel_members[channel_id])
-        
-        # 参加成功通知
-        join_response = {
-            'channel_id': channel_id,
-            'timestamp': datetime.now().isoformat(),
-            'active_members': member_count
-        }
-        await sio.emit('channel_joined', join_response, to=sid)
-        
-        # 他のメンバーに新しいユーザーの参加を通知
-        user_joined_notification = {
-            'channel_id': channel_id,
-            'user_info': user_info,
-            'timestamp': datetime.now().isoformat(),
-            'active_members': member_count
-        }
-        await sio.emit('user_joined', user_joined_notification, room=room_name, skip_sid=sid)
-        
-        user_id = user_info.get('id', 'unknown')
-        logger.info(f"User {user_id} joined channel {channel_id} with {member_count} active members")
+        logger.info(f"Maintenance message sent to client attempting to join channel: {sid}")
         
         return {
-            'status': 'success',
-            'message': f'Joined channel {channel_id}',
-            'active_members': member_count,
-            'channel_id': channel_id,
-            'sid': sid
+            'status': 'maintenance',
+            'message': 'Chat system is currently under maintenance'
         }
     except Exception as e:
-        logger.error(f"Error joining channel: {str(e)}")
+        logger.error(f"Error handling join channel during maintenance: {str(e)}")
         # スタックトレースも出力
         import traceback
         logger.error(traceback.format_exc())
         return {
             'status': 'error',
-            'message': f'Failed to join channel: {str(e)}'
+            'message': f'Failed to process request: {str(e)}'
         }
 
 @sio.event
@@ -316,47 +254,26 @@ async def leave_channel(sid, data):
 
 @sio.event
 async def chat_message(sid, data):
-    """チャットメッセージ送信処理"""
+    """チャットメッセージ送信処理 - 現在メンテナンス中"""
     try:
-        # データバリデーション
-        message_data = MessageData(**data)
-        channel_id = message_data.channel_id
+        # メンテナンス情報を送信
+        await sio.emit('chat_status', {
+            'status': 'maintenance',
+            'server_time': datetime.now().isoformat(),
+            'message': 'Chat system is currently under maintenance. Messages cannot be sent at this time.'
+        }, to=sid)
         
-        # ユーザー情報を取得
-        user_info = {}
-        if sid in connected_clients:
-            user_info = connected_clients[sid].get('user_info', {})
-        
-        # メッセージIDを生成（指定がなければ）
-        message_id = message_data.message_id or f"msg_{int(datetime.now().timestamp() * 1000)}_{sid[-4:]}"
-        
-        # タイムスタンプを設定
-        timestamp = message_data.timestamp or datetime.now().isoformat()
-        
-        # メッセージオブジェクト作成
-        message_obj = {
-            'type': 'chat_message',
-            'message_id': message_id,
-            'channel_id': channel_id,
-            'content': message_data.content,
-            'user': user_info,
-            'timestamp': timestamp
-        }
-        
-        # チャンネルの全メンバーにブロードキャスト
-        await sio.emit('chat_message', message_obj, room=f'channel_{channel_id}')
-        
-        logger.info(f"Message sent to channel {channel_id} by {user_info.get('id')}")
+        logger.info(f"Maintenance message sent to client attempting to send message: {sid}")
         
         return {
-            'status': 'success',
-            'message_id': message_id
+            'status': 'maintenance',
+            'message': 'Chat system is currently under maintenance'
         }
     except Exception as e:
-        logger.error(f"Error sending message: {str(e)}")
+        logger.error(f"Error handling chat message during maintenance: {str(e)}")
         return {
             'status': 'error',
-            'message': f'Failed to send message: {str(e)}'
+            'message': f'Failed to process message: {str(e)}'
         }
 
 @sio.event

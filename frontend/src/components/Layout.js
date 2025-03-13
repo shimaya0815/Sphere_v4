@@ -32,7 +32,8 @@ const Layout = () => {
     { path: '/dashboard', label: 'ダッシュボード', icon: <HiOutlineChartBar className="w-5 h-5" /> },
     { path: '/tasks', label: 'タスク管理', icon: <HiOutlineClipboardCheck className="w-5 h-5" /> },
     { path: '/clients', label: 'クライアント', icon: <HiOutlineUserGroup className="w-5 h-5" /> },
-    { path: '/chat', label: 'チャット', icon: <HiOutlineChat className="w-5 h-5" /> },
+    // チャット機能を一時的に非表示（将来的に再有効化できるようコメントアウトで残す）
+    // { path: '/chat', label: 'チャット', icon: <HiOutlineChat className="w-5 h-5" /> },
     { path: '/wiki', label: 'ナレッジ', icon: <HiOutlineDocumentText className="w-5 h-5" /> },
     { path: '/time-management', label: '作業時間', icon: <HiOutlineClock className="w-5 h-5" /> },
   ];
