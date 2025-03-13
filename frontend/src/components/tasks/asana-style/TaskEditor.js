@@ -258,12 +258,18 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         hasErrors = true;
       }
       
-      // 決算期一覧を取得
+      // 決算期一覧を取得（すべての決算期を取得するためクライアントIDは指定しない）
       try {
-        const fiscalYearsResponse = await clientsApi.getFiscalYears();
-        if (fiscalYearsResponse.data) {
-          setFiscalYears(fiscalYearsResponse.data);
+        // 現在の事業所に関連するすべての決算期を取得するためのダミーID
+        const businessFiscalYearId = businessId || 'all';
+        const fiscalYearsResponse = await clientsApi.getFiscalYears(businessFiscalYearId);
+        
+        if (fiscalYearsResponse && Array.isArray(fiscalYearsResponse.results || fiscalYearsResponse)) {
+          // レスポンスの構造によって適切な配列を取得
+          const fiscalYearsArray = fiscalYearsResponse.results || fiscalYearsResponse;
+          setFiscalYears(fiscalYearsArray);
         } else {
+          console.warn('決算期データの形式が想定と異なります:', fiscalYearsResponse);
           setFiscalYears([]);
         }
       } catch (error) {
