@@ -106,9 +106,42 @@ const tasksApi = {
   // タスク更新
   updateTask: async (taskId, taskData) => {
     try {
-      const response = await apiClient.put(`/api/tasks/${taskId}/`, taskData);
-      return response.data;
+      console.log('Updating task data:', taskData);
+      
+      // タイトルのバリデーション - 空の場合はエラーを投げる
+      if ('title' in taskData && (!taskData.title || taskData.title.trim() === '')) {
+        console.error('タイトルは必須項目です。空のタイトルで更新できません。');
+        throw new Error('タイトルは必須項目です');
+      }
+      
+      // 既存のタスクを取得して、タイトルが設定されていることを確認
+      try {
+        const existingTask = await apiClient.get(`/api/tasks/${taskId}/`);
+        const mergedData = { ...existingTask.data, ...taskData };
+        
+        // マージしたデータのタイトルが空かどうかをチェック
+        if (!mergedData.title || mergedData.title.trim() === '') {
+          console.error('更新後のタスクにタイトルがありません');
+          throw new Error('タイトルは必須項目です');
+        }
+        
+        console.log('Validated update data:', taskData);
+        const response = await apiClient.put(`/api/tasks/${taskId}/`, taskData);
+        return response.data;
+      } catch (fetchError) {
+        if (fetchError.message === 'タイトルは必須項目です') {
+          throw fetchError; // 独自のエラーを再スロー
+        }
+        // 既存タスクの取得に失敗した場合は、元のデータでの更新を試みる
+        console.warn('既存のタスク取得に失敗しました。直接更新を試みます。', fetchError);
+        const response = await apiClient.put(`/api/tasks/${taskId}/`, taskData);
+        return response.data;
+      }
     } catch (error) {
+      console.error('Error updating task:', error);
+      if (error.response) {
+        console.error('Response data:', error.response.data);
+      }
       throw error;
     }
   },
