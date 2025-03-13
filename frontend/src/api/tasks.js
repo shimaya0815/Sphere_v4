@@ -36,17 +36,42 @@ const tasksApi = {
   // 新規タスク作成
   createTask: async (taskData) => {
     try {
-      console.log('Create task data:', taskData);
+      console.log('Create task data before cleaning:', taskData);
+      
       // デフォルトの必須データを確実に設定
       const requiredData = {
         title: taskData.title || '新規タスク', // タイトルが必須
-        ...taskData
       };
       
-      // ステータスがない場合は先頭のステータスを自動選択（後でサーバー側のデフォルト処理に任せる）
+      // 日付フィールドの処理 - 空の値を削除、不正な形式の値をnullに変換
+      const dateFields = ['due_date', 'start_date', 'completed_at', 'recurrence_end_date'];
+      
+      // 既存のデータを追加（日付フィールドを除く）
+      Object.keys(taskData).forEach(key => {
+        if (!dateFields.includes(key)) {
+          requiredData[key] = taskData[key];
+        } else if (taskData[key] && taskData[key] !== '') {
+          // 有効な日付文字列のみを設定、それ以外はnull
+          try {
+            // 日付の妥当性チェック - 有効な日付文字列であればそのまま使用
+            const date = new Date(taskData[key]);
+            if (!isNaN(date.getTime())) {
+              requiredData[key] = taskData[key];
+            } else {
+              requiredData[key] = null;
+            }
+          } catch (e) {
+            requiredData[key] = null;
+          }
+        }
+      });
+      
+      // ステータスがない場合は先頭のステータスを自動選択
       if (!requiredData.status) {
         console.log('No status in task data, server will assign default');
       }
+      
+      console.log('Create task data after cleaning:', requiredData);
       
       const response = await apiClient.post('/api/tasks/', requiredData);
       return response.data;
