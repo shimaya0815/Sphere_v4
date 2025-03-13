@@ -333,14 +333,28 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       
       // クライアント一覧を取得
       try {
+        console.log('クライアント一覧を取得します');
         const clientsResponse = await clientsApi.getClients();
-        if (clientsResponse.data) {
+        console.log('クライアント一覧の取得結果:', clientsResponse);
+        
+        if (clientsResponse && clientsResponse.results) {
+          // 結果がresults配列に含まれているケース
+          console.log('クライアントデータ(results形式):', clientsResponse.results);
+          setClients(clientsResponse.results);
+        } else if (Array.isArray(clientsResponse)) {
+          // 直接配列で返されるケース
+          console.log('クライアントデータ(配列形式):', clientsResponse);
+          setClients(clientsResponse);
+        } else if (clientsResponse && Array.isArray(clientsResponse.data)) {
+          // data配列に含まれているケース
+          console.log('クライアントデータ(data配列形式):', clientsResponse.data);
           setClients(clientsResponse.data);
         } else {
+          console.warn('クライアントデータがありません');
           setClients([]);
         }
       } catch (error) {
-        console.error('Error fetching clients:', error);
+        console.error('クライアント一覧の取得に失敗しました:', error);
         setClients([]);
         hasErrors = true;
       }

@@ -5,8 +5,38 @@ const clientsApi = {
   // Get all clients with optional filters
   getClients: async (filters = {}) => {
     try {
+      console.log('API - Fetching clients with filters:', filters);
       const response = await apiClient.get('/api/clients/', { params: filters });
-      return response.data;
+      console.log('API - Client response structure:', {
+        hasData: !!response.data,
+        dataType: response.data ? typeof response.data : 'undefined',
+        hasResults: response.data && response.data.results ? 'yes' : 'no',
+        isArray: Array.isArray(response.data),
+        resultCount: response.data && response.data.results ? response.data.results.length : 
+                     (Array.isArray(response.data) ? response.data.length : 0)
+      });
+      
+      // レスポンスのデータ構造に応じた処理
+      if (response.data && response.data.results) {
+        // DRF標準のページネーション形式
+        console.log('API - Returning paginated client data:', response.data.results.length);
+        return response.data;
+      } else if (Array.isArray(response.data)) {
+        // 直接配列が返される場合
+        console.log('API - Returning array client data:', response.data.length);
+        return {
+          results: response.data,
+          count: response.data.length
+        };
+      } else if (response.data && typeof response.data === 'object') {
+        // その他のオブジェクト形式 (フォールバック)
+        console.log('API - Returning object client data');
+        return response.data;
+      }
+      
+      // 空データの場合のフォールバック
+      console.warn('API - No client data found, returning empty results');
+      return { results: [], count: 0 };
     } catch (error) {
       console.error('Error fetching clients:', error);
       return { results: [], count: 0 };
