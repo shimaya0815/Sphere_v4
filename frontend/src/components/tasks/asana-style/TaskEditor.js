@@ -573,7 +573,8 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         console.log('Processed update data:', updateData);
         
         // タスク更新処理
-        await tasksApi.updateTask(task.id, updateData);
+        const response = await tasksApi.updateTask(task.id, updateData);
+        console.log('Task update response:', response);
         
         // 状態をリセット
         setPendingChanges({});
@@ -585,9 +586,12 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
           if (setSaveState) setSaveState('idle');
         }, 3000);
         
-        // 親コンポーネントに通知
+        // 親コンポーネントに通知 - 更新されたタスクデータを渡す
         if (onTaskUpdated) {
-          onTaskUpdated();
+          // APIレスポンスがある場合はそれを使用、なければタスクデータと更新内容をマージ
+          const updatedTaskData = response || { ...task, ...updateData };
+          console.log('Sending updated task to parent:', updatedTaskData);
+          onTaskUpdated(updatedTaskData);
         }
       } catch (error) {
         console.error('Error saving task:', error);
