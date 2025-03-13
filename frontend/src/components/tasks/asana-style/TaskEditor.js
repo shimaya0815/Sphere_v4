@@ -449,14 +449,8 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         onTaskUpdated(taskData);
       }
       
-      // タスク更新イベントをグローバルに発火して確実に更新
-      console.log("Dispatching global task-updated event with isNew flag:", isNewTask);
-      window.dispatchEvent(new CustomEvent('task-updated', { 
-        detail: { 
-          task: response.data || response,
-          isNew: isNewTask
-        }
-      }));
+      // 注意: TasksPage.jsの親コンポーネントがイベントを発火するので、ここでは発火しない
+      // (二重更新を防止するため)
       
       // 作成後は閉じる
       if (isNewTask) {
