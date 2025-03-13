@@ -36,6 +36,9 @@ import {
  * - 視覚的フィードバック強化
  */
 const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = false }) => {
+  // フォームのリセット状態を追跡するためのキー
+  const [resetKey, setResetKey] = useState(Date.now());
+  
   // 状態管理
   const [categories, setCategories] = useState([]);
   const [statuses, setStatuses] = useState([]);
@@ -108,6 +111,47 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
   const watchedClient = watch('client');
   const watchedIsRecurring = watch('is_recurring');
   const watchedIsTemplate = watch('is_template');
+  
+  /**
+   * isOpen状態の変化を監視してリセット処理
+   */
+  useEffect(() => {
+    console.log("isOpen changed:", isOpen, "isNewTask:", isNewTask);
+    if (isOpen) {
+      // スライドオーバーが開く時
+      if (isNewTask) {
+        console.log("Resetting form for new task");
+        // 新規タスク作成時はフォームを初期化
+        reset({
+          title: '',
+          description: '',
+          status: '',
+          category: '',
+          client: '',
+          fiscal_year: '',
+          worker: '',
+          reviewer: '',
+          due_date: '',
+          start_date: '',
+          completed_at: '',
+          priority: '',
+          priority_value: '',
+          is_fiscal_task: 'false',
+          is_recurring: 'false',
+          recurrence_pattern: '',
+          recurrence_end_date: '',
+          is_template: 'false',
+          template_name: ''
+        });
+        // リセットキーを更新して強制的に再レンダリング
+        setResetKey(Date.now());
+        // その他の状態もリセット
+        setPendingChanges({});
+        setIsDirty(false);
+        setSaveState('idle');
+      }
+    }
+  }, [isOpen, isNewTask, reset]);
   
   /**
    * タスクデータの初期化
@@ -497,6 +541,31 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       
       // 作成後は閉じる
       if (isNewTask) {
+        // フォームの状態をリセット
+        reset({
+          title: '',
+          description: '',
+          status: '',
+          category: '',
+          client: '',
+          fiscal_year: '',
+          worker: '',
+          reviewer: '',
+          due_date: '',
+          start_date: '',
+          completed_at: '',
+          priority: '',
+          priority_value: '',
+          is_fiscal_task: 'false',
+          is_recurring: 'false',
+          recurrence_pattern: '',
+          recurrence_end_date: '',
+          is_template: 'false',
+          template_name: ''
+        });
+        // リセットキーを更新して次回の表示時に確実に新しい状態にする
+        setResetKey(Date.now());
+        
         // 閉じる前に十分な時間を設けて、タスク一覧の更新を確実にする
         setTimeout(() => {
           onClose();
@@ -792,7 +861,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
               
               {/* フォーム本体 */}
               <div className="flex-1 py-6 px-4 sm:px-6 overflow-auto">
-                <form onSubmit={handleSubmit(submitTask)}>
+                <form onSubmit={handleSubmit(submitTask)} key={resetKey}>
                   <div className="space-y-6">
                     <TaskBasicInfoSection 
                       control={control}
