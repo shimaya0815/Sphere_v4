@@ -65,9 +65,6 @@ const TaskAssigneeSection = ({
                     onChange={(e) => {
                       field.onChange(e);
                       handleFieldChange('worker', e.target.value);
-                      toast('作業者を変更しました。保存ボタンで確定してください', {
-                        icon: '📝',
-                      });
                     }}
                   >
                     <option value="">担当者なし</option>
@@ -100,9 +97,6 @@ const TaskAssigneeSection = ({
                     onChange={(e) => {
                       field.onChange(e);
                       handleFieldChange('reviewer', e.target.value);
-                      toast('レビュアーを変更しました。保存ボタンで確定してください', {
-                        icon: '📝',
-                      });
                     }}
                   >
                     <option value="">担当者なし</option>
