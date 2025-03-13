@@ -439,6 +439,21 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
     
     saveTimerRef.current = setTimeout(() => {
       if (Object.keys(pendingChanges).length > 0 && !isNewTask && task) {
+        // タイトルを空にする変更がある場合は無視する
+        if ('title' in pendingChanges && (!pendingChanges.title || pendingChanges.title.trim() === '')) {
+          console.warn('タイトルを空にする変更は無視されます');
+          setPendingChanges(prev => {
+            const newChanges = {...prev};
+            delete newChanges.title;
+            return newChanges;
+          });
+          
+          if (Object.keys(pendingChanges).length <= 1) {
+            // タイトル以外に変更がなければ保存しない
+            return;
+          }
+        }
+        
         saveChanges();
       }
     }, 1000);
@@ -450,14 +465,30 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
   const handleFieldChange = (fieldName, value) => {
     setIsDirty(true);
     
-    // タイトルフィールドが空の場合は変更を無視（タイトルは必須）
-    if (fieldName === 'title' && (!value || value.trim() === '')) {
-      console.warn('タイトルは空にできません');
-      toast.error('タイトルは必須項目です');
-      return;
+    // タイトル関連の特別処理
+    if (fieldName === 'title') {
+      // タイトルが空の場合は変更を無視
+      if (!value || value.trim() === '') {
+        console.warn('タイトルは空にできません');
+        toast.error('タイトルは必須項目です');
+        
+        // タイトルフィールドの値を元に戻す
+        if (task && task.title) {
+          setTimeout(() => {
+            setValue('title', task.title);
+          }, 0);
+        }
+        return;
+      }
     }
     
     if (!isNewTask && task) {
+      // 空のタイトルになる変更は許可しない追加チェック
+      if (fieldName === 'title' && value.trim() === '' && task.title) {
+        console.warn('タイトルを空にすることはできません');
+        return;
+      }
+      
       setPendingChanges(prev => ({
         ...prev,
         [fieldName]: value,
@@ -560,12 +591,33 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         }
       } catch (error) {
         console.error('Error saving task:', error);
-        if (error.response) {
+        
+        // APIからのエラーメッセージを取得
+        let errorMessage = 'タスクの保存に失敗しました';
+        
+        if (error.message === 'タイトルは必須項目です') {
+          errorMessage = 'タイトルは必須項目です。空のタイトルでは保存できません。';
+        } else if (error.response) {
           console.error('Response data:', error.response.data);
           console.error('Status code:', error.response.status);
+          
+          // タイトルに関するエラーの場合
+          if (error.response.data && error.response.data.title) {
+            errorMessage = `タイトルエラー: ${Array.isArray(error.response.data.title) ? error.response.data.title.join(', ') : error.response.data.title}`;
+          }
         }
+        
         setSaveState('error');
-        toast.error('タスクの保存に失敗しました');
+        toast.error(errorMessage);
+        
+        // タイトルエラーの場合、タイトルを変更せずにpendingChangesからtitleを削除
+        if (errorMessage.includes('タイトル')) {
+          setPendingChanges(prev => {
+            const newChanges = {...prev};
+            delete newChanges.title;
+            return newChanges;
+          });
+        }
       }
     }
   };
@@ -718,8 +770,24 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       }
     } catch (error) {
       console.error('Error submitting task:', error);
+      
+      // APIからのエラーメッセージを取得
+      let errorMessage = 'タスクの保存に失敗しました';
+      
+      if (error.message === 'タイトルは必須項目です') {
+        errorMessage = 'タイトルは必須項目です。空のタイトルでは保存できません。';
+      } else if (error.response) {
+        console.error('Response data:', error.response.data);
+        console.error('Status code:', error.response.status);
+        
+        // タイトルに関するエラーの場合
+        if (error.response.data && error.response.data.title) {
+          errorMessage = `タイトルエラー: ${Array.isArray(error.response.data.title) ? error.response.data.title.join(', ') : error.response.data.title}`;
+        }
+      }
+      
       setSaveState('error');
-      toast.error('タスクの保存に失敗しました');
+      toast.error(errorMessage);
     }
   };
   
