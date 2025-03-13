@@ -188,23 +188,57 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       try {
         const statusesResponse = await tasksApi.getStatuses();
         if (statusesResponse.data) {
-          setStatuses(statusesResponse.data);
+          const statusesList = statusesResponse.data;
+          setStatuses(statusesList);
+          
+          // グローバルにステータス一覧をキャッシュして他のコンポーネントで使用できるようにする
+          window.__SPHERE_CACHED_STATUSES = statusesList;
+          
+          // 新規タスク作成時のフォームデフォルト値を設定
+          if (isNewTask) {
+            // 未着手ステータスを検索
+            const notStartedStatus = statusesList.find(s => s.name === '未着手');
+            if (notStartedStatus) {
+              console.log('Setting default status to 未着手:', notStartedStatus.id);
+              setValue('status', notStartedStatus.id.toString());
+            } else if (statusesList.length > 0) {
+              // 未着手が見つからない場合は最初のステータスを設定
+              const firstStatus = [...statusesList].sort((a, b) => a.order - b.order)[0];
+              console.log('Setting default status to first status:', firstStatus.id);
+              setValue('status', firstStatus.id.toString());
+            }
+          }
         } else {
           // デフォルト値を設定
-          setStatuses([
+          const defaultStatuses = [
             { id: 1, name: '未着手', order: 1 },
             { id: 2, name: '進行中', order: 2 },
             { id: 3, name: '完了', order: 3 }
-          ]);
+          ];
+          setStatuses(defaultStatuses);
+          window.__SPHERE_CACHED_STATUSES = defaultStatuses;
+          
+          // 新規タスク作成時のデフォルト値を設定
+          if (isNewTask) {
+            setValue('status', '1'); // デフォルトの未着手ID
+          }
         }
       } catch (error) {
         console.error('Error fetching statuses:', error);
         // デフォルト値を設定
-        setStatuses([
+        const fallbackStatuses = [
           { id: 1, name: '未着手', order: 1 },
           { id: 2, name: '進行中', order: 2 },
           { id: 3, name: '完了', order: 3 }
-        ]);
+        ];
+        setStatuses(fallbackStatuses);
+        window.__SPHERE_CACHED_STATUSES = fallbackStatuses;
+        
+        // 新規タスク作成時のデフォルト値を設定
+        if (isNewTask) {
+          setValue('status', '1'); // デフォルトの未着手ID
+        }
+        
         hasErrors = true;
       }
       

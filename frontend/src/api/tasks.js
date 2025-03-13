@@ -66,9 +66,30 @@ const tasksApi = {
         }
       });
       
-      // ステータスがない場合は先頭のステータスを自動選択
+      // ステータスがない場合は「未着手」のステータスを検索して設定
       if (!requiredData.status) {
-        console.log('No status in task data, server will assign default');
+        console.log('No status in task data, setting default "未着手" status');
+        // キャッシュされたステータス一覧を取得する試み
+        try {
+          const cachedStatuses = window.__SPHERE_CACHED_STATUSES;
+          if (cachedStatuses && cachedStatuses.length > 0) {
+            // 未着手ステータスの検索
+            const notStartedStatus = cachedStatuses.find(s => s.name === '未着手');
+            if (notStartedStatus) {
+              requiredData.status = notStartedStatus.id;
+              console.log('Set default status from cache:', notStartedStatus.id);
+            } else {
+              // 未着手が見つからない場合は最小のorder値を持つステータスを設定
+              const firstStatus = [...cachedStatuses].sort((a, b) => a.order - b.order)[0];
+              if (firstStatus) {
+                requiredData.status = firstStatus.id;
+                console.log('Set first ordered status from cache:', firstStatus.id);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Error setting default status:', e);
+        }
       }
       
       console.log('Create task data after cleaning:', requiredData);
