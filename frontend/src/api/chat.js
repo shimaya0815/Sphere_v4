@@ -179,8 +179,23 @@ const chatApi = {
       params: { query, ...params } 
     }),
   
-  // User channels
-  getUserChannels: () => apiClient.get('/api/chat/my-channels/'),
+  // User channels - try with and without API prefix
+  getUserChannels: async () => {
+    try {
+      // First try with direct endpoint
+      try {
+        const response = await apiClient.get('/my-channels/');
+        return response;
+      } catch (firstError) {
+        console.log('Trying with /api/chat prefix after direct endpoint failed');
+        const response = await apiClient.get('/api/chat/my-channels/');
+        return response;
+      }
+    } catch (error) {
+      console.error('Error fetching user channels:', error);
+      throw error;
+    }
+  },
   
   // デフォルトワークスペースを取得
   getDefaultWorkspace: async () => {

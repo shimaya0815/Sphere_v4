@@ -63,6 +63,9 @@ urlpatterns = [
     path('time-management/', include('time_management.urls')),
     path('chat/', include('chat.urls')),
     path('wiki/', include('wiki.urls')),
+    
+    # Add direct access for my-channels endpoint
+    path('my-channels/', include('chat.direct_urls')),
 ]
 
 # Serve static and media files in development
