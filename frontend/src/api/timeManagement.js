@@ -252,8 +252,8 @@ const timeManagementApi = {
   // Get chart data
   getChartData: async (type = 'time', period = 'week') => {
     try {
-      // URLのプレフィックスを/api/から/time-management/に変更
-      const response = await apiClient.get('/time-management/analytics/chart-data/', {
+      // 元の/api/付きのURLに戻す
+      const response = await apiClient.get('/api/time-management/analytics/chart-data/', {
         params: { type, period }
       });
       return response.data;
