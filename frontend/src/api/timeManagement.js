@@ -5,7 +5,13 @@ const timeManagementApi = {
   // Get time entries with optional filters
   getTimeEntries: async (filters = {}) => {
     try {
-      const response = await apiClient.get('/api/time-management/entries/', { params: filters });
+      // Handle both formats: getTimeEntries(taskId) and getTimeEntries({filters})
+      let params = filters;
+      if (typeof filters === 'number' || typeof filters === 'string') {
+        params = { task_id: filters };
+      }
+      
+      const response = await apiClient.get('/api/time-management/entries/', { params });
       return response.data.results || response.data;
     } catch (error) {
       console.error('Error fetching time entries:', error);
@@ -36,18 +42,41 @@ const timeManagementApi = {
       ];
       
       // activeフィルターが指定されていればそれに従う
-      if (filters.active === 'true') {
+      if (params.active === 'true') {
         return mockEntries.filter(entry => entry.is_running || !entry.end_time);
-      } else if (filters.active === 'false') {
+      } else if (params.active === 'false') {
         return mockEntries.filter(entry => !entry.is_running && entry.end_time);
-      } else if (filters.task_id) {
+      } else if (params.task_id) {
         // タスクIDでフィルター
         return mockEntries.filter(entry => 
-          entry.task && entry.task.id.toString() === filters.task_id.toString()
+          entry.task && entry.task.id.toString() === params.task_id.toString()
         );
       }
       
       return mockEntries;
+    }
+  },
+  
+  // Get active time entry for a task
+  getActiveTimeEntry: async (taskId) => {
+    try {
+      const response = await apiClient.get('/api/time-management/timer/active/', { 
+        params: { task_id: taskId } 
+      });
+      return response;
+    } catch (error) {
+      console.error('Error fetching active time entry:', error);
+      // Return mock data for development
+      return {
+        data: {
+          id: Math.floor(Math.random() * 1000),
+          task_id: taskId,
+          description: "進行中の作業",
+          start_time: new Date(Date.now() - 1800000).toISOString(),
+          is_running: true,
+          task: { id: taskId, title: "作業中のタスク" }
+        }
+      };
     }
   },
   

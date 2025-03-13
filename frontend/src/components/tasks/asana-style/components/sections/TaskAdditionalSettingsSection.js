@@ -35,7 +35,7 @@ const TaskAdditionalSettingsSection = ({
                   id="is_recurring"
                   type="checkbox"
                   className="focus:ring-primary-500 h-4 w-4 text-primary-600 border-gray-300 rounded"
-                  checked={value || false}
+                  checked={value === 'true' || value === true || false}
                   onChange={(e) => {
                     onChange(e.target.checked);
                     handleFieldChange('is_recurring', e.target.checked);
@@ -125,7 +125,7 @@ const TaskAdditionalSettingsSection = ({
                     id="is_template"
                     type="checkbox"
                     className="focus:ring-primary-500 h-4 w-4 text-primary-600 border-gray-300 rounded"
-                    checked={value || false}
+                    checked={value === 'true' || value === true || false}
                     onChange={(e) => {
                       onChange(e.target.checked);
                       handleFieldChange('is_template', e.target.checked);
