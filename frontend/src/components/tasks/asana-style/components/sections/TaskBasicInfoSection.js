@@ -180,7 +180,8 @@ const TaskBasicInfoSection = ({
                   <option value="">決算期なし</option>
                   {filteredFiscalYears.map((fiscalYear) => (
                     <option key={fiscalYear.id} value={fiscalYear.id}>
-                      {fiscalYear.year}年度
+                      {fiscalYear.year}年{fiscalYear.end_month || '3'}月
+                      {fiscalYear.period ? `（第${fiscalYear.period}期）` : ''}
                       {fiscalYear.is_current && ' (現在)'}
                     </option>
                   ))}
