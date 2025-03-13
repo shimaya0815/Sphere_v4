@@ -60,6 +60,15 @@ module.exports = function(app) {
   // API URLパターンのプロキシ設定
   app.use('/api', createApiProxy('/api'));
   
+  // バックエンドの非APIパスもプロキシ（直接バックエンドパス）
+  app.use('/time-management', createApiProxy('/time-management'));
+  app.use('/tasks', createApiProxy('/tasks'));
+  app.use('/clients', createApiProxy('/clients'));
+  app.use('/business', createApiProxy('/business'));
+  app.use('/users', createApiProxy('/users'));
+  app.use('/chat', createApiProxy('/chat'));
+  app.use('/wiki', createApiProxy('/wiki'));
+  
   // 認証用URLパターンのプロキシ設定
   app.use('/auth', createApiProxy('/auth'));
   
