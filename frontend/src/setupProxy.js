@@ -121,21 +121,67 @@ module.exports = function(app) {
     }
   }));
   
-  // タスク関連のWebSocket用プロキシパス - 'tasks/ID/' パスへの直接アクセスをサポート
-  app.use('/tasks', createProxyMiddleware({
-    target: SOCKET_HOST,
-    changeOrigin: true,
-    ws: true, // WebSocketをサポート
-    logLevel: 'debug',
-    secure: false,
-    pathRewrite: {
-      '^/tasks': '/ws/tasks' // /tasks/X/ を /ws/tasks/X/ にリダイレクト
-    },
-    onProxyReq: (proxyReq, req, res) => {
-      console.log(`[Tasks WS Proxy] → ${req.method} ${req.url} to ${SOCKET_HOST}${proxyReq.path}`);
-    },
-    onError: (err, req, res) => {
-      console.error(`[Tasks WS Proxy] Error: ${err.message}`);
+  // タスク関連のWebSocket用プロキシパス - 'tasks/ID/' パスへのアクセスを2つの場所に振り分け
+  app.use('/tasks', (req, res, next) => {
+    // WebSocketリクエストとAPIリクエストを区別
+    const isWebSocketUpgrade = req.headers.upgrade && req.headers.upgrade.toLowerCase() === 'websocket';
+    
+    if (isWebSocketUpgrade) {
+      // WebSocketのアップグレードリクエストはWebSocketサーバーにプロキシ
+      console.log(`[WS Proxy] WebSocket upgrade request: ${req.method} ${req.url}`);
+      
+      const wsProxy = createProxyMiddleware({
+        target: SOCKET_HOST,
+        changeOrigin: true,
+        ws: true, 
+        logLevel: 'debug',
+        secure: false,
+        pathRewrite: {
+          '^/tasks': '/ws/tasks' // /tasks/X/ を /ws/tasks/X/ にリダイレクト
+        },
+        onProxyReq: (proxyReq, req, res) => {
+          console.log(`[Tasks WS Proxy] → ${req.method} ${req.url} to ${SOCKET_HOST}${proxyReq.path}`);
+        },
+        onError: (err, req, res) => {
+          console.error(`[Tasks WS Proxy] Error: ${err.message}`);
+          if (!res.headersSent) {
+            res.writeHead(502, {'Content-Type': 'application/json'});
+            res.end(JSON.stringify({error: 'WebSocket Proxy Error', message: err.message}));
+          }
+        }
+      });
+      
+      return wsProxy(req, res, next);
+    } else {
+      // HTTPリクエストは通常のAPIにプロキシ
+      console.log(`[API Proxy] Regular request: ${req.method} ${req.url}`);
+      
+      // /tasks パスのみの場合はReactアプリケーションに戻す
+      if (req.url === '/' || req.url === '') {
+        console.log('[Tasks Proxy] Root path detected, returning to React router');
+        return next();
+      }
+      
+      const apiProxy = createProxyMiddleware({
+        target: BACKEND_HOST,
+        changeOrigin: true,
+        secure: false,
+        pathRewrite: {
+          '^/tasks': '/api/tasks' // /tasks/ を /api/tasks/ にリダイレクト
+        },
+        onProxyReq: (proxyReq, req, res) => {
+          console.log(`[Tasks API Proxy] → ${req.method} ${req.url} to ${BACKEND_HOST}${proxyReq.path}`);
+        },
+        onError: (err, req, res) => {
+          console.error(`[Tasks API Proxy] Error: ${err.message}`);
+          if (!res.headersSent) {
+            res.writeHead(502, {'Content-Type': 'application/json'});
+            res.end(JSON.stringify({error: 'API Proxy Error', message: err.message}));
+          }
+        }
+      });
+      
+      return apiProxy(req, res, next);
     }
-  }));
+  });
 };
