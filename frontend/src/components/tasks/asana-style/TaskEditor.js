@@ -526,15 +526,59 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         submitData.is_template = submitData.is_template === 'true';
       }
       
-      // 数値に変換
-      if (submitData.worker) submitData.worker = parseInt(submitData.worker);
-      if (submitData.reviewer) submitData.reviewer = parseInt(submitData.reviewer);
-      if (submitData.status) submitData.status = parseInt(submitData.status);
-      if (submitData.category) submitData.category = parseInt(submitData.category);
-      if (submitData.client) submitData.client = parseInt(submitData.client);
-      if (submitData.fiscal_year) submitData.fiscal_year = parseInt(submitData.fiscal_year);
-      if (submitData.priority) submitData.priority = parseInt(submitData.priority);
-      if (submitData.priority_value) submitData.priority_value = parseInt(submitData.priority_value);
+      // 数値に変換（エラーハンドリングを追加）
+      try {
+        if (submitData.worker && submitData.worker !== '') {
+          submitData.worker = parseInt(submitData.worker) || null;
+        } else {
+          submitData.worker = null;
+        }
+        
+        if (submitData.reviewer && submitData.reviewer !== '') {
+          submitData.reviewer = parseInt(submitData.reviewer) || null;
+        } else {
+          submitData.reviewer = null;
+        }
+        
+        if (submitData.status && submitData.status !== '') {
+          submitData.status = parseInt(submitData.status) || null;
+        }
+        
+        if (submitData.category && submitData.category !== '') {
+          submitData.category = parseInt(submitData.category) || null;
+        }
+        
+        if (submitData.client && submitData.client !== '') {
+          submitData.client = parseInt(submitData.client) || null;
+        } else {
+          submitData.client = null;
+        }
+        
+        if (submitData.fiscal_year && submitData.fiscal_year !== '') {
+          submitData.fiscal_year = parseInt(submitData.fiscal_year) || null;
+        } else {
+          submitData.fiscal_year = null;
+        }
+        
+        if (submitData.priority && submitData.priority !== '') {
+          submitData.priority = parseInt(submitData.priority) || null;
+        }
+        
+        if (submitData.priority_value && submitData.priority_value !== '') {
+          submitData.priority_value = parseInt(submitData.priority_value) || null;
+        }
+        
+        // 日付フィールドが有効な形式であることを確認
+        ['due_date', 'start_date', 'completed_at', 'recurrence_end_date'].forEach(dateField => {
+          if (submitData[dateField] && !isValidDate(submitData[dateField])) {
+            console.warn(`Invalid date format for ${dateField}: ${submitData[dateField]}, setting to null`);
+            submitData[dateField] = null;
+          }
+        });
+      } catch (error) {
+        console.error('Error converting form values:', error);
+        // エラーが発生してもプロセスは継続
+      }
       
       // ビジネスIDの設定
       if (businessId) {
@@ -861,6 +905,23 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
     } catch (e) {
       return '';
     }
+  };
+  
+  /**
+   * 日付が有効かどうかをチェック
+   */
+  const isValidDate = (dateString) => {
+    if (!dateString) return false;
+    
+    // YYYY-MM-DD形式かどうかを正規表現でチェック
+    const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+    if (!datePattern.test(dateString)) {
+      return false;
+    }
+    
+    // 実際に有効な日付かどうかをチェック
+    const date = new Date(dateString);
+    return !isNaN(date.getTime());
   };
   
   // Asana風スライドパネル - isOpenプロパティに基づいて条件付きレンダリング
