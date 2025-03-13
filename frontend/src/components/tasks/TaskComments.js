@@ -140,6 +140,9 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
   // 一時的にWebSocketを無効化
   const wsEnabled = false;
   
+  // 警告を表示しないようにするため、リッチテキストエディタを無効化
+  const useSimpleTextArea = true;
+  
   const { sendMessage, isConnected, connect } = useWebSocket(
     wsEnabled ? wsUrl : null, 
     {
@@ -564,7 +567,10 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
     setSubmitting(true);
     let addedComment;
     let savedComment = newComment; // プレーンテキスト
-    let savedHtml = editorHtml; // HTML形式
+    // シンプルテキストエリア使用時はHTMLコンテンツを生成
+    let savedHtml = useSimpleTextArea 
+      ? `<p>${newComment.replace(/\n/g, '</p><p>')}</p>` 
+      : editorHtml; // HTML形式
     let imagePreviewUrls = pastedImages.map(img => img.url);
     
     // WebSocket接続のステータスチェックを無効化
@@ -1023,15 +1029,27 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
           {/* リッチテキストエディタ */}
           <div className="flex items-start space-x-3">
             <div className="relative flex-1">
-              <QuillWrapper
-                ref={quillRef}
-                value={editorHtml}
-                onChange={handleEditorChange}
-                modules={modules}
-                formats={formats}
-                placeholder="コメントを入力... 画像はエディタに直接ドラッグ＆ドロップできます"
-                disabled={submitting}
-              />
+              {useSimpleTextArea ? (
+                <textarea
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="コメントを入力..."
+                  rows={4}
+                  disabled={submitting}
+                  style={{ minHeight: '100px' }}
+                />
+              ) : (
+                <QuillWrapper
+                  ref={quillRef}
+                  value={editorHtml}
+                  onChange={handleEditorChange}
+                  modules={modules}
+                  formats={formats}
+                  placeholder="コメントを入力... 画像はエディタに直接ドラッグ＆ドロップできます"
+                  disabled={submitting}
+                />
+              )}
               
               {/* メンション候補 - メンションプラグインで代替する必要があります */}
               {showMentionSuggestions && (
