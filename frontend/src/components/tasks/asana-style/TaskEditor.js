@@ -1103,37 +1103,37 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                           </div>
                         </div>
                         
-                        {/* 作業担当者・レビュー担当者の表示 */}
-                        <div className="flex items-center space-x-3 text-sm">
+                        <div className="flex flex-col md:flex-row items-start md:items-center space-y-2 md:space-y-0 md:space-x-3 text-sm">
                           {/* 現在の担当者表示 - 枠付きハイライト */}
-                          {task && task.assignee && (
+                          {task && task.assignee_name && (
                             <div className="bg-blue-50 px-3 py-1.5 rounded-md border border-blue-200 flex items-center">
                               <HiUser className="mr-1.5 text-blue-500" />
                               <div className="flex items-center">
-                                <span className="text-blue-700 mr-1">現在:</span>
-                                <span className="text-blue-800 font-medium">{task.assignee_name || (typeof task.assignee === 'object' ? task.assignee.get_full_name || task.assignee.email : '不明')}</span>
+                                <span className="text-blue-700 mr-1">現在の担当者:</span>
+                                <span className="text-blue-800 font-medium">{task.assignee_name}</span>
                               </div>
                             </div>
                           )}
                           
-                          <div className="flex items-center">
-                            <span className="text-gray-500 mr-1">作業:</span>
-                            <span className="font-medium text-gray-700">
-                              {watch('worker') && users.find(user => user.id.toString() === watch('worker'))
+                          <div className="flex flex-col">
+                            <div className="flex items-center">
+                              <span className="text-gray-500 mr-1">作業:</span>
+                              <span className="font-medium text-gray-700">
+                                {watch('worker') && users.find(user => user.id.toString() === watch('worker'))
                                 ? (users.find(user => user.id.toString() === watch('worker')).get_full_name || 
                                    users.find(user => user.id.toString() === watch('worker')).email)
                                 : '未設定'}
                             </span>
-                          </div>
-                          <span className="text-gray-300">|</span>
-                          <div className="flex items-center">
-                            <span className="text-gray-500 mr-1">レビュー:</span>
-                            <span className="font-medium text-gray-700">
-                              {watch('reviewer') && users.find(user => user.id.toString() === watch('reviewer'))
-                                ? (users.find(user => user.id.toString() === watch('reviewer')).get_full_name || 
-                                   users.find(user => user.id.toString() === watch('reviewer')).email)
-                                : '未設定'}
-                            </span>
+                            </div>
+                            <div className="flex items-center mt-1">
+                              <span className="text-gray-500 mr-1">レビュー:</span>
+                              <span className="font-medium text-gray-700">
+                                {watch('reviewer') && users.find(user => user.id.toString() === watch('reviewer'))
+                                  ? (users.find(user => user.id.toString() === watch('reviewer')).get_full_name || 
+                                     users.find(user => user.id.toString() === watch('reviewer')).email)
+                                  : '未設定'}
+                              </span>
+                            </div>
                           </div>
                         </div>
                         
