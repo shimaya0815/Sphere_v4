@@ -105,22 +105,32 @@ const TaskBasicInfoSection = ({
               name="category"
               control={control}
               render={({ field }) => (
-                <select
-                  id="category"
-                  className={selectClassName}
-                  {...field}
-                  onChange={(e) => {
-                    field.onChange(e);
-                    handleFieldChange('category', e.target.value);
-                  }}
-                >
-                  <option value="">カテゴリーなし</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    id="category"
+                    className={`${selectClassName} pl-7`} /* 左側にカラーマーカーのスペースを確保 */
+                    {...field}
+                    onChange={(e) => {
+                      field.onChange(e);
+                      handleFieldChange('category', e.target.value);
+                    }}
+                  >
+                    <option value="">カテゴリーなし</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id} data-color={category.color || '#6366F1'}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                  {field.value && (
+                    <div
+                      className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 rounded-full"
+                      style={{
+                        backgroundColor: categories.find(c => c.id.toString() === field.value.toString())?.color || '#6366F1'
+                      }}
+                    />
+                  )}
+                </div>
               )}
             />
           </div>
