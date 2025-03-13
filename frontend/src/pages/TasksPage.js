@@ -52,6 +52,8 @@ const TasksPage = ({ view }) => {
   
   // 新規タスク作成用のスライドオーバーを開く
   const handleNewTask = () => {
+    console.log("Opening new task form");
+    // 新しいタスク作成モードにリセット
     setSelectedTask(null);
     setIsNewTask(true);
     setSlideOverOpen(true);
