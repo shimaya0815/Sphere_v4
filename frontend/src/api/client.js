@@ -99,10 +99,32 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
-    // エラー情報のログ出力（簡潔に）
+    // エラー情報の詳細なログ出力
     if (process.env.NODE_ENV === 'development') {
-      console.error(`❌ API Error: ${error.response?.status || 'Network Error'} for ${error.config?.url}`, 
-        error.response?.data || error.message);
+      console.error(`❌ API Error: ${error.response?.status || 'Network Error'} for ${error.config?.url}`);
+      
+      // レスポンスデータの詳細なデバッグ情報
+      if (error.response && error.response.data) {
+        console.error('Error response data:', error.response.data);
+        
+        // DRFがフィールドごとのエラーを返す場合
+        if (typeof error.response.data === 'object' && !Array.isArray(error.response.data)) {
+          console.log('Detailed field errors:');
+          Object.entries(error.response.data).forEach(([field, errors]) => {
+            console.log(`  ${field}: ${Array.isArray(errors) ? errors.join(', ') : errors}`);
+          });
+        }
+      }
+      
+      // リクエストデータを表示（デバッグに役立つ）
+      if (error.config && error.config.data) {
+        try {
+          const requestData = JSON.parse(error.config.data);
+          console.log('Request data that caused the error:', requestData);
+        } catch (e) {
+          console.log('Request data (non-JSON):', error.config.data);
+        }
+      }
     }
     
     // 認証エラー処理
