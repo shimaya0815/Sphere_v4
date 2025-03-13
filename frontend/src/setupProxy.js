@@ -102,4 +102,40 @@ module.exports = function(app) {
       }
     }
   }));
+  
+  // WebSocket専用のプロキシ設定 - タスクコメント等のために追加
+  app.use('/ws', createProxyMiddleware({
+    target: SOCKET_HOST,
+    changeOrigin: true,
+    ws: true, // WebSocketをサポート
+    logLevel: 'debug',
+    secure: false,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+    },
+    onProxyReq: (proxyReq, req, res) => {
+      console.log(`[WS Proxy] → ${req.method} ${req.url} to ${SOCKET_HOST}`);
+    },
+    onError: (err, req, res) => {
+      console.error(`[WS Proxy] Error: ${err.message}`);
+    }
+  }));
+  
+  // タスク関連のWebSocket用プロキシパス - 'tasks/ID/' パスへの直接アクセスをサポート
+  app.use('/tasks', createProxyMiddleware({
+    target: SOCKET_HOST,
+    changeOrigin: true,
+    ws: true, // WebSocketをサポート
+    logLevel: 'debug',
+    secure: false,
+    pathRewrite: {
+      '^/tasks': '/ws/tasks' // /tasks/X/ を /ws/tasks/X/ にリダイレクト
+    },
+    onProxyReq: (proxyReq, req, res) => {
+      console.log(`[Tasks WS Proxy] → ${req.method} ${req.url} to ${SOCKET_HOST}${proxyReq.path}`);
+    },
+    onError: (err, req, res) => {
+      console.error(`[Tasks WS Proxy] Error: ${err.message}`);
+    }
+  }));
 };

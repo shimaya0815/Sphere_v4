@@ -107,15 +107,11 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
   // WebSocketのURLを構築
   let wsUrl = null;
   if (taskId) {
-    // 環境に応じたホスト名を使用
-    let wsHost = 'localhost:8001';
+    // クライアントからアクセス可能なホスト名を使用 - プロキシ経由でアクセス
+    let wsHost = window.location.host; // ブラウザのホスト名を使用(localhost:3000など)
     
-    // Docker環境の場合はサービス名を使用
-    if (process.env.NODE_ENV === 'development') {
-      wsHost = 'websocket:8001';
-    }
-    
-    wsUrl = `${wsProtocol}://${wsHost}/ws/tasks/${taskId}/`;
+    // ProxyミドルウェアのURL設定に合わせたパス構築
+    wsUrl = `${wsProtocol}://${wsHost}/tasks/${taskId}/`;
     
     console.log(`Environment: ${process.env.NODE_ENV}, Protocol: ${wsProtocol}, Host: ${wsHost}`);
   }

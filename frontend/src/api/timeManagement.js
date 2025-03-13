@@ -60,10 +60,17 @@ const timeManagementApi = {
   // Get active time entry for a task
   getActiveTimeEntry: async (taskId) => {
     try {
-      const response = await apiClient.get('/api/time-management/timer/active/', { 
-        params: { task_id: taskId } 
+      const response = await apiClient.get('/api/time-management/entries/', { 
+        params: { task_id: taskId, active: true } 
       });
-      return response;
+      
+      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+        return { data: response.data[0], active: true };
+      } else if (response.data && response.data.results && Array.isArray(response.data.results) && response.data.results.length > 0) {
+        return { data: response.data.results[0], active: true };
+      }
+      
+      return { data: { active: false } };
     } catch (error) {
       console.error('Error fetching active time entry:', error);
       // Return mock data for development
