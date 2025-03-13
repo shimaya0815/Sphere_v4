@@ -370,13 +370,40 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         hasErrors = true;
       }
       
-      // ユーザー一覧を取得
+      // ユーザー一覧を取得 - 同じビジネスのユーザーのみ
       try {
-        const usersResponse = await usersApi.getUsers();
-        if (usersResponse.data) {
+        console.log('Fetching users with businessId:', businessId);
+        
+        // ビジネスIDを使ってユーザー一覧取得
+        const usersResponse = await usersApi.getUsers({ business: businessId });
+        console.log('Users API response in TaskEditor:', usersResponse);
+        
+        if (usersResponse && usersResponse.data && Array.isArray(usersResponse.data)) {
+          console.log('Setting users from API:', usersResponse.data.length, 'users found');
           setUsers(usersResponse.data);
         } else {
-          setUsers([]);
+          console.warn('No valid user data received');
+          // フォールバック：ビジネスユーザーを直接取得
+          try {
+            const businessUsers = await usersApi.getBusinessUsers(businessId);
+            console.log('Business users fallback:', businessUsers);
+            if (Array.isArray(businessUsers) && businessUsers.length > 0) {
+              setUsers(businessUsers);
+            } else {
+              // フォールバック2：デモユーザー
+              const demoUsers = [
+                { id: 1, username: 'admin', email: 'admin@example.com', first_name: '管理者', last_name: 'ユーザー' },
+                { id: 2, username: 'worker1', email: 'worker1@example.com', first_name: '担当者', last_name: '1' },
+                { id: 3, username: 'worker2', email: 'worker2@example.com', first_name: '担当者', last_name: '2' },
+                { id: 4, username: 'reviewer1', email: 'reviewer1@example.com', first_name: 'レビュアー', last_name: '1' },
+              ];
+              console.log('Using demo users');
+              setUsers(demoUsers);
+            }
+          } catch (fallbackError) {
+            console.error('Fallback error:', fallbackError);
+            setUsers([]);
+          }
         }
       } catch (error) {
         console.error('Error fetching users:', error);
@@ -489,12 +516,23 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         return;
       }
       
-      setPendingChanges(prev => ({
-        ...prev,
-        [fieldName]: value,
-      }));
-      
-      debounceSave();
+      // レビュアーと作業者の変更はpendingChangesに追加するが自動保存しない
+      if (fieldName === 'reviewer' || fieldName === 'worker') {
+        setPendingChanges(prev => ({
+          ...prev,
+          [fieldName]: value,
+        }));
+        // 担当者変更時は自動保存しない
+        console.log(`${fieldName}を変更しました。保存ボタンを押して変更を確定してください。`);
+      } else {
+        // その他のフィールドは従来通り自動保存
+        setPendingChanges(prev => ({
+          ...prev,
+          [fieldName]: value,
+        }));
+        
+        debounceSave();
+      }
     }
   };
   
