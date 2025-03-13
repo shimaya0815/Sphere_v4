@@ -1103,8 +1103,8 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                           </div>
                         </div>
                         
-                        <div className="flex flex-col md:flex-row items-start md:items-center space-y-2 md:space-y-0 md:space-x-3 text-sm">
-                          {/* 現在の担当者表示 - 枠付きハイライト */}
+                        <div className="flex items-center text-sm">
+                          {/* 現在の担当者表示 - シンプルな形で右側に表示 */}
                           {task && task.assignee_name && (
                             <div className="bg-blue-50 px-3 py-1.5 rounded-md border border-blue-200 flex items-center">
                               <HiUser className="mr-1.5 text-blue-500" />
@@ -1114,27 +1114,6 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                               </div>
                             </div>
                           )}
-                          
-                          <div className="flex flex-col">
-                            <div className="flex items-center">
-                              <span className="text-gray-500 mr-1">作業:</span>
-                              <span className="font-medium text-gray-700">
-                                {watch('worker') && users.find(user => user.id.toString() === watch('worker'))
-                                ? (users.find(user => user.id.toString() === watch('worker')).get_full_name || 
-                                   users.find(user => user.id.toString() === watch('worker')).email)
-                                : '未設定'}
-                            </span>
-                            </div>
-                            <div className="flex items-center mt-1">
-                              <span className="text-gray-500 mr-1">レビュー:</span>
-                              <span className="font-medium text-gray-700">
-                                {watch('reviewer') && users.find(user => user.id.toString() === watch('reviewer'))
-                                  ? (users.find(user => user.id.toString() === watch('reviewer')).get_full_name || 
-                                     users.find(user => user.id.toString() === watch('reviewer')).email)
-                                  : '未設定'}
-                              </span>
-                            </div>
-                          </div>
                         </div>
                         
                         {/* 折りたたみ展開ボタン */}
