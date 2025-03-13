@@ -1020,7 +1020,6 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                           />
                         </div>
                       </div>
-                      </div>
 
                       {/* カテゴリー、クライアント、決算期 - タイトルの直後に配置 */}
                       <div className="grid grid-cols-3 gap-4 mt-4">
