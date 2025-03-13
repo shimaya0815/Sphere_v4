@@ -186,51 +186,62 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       
       // ステータス一覧を取得
       try {
+        console.log('Fetching task statuses from API...');
         const statusesResponse = await tasksApi.getStatuses();
+        console.log('StatusesResponse:', statusesResponse);
+        
         if (statusesResponse.data) {
           const statusesList = statusesResponse.data;
-          setStatuses(statusesList);
+          console.log('Status list received:', statusesList);
           
-          // グローバルにステータス一覧をキャッシュして他のコンポーネントで使用できるようにする
-          window.__SPHERE_CACHED_STATUSES = statusesList;
-          
-          // 新規タスク作成時のフォームデフォルト値を設定
-          if (isNewTask) {
-            // 未着手ステータスを検索
-            const notStartedStatus = statusesList.find(s => s.name === '未着手');
-            if (notStartedStatus) {
-              console.log('Setting default status to 未着手:', notStartedStatus.id);
-              setValue('status', notStartedStatus.id.toString());
-            } else if (statusesList.length > 0) {
-              // 未着手が見つからない場合は最初のステータスを設定
-              const firstStatus = [...statusesList].sort((a, b) => a.order - b.order)[0];
-              console.log('Setting default status to first status:', firstStatus.id);
-              setValue('status', firstStatus.id.toString());
+          // ステータスリストが配列であることを確認し、orderでソート
+          if (Array.isArray(statusesList)) {
+            const sortedStatuses = [...statusesList].sort((a, b) => (a.order || 0) - (b.order || 0));
+            console.log('Sorted statuses:', sortedStatuses);
+            setStatuses(sortedStatuses);
+            
+            // グローバルにステータス一覧をキャッシュして他のコンポーネントで使用できるようにする
+            window.__SPHERE_CACHED_STATUSES = sortedStatuses;
+            
+            // 新規タスク作成時のフォームデフォルト値を設定
+            if (isNewTask) {
+              // 未着手ステータスを検索
+              const notStartedStatus = sortedStatuses.find(s => s.name === '未着手');
+              console.log('Found 未着手 status?', notStartedStatus);
+              
+              if (notStartedStatus) {
+                console.log('Setting default status to 未着手:', notStartedStatus.id);
+                setValue('status', notStartedStatus.id.toString());
+              } else if (sortedStatuses.length > 0) {
+                // 未着手が見つからない場合は最初のステータスを設定
+                const firstStatus = sortedStatuses[0];
+                console.log('Setting default status to first status:', firstStatus);
+                setValue('status', firstStatus.id.toString());
+              }
             }
+          } else {
+            console.error('API returned statuses but not as an array:', statusesList);
+            // デフォルト値を使用
+            setDefaultFallbackStatuses();
           }
         } else {
-          // デフォルト値を設定
-          const defaultStatuses = [
-            { id: 1, name: '未着手', order: 1 },
-            { id: 2, name: '進行中', order: 2 },
-            { id: 3, name: '完了', order: 3 }
-          ];
-          setStatuses(defaultStatuses);
-          window.__SPHERE_CACHED_STATUSES = defaultStatuses;
-          
-          // 新規タスク作成時のデフォルト値を設定
-          if (isNewTask) {
-            setValue('status', '1'); // デフォルトの未着手ID
-          }
+          console.warn('No data in API response for statuses');
+          setDefaultFallbackStatuses();
         }
       } catch (error) {
         console.error('Error fetching statuses:', error);
-        // デフォルト値を設定
+        setDefaultFallbackStatuses();
+        hasErrors = true;
+      }
+      
+      // ヘルパー関数: デフォルトステータスを設定
+      function setDefaultFallbackStatuses() {
         const fallbackStatuses = [
           { id: 1, name: '未着手', order: 1 },
           { id: 2, name: '進行中', order: 2 },
           { id: 3, name: '完了', order: 3 }
         ];
+        console.log('Using fallback statuses:', fallbackStatuses);
         setStatuses(fallbackStatuses);
         window.__SPHERE_CACHED_STATUSES = fallbackStatuses;
         
@@ -238,8 +249,6 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         if (isNewTask) {
           setValue('status', '1'); // デフォルトの未着手ID
         }
-        
-        hasErrors = true;
       }
       
       // カテゴリー一覧を取得
