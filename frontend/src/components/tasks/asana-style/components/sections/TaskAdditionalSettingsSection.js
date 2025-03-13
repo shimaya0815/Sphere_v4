@@ -14,10 +14,10 @@ const TaskAdditionalSettingsSection = ({
   const inputClassName = "mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md";
   
   // 繰り返し設定チェックボックスの状態監視
-  const isRecurring = watch('is_recurring') || false;
+  const isRecurring = watch('is_recurring') === 'true' || watch('is_recurring') === true;
   
   // テンプレート設定チェックボックスの状態監視
-  const isTemplate = watch('is_template') || false;
+  const isTemplate = watch('is_template') === 'true' || watch('is_template') === true;
   
   return (
     <div className="pt-4 border-t border-gray-200">
