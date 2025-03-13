@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
 import { ChatProvider, useChat } from '../context/ChatContext';
 import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 import {
   HiOutlinePlus,
   HiOutlineSearch,
@@ -730,10 +731,27 @@ const ChatContent = () => {
 
 // Wrapper component that provides the chat context
 const ChatPage = () => {
+  // チャット機能を一時的に無効化
   return (
+    <div className="flex flex-col items-center justify-center h-full">
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 max-w-md text-center">
+        <h2 className="text-2xl font-semibold text-yellow-800 mb-4">
+          チャット機能は現在メンテナンス中です
+        </h2>
+        <p className="text-yellow-700 mb-6">
+          この機能は一時的に停止しています。準備ができ次第、再度ご利用いただけるようになります。
+        </p>
+        <div className="text-sm text-yellow-600">
+          今後のアップデートをお待ちください
+        </div>
+      </div>
+    </div>
+    
+    {/* 元のコードをコメントアウトして保持
     <ChatProvider>
       <ChatContent />
     </ChatProvider>
+    */}
   );
 };
 
