@@ -105,14 +105,23 @@ apiClient.interceptors.response.use(
       
       // レスポンスデータの詳細なデバッグ情報
       if (error.response && error.response.data) {
-        console.error('Error response data:', error.response.data);
+        console.error('Error response data (raw):', JSON.stringify(error.response.data));
+        console.error('Error response type:', typeof error.response.data);
         
-        // DRFがフィールドごとのエラーを返す場合
-        if (typeof error.response.data === 'object' && !Array.isArray(error.response.data)) {
-          console.log('Detailed field errors:');
-          Object.entries(error.response.data).forEach(([field, errors]) => {
-            console.log(`  ${field}: ${Array.isArray(errors) ? errors.join(', ') : errors}`);
-          });
+        try {
+          // エラーデータの詳細な分析
+          const errorData = error.response.data;
+          console.error('Error data keys:', Object.keys(errorData));
+          
+          // DRFがフィールドごとのエラーを返す場合
+          if (typeof errorData === 'object' && !Array.isArray(errorData)) {
+            console.log('Detailed field errors:');
+            Object.entries(errorData).forEach(([field, errors]) => {
+              console.log(`  ${field}: ${Array.isArray(errors) ? errors.join(', ') : JSON.stringify(errors)}`);
+            });
+          }
+        } catch (e) {
+          console.error('Error parsing error data:', e);
         }
       }
       

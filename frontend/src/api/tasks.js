@@ -108,39 +108,69 @@ const tasksApi = {
     try {
       console.log('Updating task data:', taskData);
       
+      // デバッグのためのモードを追加（緊急措置）
+      const DEBUG_MODE = true;
+      const SAFE_MODE = true;
+      
+      if (DEBUG_MODE) {
+        console.log('🔍 TASK UPDATE DEBUGGING');
+        console.log('Task ID:', taskId);
+        console.log('Update data (full):', JSON.stringify(taskData, null, 2));
+        console.log('Update data keys:', Object.keys(taskData));
+        
+        if (SAFE_MODE) {
+          // セーフモード：タイトルが空の場合は削除し、他のデータのみを更新
+          if ('title' in taskData && (!taskData.title || taskData.title.trim() === '')) {
+            console.warn('🔴 SAFE MODE: Removing empty title from update data');
+            const safeData = { ...taskData };
+            delete safeData.title;
+            
+            // タイトル以外のデータがなければ、更新自体をスキップ
+            if (Object.keys(safeData).length === 0) {
+              console.warn('🔴 SAFE MODE: No valid data to update, skipping API call');
+              return { message: 'No valid data to update' };
+            }
+            
+            // タイトル以外のフィールドだけで更新
+            console.log('🟢 SAFE MODE: Updating with safe data:', safeData);
+            try {
+              const response = await apiClient.patch(`/api/tasks/${taskId}/`, safeData);
+              return response.data;
+            } catch (safeError) {
+              console.error('SAFE MODE update failed:', safeError);
+              throw safeError;
+            }
+          }
+        }
+      }
+      
       // タイトルのバリデーション - 空の場合はエラーを投げる
       if ('title' in taskData && (!taskData.title || taskData.title.trim() === '')) {
         console.error('タイトルは必須項目です。空のタイトルで更新できません。');
         throw new Error('タイトルは必須項目です');
       }
       
-      // 既存のタスクを取得して、タイトルが設定されていることを確認
-      try {
-        const existingTask = await apiClient.get(`/api/tasks/${taskId}/`);
-        const mergedData = { ...existingTask.data, ...taskData };
-        
-        // マージしたデータのタイトルが空かどうかをチェック
-        if (!mergedData.title || mergedData.title.trim() === '') {
-          console.error('更新後のタスクにタイトルがありません');
-          throw new Error('タイトルは必須項目です');
-        }
-        
-        console.log('Validated update data:', taskData);
-        const response = await apiClient.put(`/api/tasks/${taskId}/`, taskData);
-        return response.data;
-      } catch (fetchError) {
-        if (fetchError.message === 'タイトルは必須項目です') {
-          throw fetchError; // 独自のエラーを再スロー
-        }
-        // 既存タスクの取得に失敗した場合は、元のデータでの更新を試みる
-        console.warn('既存のタスク取得に失敗しました。直接更新を試みます。', fetchError);
-        const response = await apiClient.put(`/api/tasks/${taskId}/`, taskData);
-        return response.data;
-      }
+      // PUTではなくPATCHメソッドを使用して部分更新する
+      // （PUTは全てのフィールドを必要とするが、PATCHは変更されたフィールドだけを更新）
+      console.log('Using PATCH method for partial update');
+      const response = await apiClient.patch(`/api/tasks/${taskId}/`, taskData);
+      return response.data;
     } catch (error) {
       console.error('Error updating task:', error);
       if (error.response) {
+        console.error('Response status:', error.response.status);
         console.error('Response data:', error.response.data);
+        
+        // タイトルエラーを検出して特別に処理
+        if (error.response.data && error.response.data.title) {
+          console.warn('Title error detected:', error.response.data.title);
+          
+          // タイトルエラーを独自の形式で再スロー
+          const titleError = new Error('タイトルエラー');
+          titleError.field = 'title';
+          titleError.details = error.response.data.title;
+          throw titleError;
+        }
       }
       throw error;
     }
