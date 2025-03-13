@@ -18,6 +18,7 @@ from .serializers import (
 )
 from business.permissions import IsSameBusiness
 from tasks.models import Task
+from users.models import User
 
 
 class TimeEntryViewSet(viewsets.ModelViewSet):
