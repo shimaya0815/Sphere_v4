@@ -28,25 +28,63 @@ class TaskViewSet(viewsets.ModelViewSet):
     
     def update(self, request, *args, **kwargs):
         """Custom update method to handle task updates properly"""
-        print(f"TASK UPDATE REQUEST: {request.data}")
+        print(f"⭐ TASK UPDATE REQUEST DATA: {request.data}")
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         
         # Log the update details for debugging
-        print(f"Updating task {instance.id} with data: {request.data}")
-        print(f"Current task status: {instance.status.id if instance.status else None}")
+        print(f"⭐ Updating task {instance.id} with data: {request.data}")
+        print(f"⭐ Current task priority: {instance.priority.id if instance.priority else None}")
+        print(f"⭐ Current task status: {instance.status.id if instance.status else None}")
+        
+        # 優先度をチェック
+        if 'priority' in request.data:
+            print(f"⭐ Priority in request data: {request.data['priority']}, type: {type(request.data['priority'])}")
+            
+            # 指定された優先度IDのオブジェクトが存在するか確認
+            try:
+                if request.data['priority']:
+                    priority_id = request.data['priority']
+                    if isinstance(priority_id, str) and priority_id.isdigit():
+                        priority_id = int(priority_id)
+                    
+                    try:
+                        priority = TaskPriority.objects.get(id=priority_id)
+                        print(f"⭐ Found priority by ID: {priority.id}, value: {priority.priority_value}")
+                    except TaskPriority.DoesNotExist:
+                        print(f"⭐ Priority with ID {priority_id} does not exist")
+                        return Response(
+                            {"priority": [f"指定された優先度ID {priority_id} が見つかりません"]},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+            except (TypeError, ValueError) as e:
+                print(f"⭐ Error validating priority: {e}")
         
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
         
-        # Get the updated instance for returning the complete data
-        updated_instance = self.get_object()
-        print(f"Updated task status: {updated_instance.status.id if updated_instance.status else None}")
+        # バリデーションエラーの詳細なログ
+        if not serializer.is_valid():
+            print(f"⭐ Validation errors: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
-        # Create a serialized response with the fully updated task
-        response_serializer = self.get_serializer(updated_instance)
-        return Response(response_serializer.data)
+        try:
+            self.perform_update(serializer)
+            
+            # Get the updated instance for returning the complete data
+            updated_instance = self.get_object()
+            print(f"⭐ Updated task priority: {updated_instance.priority.id if updated_instance.priority else None}")
+            print(f"⭐ Updated task status: {updated_instance.status.id if updated_instance.status else None}")
+            
+            # Create a serialized response with the fully updated task
+            response_serializer = self.get_serializer(updated_instance)
+            return Response(response_serializer.data)
+            
+        except Exception as e:
+            print(f"⭐ Error updating task: {e}")
+            return Response(
+                {"detail": f"タスクの更新に失敗しました: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
         
     def perform_update(self, serializer):
         """更新時に必要な関連処理を実行"""
@@ -335,14 +373,21 @@ class TaskPriorityViewSet(viewsets.ModelViewSet):
         """指定された優先度値に基づいて新規TaskPriorityレコードを作成する"""
         priority_value = request.data.get('priority_value')
         
+        print(f"⭐ create_for_value called with data: {request.data}")
+        print(f"⭐ priority_value (raw): {priority_value}, type: {type(priority_value)}")
+        
         try:
             priority_value = int(priority_value)
+            print(f"⭐ priority_value (converted): {priority_value}")
+            
             if priority_value < 1 or priority_value > 100:
+                print(f"⭐ Invalid priority value range: {priority_value}")
                 return Response(
                     {"error": "優先度は1から100の間で指定してください"}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as e:
+            print(f"⭐ Error converting priority value: {e}, value was: {priority_value}")
             return Response(
                 {"error": "有効な数値を指定してください"}, 
                 status=status.HTTP_400_BAD_REQUEST
@@ -356,17 +401,33 @@ class TaskPriorityViewSet(viewsets.ModelViewSet):
         
         if existing:
             # 既存のレコードを返す
+            print(f"⭐ Found existing priority with value {priority_value}, id: {existing.id}")
             serializer = self.get_serializer(existing)
             return Response(serializer.data)
         
-        # 新しい優先度レコードを作成（nameフィールドは廃止予定のため不要）
-        new_priority = TaskPriority.objects.create(
-            business=request.user.business,
-            priority_value=priority_value
-        )
-        
-        serializer = self.get_serializer(new_priority)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        # 新しい優先度レコードを作成
+        try:
+            new_priority = TaskPriority.objects.create(
+                business=request.user.business,
+                priority_value=priority_value
+            )
+            print(f"⭐ Created new priority with value {priority_value}, id: {new_priority.id}")
+            
+            # ベリファイ - 本当に保存されたか確認
+            saved_priority = TaskPriority.objects.get(id=new_priority.id)
+            print(f"⭐ Verified saved priority: id={saved_priority.id}, value={saved_priority.priority_value}")
+            
+            serializer = self.get_serializer(new_priority)
+            response_data = serializer.data
+            print(f"⭐ Response data: {response_data}")
+            return Response(response_data, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            print(f"⭐ Error creating priority: {e}")
+            return Response(
+                {"error": f"優先度の作成に失敗しました: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class TaskCommentViewSet(viewsets.ModelViewSet):
