@@ -79,7 +79,7 @@ const TaskTemplateScheduleForm = ({ schedule, onSubmit, onClose }) => {
     }
     
     // Day validation
-    if (['monthly_start', 'monthly_end'].includes(formData.schedule_type)) {
+    if (formData.schedule_type === 'monthly_start' || formData.schedule_type === 'monthly_end') {
       if (
         formData.creation_day && 
         (parseInt(formData.creation_day) < 1 || parseInt(formData.creation_day) > 31)
