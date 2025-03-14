@@ -9,14 +9,13 @@ import TaskDescriptionEditor from '../../../../editor/TaskDescriptionEditor';
 const TaskDescriptionSection = ({ control, handleFieldChange }) => {
   // マウント時に初期値をセット
   useEffect(() => {
+    if (!control) return;
+    
     // 明示的に初期値をセット
-    const currentValue = control._formValues.description;
+    const currentValue = control._formValues?.description;
     handleFieldChange('description', currentValue || '', false);
     
-    // フォームに設定された初期値も反映
-    if (!currentValue) {
-      control.setValue('description', '');
-    }
+    // フォームに設定された初期値も反映 - control.setValueは使用しない
   }, []);
   
   return (
