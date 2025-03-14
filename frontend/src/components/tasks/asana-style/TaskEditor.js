@@ -699,13 +699,19 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       
       // 数値に変換（エラーハンドリングを追加）
       try {
-        if (submitData.worker && submitData.worker !== '') {
+        // 作業者の処理 - nullの場合は明示的にnullとして保持
+        if (submitData.worker === null) {
+          // nullの場合はそのまま保持
+        } else if (submitData.worker && submitData.worker !== '') {
           submitData.worker = parseInt(submitData.worker) || null;
         } else {
           submitData.worker = null;
         }
         
-        if (submitData.reviewer && submitData.reviewer !== '') {
+        // レビューアーの処理 - nullの場合は明示的にnullとして保持
+        if (submitData.reviewer === null) {
+          // nullの場合はそのまま保持
+        } else if (submitData.reviewer && submitData.reviewer !== '') {
           submitData.reviewer = parseInt(submitData.reviewer) || null;
         } else {
           submitData.reviewer = null;
