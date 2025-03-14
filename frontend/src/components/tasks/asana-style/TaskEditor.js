@@ -778,38 +778,36 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       // 注意: TasksPage.jsの親コンポーネントがイベントを発火するので、ここでは発火しない
       // (二重更新を防止するため)
       
-      // 作成後は閉じる
-      if (isNewTask) {
-        // フォームの状態をリセット
-        reset({
-          title: '',
-          description: '',
-          status: '',
-          category: '',
-          client: '',
-          fiscal_year: '',
-          worker: '',
-          reviewer: '',
-          due_date: '',
-          start_date: '',
-          completed_at: '',
-          priority: '',
-          priority_value: '',
-          is_fiscal_task: 'false',
-          is_recurring: 'false',
-          recurrence_pattern: '',
-          recurrence_end_date: '',
-          is_template: 'false',
-          template_name: ''
-        });
-        // リセットキーを更新して次回の表示時に確実に新しい状態にする
-        setResetKey(Date.now());
-        
-        // 閉じる前に十分な時間を設けて、タスク一覧の更新を確実にする
-        setTimeout(() => {
-          onClose();
-        }, 500);
-      }
+      // 作成/更新後はパネルを閉じる
+      // フォームの状態をリセット
+      reset({
+        title: '',
+        description: '',
+        status: '',
+        category: '',
+        client: '',
+        fiscal_year: '',
+        worker: '',
+        reviewer: '',
+        due_date: '',
+        start_date: '',
+        completed_at: '',
+        priority: '',
+        priority_value: '',
+        is_fiscal_task: 'false',
+        is_recurring: 'false',
+        recurrence_pattern: '',
+        recurrence_end_date: '',
+        is_template: 'false',
+        template_name: ''
+      });
+      // リセットキーを更新して次回の表示時に確実に新しい状態にする
+      setResetKey(Date.now());
+      
+      // 閉じる前に十分な時間を設けて、タスク一覧の更新を確実にする
+      setTimeout(() => {
+        onClose();
+      }, 500);
     } catch (error) {
       console.error('Error submitting task:', error);
       
