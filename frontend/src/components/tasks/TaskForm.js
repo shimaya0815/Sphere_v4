@@ -110,8 +110,8 @@ const TaskForm = ({ task, onClose, onTaskSaved }) => {
         status: data.status ? parseInt(data.status) : null,
         worker: data.worker ? parseInt(data.worker) : null,
         reviewer: data.reviewer ? parseInt(data.reviewer) : null,
-        // 日付のフォーマット
-        due_date: data.due_date ? new Date(data.due_date).toISOString() : null,
+        // 日付のフォーマット - 空文字列は送信しない
+        due_date: data.due_date ? new Date(data.due_date).toISOString() : undefined,
         // カテゴリー
         category: data.category ? parseInt(data.category) : null,
         // チェックボックス値の変換
