@@ -3,9 +3,7 @@ import { useForm } from 'react-hook-form';
 import { tasksApi, clientsApi } from '../../api';
 import toast from 'react-hot-toast';
 import TaskComments from './TaskComments';
-import SimpleRichTextEditor from './RichTextEditor';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import BasicRichTextEditor from '../common/BasicRichTextEditor';
 import { HiOutlineX } from 'react-icons/hi';
 
 const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated }) => {
@@ -412,24 +410,35 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
     const originalValue = getValues(field);
     console.log(`更新: ${field} フィールドを "${originalValue}" から "${value}" に変更`);
     
-    // 特別処理: descriptionフィールドの場合は空文字を特別に処理
+    // 特別処理: descriptionフィールドの場合
     if (field === 'description') {
-      // ReactQuillが生成する空の内容を処理
-      if (value === '<p><br></p>' || value === '<p></p>' || value === '' || value === null) {
-        console.log('説明フィールドは空です。空文字として送信します。');
-        
-        // バックエンドAPIへの送信値を空文字に設定
+      console.log(`説明欄の値を処理します: "${value?.substring(0, 30)}..."`);
+      
+      // Quillが生成する空の内容パターンの処理
+      if (
+        value === '<p><br></p>' || 
+        value === '<p></p>' || 
+        value === '' || 
+        value === null || 
+        value === undefined
+      ) {
+        console.log('空の説明を検出しました。空文字として保存します。');
+        // 空文字として設定
         value = '';
-        
-        // フォームの値も明示的に空文字に設定
         setValue('description', '', { shouldValidate: true });
       }
       
-      // HTMLタグを含むかどうかチェック
-      if (typeof value === 'string' && !value.includes('<')) {
-        // HTMLタグがない場合は簡易的にpタグで囲む（プレーンテキスト→HTML変換）
-        console.log('プレーンテキストを検出したためHTML形式に変換します');
-        value = `<p>${value.replace(/\n/g, '</p><p>')}</p>`;
+      // 通常のテキスト→HTML変換（必要な場合）
+      if (typeof value === 'string' && value !== '' && !value.includes('<')) {
+        console.log('プレーンテキストを検出しました。HTML形式に変換します。');
+        
+        // 改行をpタグに変換してHTML形式にする
+        const sanitizedText = value
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+          
+        value = `<p>${sanitizedText.replace(/\n/g, '</p><p>')}</p>`;
         setValue('description', value);
       }
     }
@@ -732,49 +741,56 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                       />
                     </div>
                     
-                    {/* 説明エディタ */}
+                    {/* 説明エディタ - 新バージョン */}
                     <div className="mb-4">
-                      <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                        説明
-                      </label>
+                      <div className="flex justify-between">
+                        <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+                          説明
+                        </label>
+                        <span className="text-xs text-blue-600">リッチテキスト対応</span>
+                      </div>
                       
-                      {isSubmitting ? (
-                        <div className="mt-1 bg-gray-100 p-4 rounded-md text-center">
-                          <span className="text-gray-600">保存中...</span>
+                      {/* 表示用のテキストエリア （非表示） */}
+                      <div className="hidden">
+                        <textarea
+                          {...register('description')}
+                          id="description" 
+                        />
+                      </div>
+                      
+                      {/* リッチテキストエディタ */}
+                      <div className="mt-1 border border-gray-300 rounded-md overflow-hidden">
+                        <BasicRichTextEditor
+                          initialValue={watch('description') || ''}
+                          onChange={(htmlContent) => {
+                            // フォーム値を更新
+                            setValue('description', htmlContent);
+                            
+                            // 自動保存（必要な場合はコメントアウト解除）
+                            // updateTaskField('description', htmlContent);
+                          }}
+                          placeholder="タスクの説明を入力してください..."
+                        />
+                        
+                        {/* 保存ボタン */}
+                        <div className="bg-gray-50 px-3 py-2 flex justify-between items-center border-t border-gray-200">
+                          <span className="text-xs text-gray-500">
+                            ※ 説明を編集したら保存してください
+                          </span>
+                          <button
+                            type="button"
+                            className="inline-flex items-center px-3 py-1 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-md"
+                            onClick={() => {
+                              const content = getValues('description');
+                              console.log('説明を保存します:', content?.substring(0, 30));
+                              updateTaskField('description', content || '');
+                              toast.success('説明を保存しました');
+                            }}
+                          >
+                            変更を保存
+                          </button>
                         </div>
-                      ) : (
-                        <>
-                          {/* 隠しテキストエリア - React Hook Form用 */}
-                          <div className="hidden">
-                            <textarea
-                              id="description"
-                              {...register('description')}
-                            />
-                          </div>
-                          
-                          {/* カスタムリッチテキストエディタ - React Hook Formと独立して動作 */}
-                          <div className="mt-1">
-                            <SimpleRichTextEditor 
-                              initialValue={watch('description') || ''}
-                              onSave={(htmlContent) => {
-                                console.log('エディタ内容保存:', htmlContent?.substring(0, 30));
-                                
-                                // フォーム状態を更新
-                                setValue('description', htmlContent);
-                                
-                                // APIに保存
-                                updateTaskField('description', htmlContent);
-                              }}
-                              placeholder="タスクの詳細を入力"
-                            />
-                          </div>
-                          
-                          {/* 操作ガイド */}
-                          <p className="mt-1 text-xs text-gray-500">
-                            💡 <strong>太字</strong>・<em>斜体</em>・リストなどの書式を設定できます
-                          </p>
-                        </>
-                      )}
+                      </div>
                     </div>
                     
                     {/* ステータスと優先度 */}
