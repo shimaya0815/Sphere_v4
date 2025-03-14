@@ -23,8 +23,12 @@ const TaskDescriptionSection = ({ control, handleFieldChange }) => {
               {...field}
               onChange={(e) => {
                 field.onChange(e);
-                handleFieldChange('description', e.target.value);
+                // 説明フィールドも自動保存しない
+                handleFieldChange('description', e.target.value, true);
               }}
+              // 最後の文字が消える問題に対応（オートコンプリートを無効化）
+              autoComplete="off"
+              spellCheck="false"
             />
           )}
         />
