@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { HiCodeBracket, HiLink, HiListBullet } from 'react-icons/hi2';
-import { HiOutlinePencil, HiBold } from 'react-icons/hi';
-import DOMPurify from 'dompurify';
+import { HiOutlinePencil } from 'react-icons/hi';
+// dompurifyは削除
 
 // Quillエディタのカスタムフォーマット定義
 const CustomFormats = [
@@ -35,21 +35,19 @@ const CustomToolbar = [
 const TaskDescriptionEditor = ({ value, onChange, onSave }) => {
   // 内部状態
   const [editorContent, setEditorContent] = useState(value || '');
-  const [editorMode, setEditorMode] = useState('simple'); // 'simple' または 'advanced'
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const quillRef = useRef(null);
   const autoSaveTimerRef = useRef(null);
 
-  // エディタ設定 - モードに応じて異なる設定を適用
+  // エディタ設定 (シンプルなツールバーのみを使用)
   const simpleToolbar = [
     ['bold', 'italic', 'code'],
     [{ 'list': 'ordered' }, { 'list': 'bullet' }],
     ['link'],
   ];
 
-  // 高度な設定は完全なツールバーを提供
   const modules = useMemo(() => ({
-    toolbar: editorMode === 'simple' ? simpleToolbar : CustomToolbar,
+    toolbar: simpleToolbar,
     keyboard: {
       bindings: {
         bold: {
@@ -75,12 +73,11 @@ const TaskDescriptionEditor = ({ value, onChange, onSave }) => {
         }
       }
     }
-  }), [editorMode]);
+  }), []);
   
   // 値が外部から変更された場合
   useEffect(() => {
-    const sanitizedValue = value ? DOMPurify.sanitize(value) : '';
-    setEditorContent(sanitizedValue);
+    setEditorContent(value || '');
   }, [value]);
   
   // エディタの内容変更時
@@ -89,9 +86,7 @@ const TaskDescriptionEditor = ({ value, onChange, onSave }) => {
     
     // 変更をコールバックに通知
     if (onChange) {
-      // XSS対策のためにDOMPurifyでサニタイズ
-      const sanitizedContent = DOMPurify.sanitize(content);
-      onChange(sanitizedContent);
+      onChange(content);
     }
     
     // 自動保存のセットアップ
@@ -129,24 +124,9 @@ const TaskDescriptionEditor = ({ value, onChange, onSave }) => {
     }
     
     if (onSave) {
-      // XSS対策のためにDOMPurifyでサニタイズ
-      const sanitizedContent = DOMPurify.sanitize(contentToSave);
-      onSave(sanitizedContent);
+      onSave(contentToSave);
     }
   };
-  
-  // エディタのモード切り替え
-  const toggleEditorMode = () => {
-    setEditorMode(current => current === 'simple' ? 'advanced' : 'simple');
-  };
-  
-  // ツールバーをカスタマイズするためのヘルパー
-  const renderToolbarToggle = () => (
-    <div className="toolbar-toggle" onClick={toggleEditorMode}>
-      <HiOutlinePencil className={`w-5 h-5 ${editorMode === 'advanced' ? 'text-blue-600' : 'text-gray-500'}`} />
-      <span className="ml-1 text-xs">{editorMode === 'simple' ? '高度な編集' : 'シンプル編集'}</span>
-    </div>
-  );
   
   // ショートカットヘルプのレンダリング
   const renderShortcutHelp = () => (
@@ -154,69 +134,6 @@ const TaskDescriptionEditor = ({ value, onChange, onSave }) => {
       <span className="shortcut"><kbd>Ctrl/Cmd</kbd> + <kbd>B</kbd>: 太字</span>
       <span className="shortcut"><kbd>Ctrl/Cmd</kbd> + <kbd>I</kbd>: 斜体</span>
       <span className="shortcut"><kbd>Ctrl/Cmd</kbd> + <kbd>E</kbd>: コード</span>
-    </div>
-  );
-  
-  // 現在のフォーマットアイコン（Slack風のフォーマット表示）
-  const renderFormatIcons = () => (
-    <div className="format-icons">
-      <button 
-        type="button" 
-        onClick={() => {
-          const quill = quillRef.current.getEditor();
-          quill.format('bold', !quill.getFormat().bold);
-        }}
-        className={`format-btn ${quillRef.current?.getEditor().getFormat().bold ? 'active' : ''}`}
-      >
-        <HiBold />
-      </button>
-      <button 
-        type="button"
-        onClick={() => {
-          const quill = quillRef.current.getEditor();
-          quill.format('code', !quill.getFormat().code);
-        }}
-        className={`format-btn ${quillRef.current?.getEditor().getFormat().code ? 'active' : ''}`}
-      >
-        <HiCodeBracket />
-      </button>
-      <button 
-        type="button"
-        onClick={() => {
-          const quill = quillRef.current.getEditor();
-          if (!quill.getFormat().list) {
-            quill.format('list', 'bullet');
-          } else {
-            quill.format('list', false);
-          }
-        }}
-        className={`format-btn ${quillRef.current?.getEditor().getFormat().list ? 'active' : ''}`}
-      >
-        <HiListBullet />
-      </button>
-      <button 
-        type="button"
-        onClick={() => {
-          const quill = quillRef.current.getEditor();
-          const selection = quill.getSelection();
-          if (selection) {
-            const format = quill.getFormat(selection);
-            if (format.link) {
-              quill.format('link', false);
-            } else {
-              const url = prompt('リンクURLを入力してください:', 'https://');
-              if (url) {
-                quill.format('link', url);
-              }
-            }
-          } else {
-            alert('テキストを選択してからリンクを追加してください');
-          }
-        }}
-        className={`format-btn ${quillRef.current?.getEditor().getFormat().link ? 'active' : ''}`}
-      >
-        <HiLink />
-      </button>
     </div>
   );
   
@@ -392,9 +309,7 @@ const TaskDescriptionEditor = ({ value, onChange, onSave }) => {
       <div className="editor-footer">
         <div className="editor-hint">
           <div className="flex items-center">
-            {renderToolbarToggle()}
-            {quillRef.current && renderFormatIcons()}
-            {editorMode === 'simple' && renderShortcutHelp()}
+            {renderShortcutHelp()}
           </div>
         </div>
         
