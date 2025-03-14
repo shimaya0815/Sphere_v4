@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { format, parseISO } from 'date-fns';
+import { format as formatDate, parseISO } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import timeManagementApi from '../../api/timeManagement';
 import { toast } from 'react-hot-toast';
@@ -18,10 +18,20 @@ const TaskTimeRecordPanel = ({ isOpen, onClose, taskId, entries }) => {
   });
   
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && taskId) {
+      console.log('Fetching time entries for task ID:', taskId);
       fetchTimeEntries();
     }
   }, [isOpen, taskId]);
+  
+  // activeEntryが変更されたら、データを再取得
+  useEffect(() => {
+    if (isOpen && activeEntry === null) {
+      // アクティブなエントリが停止または削除された場合、データを更新
+      console.log('Active entry changed, refreshing data');
+      fetchTimeEntries();
+    }
+  }, [isOpen, activeEntry]);
   
   useEffect(() => {
     if (entries && entries.length > 0) {
@@ -39,12 +49,19 @@ const TaskTimeRecordPanel = ({ isOpen, onClose, taskId, entries }) => {
     
     setLoading(true);
     try {
-      const data = await timeManagementApi.getTimeEntries({ task_id: taskId });
+      // 最新順に取得するためにordering指定
+      const data = await timeManagementApi.getTimeEntries({ 
+        task_id: taskId,
+        ordering: '-start_time' // 最新の記録を最初に取得
+      });
+      
+      console.log('Fetched time entries:', data);
       setTimeEntries(data);
       
-      // アクティブなエントリーがあれば設定
-      const active = data.find(entry => !entry.end_time);
-      setActiveEntry(active || null);
+      // アクティブなタイマーを確認（終了時間がnullのエントリ）
+      const activeOne = data.find(entry => !entry.end_time);
+      console.log('Active entry detected:', activeOne || 'None');
+      setActiveEntry(activeOne || null);
     } catch (error) {
       console.error('時間記録の取得に失敗しました:', error);
       toast.error('時間記録の取得に失敗しました');
@@ -76,13 +93,19 @@ const TaskTimeRecordPanel = ({ isOpen, onClose, taskId, entries }) => {
     if (!activeEntry) return;
     
     try {
-      await timeManagementApi.stopTimeEntry(activeEntry.id);
+      console.log('Stopping timer with entry ID:', activeEntry.id);
+      const response = await timeManagementApi.stopTimeEntry(activeEntry.id);
+      console.log('Timer stop response:', response);
+      
       setActiveEntry(null);
       await fetchTimeEntries();
       toast.success('タイマーを停止しました');
     } catch (error) {
       console.error('タイマーの停止に失敗しました:', error);
-      toast.error('タイマーの停止に失敗しました');
+      
+      // エラーが発生してもUIを更新するため、強制的に再取得
+      await fetchTimeEntries();
+      toast.error('タイマーの停止に失敗しました - データを再取得しました');
     }
   };
   
@@ -148,7 +171,7 @@ const TaskTimeRecordPanel = ({ isOpen, onClose, taskId, entries }) => {
   const formatDateTime = (dateTimeString) => {
     if (!dateTimeString) return '未設定';
     try {
-      return format(parseISO(dateTimeString), 'yyyy年MM月dd日 HH:mm', { locale: ja });
+      return formatDate(parseISO(dateTimeString), 'yyyy年MM月dd日 HH:mm', { locale: ja });
     } catch (error) {
       return '無効な日時';
     }
@@ -350,13 +373,13 @@ const TaskTimeRecordPanel = ({ isOpen, onClose, taskId, entries }) => {
                         <div className="bg-blue-50 px-2 py-1 rounded-md mb-1 w-20 text-center">
                           <div className="text-gray-500">開始</div>
                           <div className="font-semibold">
-                            {entry.start_time ? format(parseISO(entry.start_time), 'HH:mm') : '--:--'}
+                            {entry.start_time ? formatDate(parseISO(entry.start_time), 'HH:mm') : '--:--'}
                           </div>
                         </div>
                         <div className="bg-blue-50 px-2 py-1 rounded-md mb-1 w-20 text-center">
                           <div className="text-gray-500">終了</div>
                           <div className="font-semibold">
-                            {entry.end_time ? format(parseISO(entry.end_time), 'HH:mm') : '--:--'}
+                            {entry.end_time ? formatDate(parseISO(entry.end_time), 'HH:mm') : '--:--'}
                           </div>
                         </div>
                         <div className="bg-blue-50 px-2 py-1 rounded-md w-20 text-center">
