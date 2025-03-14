@@ -84,7 +84,8 @@ const TaskTimeRecordPanel = ({ isOpen, onClose, taskId, entries }) => {
   };
   
   const handleDeleteEntry = async (entryId) => {
-    if (!confirm('この時間記録を削除してもよろしいですか？')) return;
+    // window.confirmを使用して、ESLintエラーを回避
+    if (!window.confirm('この時間記録を削除してもよろしいですか？')) return;
     
     try {
       await timeManagementApi.deleteTimeEntry(entryId);
