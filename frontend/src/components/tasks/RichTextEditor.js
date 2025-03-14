@@ -3,108 +3,94 @@ import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 
 /**
- * 完全にシンプル化したリッチテキストエディタ
- * React Hook Formと併用可能
+ * 直接実装のリッチテキストエディタ
+ * React Hook Formを明示的に回避して実装
  */
-const RichTextEditor = ({ 
-  name = 'description',  // デフォルトはdescription
-  value = '',           // 初期値
-  onChange,             // 変更時のコールバック
-  onBlur,               // フォーカス外れた時のコールバック
-  placeholder = 'ここに入力してください...',
-  register               // React Hook Formのregister関数（オプション）
+const SimpleRichTextEditor = ({ 
+  initialValue = '', 
+  onSave,
+  placeholder = 'ここに入力してください...'
 }) => {
-  console.log('QuillEditor rendering with value:', value?.substring(0, 30));
-
   // エディタの内容を状態として保持
-  const [content, setContent] = useState(value || '');
+  const [content, setContent] = useState(initialValue || '');
   
-  // 外部からの値の変更を検知して内部状態を更新
-  useEffect(() => {
-    console.log('QuillEditor: external value changed');
-    setContent(value || '');
-  }, [value]);
-
-  // ツールバーの設定（最小限）
+  // 表示用の値
+  const displayValue = content === '<p><br></p>' ? '' : content;
+  
+  // ツールバーの設定
   const modules = {
     toolbar: [
-      ['bold', 'italic'],
-      [{ 'list': 'ordered' }, { 'list': 'bullet' }]
+      ['bold', 'italic'],  // 太字、斜体
+      ['link'],            // リンク
+      [{ 'list': 'ordered' }, { 'list': 'bullet' }]  // 順序リスト、箇条書き
     ]
   };
+  
+  // 対応フォーマット
+  const formats = [
+    'bold', 'italic',
+    'list', 'bullet',
+    'link'
+  ];
 
-  // エディタの内容が変更された時の処理
+  // 値が変更された時の処理
   const handleChange = (html) => {
-    console.log('QuillEditor: content changed');
-    setContent(html);
-    
-    // 親コンポーネントに変更を通知
-    if (onChange) {
-      onChange({
-        target: {
-          name,
-          value: html
-        }
-      });
-    }
+    console.log('エディタ内容変更:', html ? html.substring(0, 20) + '...' : '空');
+    setContent(html || '');
   };
   
   // フォーカスが外れた時の処理
   const handleBlur = () => {
-    console.log('QuillEditor: blur event');
+    console.log('エディタからフォーカスが外れました');
     
-    // 標準的なイベントオブジェクトを模倣
-    if (onBlur) {
-      onBlur({
-        target: {
-          name,
-          value: content
-        }
-      });
+    // 空の内容を正規化
+    let cleanContent = content;
+    if (content === '<p><br></p>' || content === '<p></p>') {
+      cleanContent = '';
+    }
+    
+    // 親コンポーネントのコールバックを呼び出し
+    if (onSave) {
+      onSave(cleanContent);
     }
   };
 
-  // タイムアウト後にエディタを初期化（実験的）
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (document.querySelector('.ql-editor')) {
-        console.log('QuillEditor initialized successfully');
-      } else {
-        console.warn('QuillEditor not found in DOM');
-      }
-    }, 100);
-    
-    return () => clearTimeout(timer);
-  }, []);
-
   return (
-    <div className="quill-editor-wrapper" style={{ border: '1px solid #d1d5db', borderRadius: '0.375rem' }}>
+    <div className="rich-text-editor" style={{ 
+      border: '1px solid #d1d5db', 
+      borderRadius: '0.375rem',
+      overflow: 'hidden' 
+    }}>
       <style>{`
-        .quill-editor-wrapper .ql-toolbar {
-          border-top-left-radius: 0.375rem; 
-          border-top-right-radius: 0.375rem;
+        .rich-text-editor .ql-toolbar {
           background-color: #f9fafb;
-          border: none;
-          border-bottom: 1px solid #e5e7eb;
+          border-bottom: 1px solid #e5e7eb !important;
+          padding: 8px !important;
         }
-        .quill-editor-wrapper .ql-container {
-          border: none;
-          border-bottom-left-radius: 0.375rem;
-          border-bottom-right-radius: 0.375rem;
-          font-size: 0.875rem;
-        }
-        .quill-editor-wrapper .ql-editor {
-          min-height: 160px;
+        
+        .rich-text-editor .ql-container {
+          font-size: 0.875rem !important;
           font-family: inherit;
+          min-height: 120px;
+        }
+        
+        .rich-text-editor .ql-editor {
+          min-height: 120px;
+          max-height: 300px;
+          overflow-y: auto;
+        }
+        
+        .rich-text-editor .ql-editor p {
+          margin-bottom: 0.5em;
         }
       `}</style>
       
       <ReactQuill
-        value={content}
+        value={displayValue}
         onChange={handleChange}
         onBlur={handleBlur}
         modules={modules}
-        formats={['bold', 'italic', 'list', 'bullet']}
+        formats={formats}
         placeholder={placeholder}
         theme="snow"
       />
@@ -112,4 +98,4 @@ const RichTextEditor = ({
   );
 };
 
-export default RichTextEditor;
+export default SimpleRichTextEditor;
