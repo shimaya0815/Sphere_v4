@@ -70,64 +70,55 @@ const TaskDescriptionEditor = ({ value, onChange }) => {
   
   // ペーストイベント処理
   
-  // ペーストイベントのハンドラーを設定
+  // ペーストイベント後にURLを検出してリンク化
   useEffect(() => {
-    const handlePaste = (e) => {
-      if (!quillRef.current) return;
+    // エディタが利用可能になったらセットアップ
+    if (!quillRef.current) return;
+    
+    const quill = quillRef.current.getEditor();
+    
+    // テキスト変更を検出
+    const handleTextChange = (delta, oldDelta, source) => {
+      if (source !== 'user') return;
       
-      // クリップボードのテキストを取得
-      const clipboardData = e.clipboardData || window.clipboardData;
-      const text = clipboardData.getData('text/plain');
+      // 現在のカーソル位置を取得
+      const selection = quill.getSelection();
+      if (!selection) return;
       
-      // URLを含むかチェック
-      if (text && /https?:\/\//.test(text)) {
-        // デフォルトのペースト動作を防止
-        e.preventDefault();
+      // 変更前後のテキストを取得
+      const text = quill.getText();
+      
+      // URLを検出
+      const urlRegex = /(https?:\/\/[^\s]+)/g;
+      let match;
+      
+      // テキスト内のすべてのURLを検出してリンク化
+      while ((match = urlRegex.exec(text)) !== null) {
+        const url = match[0];
+        const urlIndex = match.index;
         
-        // エディタのインスタンスを取得
-        const quill = quillRef.current.getEditor();
-        // 現在の選択範囲情報を取得
-        const range = quill.getSelection();
+        // リンクがすでに適用されているか確認
+        const formats = quill.getFormat(urlIndex, url.length);
         
-        if (range) {
-          // クリップボードテキストをペースト
-          quill.insertText(range.index, text);
-          
-          // ペーストしたテキストにURLパターンがある場合、次のティックでリンク化
-          setTimeout(() => {
-            const currentText = quill.getText(range.index, text.length);
-            const matches = currentText.match(/(https?:\/\/[^\s]+)/g);
-            
-            if (matches) {
-              matches.forEach(url => {
-                const urlIndex = currentText.indexOf(url);
-                if (urlIndex !== -1) {
-                  quill.formatText(
-                    range.index + urlIndex, 
-                    url.length, 
-                    'link', 
-                    url
-                  );
-                }
-              });
-            }
-            
-            // カーソルを進める
-            quill.setSelection(range.index + text.length, 0);
-          }, 0);
+        // リンクがまだ適用されていない場合のみフォーマット
+        if (!formats.link) {
+          quill.formatText(
+            urlIndex,
+            url.length,
+            'link',
+            url
+          );
         }
       }
     };
     
-    // エディタがマウントされたらイベントリスナーを追加
-    if (quillRef.current) {
-      const editorElement = quillRef.current.getEditor().root;
-      editorElement.addEventListener('paste', handlePaste);
-      
-      return () => {
-        editorElement.removeEventListener('paste', handlePaste);
-      };
-    }
+    // テキスト変更イベントにリスナー追加
+    quill.on('text-change', handleTextChange);
+    
+    // クリーンアップ
+    return () => {
+      quill.off('text-change', handleTextChange);
+    };
   }, []);
   
   // エディタの内容変更時
