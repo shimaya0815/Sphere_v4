@@ -5,7 +5,6 @@ import TaskTimeTracker from './TaskTimeTracker';
 import TaskComments from './TaskComments';
 import { tasksApi } from '../../api';
 import { toast } from 'react-hot-toast';
-import DOMPurify from 'dompurify';
 
 const TaskDetail = () => {
   const { taskId } = useParams();
@@ -175,7 +174,7 @@ const TaskDetail = () => {
                     // HTML形式の場合はリッチテキストとして表示
                     <div 
                       className="rich-text-content"
-                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(task.description) }}
+                      dangerouslySetInnerHTML={{ __html: task.description }}
                     />
                   ) : (
                     // プレーンテキストの場合は改行を維持
