@@ -359,12 +359,10 @@ class TaskPriorityViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(existing)
             return Response(serializer.data)
         
-        # 新しい優先度レコードを作成
+        # 新しい優先度レコードを作成（nameフィールドは廃止予定のため不要）
         new_priority = TaskPriority.objects.create(
             business=request.user.business,
-            name=str(priority_value),
-            priority_value=priority_value,
-            color='#3B82F6'  # デフォルト色
+            priority_value=priority_value
         )
         
         serializer = self.get_serializer(new_priority)
