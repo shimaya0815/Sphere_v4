@@ -35,9 +35,7 @@ const TaskDatePrioritySection = ({
                 handleFieldChange(name, e.target.value);
               }}
             />
-            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-              <HiOutlineCalendar className="h-5 w-5 text-gray-400" />
-            </div>
+            {/* カレンダーアイコンを削除（ブラウザ標準のアイコンが表示されるため） */}
           </div>
           {fieldState.error && (
             <p className="mt-1 text-sm text-red-600">{fieldState.error.message}</p>
@@ -106,11 +104,11 @@ const TaskDatePrioritySection = ({
       
       {/* 完了日 */}
       <div>
-        <label htmlFor="completed_date" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="completed_at" className="block text-sm font-medium text-gray-700">
           完了日
         </label>
         <DateField
-          name="completed_date"
+          name="completed_at"
           label="完了日"
           placeholder="完了日を選択"
         />
