@@ -62,7 +62,7 @@ const TaskDatePrioritySection = ({
       {/* 優先度 */}
       <div>
         <label htmlFor="priority" className="block text-sm font-medium text-gray-700">
-          優先度
+          優先度（数値が小さいほど優先度高）
         </label>
         <div className="mt-1">
           <Controller
@@ -81,7 +81,9 @@ const TaskDatePrioritySection = ({
                 <option value="">指定なし</option>
                 {priorities.map((priority) => (
                   <option key={priority.id} value={priority.id}>
-                    {priority.name}
+                    {priority.priority_value}（{priority.priority_value <= 10 ? '最高' : 
+                      priority.priority_value <= 30 ? '高' : 
+                      priority.priority_value <= 60 ? '中' : '低'}）
                   </option>
                 ))}
               </select>
