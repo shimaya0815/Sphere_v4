@@ -713,26 +713,43 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         説明
                       </label>
-                      <RichTextEditor
-                        value={watch('description') || ''}
-                        onChange={(content) => {
-                          // Quillエディタからの内容を保存
-                          console.log(`Description being set to: "${content}"`);
-                          setValue('description', content, { shouldDirty: true, shouldValidate: true });
-                        }}
-                        onBlur={(content) => {
-                          // フォーカスが外れたときに必ずAPIに保存
-                          console.log(`Rich text editor lost focus, current value:`, content);
-                          
-                          // フォーム値を最新化してAPI呼び出し用に取得
-                          const formValues = getValues();
-                          console.log(`Form values at blur:`, formValues);
-                          
-                          // 明示的にAPIを呼び出し
-                          updateTaskField('description', formValues.description);
-                        }}
-                        placeholder="タスクの説明を入力してください..."
-                      />
+                      <div className="border border-gray-300 rounded-md">
+                        {/* 開発用メッセージ - このDiv要素はエディタの代わりに表示される可能性がある */}
+                        <textarea
+                          className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md hidden"
+                          name="description"
+                          value={watch('description') || ''}
+                          onChange={(e) => {
+                            setValue('description', e.target.value, { shouldDirty: true, shouldValidate: true });
+                          }}
+                          rows="5"
+                        />
+                        
+                        <RichTextEditor
+                          key="rich-editor"
+                          value={watch('description') || ''}
+                          onChange={(content) => {
+                            // Quillエディタからの内容を保存
+                            console.log(`Description being set to:`, content);
+                            setValue('description', content, { shouldDirty: true, shouldValidate: true });
+                          }}
+                          onBlur={(content) => {
+                            // フォーカスが外れたときに必ずAPIに保存
+                            console.log(`Rich text editor lost focus, current value:`, content);
+                            
+                            // フォーム値を最新化してAPI呼び出し用に取得
+                            const formValues = getValues();
+                            console.log(`Form values at blur:`, formValues);
+                            
+                            // 明示的にAPIを呼び出し
+                            updateTaskField('description', formValues.description);
+                          }}
+                          placeholder="タスクの説明を入力してください..."
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        ↑ リッチテキストエディタで書式を設定できます
+                      </p>
                     </div>
                     
                     {/* ステータスと優先度 */}
