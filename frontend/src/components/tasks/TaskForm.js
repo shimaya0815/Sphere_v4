@@ -69,12 +69,20 @@ const TaskForm = ({ task, onClose, onTaskSaved }) => {
   // 編集モードの場合、初期データをセット
   useEffect(() => {
     if (task) {
+      // 優先度値の取得（priority_data.priority_valueがある場合はそれを使用）
+      let priorityValue = '';
+      if (task.priority_data && task.priority_data.priority_value !== undefined) {
+        priorityValue = task.priority_data.priority_value;
+      } else if (task.priority?.priority_value !== undefined) {
+        priorityValue = task.priority.priority_value;
+      }
+      
       reset({
         title: task.title,
         description: task.description,
         category: task.category?.id,
         status: task.status?.id,
-        priority: task.priority?.id,
+        priority_value: priorityValue,
         due_date: task.due_date ? task.due_date.substring(0, 10) : '',
         estimated_hours: task.estimated_hours || '',
         client: task.client?.id || '',
@@ -113,12 +121,22 @@ const TaskForm = ({ task, onClose, onTaskSaved }) => {
       };
       
       // 優先度の処理
-      if (data.priority) {
+      if (data.priority_value) {
         try {
-          // 優先度IDからPriorityオブジェクトを取得
-          formattedData.priority = parseInt(data.priority);
+          // 優先度値からPriorityオブジェクトを作成または取得
+          const priorityValue = parseInt(data.priority_value);
+          if (!isNaN(priorityValue) && priorityValue >= 1 && priorityValue <= 100) {
+            // APIで優先度値に対応するオブジェクトを作成/取得する
+            console.log('Creating priority for value:', priorityValue);
+            const priorityResponse = await tasksApi.createPriorityForValue(priorityValue);
+            formattedData.priority = priorityResponse.id;
+            console.log('Created/found priority object:', priorityResponse);
+          } else {
+            console.warn('Invalid priority value:', data.priority_value);
+            formattedData.priority = null;
+          }
         } catch (priorityError) {
-          console.error('Error parsing priority ID:', priorityError);
+          console.error('Error creating priority from value:', priorityError);
           formattedData.priority = null;
         }
       } else {

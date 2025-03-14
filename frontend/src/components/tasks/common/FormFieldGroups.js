@@ -121,25 +121,27 @@ export const StatusPriorityFields = ({ register, errors, statuses, priorities })
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="priority">
-          優先度
+        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="priority_value">
+          優先度（1-100、小さいほど優先度高）
         </label>
-        <select
-          id="priority"
+        <input
+          id="priority_value"
+          type="number"
+          min="1"
+          max="100"
           className={`appearance-none relative block w-full px-4 py-3 border ${
-            errors.priority ? 'border-red-300 ring-1 ring-red-300' : 'border-gray-300'
+            errors.priority_value ? 'border-red-300 ring-1 ring-red-300' : 'border-gray-300'
           } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm`}
-          {...register('priority', { required: '優先度は必須です' })}
-        >
-          <option value="">優先度を選択</option>
-          {priorities.map(priority => (
-            <option key={priority.id} value={priority.id}>
-              {priority.priority_value !== undefined ? priority.priority_value : '未設定'}
-            </option>
-          ))}
-        </select>
-        {errors.priority && (
-          <p className="mt-1 text-xs text-red-600">{errors.priority.message}</p>
+          placeholder="優先度（1-100）"
+          {...register('priority_value', { 
+            required: '優先度は必須です',
+            min: { value: 1, message: '1以上を入力してください' },
+            max: { value: 100, message: '100以下を入力してください' },
+            valueAsNumber: true
+          })}
+        />
+        {errors.priority_value && (
+          <p className="mt-1 text-xs text-red-600">{errors.priority_value.message}</p>
         )}
       </div>
     </div>
