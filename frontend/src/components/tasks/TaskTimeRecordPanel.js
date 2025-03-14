@@ -12,7 +12,7 @@ const TaskTimeRecordPanel = ({ isOpen, onClose, taskId, entries }) => {
   const [editingEntryId, setEditingEntryId] = useState(null);
   const [newEntry, setNewEntry] = useState({
     description: '',
-    start_time: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+    start_time: formatDate(new Date(), "yyyy-MM-dd'T'HH:mm"),
     end_time: '',
     is_billable: true
   });
@@ -127,8 +127,8 @@ const TaskTimeRecordPanel = ({ isOpen, onClose, taskId, entries }) => {
     setEditingEntryId(entry.id);
     setNewEntry({
       description: entry.description || '',
-      start_time: entry.start_time ? format(parseISO(entry.start_time), "yyyy-MM-dd'T'HH:mm") : '',
-      end_time: entry.end_time ? format(parseISO(entry.end_time), "yyyy-MM-dd'T'HH:mm") : '',
+      start_time: entry.start_time ? formatDate(parseISO(entry.start_time), "yyyy-MM-dd'T'HH:mm") : '',
+      end_time: entry.end_time ? formatDate(parseISO(entry.end_time), "yyyy-MM-dd'T'HH:mm") : '',
       is_billable: entry.is_billable
     });
     setShowNewEntryForm(true);
@@ -160,7 +160,7 @@ const TaskTimeRecordPanel = ({ isOpen, onClose, taskId, entries }) => {
   const resetForm = () => {
     setNewEntry({
       description: '',
-      start_time: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+      start_time: formatDate(new Date(), "yyyy-MM-dd'T'HH:mm"),
       end_time: '',
       is_billable: true
     });
