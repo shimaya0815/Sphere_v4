@@ -38,59 +38,47 @@ const tasksApi = {
     try {
       console.log('Create task data before cleaning:', taskData);
       
-      // デフォルトの必須データを確実に設定
-      const requiredData = {
-        title: taskData.title || '新規タスク', // タイトルが必須
-      };
+      // クリーンなデータオブジェクトを作成
+      const cleanedData = { ...taskData };
       
-      // 日付フィールドの処理 - 空の値を削除、不正な形式の値をnullに変換
+      // nullとundefinedと空文字列を削除する
+      Object.keys(cleanedData).forEach(key => {
+        if (cleanedData[key] === null || cleanedData[key] === undefined || cleanedData[key] === '') {
+          delete cleanedData[key];
+        }
+      });
+      
+      // 日付フィールドの処理
       const dateFields = ['due_date', 'start_date', 'completed_at', 'recurrence_end_date'];
       
-      // 既存のデータを追加（日付フィールドを除く）
-      Object.keys(taskData).forEach(key => {
-        if (!dateFields.includes(key)) {
-          requiredData[key] = taskData[key];
-        } else if (taskData[key] && taskData[key] !== '') {
-          // 有効な日付文字列のみを設定、それ以外はnull
-          try {
-            // 日付の妥当性チェック - 有効な日付文字列であればそのまま使用
-            const date = new Date(taskData[key]);
-            if (!isNaN(date.getTime())) {
-              // YYYY-MM-DD形式の場合、ISO 8601形式に変換
-              if (/^\d{4}-\d{2}-\d{2}$/.test(taskData[key])) {
-                requiredData[key] = `${taskData[key]}T00:00:00Z`;
-                console.log(`Converted ${key} to ISO format:`, requiredData[key]);
-              } else {
-                requiredData[key] = taskData[key];
-              }
-            } else {
-              requiredData[key] = null;
-            }
-          } catch (e) {
-            requiredData[key] = null;
+      // 日付フィールドをISO 8601形式に変換（存在する場合のみ）
+      dateFields.forEach(field => {
+        if (field in cleanedData && cleanedData[field]) {
+          // YYYY-MM-DD形式の場合、ISO 8601形式に変換
+          if (typeof cleanedData[field] === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(cleanedData[field])) {
+            cleanedData[field] = `${cleanedData[field]}T00:00:00Z`;
+            console.log(`Converted ${field} to ISO format:`, cleanedData[field]);
           }
         }
       });
       
+      // タイトルの確認
+      if (!cleanedData.title) {
+        cleanedData.title = '新規タスク';
+      }
+      
       // ステータスがない場合は「未着手」のステータスを検索して設定
-      if (!requiredData.status) {
+      if (!cleanedData.status) {
         console.log('No status in task data, setting default "未着手" status');
-        // キャッシュされたステータス一覧を取得する試み
+        
         try {
           const cachedStatuses = window.__SPHERE_CACHED_STATUSES;
           if (cachedStatuses && cachedStatuses.length > 0) {
             // 未着手ステータスの検索
             const notStartedStatus = cachedStatuses.find(s => s.name === '未着手');
             if (notStartedStatus) {
-              requiredData.status = notStartedStatus.id;
+              cleanedData.status = notStartedStatus.id;
               console.log('Set default status from cache:', notStartedStatus.id);
-            } else {
-              // 未着手が見つからない場合は最小のorder値を持つステータスを設定
-              const firstStatus = [...cachedStatuses].sort((a, b) => a.order - b.order)[0];
-              if (firstStatus) {
-                requiredData.status = firstStatus.id;
-                console.log('Set first ordered status from cache:', firstStatus.id);
-              }
             }
           }
         } catch (e) {
@@ -98,9 +86,9 @@ const tasksApi = {
         }
       }
       
-      console.log('Create task data after cleaning:', requiredData);
+      console.log('Create task data after cleaning:', cleanedData);
       
-      const response = await apiClient.post('/api/tasks/', requiredData);
+      const response = await apiClient.post('/api/tasks/', cleanedData);
       return response.data;
     } catch (error) {
       console.error('Error creating task:', error);
@@ -114,84 +102,47 @@ const tasksApi = {
     try {
       console.log('Updating task data:', taskData);
       
-      // デバッグのためのモードを追加（緊急措置）
-      const DEBUG_MODE = true;
-      const SAFE_MODE = true;
+      // データをクリーンアップ
+      const cleanedData = { ...taskData };
       
-      // 日付フィールドのISO 8601形式への変換
+      // 日付フィールド処理
       const dateFields = ['due_date', 'start_date', 'completed_at', 'recurrence_end_date'];
-      const processedData = { ...taskData };
       
-      // 日付フィールドをISO 8601形式に変換
+      // nullとundefinedと空文字列を削除する
+      Object.keys(cleanedData).forEach(key => {
+        if (cleanedData[key] === null || cleanedData[key] === undefined || cleanedData[key] === '') {
+          delete cleanedData[key];
+        }
+      });
+      
+      // 日付フィールドをISO 8601形式に変換（存在する場合のみ）
       dateFields.forEach(field => {
-        if (field in processedData && processedData[field]) {
+        if (field in cleanedData && cleanedData[field]) {
           // YYYY-MM-DD形式の場合、ISO 8601形式に変換
-          if (/^\d{4}-\d{2}-\d{2}$/.test(processedData[field])) {
-            processedData[field] = `${processedData[field]}T00:00:00Z`;
-            console.log(`Converted ${field} to ISO format:`, processedData[field]);
+          if (typeof cleanedData[field] === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(cleanedData[field])) {
+            cleanedData[field] = `${cleanedData[field]}T00:00:00Z`;
+            console.log(`Converted ${field} to ISO format:`, cleanedData[field]);
           }
         }
       });
       
-      if (DEBUG_MODE) {
-        console.log('🔍 TASK UPDATE DEBUGGING');
-        console.log('Task ID:', taskId);
-        console.log('Update data (full):', JSON.stringify(processedData, null, 2));
-        console.log('Update data keys:', Object.keys(processedData));
-        
-        if (SAFE_MODE) {
-          // セーフモード：タイトルが空の場合は削除し、他のデータのみを更新
-          if ('title' in processedData && (!processedData.title || processedData.title.trim() === '')) {
-            console.warn('🔴 SAFE MODE: Removing empty title from update data');
-            const safeData = { ...processedData };
-            delete safeData.title;
-            
-            // タイトル以外のデータがなければ、更新自体をスキップ
-            if (Object.keys(safeData).length === 0) {
-              console.warn('🔴 SAFE MODE: No valid data to update, skipping API call');
-              return { message: 'No valid data to update' };
-            }
-            
-            // タイトル以外のフィールドだけで更新
-            console.log('🟢 SAFE MODE: Updating with safe data:', safeData);
-            try {
-              const response = await apiClient.patch(`/api/tasks/${taskId}/`, safeData);
-              return response.data;
-            } catch (safeError) {
-              console.error('SAFE MODE update failed:', safeError);
-              throw safeError;
-            }
-          }
-        }
-      }
+      console.log('Cleaned update data:', cleanedData);
       
       // タイトルのバリデーション - 空の場合はエラーを投げる
-      if ('title' in processedData && (!processedData.title || processedData.title.trim() === '')) {
+      if ('title' in cleanedData && (!cleanedData.title || cleanedData.title.trim() === '')) {
         console.error('タイトルは必須項目です。空のタイトルで更新できません。');
         throw new Error('タイトルは必須項目です');
       }
       
-      // PUTではなくPATCHメソッドを使用して部分更新する
-      // （PUTは全てのフィールドを必要とするが、PATCHは変更されたフィールドだけを更新）
-      console.log('Using PATCH method for partial update');
-      const response = await apiClient.patch(`/api/tasks/${taskId}/`, processedData);
+      // PATCHメソッドを使用して部分更新
+      console.log('Using PATCH method with cleaned data');
+      const response = await apiClient.patch(`/api/tasks/${taskId}/`, cleanedData);
       return response.data;
     } catch (error) {
       console.error('Error updating task:', error);
       if (error.response) {
         console.error('Response status:', error.response.status);
         console.error('Response data:', error.response.data);
-        
-        // タイトルエラーを検出して特別に処理
-        if (error.response.data && error.response.data.title) {
-          console.warn('Title error detected:', error.response.data.title);
-          
-          // タイトルエラーを独自の形式で再スロー
-          const titleError = new Error('タイトルエラー');
-          titleError.field = 'title';
-          titleError.details = error.response.data.title;
-          throw titleError;
-        }
       }
       throw error;
     }
