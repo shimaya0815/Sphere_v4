@@ -518,13 +518,13 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         return;
       }
       
-      // レビュアーと作業者の変更はpendingChangesに追加するが自動保存しない
-      if (fieldName === 'reviewer' || fieldName === 'worker') {
+      // タイトル、レビュアー、作業者の変更は自動保存しない
+      if (fieldName === 'reviewer' || fieldName === 'worker' || fieldName === 'title') {
         setPendingChanges(prev => ({
           ...prev,
           [fieldName]: value,
         }));
-        // 担当者変更時は自動保存しない
+        // 特別フィールド変更時は自動保存しない
         console.log(`${fieldName}を変更しました。保存ボタンを押して変更を確定してください。`);
       } else {
         // その他のフィールドは従来通り自動保存
