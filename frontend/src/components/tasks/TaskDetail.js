@@ -163,7 +163,7 @@ const TaskDetail = () => {
           <h1 className="text-2xl font-bold text-gray-800">
             {task.title}
           </h1>
-          <TaskTimerButton task={task} />
+          {/* タイマー機能はセクション内で直接実装するので削除 */}
         </div>
         
         <div className="flex flex-wrap gap-2 mt-3">
