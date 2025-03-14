@@ -32,12 +32,10 @@ const CustomToolbar = [
  * - ショートカット対応
  * - 自動保存機能
  */
-const TaskDescriptionEditor = ({ value, onChange, onSave }) => {
+const TaskDescriptionEditor = ({ value, onChange }) => {
   // 内部状態
   const [editorContent, setEditorContent] = useState(value || '');
-  const [isAutoSaving, setIsAutoSaving] = useState(false);
   const quillRef = useRef(null);
-  const autoSaveTimerRef = useRef(null);
 
   // エディタ設定 (シンプルなツールバーのみを使用)
   const simpleToolbar = [
@@ -86,45 +84,12 @@ const TaskDescriptionEditor = ({ value, onChange, onSave }) => {
     
     // 変更をコールバックに通知
     if (onChange) {
-      onChange(content);
-    }
-    
-    // 自動保存のセットアップ
-    if (onSave) {
-      setIsAutoSaving(true);
-      
-      // 既存のタイマーをクリア
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
+      // 空の内容を特別処理
+      if (content === '<p><br></p>' || content === '<p></p>') {
+        onChange('');
+      } else {
+        onChange(content);
       }
-      
-      // 1.5秒後に自動保存
-      autoSaveTimerRef.current = setTimeout(() => {
-        handleSave();
-        setIsAutoSaving(false);
-      }, 1500);
-    }
-  };
-  
-  // 自動保存タイマーのクリーンアップ
-  useEffect(() => {
-    return () => {
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
-      }
-    };
-  }, []);
-  
-  // 保存ボタンクリック時
-  const handleSave = () => {
-    // 空の内容を特別処理
-    let contentToSave = editorContent;
-    if (contentToSave === '<p><br></p>' || contentToSave === '<p></p>') {
-      contentToSave = '';
-    }
-    
-    if (onSave) {
-      onSave(contentToSave);
     }
   };
   
@@ -312,15 +277,6 @@ const TaskDescriptionEditor = ({ value, onChange, onSave }) => {
             {renderShortcutHelp()}
           </div>
         </div>
-        
-        <button 
-          type="button"
-          className={`save-button ${isAutoSaving ? 'saving' : ''}`}
-          onClick={handleSave}
-          disabled={isAutoSaving}
-        >
-          {isAutoSaving ? '保存中...' : '変更を保存'}
-        </button>
       </div>
     </div>
   );
