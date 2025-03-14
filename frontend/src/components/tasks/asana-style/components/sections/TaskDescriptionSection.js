@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Controller } from 'react-hook-form';
 import TaskDescriptionEditor from '../../../../editor/TaskDescriptionEditor';
 
@@ -7,6 +7,13 @@ import TaskDescriptionEditor from '../../../../editor/TaskDescriptionEditor';
  * リッチテキストエディタを使用
  */
 const TaskDescriptionSection = ({ control, handleFieldChange }) => {
+  // 説明が変更されたときに確実に親コンポーネントに通知する
+  useEffect(() => {
+    const currentValue = control._formValues.description;
+    // 初期値をセット
+    handleFieldChange('description', currentValue || '', true);
+  }, [control._formValues.description]);
+  
   return (
     <div>
       <label htmlFor="description" className="block text-sm font-medium text-gray-700">
@@ -20,9 +27,11 @@ const TaskDescriptionSection = ({ control, handleFieldChange }) => {
             <TaskDescriptionEditor
               value={field.value || ''}
               onChange={(content) => {
+                // ReactHookFormのフィールド値を更新
                 field.onChange(content);
-                // 説明フィールドは親コンポーネント側で保存する
-                handleFieldChange('description', content, true);
+                // 説明フィールドに変更があれば親コンポーネントの状態も更新
+                // 空の場合も明示的に空文字を渡す
+                handleFieldChange('description', content === '<p><br></p>' || content === '<p></p>' ? '' : content, false);
               }}
             />
           )}
