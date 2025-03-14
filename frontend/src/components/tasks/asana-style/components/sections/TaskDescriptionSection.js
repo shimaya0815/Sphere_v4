@@ -21,12 +21,8 @@ const TaskDescriptionSection = ({ control, handleFieldChange }) => {
               value={field.value || ''}
               onChange={(content) => {
                 field.onChange(content);
-                // 説明フィールドも自動保存しない
+                // 説明フィールドは親コンポーネント側で保存する
                 handleFieldChange('description', content, true);
-              }}
-              onSave={(content) => {
-                field.onChange(content);
-                handleFieldChange('description', content, false);
               }}
             />
           )}
