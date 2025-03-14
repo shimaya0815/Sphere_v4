@@ -168,6 +168,9 @@ class TaskSerializer(serializers.ModelSerializer):
     client_name = serializers.ReadOnlyField(source='client.name', default=None)
     fiscal_period = serializers.ReadOnlyField(source='fiscal_year.fiscal_period', default=None)
     
+    # 追加フィールド - フロントエンドからの入力専用
+    priority_value = serializers.IntegerField(write_only=True, required=False)
+    
     # 一貫した形式でフロントエンドに送信するための拡張フィールド
     # これにより、フロントエンドがリレーション処理を簡素化できる
     status_data = serializers.SerializerMethodField()
@@ -183,7 +186,7 @@ class TaskSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'description', 'business', 'workspace', 
             'status', 'status_name', 'status_data',
-            'priority', 'priority_name', 'priority_data',
+            'priority', 'priority_name', 'priority_data', 'priority_value',
             'category', 'category_name', 'category_data',
             'creator', 'creator_name', 'assignee', 'assignee_name', 
             'worker', 'worker_name', 'worker_data',
@@ -272,6 +275,20 @@ class TaskSerializer(serializers.ModelSerializer):
         validated_data['business'] = user.business
         validated_data['creator'] = user
         
+        # Priorityの処理
+        priority_value = validated_data.pop('priority_value', None)
+        if priority_value is not None:
+            try:
+                # 該当する優先度値のPriorityを取得または作成
+                priority, created = TaskPriority.objects.get_or_create(
+                    business=user.business,
+                    priority_value=priority_value
+                )
+                validated_data['priority'] = priority
+                print(f"⭐ Used priority: {priority.id}, value: {priority.priority_value}, created: {created}")
+            except Exception as e:
+                print(f"⭐ Error handling priority_value: {e}")
+        
         # If no workspace is provided, use the default workspace
         if 'workspace' not in validated_data and user.business:
             default_workspace = user.business.workspaces.first()
@@ -279,6 +296,23 @@ class TaskSerializer(serializers.ModelSerializer):
                 validated_data['workspace'] = default_workspace
         
         return super().create(validated_data)
+        
+    def update(self, instance, validated_data):
+        # Priorityの処理
+        priority_value = validated_data.pop('priority_value', None)
+        if priority_value is not None:
+            try:
+                # 該当する優先度値のPriorityを取得または作成
+                priority, created = TaskPriority.objects.get_or_create(
+                    business=instance.business,
+                    priority_value=priority_value
+                )
+                validated_data['priority'] = priority
+                print(f"⭐ Update: Used priority: {priority.id}, value: {priority.priority_value}, created: {created}")
+            except Exception as e:
+                print(f"⭐ Error handling priority_value in update: {e}")
+        
+        return super().update(instance, validated_data)
 
 
 class TaskTemplateSerializer(TaskSerializer):
@@ -360,8 +394,6 @@ class TemplateChildTaskSerializer(serializers.ModelSerializer):
         if obj.priority:
             return {
                 'id': obj.priority.id,
-                'name': str(obj.priority.priority_value),
-                'color': obj.priority.color,
                 'priority_value': obj.priority.priority_value
             }
         return None
