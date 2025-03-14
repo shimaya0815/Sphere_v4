@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { tasksApi, clientsApi, timeManagementApi } from '../../api';
 import toast from 'react-hot-toast';
@@ -15,6 +15,8 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
   const [isFiscalTask, setIsFiscalTask] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTimer, setActiveTimer] = useState(null);
+  const [timerTick, setTimerTick] = useState(0);
+  const timerRef = useRef(null);
   
   const { register, handleSubmit, formState: { errors }, reset, setValue, watch, getValues } = useForm({
     defaultValues: {
@@ -56,7 +58,12 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
         checkForActiveTimer(task.id);
       }
     }
-  }, [isOpen, task?.id]); // タスクIDが変更された場合も再取得
+    
+    // コンポーネントがアンマウントされるか、isOpenがfalseになったときにタイマーをクリーンアップ
+    return () => {
+      stopTimerTick();
+    };
+  }, [isOpen, task?.id, stopTimerTick]); // タスクIDが変更された場合も再取得
   
   // アクティブなタイマーがあるか確認する関数
   const checkForActiveTimer = async (taskId) => {
@@ -70,14 +77,37 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
       
       if (activeTimers && activeTimers.length > 0) {
         setActiveTimer(activeTimers[0]);
+        // タイマーが見つかったら経過時間のカウントを開始
+        startTimerTick();
       } else {
         setActiveTimer(null);
+        stopTimerTick();
       }
     } catch (error) {
       console.error('Failed to check for active timer:', error);
       setActiveTimer(null);
+      stopTimerTick();
     }
   };
+  
+  // 経過時間表示用のタイマーを開始
+  const startTimerTick = useCallback(() => {
+    // 既存のタイマーをクリア
+    stopTimerTick();
+    
+    // 新しいタイマーを設定
+    timerRef.current = setInterval(() => {
+      setTimerTick(prev => prev + 1);
+    }, 1000);
+  }, []);
+  
+  // タイマーを停止
+  const stopTimerTick = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
   
   // タスク作成・更新用の関数
   const saveTask = async () => {
@@ -1070,7 +1100,32 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                             </svg>
                             時間記録
                           </h3>
-                          <div className="flex space-x-2">
+                          <div className="flex items-center space-x-2">
+                            {activeTimer && (
+                              <div className="mr-2 flex flex-col items-end">
+                                <div className="flex items-center text-xs">
+                                  <span className="text-gray-500 mr-1">開始:</span>
+                                  <span className="font-medium text-gray-800">
+                                    {new Date(activeTimer.start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                  </span>
+                                </div>
+                                <div className="flex items-center text-xs">
+                                  <span className="text-gray-500 mr-1">経過:</span>
+                                  <span className="font-medium text-green-600">
+                                    {(() => {
+                                      // 経過時間を計算
+                                      const startTime = new Date(activeTimer.start_time);
+                                      const now = new Date();
+                                      const diffSeconds = Math.floor((now - startTime) / 1000);
+                                      const hours = Math.floor(diffSeconds / 3600);
+                                      const minutes = Math.floor((diffSeconds % 3600) / 60);
+                                      return `${hours}:${String(minutes).padStart(2, '0')}`;
+                                    })()}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                            
                             {activeTimer ? (
                               <button 
                                 type="button" 

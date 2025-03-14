@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import timeManagementApi from '../../api/timeManagement';
 import TaskTimeRecordPanel from './TaskTimeRecordPanel';
-import { format as formatDate, parseISO } from 'date-fns';
+import { format as formatDate, parseISO, differenceInSeconds } from 'date-fns';
 
 const TaskTimeTracker = ({ taskId }) => {
   const [totalTime, setTotalTime] = useState(0);
@@ -9,6 +9,8 @@ const TaskTimeTracker = ({ taskId }) => {
   const [entries, setEntries] = useState([]);
   const [latestEntry, setLatestEntry] = useState(null);
   const [isRecordPanelOpen, setIsRecordPanelOpen] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const timerRef = useRef(null);
   
   const fetchTimeData = async () => {
     try {
@@ -35,6 +37,21 @@ const TaskTimeTracker = ({ taskId }) => {
       // 最新のエントリを設定
       if (entriesData.length > 0) {
         setLatestEntry(entriesData[0]);
+        
+        // アクティブタイマーがあればその経過時間を計算して設定
+        const activeEntry = entriesData.find(entry => !entry.end_time);
+        if (activeEntry && activeEntry.start_time) {
+          const startTime = new Date(activeEntry.start_time);
+          const elapsedSeconds = differenceInSeconds(new Date(), startTime);
+          setElapsedTime(elapsedSeconds);
+          
+          // タイマーを開始
+          startElapsedTimeTimer();
+        } else {
+          // アクティブタイマーがなければカウントをリセット
+          setElapsedTime(0);
+          stopElapsedTimeTimer();
+        }
       }
     } catch (error) {
       console.error('Error fetching time data:', error);
@@ -43,11 +60,35 @@ const TaskTimeTracker = ({ taskId }) => {
     }
   };
   
+  // 経過時間を計算するタイマーを開始
+  const startElapsedTimeTimer = () => {
+    // 既存のタイマーがあれば停止
+    stopElapsedTimeTimer();
+    
+    // 新しいタイマーを開始
+    timerRef.current = setInterval(() => {
+      setElapsedTime(prev => prev + 1);
+    }, 1000);
+  };
+  
+  // タイマーを停止
+  const stopElapsedTimeTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+  
   // タスクIDが変更されたら時間データを再取得
   useEffect(() => {
     if (taskId) {
       fetchTimeData();
     }
+    
+    // コンポーネントのアンマウント時にタイマーをクリア
+    return () => {
+      stopElapsedTimeTimer();
+    };
   }, [taskId]);
   
   // custom eventでパネル表示リクエストを監視
@@ -80,6 +121,13 @@ const TaskTimeTracker = ({ taskId }) => {
     }
   };
   
+  const formatDuration = (seconds) => {
+    if (!seconds && seconds !== 0) return '--:--';
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    return `${hours}:${String(minutes).padStart(2, '0')}`;
+  };
+  
   const handleOpenRecordPanel = () => {
     setIsRecordPanelOpen(true);
   };
@@ -94,6 +142,9 @@ const TaskTimeTracker = ({ taskId }) => {
     return <div className="text-sm text-gray-500">読み込み中...</div>;
   }
   
+  // アクティブなタイマーを取得
+  const activeEntry = latestEntry && !latestEntry.end_time ? latestEntry : null;
+  
   return (
     <div className="mt-2">
       <div className="flex flex-col space-y-3">
@@ -102,12 +153,27 @@ const TaskTimeTracker = ({ taskId }) => {
             <div className="text-sm font-medium">合計作業時間:</div>
             <div className="text-lg font-semibold">{formatTime(totalTime)}</div>
           </div>
-          <button
-            onClick={handleOpenRecordPanel}
-            className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-          >
-            時間記録を管理
-          </button>
+          <div className="flex items-center">
+            {/* アクティブなタイマーがある場合は開始時間と経過時間を表示 */}
+            {activeEntry && (
+              <div className="mr-3 flex flex-col items-end">
+                <div className="flex items-center text-sm">
+                  <span className="text-gray-500 mr-1">開始:</span>
+                  <span className="font-medium text-gray-800">{formatTimeHHMM(activeEntry.start_time)}</span>
+                </div>
+                <div className="flex items-center text-sm">
+                  <span className="text-gray-500 mr-1">経過:</span>
+                  <span className="font-medium text-green-600">{formatDuration(elapsedTime)}</span>
+                </div>
+              </div>
+            )}
+            <button
+              onClick={handleOpenRecordPanel}
+              className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+            >
+              時間記録を管理
+            </button>
+          </div>
         </div>
         
         {latestEntry && (
@@ -127,9 +193,9 @@ const TaskTimeTracker = ({ taskId }) => {
               <div className="flex flex-col">
                 <span className="text-gray-500">作業時間</span>
                 <span className="font-medium">
-                  {latestEntry.duration_seconds 
-                    ? `${Math.floor(latestEntry.duration_seconds / 3600)}:${String(Math.floor((latestEntry.duration_seconds % 3600) / 60)).padStart(2, '0')}`
-                    : '計測中'}
+                  {latestEntry.end_time 
+                    ? formatDuration(latestEntry.duration_seconds)
+                    : formatDuration(elapsedTime)}
                 </span>
               </div>
               <div className="flex flex-col">
