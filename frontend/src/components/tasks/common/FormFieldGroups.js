@@ -134,7 +134,7 @@ export const StatusPriorityFields = ({ register, errors, statuses, priorities })
           <option value="">優先度を選択</option>
           {priorities.map(priority => (
             <option key={priority.id} value={priority.id}>
-              {priority.priority_value || '未設定'}
+              {priority.priority_value !== undefined ? priority.priority_value : '未設定'}
             </option>
           ))}
         </select>
