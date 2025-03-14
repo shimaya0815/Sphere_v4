@@ -120,7 +120,9 @@ const TaskForm = ({ task, onClose, onTaskSaved }) => {
         fiscal_year: data.is_fiscal_task === 'true' && data.fiscal_year ? parseInt(data.fiscal_year) : null,
       };
       
-      // 優先度の処理
+      // 優先度の処理 - 詳細なデバッグログを追加
+      delete formattedData.priority_value; // 直接送信しないよう削除
+
       if (data.priority_value) {
         try {
           // 優先度値からPriorityオブジェクトを作成または取得
@@ -128,18 +130,29 @@ const TaskForm = ({ task, onClose, onTaskSaved }) => {
           if (!isNaN(priorityValue) && priorityValue >= 1 && priorityValue <= 100) {
             // APIで優先度値に対応するオブジェクトを作成/取得する
             console.log('Creating priority for value:', priorityValue);
+            
+            // 優先度作成API呼び出し
             const priorityResponse = await tasksApi.createPriorityForValue(priorityValue);
-            formattedData.priority = priorityResponse.id;
-            console.log('Created/found priority object:', priorityResponse);
+            console.log('Priority API response:', priorityResponse);
+            
+            if (priorityResponse && priorityResponse.id) {
+              formattedData.priority = priorityResponse.id;
+              console.log('Set priority ID to:', priorityResponse.id);
+            } else {
+              console.error('Invalid priority response:', priorityResponse);
+              formattedData.priority = null;
+            }
           } else {
             console.warn('Invalid priority value:', data.priority_value);
             formattedData.priority = null;
           }
         } catch (priorityError) {
           console.error('Error creating priority from value:', priorityError);
+          console.error('Error details:', priorityError.response?.data || priorityError.message);
           formattedData.priority = null;
         }
       } else {
+        console.log('No priority_value provided, setting priority to null');
         formattedData.priority = null;
       }
       
