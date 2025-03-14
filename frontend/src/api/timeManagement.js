@@ -153,31 +153,34 @@ const timeManagementApi = {
   // Start a time entry
   startTimeEntry: async (entryData) => {
     try {
-      const response = await apiClient.post('/api/time-management/timer/start/', entryData);
+      // データの型を確認・変換して正しいリクエスト形式に合わせる
+      const requestData = {
+        task_id: entryData.task_id ? Number(entryData.task_id) : null,
+        client_id: entryData.client_id ? Number(entryData.client_id) : null,
+        fiscal_year_id: entryData.fiscal_year_id ? Number(entryData.fiscal_year_id) : null,
+        description: entryData.description || ''
+      };
+      
+      const response = await apiClient.post('/api/time-management/timer/start/', requestData);
       return response.data;
     } catch (error) {
       console.error('Error starting time entry:', error);
-      // Mock data for development
-      return {
-        id: Math.floor(Math.random() * 1000),
-        task_id: entryData.task_id,
-        description: entryData.description,
-        start_time: new Date().toISOString(),
-        is_running: true,
-        task: entryData.task_id ? { id: entryData.task_id, title: "モックタスク" } : null,
-        client: entryData.client_id ? { id: entryData.client_id, name: "モッククライアント" } : null
-      };
+      // APIエラー時はエラーを投げて、コンポーネントでハンドリングさせる
+      throw error;
     }
   },
   
   // Stop a time entry
   stopTimeEntry: async (entryId) => {
     try {
-      const response = await apiClient.post(`/api/time-management/timer/${entryId}/stop/`);
+      // entryIdを数値に変換
+      const numericEntryId = Number(entryId);
+      const response = await apiClient.post(`/api/time-management/timer/${numericEntryId}/stop/`);
       return response.data;
     } catch (error) {
       console.error('Error stopping time entry:', error);
-      return { success: true };
+      // APIエラー時はエラーを投げて、コンポーネントでハンドリングさせる
+      throw error;
     }
   },
   
