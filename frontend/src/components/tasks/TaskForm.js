@@ -100,7 +100,6 @@ const TaskForm = ({ task, onClose, onTaskSaved }) => {
         ...data,
         // ID文字列を数値に変換
         status: data.status ? parseInt(data.status) : null,
-        priority: data.priority ? parseInt(data.priority) : null,
         category: data.category ? parseInt(data.category) : null,
         client: data.client ? parseInt(data.client) : null,
         worker: data.worker ? parseInt(data.worker) : null,
@@ -112,6 +111,19 @@ const TaskForm = ({ task, onClose, onTaskSaved }) => {
         // 決算期タスクの場合のみ決算期を含める
         fiscal_year: data.is_fiscal_task === 'true' && data.fiscal_year ? parseInt(data.fiscal_year) : null,
       };
+      
+      // 優先度の処理
+      if (data.priority) {
+        try {
+          // 優先度IDからPriorityオブジェクトを取得
+          formattedData.priority = parseInt(data.priority);
+        } catch (priorityError) {
+          console.error('Error parsing priority ID:', priorityError);
+          formattedData.priority = null;
+        }
+      } else {
+        formattedData.priority = null;
+      }
       
       console.log('タスク送信データ:', formattedData);
       
