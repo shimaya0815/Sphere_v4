@@ -15,33 +15,43 @@ const TaskDatePrioritySection = ({
   const inputClassName = "mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md";
   
   // 日付入力フィールドの共通コンポーネント
-  const DateField = ({ name, label, placeholder, required = false }) => (
-    <Controller
-      name={name}
-      control={control}
-      rules={required ? { required: `${label}は必須です` } : {}}
-      render={({ field, fieldState }) => (
-        <div>
-          <div className="relative">
-            <input
-              type="date"
-              className={inputClassName}
-              placeholder={placeholder}
-              {...field}
-              value={field.value || ''}
-              onChange={(e) => {
-                field.onChange(e);
-                handleFieldChange(name, e.target.value);
-              }}
-            />
-            {/* カレンダーアイコンを削除（ブラウザ標準のアイコンが表示されるため） */}
+  const DateField = ({ name, label, placeholder, required = false }) => {
+    // 完了日は自動保存しないよう特別扱い
+    const isCompletedDate = name === 'completed_at';
+
+    return (
+      <Controller
+        name={name}
+        control={control}
+        rules={required ? { required: `${label}は必須です` } : {}}
+        render={({ field, fieldState }) => (
+          <div>
+            <div className="relative">
+              <input
+                type="date"
+                className={inputClassName}
+                placeholder={placeholder}
+                {...field}
+                value={field.value || ''}
+                onChange={(e) => {
+                  field.onChange(e);
+                  // 完了日の場合は明示的な保存操作を要求
+                  if (isCompletedDate) {
+                    console.log('完了日を変更しました。保存ボタンを押して変更を確定してください。');
+                  }
+                  handleFieldChange(name, e.target.value, isCompletedDate);
+                }}
+              />
+              {/* カレンダーアイコンを削除（ブラウザ標準のアイコンが表示されるため） */}
+            </div>
+            {fieldState.error && (
+              <p className="mt-1 text-sm text-red-600">{fieldState.error.message}</p>
+            )}
           </div>
-          {fieldState.error && (
-            <p className="mt-1 text-sm text-red-600">{fieldState.error.message}</p>
-          )}
-        </div>
-      )}
-    />
+        )}
+      />
+    );
+  }
   );
   
   return (
