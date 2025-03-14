@@ -87,8 +87,18 @@ const TaskDatePrioritySection = ({
                 placeholder="1-100 (小さいほど優先度高)"
                 {...field}
                 onChange={(e) => {
-                  field.onChange(e);
-                  handleFieldChange('priority_value', e.target.value);
+                  const value = e.target.value;
+                  field.onChange(value);
+                  // 値が空になった場合も明示的に処理する
+                  handleFieldChange('priority_value', value);
+                }}
+                onBlur={(e) => {
+                  // フォーカスを失った時も空の値を明示的に処理
+                  const value = e.target.value;
+                  if (value === '') {
+                    console.log('空の優先度値を明示的に保存します');
+                    handleFieldChange('priority_value', null);
+                  }
                 }}
               />
             )}

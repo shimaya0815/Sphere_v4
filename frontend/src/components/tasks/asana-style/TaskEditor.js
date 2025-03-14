@@ -549,6 +549,28 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       return;
     }
     
+    // 優先度フィールドの特別処理
+    if (fieldName === 'priority_value' || fieldName === 'priority') {
+      // 空の値でも明示的に追跡する
+      console.log(`優先度フィールド ${fieldName} の変更: "${value}"`);
+      
+      // 空文字列の場合はnullとして明示的に設定
+      const priorityValue = value === '' ? null : value;
+      console.log(`優先度値を設定: ${priorityValue} (元の値: ${value})`);
+      
+      // 必ず変更を記録する
+      setPendingChanges(prev => ({
+        ...prev,
+        [fieldName]: priorityValue,
+      }));
+      
+      // 優先度は自動保存する
+      if (!skipAutosave) {
+        debounceSave();
+      }
+      return;
+    }
+    
     if (!isNewTask && task) {
       // 空のタイトルになる変更は許可しない追加チェック
       if (fieldName === 'title' && value.trim() === '' && task.title) {
