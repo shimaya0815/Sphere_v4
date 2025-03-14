@@ -185,7 +185,7 @@ const TaskList = React.forwardRef((props, ref) => {
   // 親コンポーネントからタスク更新通知を受け取るためのイベントハンドラ
   useEffect(() => {
     const handleTaskUpdate = (event) => {
-      console.log("Task updated event received", event.detail);
+      console.log("🔔 Task updated event received", event.detail);
       
       // イベント詳細とタスクデータの確認
       if (!event.detail || !event.detail.task) {
@@ -224,18 +224,36 @@ const TaskList = React.forwardRef((props, ref) => {
       }
     };
     
+    const handleTaskDeleted = (event) => {
+      console.log("🔔 Task deleted event received", event.detail);
+      
+      if (!event.detail || !event.detail.taskId) {
+        console.warn("Invalid task delete event with no task ID");
+        fetchTasks(); // 無効なイベントの場合は全体を再取得
+        return;
+      }
+      
+      const deletedTaskId = event.detail.taskId;
+      console.log("Removing deleted task from list, ID:", deletedTaskId);
+      
+      // 削除されたタスクをリストから除外
+      setTasks(prevTasks => prevTasks.filter(task => task.id !== deletedTaskId));
+    };
+    
     const handleForceRefresh = () => {
-      console.log("Force refresh event received");
+      console.log("🔔 Force refresh event received");
       fetchTasks();
     };
     
     // カスタムイベントのリスナーを追加
     window.addEventListener('task-updated', handleTaskUpdate);
+    window.addEventListener('task-deleted', handleTaskDeleted);
     window.addEventListener('task-update-force-refresh', handleForceRefresh);
     
     // クリーンアップ関数
     return () => {
       window.removeEventListener('task-updated', handleTaskUpdate);
+      window.removeEventListener('task-deleted', handleTaskDeleted);
       window.removeEventListener('task-update-force-refresh', handleForceRefresh);
     };
   }, []);
@@ -325,11 +343,25 @@ const TaskList = React.forwardRef((props, ref) => {
   // タスク削除実行
   const handleDeleteTask = async () => {
     try {
-      await tasksApi.deleteTask(selectedTask.id);
+      const deletedTaskId = selectedTask.id;
+      await tasksApi.deleteTask(deletedTaskId);
+      
       // 先にモーダルを閉じる
       setDeleteModalOpen(false);
+      
       // 削除の成功メッセージを表示
       toast.success('タスクを削除しました');
+      
+      // タスク削除のカスタムイベントをディスパッチ
+      const taskDeletedEvent = new CustomEvent('task-deleted', {
+        detail: {
+          taskId: deletedTaskId,
+          timestamp: new Date().toISOString()
+        }
+      });
+      window.dispatchEvent(taskDeletedEvent);
+      console.log('📣 Dispatched task-deleted event', { taskId: deletedTaskId });
+      
       // バックグラウンドでデータを更新
       fetchTasks();
       return true;
@@ -629,13 +661,7 @@ const TaskList = React.forwardRef((props, ref) => {
                 <button
                   type="button"
                   className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                  onClick={async () => {
-                    await handleDeleteTask();
-                    // ローカルでもタスク配列から該当タスクを削除して即時反映
-                    if (selectedTask) {
-                      setTasks(prevTasks => prevTasks.filter(t => t.id !== selectedTask.id));
-                    }
-                  }}
+                  onClick={handleDeleteTask}
                 >
                   削除する
                 </button>
