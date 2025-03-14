@@ -66,25 +66,23 @@ const TaskDatePrioritySection = ({
         </label>
         <div className="mt-1">
           <Controller
-            name="priority"
+            name="priority_value"
             control={control}
+            defaultValue=""
             render={({ field }) => (
-              <select
-                id="priority"
-                className={selectClassName}
+              <input
+                type="number"
+                id="priority_value"
+                className={inputClassName}
+                min="1"
+                max="100"
+                placeholder="1-100 (小さいほど優先度高)"
                 {...field}
                 onChange={(e) => {
                   field.onChange(e);
-                  handleFieldChange('priority', e.target.value);
+                  handleFieldChange('priority_value', e.target.value);
                 }}
-              >
-                <option value="">指定なし</option>
-                {priorities.map((priority) => (
-                  <option key={priority.id} value={priority.id}>
-                    {priority.priority_value}
-                  </option>
-                ))}
-              </select>
+              />
             )}
           />
         </div>
