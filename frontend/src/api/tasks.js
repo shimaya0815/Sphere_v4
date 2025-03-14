@@ -50,6 +50,17 @@ const tasksApi = {
           return;
         }
         
+        // 日付フィールドも明示的にnullを送信（クリア処理として）
+        const dateFields = ['due_date', 'start_date', 'completed_at', 'recurrence_end_date'];
+        if (dateFields.includes(key)) {
+          // 空文字列はnullに変換して明示的に送信
+          if (cleanedData[key] === '') {
+            cleanedData[key] = null;
+            console.log(`Converting empty date to null for ${key}`);
+          }
+          return; // 日付フィールドは常に保持する
+        }
+        
         // カテゴリー、クライアント、決算期、担当者、レビューアーのフィールドは明示的なnullを保持する
         const preserveNullFields = ['category', 'client', 'fiscal_year', 'worker', 'reviewer'];
         if (preserveNullFields.includes(key) && cleanedData[key] === null) {
@@ -127,6 +138,17 @@ const tasksApi = {
           // 説明フィールドは空文字列もnullも明示的に送信
           console.log(`Preserving description value: "${cleanedData[key]}"`);
           return;
+        }
+        
+        // 日付フィールドも明示的にnullを送信（クリア処理として）
+        const dateFields = ['due_date', 'start_date', 'completed_at', 'recurrence_end_date'];
+        if (dateFields.includes(key)) {
+          // 空文字列はnullに変換して明示的に送信
+          if (cleanedData[key] === '') {
+            cleanedData[key] = null;
+            console.log(`Converting empty date to null for ${key} in update`);
+          }
+          return; // 日付フィールドは常に保持する
         }
         
         // カテゴリー、クライアント、決算期、担当者、レビューアーのフィールドは明示的なnullを保持する
