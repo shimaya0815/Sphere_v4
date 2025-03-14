@@ -7,12 +7,13 @@ import TaskDescriptionEditor from '../../../../editor/TaskDescriptionEditor';
  * リッチテキストエディタを使用
  */
 const TaskDescriptionSection = ({ control, handleFieldChange }) => {
-  // 説明が変更されたときに確実に親コンポーネントに通知する
+  // 説明フィールドの値を確実に親コンポーネントに通知する
   useEffect(() => {
     const currentValue = control._formValues.description;
-    // 初期値をセット
-    handleFieldChange('description', currentValue || '', true);
-  }, [control._formValues.description]);
+    // 初期値をセット (空の場合も明示的に空文字を渡す)
+    // スキップフラグはfalseに設定して確実に更新
+    handleFieldChange('description', currentValue || '', false);
+  }, []);
   
   return (
     <div>
@@ -28,10 +29,18 @@ const TaskDescriptionSection = ({ control, handleFieldChange }) => {
               value={field.value || ''}
               onChange={(content) => {
                 // ReactHookFormのフィールド値を更新
-                field.onChange(content);
-                // 説明フィールドに変更があれば親コンポーネントの状態も更新
-                // 空の場合も明示的に空文字を渡す
-                handleFieldChange('description', content === '<p><br></p>' || content === '<p></p>' ? '' : content, false);
+                let processedContent = content;
+                
+                // 空のコンテンツかどうかチェック (Quillの空コンテンツパターン)
+                if (content === '<p><br></p>' || content === '<p></p>') {
+                  processedContent = '';
+                }
+                
+                // フィールド値を更新
+                field.onChange(processedContent);
+                
+                // 親コンポーネントにも通知 (スキップフラグをfalseにして確実に更新)
+                handleFieldChange('description', processedContent, false);
               }}
             />
           )}

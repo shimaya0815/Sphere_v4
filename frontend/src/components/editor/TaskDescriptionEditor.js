@@ -68,56 +68,77 @@ const TaskDescriptionEditor = ({ value, onChange }) => {
     setEditorContent(value || '');
   }, [value]);
   
-  // ペーストイベント処理
-  
-  // ペーストイベント後にURLを検出してリンク化
+  // エディタ初期化と拡張
   useEffect(() => {
-    // エディタが利用可能になったらセットアップ
     if (!quillRef.current) return;
     
+    // Quillインスタンスを取得
     const quill = quillRef.current.getEditor();
     
-    // テキスト変更を検出
-    const handleTextChange = (delta, oldDelta, source) => {
-      if (source !== 'user') return;
-      
-      // 現在のカーソル位置を取得
-      const selection = quill.getSelection();
-      if (!selection) return;
-      
-      // 変更前後のテキストを取得
-      const text = quill.getText();
-      
-      // URLを検出
-      const urlRegex = /(https?:\/\/[^\s]+)/g;
-      let match;
-      
-      // テキスト内のすべてのURLを検出してリンク化
-      while ((match = urlRegex.exec(text)) !== null) {
-        const url = match[0];
-        const urlIndex = match.index;
+    // 簡易URLマッチャー
+    const handleURLs = () => {
+      try {
+        // 編集全体の内容を取得
+        const text = quill.getText();
         
-        // リンクがすでに適用されているか確認
-        const formats = quill.getFormat(urlIndex, url.length);
+        // URLパターンを検出する正規表現
+        const urlRegex = /https?:\/\/\S+/g;
         
-        // リンクがまだ適用されていない場合のみフォーマット
-        if (!formats.link) {
-          quill.formatText(
-            urlIndex,
-            url.length,
-            'link',
-            url
-          );
+        // 全テキストから全てのURLを検出
+        let match;
+        while ((match = urlRegex.exec(text)) !== null) {
+          const url = match[0];
+          const start = match.index;
+          const end = start + url.length;
+          
+          // URLの末尾が句読点などの場合、それを除外
+          let urlEnd = end;
+          const lastChar = url[url.length - 1];
+          if (['.', ',', ':', ';', ')', '}', ']'].includes(lastChar)) {
+            urlEnd--;
+          }
+          
+          const length = urlEnd - start;
+          
+          // 現在のフォーマットを取得して、リンクがまだない場合のみ適用
+          const formats = quill.getFormat(start, length);
+          if (!formats.link) {
+            // console.log('リンク化:', url.substring(0, length), 'at', start, 'length', length);
+            
+            // 非同期でフォーマットを適用（エラー防止）
+            setTimeout(() => {
+              quill.formatText(start, length, 'link', url.substring(0, length));
+            }, 1);
+          }
         }
+      } catch (error) {
+        console.error('URL処理中にエラーが発生:', error);
       }
     };
     
-    // テキスト変更イベントにリスナー追加
-    quill.on('text-change', handleTextChange);
+    // 以下の場合にURLを処理
+    // 1. テキスト変更時
+    quill.on('text-change', (delta, oldContents, source) => {
+      if (source === 'user') {
+        handleURLs();
+      }
+    });
+    
+    // 2. ペースト後
+    quill.root.addEventListener('paste', () => {
+      // ペースト後に少し待ってからURLを処理
+      setTimeout(handleURLs, 10);
+    });
+    
+    // 3. 初期表示時
+    setTimeout(handleURLs, 100);
     
     // クリーンアップ
     return () => {
-      quill.off('text-change', handleTextChange);
+      quill.off('text-change');
+      if (quill.root) {
+        quill.root.removeEventListener('paste', handleURLs);
+      }
     };
   }, []);
   
