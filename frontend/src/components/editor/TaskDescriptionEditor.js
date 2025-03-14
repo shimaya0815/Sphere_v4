@@ -3,7 +3,6 @@ import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { HiCodeBracket, HiLink, HiListBullet } from 'react-icons/hi2';
 import { HiOutlinePencil } from 'react-icons/hi';
-// dompurifyは削除
 
 // Quillエディタのカスタムフォーマット定義
 const CustomFormats = [
@@ -12,18 +11,6 @@ const CustomFormats = [
   'link', 'code-block', 'code', 
   'blockquote', 'header',
   'indent', 'align'
-];
-
-// カスタムツールバーオプション定義
-const CustomToolbar = [
-  [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-  ['bold', 'italic', 'underline', 'strike'],
-  ['blockquote', 'code-block'],
-  [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-  [{ 'indent': '-1' }, { 'indent': '+1' }],
-  [{ 'align': [] }],
-  ['link', 'code'],
-  ['clean']
 ];
 
 /**
@@ -73,79 +60,74 @@ const TaskDescriptionEditor = ({ value, onChange }) => {
     }
   }), []);
   
-  // URL文字列を検出する正規表現
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  // URL文字列を検出する正規表現パターン
+  const urlRegex = /https?:\/\/[^\s]+/g;
   
   // 値が外部から変更された場合
+  
   useEffect(() => {
     setEditorContent(value || '');
   }, [value]);
   
-  // ペーストイベントの処理を追加
+  // URL自動リンク化の設定
   useEffect(() => {
-    // QuillエディタにURLの自動リンク化機能を追加
     if (quillRef.current) {
-      const editor = quillRef.current.getEditor();
-      const container = editor.container;
+      const quill = quillRef.current.getEditor();
       
-      // ペーストイベントリスナー
-      const handlePaste = (e) => {
-        // ペーストされたテキストを取得
-        const clipboardData = e.clipboardData || window.clipboardData;
-        const pastedText = clipboardData.getData('text/plain');
-        
-        // URLかどうかチェック
-        if (pastedText && urlRegex.test(pastedText)) {
-          // Quillのネイティブペーストイベントに任せる
-          // あとでhandleChangeでURLを検出して自動リンク化する
+      // Quillのクリップボードモジュールを拡張
+      const Clipboard = quill.getModule('clipboard');
+      const originalMatchers = Clipboard.matchers;
+      
+      // URLを検出する新しいマッチャーを追加
+      const urlMatcher = [
+        /https?:\/\/[^\s]+/g,
+        (node, delta) => {
+          // textノードの場合のみ処理
+          if (node.nodeType !== Node.TEXT_NODE) return delta;
+          
+          const text = node.data;
+          let ops = [];
+          let lastIndex = 0;
+          let match;
+          
+          // URLを検索
+          const regex = /https?:\/\/[^\s]+/g;
+          while ((match = regex.exec(text)) !== null) {
+            if (match.index > lastIndex) {
+              ops.push({ insert: text.slice(lastIndex, match.index) });
+            }
+            
+            // URLをリンクとして挿入
+            ops.push({ 
+              insert: match[0], 
+              attributes: { link: match[0] } 
+            });
+            
+            lastIndex = match.index + match[0].length;
+          }
+          
+          // 残りのテキスト
+          if (lastIndex < text.length) {
+            ops.push({ insert: text.slice(lastIndex) });
+          }
+          
+          // 元のdeltaを置き換え
+          if (ops.length > 0) {
+            return { ops };
+          }
+          
+          return delta;
         }
-      };
+      ];
       
-      // イベントリスナーを追加
-      container.addEventListener('paste', handlePaste);
-      
-      // クリーンアップ
-      return () => {
-        container.removeEventListener('paste', handlePaste);
-      };
+      // マッチャーを配列の先頭に追加（最初に処理されるように）
+      Clipboard.matchers = [urlMatcher].concat(originalMatchers);
     }
   }, []);
   
   // エディタの内容変更時
   const handleChange = (content) => {
     setEditorContent(content);
-    
-    // クリップボードからのURLペーストを検出して自動リンク化
-    if (quillRef.current) {
-      const quill = quillRef.current.getEditor();
-      const selection = quill.getSelection();
-      
-      if (selection && selection.length === 0) {
-        // 現在の位置から前の内容を取得
-        const text = quill.getText(Math.max(0, selection.index - 100), 100);
-        
-        // 最後に貼り付けられたURL文字列を検出
-        const urlMatches = [...text.matchAll(urlRegex)];
-        const lastMatch = urlMatches[urlMatches.length - 1];
-        
-        if (lastMatch) {
-          const matchedText = lastMatch[0];
-          const matchIndex = text.lastIndexOf(matchedText);
-          
-          if (matchIndex >= 0) {
-            // マッチしたURL部分の開始位置と長さを計算
-            const absoluteMatchIndex = Math.max(0, selection.index - 100) + matchIndex;
-            const matchLength = matchedText.length;
-            
-            // 最後のスペースまでがURL、かつ現在の位置がURLの直後である場合にのみリンク化
-            if (absoluteMatchIndex + matchLength === selection.index) {
-              // URLをリンクに変換
-              quill.formatText(absoluteMatchIndex, matchLength, 'link', matchedText);
-            }
-          }
-        }
-      }
-    }
     
     // 変更をコールバックに通知
     if (onChange) {
