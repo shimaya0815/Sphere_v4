@@ -23,7 +23,7 @@ class TaskStatusSerializer(serializers.ModelSerializer):
 class TaskPrioritySerializer(serializers.ModelSerializer):
     class Meta:
         model = TaskPriority
-        fields = '__all__'
+        fields = ['id', 'business', 'priority_value']
 
 
 class TaskAttachmentSerializer(serializers.ModelSerializer):
@@ -159,7 +159,7 @@ class TaskSerializer(serializers.ModelSerializer):
     # 基本フィールド - リレーションシップからの名前を取得するリードオンリーフィールド
     category_name = serializers.ReadOnlyField(source='category.name', default=None)
     status_name = serializers.ReadOnlyField(source='status.name', default=None)
-    priority_name = serializers.ReadOnlyField(source='priority.name', default=None)
+    priority_name = serializers.ReadOnlyField(source='priority.priority_value', default=None)
     creator_name = serializers.ReadOnlyField(source='creator.get_full_name', default=None)
     assignee_name = serializers.ReadOnlyField(source='assignee.get_full_name', default=None)
     worker_name = serializers.ReadOnlyField(source='worker.get_full_name', default=None)
@@ -212,8 +212,6 @@ class TaskSerializer(serializers.ModelSerializer):
         if obj.priority:
             return {
                 'id': obj.priority.id,
-                'name': str(obj.priority.priority_value),  # name フィールドは priority_value の文字列として扱う
-                'color': obj.priority.color,
                 'priority_value': obj.priority.priority_value
             }
         return None
