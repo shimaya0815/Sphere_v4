@@ -520,12 +520,12 @@ const TaskList = React.forwardRef((props, ref) => {
                   <td>
                     {task.status && (
                       <span className={`badge ${
-                        (task.status_data?.name || task.status_name || '')?.includes('完了') ? 'badge-success' :
-                        (task.status_data?.name || task.status_name || '')?.includes('進行中') ? 'badge-info' :
-                        (task.status_data?.name || task.status_name || '')?.includes('レビュー') ? 'badge-warning' :
+                        getStatusName(task.status).includes('完了') ? 'badge-success' :
+                        getStatusName(task.status).includes('進行中') ? 'badge-info' :
+                        getStatusName(task.status).includes('レビュー') ? 'badge-warning' :
                         'badge-ghost'
                       }`}>
-                        {task.status_data?.name || task.status_name || getStatusName(task.status)}
+                        {getStatusName(task.status)}
                       </span>
                     )}
                   </td>
@@ -541,12 +541,12 @@ const TaskList = React.forwardRef((props, ref) => {
                   <td>
                     {task.priority && (
                       <span className={`badge ${
-                        (task.priority_data?.name || task.priority_name || '')?.includes('高') ? 'badge-error' :
-                        (task.priority_data?.name || task.priority_name || '')?.includes('中') ? 'badge-warning' :
-                        (task.priority_data?.name || task.priority_name || '')?.includes('低') ? 'badge-success' :
+                        getPriorityName(task.priority).includes('高') ? 'badge-error' :
+                        getPriorityName(task.priority).includes('中') ? 'badge-warning' :
+                        getPriorityName(task.priority).includes('低') ? 'badge-success' :
                         'badge-ghost'
                       }`}>
-                        {task.priority_data?.name || task.priority_name || getPriorityName(task.priority)}
+                        {getPriorityName(task.priority)}
                       </span>
                     )}
                   </td>
