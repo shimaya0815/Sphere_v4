@@ -326,7 +326,7 @@ const TaskTimeRecordPanel = ({ isOpen, onClose, taskId, entries }) => {
                     className={`p-3 rounded-md border ${!entry.end_time ? 'border-blue-400 bg-blue-50' : 'border-gray-200'}`}
                   >
                     <div className="flex justify-between items-start">
-                      <div>
+                      <div className="flex-grow">
                         <div className="font-medium text-gray-800">
                           {entry.description || '説明なし'}
                         </div>
@@ -342,6 +342,30 @@ const TaskTimeRecordPanel = ({ isOpen, onClose, taskId, entries }) => {
                               請求対象
                             </span>
                           )}
+                        </div>
+                      </div>
+                      
+                      {/* 時間情報バッジ - スライドパネルの右側に表示 */}
+                      <div className="flex flex-col items-end mx-2 text-xs">
+                        <div className="bg-blue-50 px-2 py-1 rounded-md mb-1 w-20 text-center">
+                          <div className="text-gray-500">開始</div>
+                          <div className="font-semibold">
+                            {entry.start_time ? format(parseISO(entry.start_time), 'HH:mm') : '--:--'}
+                          </div>
+                        </div>
+                        <div className="bg-blue-50 px-2 py-1 rounded-md mb-1 w-20 text-center">
+                          <div className="text-gray-500">終了</div>
+                          <div className="font-semibold">
+                            {entry.end_time ? format(parseISO(entry.end_time), 'HH:mm') : '--:--'}
+                          </div>
+                        </div>
+                        <div className="bg-blue-50 px-2 py-1 rounded-md w-20 text-center">
+                          <div className="text-gray-500">時間</div>
+                          <div className="font-semibold">
+                            {entry.duration_seconds 
+                              ? `${Math.floor(entry.duration_seconds / 3600)}:${String(Math.floor((entry.duration_seconds % 3600) / 60)).padStart(2, '0')}`
+                              : '--:--'}
+                          </div>
                         </div>
                       </div>
                       
