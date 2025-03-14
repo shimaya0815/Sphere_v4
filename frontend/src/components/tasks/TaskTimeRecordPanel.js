@@ -55,8 +55,11 @@ const TaskTimeRecordPanel = ({ isOpen, onClose, taskId, entries }) => {
   
   const handleStartTimer = async () => {
     try {
+      // task_idが文字列の場合は数値に変換
+      const taskIdNum = typeof taskId === 'string' ? parseInt(taskId, 10) : taskId;
+      
       const response = await timeManagementApi.startTimeEntry({
-        task_id: taskId,
+        task_id: taskIdNum,
         description: `タスク作業: ${new Date().toLocaleString('ja-JP')}`
       });
       
