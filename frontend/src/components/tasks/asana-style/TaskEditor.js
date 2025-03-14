@@ -520,8 +520,9 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       
       // 特定のフィールドは自動保存しない
       // - タイトル、レビュアー、作業者
+      // - 説明
       // - 完了日（skipAutosaveフラグが設定された場合）
-      const noAutosaveFields = ['reviewer', 'worker', 'title', 'completed_at'];
+      const noAutosaveFields = ['reviewer', 'worker', 'title', 'completed_at', 'description'];
       if (noAutosaveFields.includes(fieldName) || skipAutosave) {
         setPendingChanges(prev => ({
           ...prev,
