@@ -866,24 +866,44 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         見積時間 (時間)
                       </label>
-                      <input
-                        type="number"
-                        step="0.5"
-                        min="0"
-                        className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                        name="estimated_hours"
-                        value={watch('estimated_hours') || ''}
-                        onChange={(e) => {
-                          console.log(`Estimated hours being set to: "${e.target.value}"`);
-                          setValue('estimated_hours', e.target.value);
-                        }}
-                        onBlur={(e) => {
-                          const currentValue = isNewTask ? '' : (task?.estimated_hours || '');
-                          if (e.target.value !== String(currentValue)) {
-                            handleFieldChange('estimated_hours');
-                          }
-                        }}
-                      />
+                      <div className="flex">
+                        <input
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                          name="estimated_hours"
+                          value={watch('estimated_hours') || ''}
+                          onChange={(e) => {
+                            console.log(`Estimated hours being set to: "${e.target.value}"`);
+                            setValue('estimated_hours', e.target.value);
+                          }}
+                          onBlur={(e) => {
+                            const currentValue = isNewTask ? '' : (task?.estimated_hours || '');
+                            if (e.target.value !== String(currentValue)) {
+                              handleFieldChange('estimated_hours');
+                            }
+                          }}
+                        />
+                        
+                        {/* 時間記録ボタン - 新規タスクではない場合のみ表示 */}
+                        {!isNewTask && task && task.id && (
+                          <button
+                            type="button"
+                            className="ml-2 px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
+                            onClick={() => {
+                              // 時間記録コンポーネントに遷移またはモーダル表示
+                              console.log('時間記録ボタンがクリックされました');
+                              // カスタムイベント発火（TaskDetailコンポーネントで受け取る）
+                              window.dispatchEvent(new CustomEvent('open-time-tracker', {
+                                detail: { taskId: task.id }
+                              }));
+                            }}
+                          >
+                            時間記録
+                          </button>
+                        )}
+                      </div>
                     </div>
                     
                     {/* クライアント */}

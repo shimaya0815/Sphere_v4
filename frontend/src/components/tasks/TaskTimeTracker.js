@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import timeManagementApi from '../../api/timeManagement';
 import TaskTimeRecordPanel from './TaskTimeRecordPanel';
-import { format, parseISO } from 'date-fns';
+import { format as formatDate, parseISO } from 'date-fns';
 
 const TaskTimeTracker = ({ taskId }) => {
   const [totalTime, setTotalTime] = useState(0);
@@ -12,11 +12,14 @@ const TaskTimeTracker = ({ taskId }) => {
   
   const fetchTimeData = async () => {
     try {
+      console.log('Fetching time data for taskId:', taskId);
       setLoading(true);
       const entriesData = await timeManagementApi.getTimeEntries({ 
         task_id: taskId,
         ordering: '-start_time' // 最新の記録を最初に取得
       });
+      
+      console.log('Time entries received:', entriesData);
       
       // Calculate total time from all entries
       let totalSeconds = 0;
@@ -40,10 +43,26 @@ const TaskTimeTracker = ({ taskId }) => {
     }
   };
   
+  // タスクIDが変更されたら時間データを再取得
   useEffect(() => {
     if (taskId) {
       fetchTimeData();
     }
+  }, [taskId]);
+  
+  // custom eventでパネル表示リクエストを監視
+  useEffect(() => {
+    const handleTimeTrackerOpen = (event) => {
+      if (event.detail?.taskId === taskId) {
+        setIsRecordPanelOpen(true);
+      }
+    };
+    
+    window.addEventListener('open-time-tracker', handleTimeTrackerOpen);
+    
+    return () => {
+      window.removeEventListener('open-time-tracker', handleTimeTrackerOpen);
+    };
   }, [taskId]);
   
   const formatTime = (seconds) => {
@@ -55,7 +74,7 @@ const TaskTimeTracker = ({ taskId }) => {
   const formatTimeHHMM = (dateString) => {
     if (!dateString) return '--:--';
     try {
-      return format(parseISO(dateString), 'HH:mm');
+      return formatDate(parseISO(dateString), 'HH:mm');
     } catch (e) {
       return '--:--';
     }
