@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
-import { HiBold, HiCode, HiLink, HiListBullet } from 'react-icons/hi2';
-import { HiPencil } from 'react-icons/hi';
+import { HiCodeBracket, HiLink, HiListBullet } from 'react-icons/hi2';
+import { HiOutlinePencil, HiBold } from 'react-icons/hi';
 import DOMPurify from 'dompurify';
 
 // Quillエディタのカスタムフォーマット定義
@@ -143,7 +143,7 @@ const TaskDescriptionEditor = ({ value, onChange, onSave }) => {
   // ツールバーをカスタマイズするためのヘルパー
   const renderToolbarToggle = () => (
     <div className="toolbar-toggle" onClick={toggleEditorMode}>
-      <HiPencil className={`w-5 h-5 ${editorMode === 'advanced' ? 'text-blue-600' : 'text-gray-500'}`} />
+      <HiOutlinePencil className={`w-5 h-5 ${editorMode === 'advanced' ? 'text-blue-600' : 'text-gray-500'}`} />
       <span className="ml-1 text-xs">{editorMode === 'simple' ? '高度な編集' : 'シンプル編集'}</span>
     </div>
   );
@@ -178,7 +178,7 @@ const TaskDescriptionEditor = ({ value, onChange, onSave }) => {
         }}
         className={`format-btn ${quillRef.current?.getEditor().getFormat().code ? 'active' : ''}`}
       >
-        <HiCode />
+        <HiCodeBracket />
       </button>
       <button 
         type="button"
