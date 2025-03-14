@@ -7,7 +7,6 @@ import { HiOutlineCalendar } from 'react-icons/hi';
  */
 const TaskDatePrioritySection = ({ 
   control, 
-  priorities, 
   handleFieldChange,
   formState,
   watch

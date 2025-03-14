@@ -1167,7 +1167,6 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                     
                     <TaskDatePrioritySection 
                       control={control}
-                      priorities={priorities}
                       handleFieldChange={handleFieldChange}
                       formState={formState}
                       watch={watch}
