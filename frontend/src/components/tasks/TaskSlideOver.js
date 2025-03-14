@@ -3,8 +3,7 @@ import { useForm } from 'react-hook-form';
 import { tasksApi, clientsApi } from '../../api';
 import toast from 'react-hot-toast';
 import TaskComments from './TaskComments';
-import TaskDescriptionEditor from '../editor/TaskDescriptionEditor';
-import { HiOutlineX, HiPencilAlt } from 'react-icons/hi';
+import { HiOutlineX } from 'react-icons/hi';
 
 const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated }) => {
   const [categories, setCategories] = useState([]);
@@ -410,43 +409,17 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
     const originalValue = getValues(field);
     console.log(`更新: ${field} フィールドを "${originalValue}" から "${value}" に変更`);
     
-    // 特別処理: descriptionフィールドの場合
+    // 説明フィールドの簡易処理
     if (field === 'description') {
-      console.log(`説明欄の値を処理します: "${value?.substring(0, 30)}..."`);
+      console.log(`説明欄の値: "${value}"`);
       
-      // 空の内容パターンを検出して処理
-      const emptyPatterns = [
-        '<p><br></p>', 
-        '<p></p>', 
-        '<p>　</p>',
-        '', 
-        null, 
-        undefined
-      ];
-      
-      if (emptyPatterns.includes(value)) {
-        console.log('空の説明を検出しました。空文字として保存します。');
-        // 空文字として設定
+      // 空文字の処理
+      if (value === null || value === undefined) {
         value = '';
-        setValue('description', '', { shouldValidate: true });
       }
       
-      // 通常のテキスト→HTML変換（必要な場合）
-      if (typeof value === 'string' && value !== '' && !value.includes('<')) {
-        console.log('プレーンテキストを検出しました。HTML形式に変換します。');
-        
-        // 改行をpタグに変換してHTML形式にする
-        const sanitizedText = value
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;');
-          
-        value = `<p>${sanitizedText.replace(/\n/g, '</p><p>')}</p>`;
-        setValue('description', value);
-      }
-      
-      // APIに送信する前に明示的にフォームに同期
-      console.log('最終的に保存される説明:', value);
+      // 説明欄の値を設定
+      setValue('description', value);
     }
     
     try {
@@ -747,41 +720,22 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                       />
                     </div>
                     
-                    {/* タスク説明 - 完全に新しい実装 */}
-                    <div className="mb-6 bg-white shadow-sm rounded border border-gray-200 overflow-hidden">
-                      <div className="flex justify-between items-center px-4 py-2 bg-gray-50 border-b border-gray-200">
-                        <div className="flex items-center">
-                          <HiPencilAlt className="w-4 h-4 text-gray-500 mr-1" />
-                          <h3 className="text-sm font-medium text-gray-700">タスクの説明</h3>
-                        </div>
-                        {isSubmitting && <span className="text-xs text-blue-600">保存中...</span>}
-                      </div>
-                      
-                      {/* 隠しテキストエリア（React Hook Form用） */}
-                      <div style={{ display: 'none' }}>
-                        <textarea {...register('description')} id="task-description" />
-                      </div>
-                      
-                      {/* タスク説明エディタ */}
-                      <div className="p-1">
-                        <TaskDescriptionEditor
-                          value={watch('description') || ''}
-                          onChange={(content) => {
-                            // 内容の変更をフォームの状態に反映するだけ
-                            setValue('description', content);
-                          }}
-                          onSave={(content) => {
-                            // 保存ボタンがクリックされたときのみAPIに送信
-                            console.log('説明を保存します:', content?.substring(0, 30));
-                            
-                            // フォームの値を更新
-                            setValue('description', content || '');
-                            
-                            // APIに送信して保存
-                            updateTaskField('description', content || '');
-                            
-                            // 成功メッセージを表示
-                            toast.success('説明を保存しました');
+                    {/* 説明 (通常のテキストエリア) */}
+                    <div>
+                      <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                        説明
+                      </label>
+                      <div className="mt-1">
+                        <textarea
+                          id="description"
+                          {...register('description')}
+                          rows="4"
+                          className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                          placeholder="タスクの詳細を入力"
+                          onBlur={() => {
+                            // フォーカスを失った時に保存
+                            const description = getValues('description');
+                            updateTaskField('description', description || '');
                           }}
                         />
                       </div>
