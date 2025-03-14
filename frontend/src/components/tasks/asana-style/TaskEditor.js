@@ -511,6 +511,23 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       }
     }
     
+    // 説明フィールドの特別処理（空の説明を明示的に許可）
+    if (fieldName === 'description') {
+      // 空の説明を明示的に空文字列として保存
+      const processedValue = value === null || value === undefined ? '' : value;
+      console.log(`説明フィールド処理: "${processedValue}" (元の値: "${value}")`);
+      
+      setPendingChanges(prev => ({
+        ...prev,
+        [fieldName]: processedValue,
+      }));
+      
+      if (!skipAutosave) {
+        debounceSave();
+      }
+      return;
+    }
+    
     if (!isNewTask && task) {
       // 空のタイトルになる変更は許可しない追加チェック
       if (fieldName === 'title' && value.trim() === '' && task.title) {
@@ -520,9 +537,9 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       
       // 特定のフィールドは自動保存しない
       // - タイトル、レビュアー、作業者
-      // - 説明
+      // - 説明(別で処理済み)
       // - 完了日（skipAutosaveフラグが設定された場合）
-      const noAutosaveFields = ['reviewer', 'worker', 'title', 'completed_at', 'description'];
+      const noAutosaveFields = ['reviewer', 'worker', 'title', 'completed_at'];
       if (noAutosaveFields.includes(fieldName) || skipAutosave) {
         setPendingChanges(prev => ({
           ...prev,
