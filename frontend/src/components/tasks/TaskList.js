@@ -34,15 +34,19 @@ const TaskList = React.forwardRef((props, ref) => {
   const getPriorityName = (priority) => {
     if (!priority) return '未設定';
     
-    // オブジェクトの場合はpriority_valueプロパティを使用
+    // priority_dataが設定されている場合（APIからのレスポンス）
+    if (typeof priority === 'object' && priority.priority_data && priority.priority_data.priority_value !== undefined) {
+      return String(priority.priority_data.priority_value);
+    }
+    
+    // オブジェクトで直接priority_valueがある場合
     if (typeof priority === 'object' && priority.priority_value !== undefined) {
       return String(priority.priority_value);
     }
     
-    // 直接数値またはIDの場合
-    if (typeof priority === 'number' || !isNaN(Number(priority))) {
-      return String(priority);
-    }
+    // IDではなく実際の優先度値を表示する
+    // ここをコメントすると、IDが表示される
+    // console.log('Priority object ID (not value):', priority);
     
     // その他の場合は値をそのまま返す
     return String(priority);
@@ -538,7 +542,9 @@ const TaskList = React.forwardRef((props, ref) => {
                   <td>
                     {task.priority && (
                       <span className="badge">
-                        {getPriorityName(task.priority)}
+                        {task.priority_data ? 
+                          task.priority_data.priority_value : 
+                          getPriorityName(task.priority)}
                       </span>
                     )}
                   </td>
