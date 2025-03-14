@@ -513,17 +513,21 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
     
     // 説明フィールドの特別処理（空の説明を明示的に許可、常に明示的な保存が必要）
     if (fieldName === 'description') {
-      // 空の説明を明示的に空文字列として扱う
+      // 説明フィールドは常に空文字列として扱う（null/undefinedも''に変換）
+      // これにより空欄の場合も確実にAPI呼び出し時に含まれる
       const processedValue = value === null || value === undefined ? '' : value;
       console.log(`説明フィールド処理: "${processedValue}" (元の値: "${value}")`);
       
-      // 変更を記録するだけで自動保存はしない
+      // React Hook Form内の値も設定
+      setValue('description', processedValue);
+      
+      // 変更を確実に記録（pendingChangesに追加）
       setPendingChanges(prev => ({
         ...prev,
         [fieldName]: processedValue,
       }));
       
-      // 説明フィールドは常に自動保存しない - 明示的に保存ボタンで保存する必要がある
+      // 自動保存はスキップ - 明示的に保存ボタンで保存する必要がある
       return;
     }
     
