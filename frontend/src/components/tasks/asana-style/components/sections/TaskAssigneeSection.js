@@ -64,7 +64,8 @@ const TaskAssigneeSection = ({
                     {...field}
                     onChange={(e) => {
                       field.onChange(e);
-                      handleFieldChange('worker', e.target.value);
+                      // 「担当者なし」を選択した場合は明示的にnullを送信
+                      handleFieldChange('worker', e.target.value === '' ? null : e.target.value);
                     }}
                   >
                     <option value="">担当者なし</option>
@@ -96,7 +97,8 @@ const TaskAssigneeSection = ({
                     {...field}
                     onChange={(e) => {
                       field.onChange(e);
-                      handleFieldChange('reviewer', e.target.value);
+                      // 「担当者なし」を選択した場合は明示的にnullを送信
+                      handleFieldChange('reviewer', e.target.value === '' ? null : e.target.value);
                     }}
                   >
                     <option value="">担当者なし</option>
