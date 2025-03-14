@@ -55,18 +55,21 @@ const TaskList = React.forwardRef((props, ref) => {
   const getStatusName = (status) => {
     if (!status) return '未設定';
     
+    // status_dataが設定されている場合（APIからのレスポンス）
+    if (typeof status === 'object' && status.status_data && status.status_data.name) {
+      return status.status_data.name;
+    }
+    
     // オブジェクトの場合はnameプロパティを使用
     if (typeof status === 'object' && status.name) {
       return status.name;
     }
     
-    // 数値の場合はステータスコードからマッピング
+    // 数値の場合は、ステータスIDが直接使われている可能性あり
+    // ここでは適切なマッピングを行わず、そのまま値を返す
     if (typeof status === 'number' || !isNaN(Number(status))) {
-      const code = Number(status);
-      if (code === 4) return '完了';
-      if (code === 2) return '進行中';
-      if (code === 3) return 'レビュー中';
-      if (code === 1) return '未着手';
+      // ステータスIDはフロントエンドで解決しない
+      return `ステータスID: ${status}`;
     }
     
     // その他の場合は値をそのまま返す
@@ -521,12 +524,15 @@ const TaskList = React.forwardRef((props, ref) => {
                   <td>
                     {task.status && (
                       <span className={`badge ${
-                        getStatusName(task.status).includes('完了') ? 'badge-success' :
-                        getStatusName(task.status).includes('進行中') ? 'badge-info' :
-                        getStatusName(task.status).includes('レビュー') ? 'badge-warning' :
+                        // ステータス名に基づくスタイルの適用
+                        (task.status_data?.name || '').includes('完了') ? 'badge-success' :
+                        (task.status_data?.name || '').includes('作業中') || 
+                        (task.status_data?.name || '').includes('進行中') ? 'badge-info' :
+                        (task.status_data?.name || '').includes('レビュー') ? 'badge-warning' :
                         'badge-ghost'
                       }`}>
-                        {getStatusName(task.status)}
+                        {/* 優先度と同様にAPIからの最新データを優先して表示 */}
+                        {task.status_data ? task.status_data.name : getStatusName(task.status)}
                       </span>
                     )}
                   </td>
