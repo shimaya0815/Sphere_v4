@@ -1,109 +1,94 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 
-// ReactQuillコンポーネントの存在チェック
-console.log('RichTextEditor component loaded, ReactQuill:', ReactQuill ? 'available' : 'not available');
-
-// シンプルな実装に変更して問題を特定
-const RichTextEditor = ({ value, onChange, placeholder, onBlur }) => {
-  // デバッグ情報を追加
-  console.log('RichTextEditor rendering with props:', { value, placeholder });
-  
+/*
+ * シンプルなリッチテキストエディタコンポーネント
+ * ReactQuillを使用し、最小限の機能に絞った実装
+ */
+const RichTextEditor = ({ value, onChange, onSave, placeholder }) => {
   // 内部状態として値を保持
-  const [editorContent, setEditorContent] = useState(value || '');
+  const [content, setContent] = useState(value || '');
   
-  // 外部からの値変更を内部状態に反映
-  useEffect(() => {
-    console.log('RichTextEditor value prop changed:', value);
-    setEditorContent(value || '');
-  }, [value]);
-
-  // エディタ設定（シンプルにする）
+  // エディタツールバーの設定（最小限）
   const modules = {
     toolbar: [
-      ['bold', 'italic'], 
+      ['bold', 'italic'],
       [{ 'list': 'ordered' }, { 'list': 'bullet' }]
     ]
   };
 
   // 値が変更された時の処理
-  const handleChange = (content) => {
-    console.log('Editor content changed:', content);
-    setEditorContent(content);
+  const handleChange = (html) => {
+    console.log('エディタ内容変更:', html);
+    setContent(html);
     
-    // 親コンポーネントに通知
+    // 親コンポーネントのonChangeハンドラを呼び出し
     if (onChange) {
-      onChange(content);
+      onChange(html);
     }
   };
-
-  // フォーカスが外れたときの処理
+  
+  // フォーカスが外れた時の処理
   const handleBlur = () => {
-    console.log('Editor lost focus, current content:', editorContent);
-    if (onBlur) {
-      onBlur(editorContent);
+    console.log('エディタからフォーカスが外れました');
+    
+    // 空の内容を処理
+    let cleanContent = content;
+    if (content === '<p><br></p>' || content === '<p></p>') {
+      console.log('空の内容を検出しました');
+      cleanContent = '';
+    }
+    
+    // 保存処理を実行
+    if (onSave) {
+      console.log('保存される内容:', cleanContent);
+      onSave(cleanContent);
     }
   };
 
-  // 説明テキスト用のダミーデータ
-  const dummyText = `これはリッチテキストエディタのサンプルです。
-
-- 箇条書き1
-- 箇条書き2
-- **太字テキスト**
-- *斜体テキスト*
-
-編集してみてください。`;
+  // タイムアウト後にエディタにフォーカスを当てる
+  setTimeout(() => {
+    try {
+      const editorElements = document.querySelectorAll('.ql-editor');
+      if (editorElements && editorElements.length > 0) {
+        console.log('エディタにフォーカスを当てます');
+        editorElements[0].click();
+      }
+    } catch (e) {
+      console.error('エディタにフォーカスできませんでした', e);
+    }
+  }, 500);
 
   return (
-    <div className="rich-text-editor-container">
-      {/* スタイル定義 */}
+    <div className="rich-editor" style={{ border: '1px solid #ddd', borderRadius: '4px' }}>
       <style>
         {`
-          .rich-text-editor-container {
-            border: 2px solid #e5e7eb;
-            border-radius: 0.375rem;
-            overflow: hidden;
-            margin-bottom: 1rem;
+          .rich-editor .ql-toolbar {
+            background-color: #f8f9fa;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+            border-bottom: 1px solid #ddd;
           }
-          
-          .ql-toolbar {
-            background-color: #f9fafb;
-            border-bottom: 1px solid #e5e7eb !important;
-            padding: 0.5rem !important;
+          .rich-editor .ql-container {
+            border-bottom-left-radius: 4px;
+            border-bottom-right-radius: 4px;
           }
-          
-          .ql-container {
-            min-height: 150px;
-            font-size: 0.875rem !important;
-          }
-          
-          .ql-editor {
-            min-height: 150px;
+          .rich-editor .ql-editor {
+            min-height: 120px;
+            font-size: 0.875rem;
           }
         `}
       </style>
-
-      {/* フォールバック表示（エディタが表示されない場合） */}
-      <div className="fallback-message hidden">
-        <p className="p-4 text-sm text-gray-500">エディタを読み込み中...</p>
-      </div>
       
-      {/* ReactQuillエディタ */}
       <ReactQuill
-        value={editorContent}
+        value={content}
         onChange={handleChange}
+        onBlur={handleBlur}
         modules={modules}
         placeholder={placeholder || 'ここに入力してください...'}
         theme="snow"
-        onBlur={handleBlur}
       />
-      
-      {/* 書式説明テキスト */}
-      <div className="px-3 py-2 bg-gray-50 text-xs text-gray-500 border-t border-gray-200">
-        書式設定: 太字(Ctrl+B) / 斜体(Ctrl+I) / 箇条書き
-      </div>
     </div>
   );
 };

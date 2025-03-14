@@ -412,10 +412,15 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
     
     // 特別処理: descriptionフィールドの場合は空文字を特別に処理
     if (field === 'description') {
-      // 空の<p>タグや<p><br></p>などはnullとして処理
-      if (value === '<p><br></p>' || value === '<p></p>' || value === '') {
+      // ReactQuillが生成する空の内容を処理
+      if (value === '<p><br></p>' || value === '<p></p>' || value === '' || value === null) {
         console.log('説明フィールドは空です。nullとして送信します。');
-        value = null;
+        
+        // 空文字列ではなくnullとして送信（バックエンドAPIの仕様に合わせる）
+        value = '';
+        
+        // フォームの状態も明示的に更新（nullではなく空文字で）
+        setValue('description', '', { shouldValidate: true });
       }
     }
     
@@ -723,52 +728,39 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                         説明
                       </label>
                       
-                      {/* リッチテキストエディタの実装 */}
-                      <RichTextEditor
-                        key={`rich-editor-${task?.id || 'new'}`}
-                        value={watch('description')}
-                        onChange={(content) => {
-                          console.log(`RichText変更:`, content);
-                          // リッチテキストエディタからの内容を保存
-                          setValue('description', content, { shouldDirty: true, shouldValidate: true });
-                        }}
-                        onBlur={(content) => {
-                          console.log(`リッチテキストエディタのフォーカスが外れました`);
-                          // 空のコンテンツも正しく処理
-                          const trimmedContent = typeof content === 'string' ? content.trim() : '';
-                          
-                          // 空の<p><br></p>などもnullとして処理
-                          let cleanContent = trimmedContent;
-                          if (trimmedContent === '<p><br></p>' || trimmedContent === '<p></p>') {
-                            cleanContent = '';
-                          }
-                          
-                          console.log(`保存する内容:`, cleanContent);
-                          setValue('description', cleanContent);
-                          
-                          // APIに保存
-                          updateTaskField('description', cleanContent);
-                        }}
-                        placeholder="タスクの説明を入力してください..."
-                      />
-                      
-                      {/* リッチテキストが動作しない場合のフォールバック */}
-                      {!watch('description') && (
-                        <div className="hidden">
-                          <textarea
-                            className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                            name="description"
+                      {isSubmitting ? (
+                        <div className="bg-gray-100 p-4 rounded-md text-center">
+                          <span className="text-gray-600">保存中...</span>
+                        </div>
+                      ) : (
+                        <>
+                          {/* シンプル化したリッチテキストエディタ */}
+                          <RichTextEditor
+                            key={`rich-editor-${task?.id || 'new'}-${Date.now()}`}
                             value={watch('description') || ''}
-                            onChange={(e) => {
-                              setValue('description', e.target.value, { shouldDirty: true, shouldValidate: true });
+                            onChange={(content) => {
+                              // リッチテキストの内容を更新
+                              console.log('説明内容更新:', content);
+                              setValue('description', content, { shouldDirty: true });
                             }}
-                            onBlur={() => {
-                              updateTaskField('description', getValues().description || '');
+                            onSave={(cleanContent) => {
+                              // リッチテキストの保存処理（空文字でも許可）
+                              console.log('保存処理:', cleanContent);
+                              
+                              // フォーム値を更新
+                              setValue('description', cleanContent, { shouldDirty: true });
+                              
+                              // APIに保存
+                              updateTaskField('description', cleanContent);
                             }}
-                            rows="5"
                             placeholder="タスクの説明を入力してください..."
                           />
-                        </div>
+                          
+                          {/* 注釈 */}
+                          <div className="mt-1 text-xs text-gray-500">
+                            <span>💡 太字・リストなどの書式を設定できます</span>
+                          </div>
+                        </>
                       )}
                     </div>
                     
