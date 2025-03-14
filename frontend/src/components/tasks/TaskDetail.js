@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import TaskTimerButton from './TaskTimerButton';
-import TaskTimeTracker from './TaskTimeTracker';
 import TaskComments from './TaskComments';
-import { tasksApi } from '../../api';
+import { tasksApi, timeManagementApi } from '../../api';
 import { toast } from 'react-hot-toast';
+import { HiOutlineClock, HiCheck } from 'react-icons/hi';
 
 const TaskDetail = () => {
   const { taskId } = useParams();
@@ -12,6 +11,13 @@ const TaskDetail = () => {
   const [task, setTask] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // 時間記録関連のstate
+  const [isRecordingTime, setIsRecordingTime] = useState(false);
+  const [activeTimer, setActiveTimer] = useState(null);
+  const [timeEntries, setTimeEntries] = useState([]);
+  const [isLoadingTimeEntries, setIsLoadingTimeEntries] = useState(false);
+  const [showTimeEntries, setShowTimeEntries] = useState(false);
   
   useEffect(() => {
     const fetchTask = async () => {
@@ -21,6 +27,11 @@ const TaskDetail = () => {
         const data = await tasksApi.getTask(taskId);
         setTask(data);
         setError(null);
+        
+        // タスクが取得できたら時間記録関連の情報も取得
+        if (data && data.id) {
+          fetchTimeData(data.id);
+        }
       } catch (error) {
         console.error('Error fetching task details:', error);
         setError('タスクの詳細を取得できませんでした');
@@ -32,6 +43,40 @@ const TaskDetail = () => {
     
     fetchTask();
   }, [taskId]);
+  
+  // 時間記録データを取得する関数
+  const fetchTimeData = async (id) => {
+    if (!id) return;
+    
+    setIsLoadingTimeEntries(true);
+    try {
+      // アクティブなタイマーを確認
+      const activeTimers = await timeManagementApi.getTimeEntries({ 
+        task_id: id,
+        active: 'true'
+      });
+      
+      if (activeTimers && activeTimers.length > 0) {
+        setActiveTimer(activeTimers[0]);
+        setIsRecordingTime(true);
+      } else {
+        setActiveTimer(null);
+        setIsRecordingTime(false);
+      }
+      
+      // 時間記録一覧を取得
+      const allEntries = await timeManagementApi.getTimeEntries({ 
+        task_id: id,
+        ordering: '-start_time' 
+      });
+      
+      setTimeEntries(allEntries || []);
+    } catch (error) {
+      console.error('Error fetching time data:', error);
+    } finally {
+      setIsLoadingTimeEntries(false);
+    }
+  };
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
@@ -41,6 +86,31 @@ const TaskDetail = () => {
       month: 'long',
       day: 'numeric'
     }).format(date);
+  };
+  
+  // 日時を整形
+  const formatDateTime = (dateString) => {
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleString('ja-JP', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+  
+  // 時間を読みやすい形式に整形
+  const formatDuration = (seconds) => {
+    if (!seconds) return '0時間';
+    
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    
+    if (hours === 0) {
+      return `${minutes}分`;
+    } else if (minutes === 0) {
+      return `${hours}時間`;
+    } else {
+      return `${hours}時間${minutes}分`;
+    }
   };
 
   if (loading) {
@@ -129,7 +199,112 @@ const TaskDetail = () => {
             </div>
             
             <div className="mt-2 md:mt-0">
-              <TaskTimeTracker taskId={task.id} />
+              {/* 時間記録セクション */}
+              <div className="border-t border-gray-200 pt-4 mt-4">
+                <div className="flex flex-wrap items-center justify-between">
+                  <h3 className="text-md font-medium text-gray-700 flex items-center">
+                    <HiOutlineClock className="mr-2 text-gray-500" />
+                    時間記録
+                  </h3>
+                  
+                  {/* 時間記録アクション */}
+                  <div className="flex space-x-2">
+                    {isRecordingTime ? (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await timeManagementApi.stopTimeEntry(activeTimer.id);
+                            setIsRecordingTime(false);
+                            setActiveTimer(null);
+                            fetchTimeData(task.id);
+                            toast.success('タイマーを停止しました');
+                          } catch (error) {
+                            console.error('Error stopping timer:', error);
+                            toast.error('タイマーの停止に失敗しました');
+                          }
+                        }}
+                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
+                      >
+                        <HiCheck className="mr-1" />
+                        記録を終了
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const response = await timeManagementApi.startTimeEntry({
+                              task_id: task.id,
+                              description: `作業: ${task.title}`
+                            });
+                            setActiveTimer(response);
+                            setIsRecordingTime(true);
+                            fetchTimeData(task.id);
+                            toast.success('タイマーを開始しました');
+                          } catch (error) {
+                            console.error('Error starting timer:', error);
+                            toast.error('タイマーの開始に失敗しました');
+                          }
+                        }}
+                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                      >
+                        <HiOutlineClock className="mr-1" />
+                        作業開始
+                      </button>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="mt-3">
+                  <div 
+                    className="flex items-center justify-between text-sm font-medium text-gray-600 mb-2 cursor-pointer hover:text-gray-800"
+                    onClick={() => setShowTimeEntries(!showTimeEntries)}
+                  >
+                    <span>
+                      {showTimeEntries ? '▼ 記録履歴を隠す' : '▶ 記録履歴を表示する'} 
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {timeEntries.length}件の記録
+                    </span>
+                  </div>
+                  
+                  {showTimeEntries && (
+                    <>
+                      {isLoadingTimeEntries ? (
+                        <div className="py-3 text-center text-sm text-gray-500">
+                          <span className="inline-block animate-spin mr-1">⏳</span> 
+                          読み込み中...
+                        </div>
+                      ) : timeEntries.length === 0 ? (
+                        <div className="py-3 text-center text-sm text-gray-500">
+                          記録がありません
+                        </div>
+                      ) : (
+                        <div className="space-y-2 mt-2">
+                          {timeEntries.map(entry => (
+                            <div key={entry.id} className="bg-gray-50 rounded-md p-3 border border-gray-200">
+                              <div className="flex justify-between">
+                                <div className="text-sm text-gray-800 font-medium">
+                                  {entry.duration_seconds ? formatDuration(entry.duration_seconds) : '計測中'}
+                                </div>
+                              </div>
+                              <div className="mt-1 text-xs text-gray-500">
+                                {formatDateTime(entry.start_time)} {entry.end_time ? `〜 ${formatDateTime(entry.end_time)}` : '〜 実行中'}
+                              </div>
+                              {entry.description && (
+                                <div className="mt-1 text-sm">
+                                  {entry.description}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
