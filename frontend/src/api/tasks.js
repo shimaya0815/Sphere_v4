@@ -41,9 +41,14 @@ const tasksApi = {
       // クリーンなデータオブジェクトを作成
       const cleanedData = { ...taskData };
       
-      // nullとundefinedと空文字列を削除する
+      // nullとundefinedと空文字列を削除する - 特定のフィールドは例外的に処理
       Object.keys(cleanedData).forEach(key => {
-        if (cleanedData[key] === null || cleanedData[key] === undefined || cleanedData[key] === '') {
+        // カテゴリー、クライアント、決算期のフィールドは明示的なnullを保持する
+        const preserveNullFields = ['category', 'client', 'fiscal_year'];
+        if (preserveNullFields.includes(key) && cleanedData[key] === null) {
+          // これらのフィールドはnullの場合でも保持する（クリアする意図がある）
+          console.log(`Preserving null value for ${key}`);
+        } else if (cleanedData[key] === null || cleanedData[key] === undefined || cleanedData[key] === '') {
           delete cleanedData[key];
         }
       });
@@ -108,9 +113,14 @@ const tasksApi = {
       // 日付フィールド処理
       const dateFields = ['due_date', 'start_date', 'completed_at', 'recurrence_end_date'];
       
-      // nullとundefinedと空文字列を削除する
+      // nullとundefinedと空文字列を削除する - 特定のフィールドは例外的に処理
       Object.keys(cleanedData).forEach(key => {
-        if (cleanedData[key] === null || cleanedData[key] === undefined || cleanedData[key] === '') {
+        // カテゴリー、クライアント、決算期のフィールドは明示的なnullを保持する
+        const preserveNullFields = ['category', 'client', 'fiscal_year'];
+        if (preserveNullFields.includes(key) && cleanedData[key] === null) {
+          // これらのフィールドはnullの場合でも保持する（クリアする意図がある）
+          console.log(`Preserving null value for ${key} in update`);
+        } else if (cleanedData[key] === null || cleanedData[key] === undefined || cleanedData[key] === '') {
           delete cleanedData[key];
         }
       });
