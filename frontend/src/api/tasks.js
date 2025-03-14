@@ -61,6 +61,15 @@ const tasksApi = {
           return; // 日付フィールドは常に保持する
         }
         
+        // 優先度も空欄の場合は明示的にnullに設定
+        if (key === 'priority_value' || key === 'priority') {
+          if (cleanedData[key] === '') {
+            cleanedData[key] = null;
+            console.log(`Converting empty priority to null for ${key}`);
+          }
+          return; // 優先度フィールドは常に保持する
+        }
+        
         // カテゴリー、クライアント、決算期、担当者、レビューアーのフィールドは明示的なnullを保持する
         const preserveNullFields = ['category', 'client', 'fiscal_year', 'worker', 'reviewer'];
         if (preserveNullFields.includes(key) && cleanedData[key] === null) {
@@ -128,6 +137,12 @@ const tasksApi = {
       // データをクリーンアップ
       const cleanedData = { ...taskData };
       
+      // 優先度の特別処理 - priority_valueがnullまたは空文字列の場合は明示的にnullとして扱う
+      if ('priority_value' in cleanedData && (cleanedData.priority_value === null || cleanedData.priority_value === '')) {
+        cleanedData.priority_value = null;
+        console.log('優先度値がnullまたは空文字列のため、明示的にnullに設定します');
+      }
+      
       // 日付フィールド処理
       const dateFields = ['due_date', 'start_date', 'completed_at', 'recurrence_end_date'];
       
@@ -149,6 +164,15 @@ const tasksApi = {
             console.log(`Converting empty date to null for ${key} in update`);
           }
           return; // 日付フィールドは常に保持する
+        }
+        
+        // 優先度も空欄の場合は明示的にnullに設定
+        if (key === 'priority_value' || key === 'priority') {
+          if (cleanedData[key] === '' || cleanedData[key] === undefined) {
+            cleanedData[key] = null;
+            console.log(`Converting empty priority to null for ${key} in update`);
+          }
+          return; // 優先度フィールドは常に保持する
         }
         
         // カテゴリー、クライアント、決算期、担当者、レビューアーのフィールドは明示的なnullを保持する

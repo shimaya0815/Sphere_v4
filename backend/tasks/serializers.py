@@ -300,17 +300,28 @@ class TaskSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         # Priorityの処理
         priority_value = validated_data.pop('priority_value', None)
-        if priority_value is not None:
+        
+        # priority_value が None かどうかを明示的に確認
+        if 'priority_value' in validated_data or priority_value is not None:
             try:
-                # 該当する優先度値のPriorityを取得または作成
-                priority, created = TaskPriority.objects.get_or_create(
-                    business=instance.business,
-                    priority_value=priority_value
-                )
-                validated_data['priority'] = priority
-                print(f"⭐ Update: Used priority: {priority.id}, value: {priority.priority_value}, created: {created}")
+                # priority_value が None の場合は priority も None に設定
+                if priority_value is None:
+                    validated_data['priority'] = None
+                    print(f"⭐ Update: Setting priority to None explicitly")
+                else:
+                    # 該当する優先度値の TaskPriority を取得または作成
+                    priority, created = TaskPriority.objects.get_or_create(
+                        business=instance.business,
+                        priority_value=priority_value
+                    )
+                    validated_data['priority'] = priority
+                    print(f"⭐ Update: Used priority: {priority.id}, value: {priority.priority_value}, created: {created}")
             except Exception as e:
                 print(f"⭐ Error handling priority_value in update: {e}")
+        
+        # priority フィールドが明示的に None に設定されている場合を確認
+        if 'priority' in validated_data and validated_data['priority'] is None:
+            print(f"⭐ Update: Priority field explicitly set to None")
         
         return super().update(instance, validated_data)
 
