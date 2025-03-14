@@ -60,8 +60,7 @@ const TaskDescriptionEditor = ({ value, onChange }) => {
     }
   }), []);
   
-  // URL文字列を検出する正規表現パターン
-  const urlRegex = /https?:\/\/[^\s]+/g;
+  // URLマッチング用正規表現は各関数で定義
   
   // 値が外部から変更された場合
   
@@ -69,68 +68,65 @@ const TaskDescriptionEditor = ({ value, onChange }) => {
     setEditorContent(value || '');
   }, [value]);
   
-  // URL自動リンク化の設定
+  // ペーストイベント処理
+  
+  // ペーストイベントのハンドラーを設定
   useEffect(() => {
-    if (quillRef.current) {
-      const quill = quillRef.current.getEditor();
+    const handlePaste = (e) => {
+      if (!quillRef.current) return;
       
-      // Quillのクリップボードモジュールを拡張
-      const Clipboard = quill.getModule('clipboard');
-      const originalMatchers = Clipboard.matchers;
+      // クリップボードのテキストを取得
+      const clipboardData = e.clipboardData || window.clipboardData;
+      const text = clipboardData.getData('text/plain');
       
-      // Quillカスタムマッチャーを定義
-      const customMatchers = [
-        // URLをリンクに変換するマッチャー
-        [
-          Node.TEXT_NODE, 
-          function(node, delta) {
-            const text = node.data;
+      // URLを含むかチェック
+      if (text && /https?:\/\//.test(text)) {
+        // デフォルトのペースト動作を防止
+        e.preventDefault();
+        
+        // エディタのインスタンスを取得
+        const quill = quillRef.current.getEditor();
+        // 現在の選択範囲情報を取得
+        const range = quill.getSelection();
+        
+        if (range) {
+          // クリップボードテキストをペースト
+          quill.insertText(range.index, text);
+          
+          // ペーストしたテキストにURLパターンがある場合、次のティックでリンク化
+          setTimeout(() => {
+            const currentText = quill.getText(range.index, text.length);
+            const matches = currentText.match(/(https?:\/\/[^\s]+)/g);
             
-            // テキストにURLがなければそのまま返す
-            if (!urlRegex.test(text)) {
-              return delta;
-            }
-            
-            let ops = [];
-            let lastIndex = 0;
-            let match;
-            
-            // 正規表現をリセット
-            urlRegex.lastIndex = 0;
-            
-            // URLを検索
-            while ((match = urlRegex.exec(text)) !== null) {
-              // URLの前のテキスト
-              if (match.index > lastIndex) {
-                ops.push({ insert: text.slice(lastIndex, match.index) });
-              }
-              
-              // URLをリンクとして挿入
-              ops.push({ 
-                insert: match[0], 
-                attributes: { link: match[0] } 
+            if (matches) {
+              matches.forEach(url => {
+                const urlIndex = currentText.indexOf(url);
+                if (urlIndex !== -1) {
+                  quill.formatText(
+                    range.index + urlIndex, 
+                    url.length, 
+                    'link', 
+                    url
+                  );
+                }
               });
-              
-              lastIndex = match.index + match[0].length;
             }
             
-            // 残りのテキスト
-            if (lastIndex < text.length) {
-              ops.push({ insert: text.slice(lastIndex) });
-            }
-            
-            // 元のdeltaを置き換え
-            if (ops.length > 0) {
-              return { ops };
-            }
-            
-            return delta;
-          }
-        ]
-      ];
+            // カーソルを進める
+            quill.setSelection(range.index + text.length, 0);
+          }, 0);
+        }
+      }
+    };
+    
+    // エディタがマウントされたらイベントリスナーを追加
+    if (quillRef.current) {
+      const editorElement = quillRef.current.getEditor().root;
+      editorElement.addEventListener('paste', handlePaste);
       
-      // マッチャーを配列の先頭に追加（最初に処理されるように）
-      Clipboard.matchers = customMatchers.concat(originalMatchers);
+      return () => {
+        editorElement.removeEventListener('paste', handlePaste);
+      };
     }
   }, []);
   
