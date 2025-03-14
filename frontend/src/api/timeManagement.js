@@ -165,7 +165,18 @@ const timeManagementApi = {
       return response.data;
     } catch (error) {
       console.error('Error starting time entry:', error);
-      // APIエラー時はエラーを投げて、コンポーネントでハンドリングさせる
+      
+      // 既に実行中のタイマーがある場合はそのタイマー情報を返す
+      if (error.response && 
+          error.response.status === 400 && 
+          error.response.data && 
+          error.response.data.error === "You already have an active timer" &&
+          error.response.data.time_entry) {
+        console.info('Using existing active timer', error.response.data.time_entry);
+        return error.response.data.time_entry;
+      }
+      
+      // その他のAPIエラー時はエラーを投げて、コンポーネントでハンドリングさせる
       throw error;
     }
   },
