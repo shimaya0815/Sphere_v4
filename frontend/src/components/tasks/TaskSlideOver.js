@@ -3,8 +3,8 @@ import { useForm } from 'react-hook-form';
 import { tasksApi, clientsApi } from '../../api';
 import toast from 'react-hot-toast';
 import TaskComments from './TaskComments';
-import BasicRichTextEditor from '../common/BasicRichTextEditor';
-import { HiOutlineX } from 'react-icons/hi';
+import TaskDescriptionEditor from '../editor/TaskDescriptionEditor';
+import { HiOutlineX, HiPencilAlt } from 'react-icons/hi';
 
 const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated }) => {
   const [categories, setCategories] = useState([]);
@@ -414,14 +414,17 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
     if (field === 'description') {
       console.log(`説明欄の値を処理します: "${value?.substring(0, 30)}..."`);
       
-      // Quillが生成する空の内容パターンの処理
-      if (
-        value === '<p><br></p>' || 
-        value === '<p></p>' || 
-        value === '' || 
-        value === null || 
-        value === undefined
-      ) {
+      // 空の内容パターンを検出して処理
+      const emptyPatterns = [
+        '<p><br></p>', 
+        '<p></p>', 
+        '<p>　</p>',
+        '', 
+        null, 
+        undefined
+      ];
+      
+      if (emptyPatterns.includes(value)) {
         console.log('空の説明を検出しました。空文字として保存します。');
         // 空文字として設定
         value = '';
@@ -441,6 +444,9 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
         value = `<p>${sanitizedText.replace(/\n/g, '</p><p>')}</p>`;
         setValue('description', value);
       }
+      
+      // APIに送信する前に明示的にフォームに同期
+      console.log('最終的に保存される説明:', value);
     }
     
     try {
@@ -741,55 +747,43 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                       />
                     </div>
                     
-                    {/* 説明エディタ - 新バージョン */}
-                    <div className="mb-4">
-                      <div className="flex justify-between">
-                        <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                          説明
-                        </label>
-                        <span className="text-xs text-blue-600">リッチテキスト対応</span>
-                      </div>
-                      
-                      {/* 表示用のテキストエリア （非表示） */}
-                      <div className="hidden">
-                        <textarea
-                          {...register('description')}
-                          id="description" 
-                        />
-                      </div>
-                      
-                      {/* リッチテキストエディタ */}
-                      <div className="mt-1 border border-gray-300 rounded-md overflow-hidden">
-                        <BasicRichTextEditor
-                          initialValue={watch('description') || ''}
-                          onChange={(htmlContent) => {
-                            // フォーム値を更新
-                            setValue('description', htmlContent);
-                            
-                            // 自動保存（必要な場合はコメントアウト解除）
-                            // updateTaskField('description', htmlContent);
-                          }}
-                          placeholder="タスクの説明を入力してください..."
-                        />
-                        
-                        {/* 保存ボタン */}
-                        <div className="bg-gray-50 px-3 py-2 flex justify-between items-center border-t border-gray-200">
-                          <span className="text-xs text-gray-500">
-                            ※ 説明を編集したら保存してください
-                          </span>
-                          <button
-                            type="button"
-                            className="inline-flex items-center px-3 py-1 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-md"
-                            onClick={() => {
-                              const content = getValues('description');
-                              console.log('説明を保存します:', content?.substring(0, 30));
-                              updateTaskField('description', content || '');
-                              toast.success('説明を保存しました');
-                            }}
-                          >
-                            変更を保存
-                          </button>
+                    {/* タスク説明 - 完全に新しい実装 */}
+                    <div className="mb-6 bg-white shadow-sm rounded border border-gray-200 overflow-hidden">
+                      <div className="flex justify-between items-center px-4 py-2 bg-gray-50 border-b border-gray-200">
+                        <div className="flex items-center">
+                          <HiPencilAlt className="w-4 h-4 text-gray-500 mr-1" />
+                          <h3 className="text-sm font-medium text-gray-700">タスクの説明</h3>
                         </div>
+                        {isSubmitting && <span className="text-xs text-blue-600">保存中...</span>}
+                      </div>
+                      
+                      {/* 隠しテキストエリア（React Hook Form用） */}
+                      <div style={{ display: 'none' }}>
+                        <textarea {...register('description')} id="task-description" />
+                      </div>
+                      
+                      {/* タスク説明エディタ */}
+                      <div className="p-1">
+                        <TaskDescriptionEditor
+                          value={watch('description') || ''}
+                          onChange={(content) => {
+                            // 内容の変更をフォームの状態に反映するだけ
+                            setValue('description', content);
+                          }}
+                          onSave={(content) => {
+                            // 保存ボタンがクリックされたときのみAPIに送信
+                            console.log('説明を保存します:', content?.substring(0, 30));
+                            
+                            // フォームの値を更新
+                            setValue('description', content || '');
+                            
+                            // APIに送信して保存
+                            updateTaskField('description', content || '');
+                            
+                            // 成功メッセージを表示
+                            toast.success('説明を保存しました');
+                          }}
+                        />
                       </div>
                     </div>
                     
