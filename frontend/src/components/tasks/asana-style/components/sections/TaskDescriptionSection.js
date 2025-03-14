@@ -7,16 +7,7 @@ import TaskDescriptionEditor from '../../../../editor/TaskDescriptionEditor';
  * リッチテキストエディタを使用
  */
 const TaskDescriptionSection = ({ control, handleFieldChange }) => {
-  // マウント時に初期値をセット
-  useEffect(() => {
-    if (!control) return;
-    
-    // 明示的に初期値をセット
-    const currentValue = control._formValues?.description;
-    handleFieldChange('description', currentValue || '', false);
-    
-    // フォームに設定された初期値も反映 - control.setValueは使用しない
-  }, []);
+  // マウント時の処理は削除 - 自動更新を防ぐ
   
   return (
     <div>
@@ -37,18 +28,12 @@ const TaskDescriptionSection = ({ control, handleFieldChange }) => {
                   processedContent = content;
                 }
                 
-                // フィールド値を更新
+                // フィールド値のみ更新（内部状態）
                 field.onChange(processedContent);
                 
-                // コンソールログで値を確認
-                console.log('説明変更:', {
-                  original: content,
-                  processed: processedContent,
-                  isQuillEmpty: content === '<p><br></p>' || content === '<p></p>'
-                });
-                
-                // 親コンポーネントにも通知 (スキップフラグをfalseにして確実に更新)
-                handleFieldChange('description', processedContent, false);
+                // 親コンポーネントには通知しない - 明示的に保存ボタンを押すまで変更を反映しない
+                // handleFieldChangeの第3引数をtrueにして自動保存を無効化
+                handleFieldChange('description', processedContent, true);
               }}
             />
           )}

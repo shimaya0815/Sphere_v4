@@ -511,20 +511,19 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       }
     }
     
-    // 説明フィールドの特別処理（空の説明を明示的に許可）
+    // 説明フィールドの特別処理（空の説明を明示的に許可、常に明示的な保存が必要）
     if (fieldName === 'description') {
-      // 空の説明を明示的に空文字列として保存
+      // 空の説明を明示的に空文字列として扱う
       const processedValue = value === null || value === undefined ? '' : value;
       console.log(`説明フィールド処理: "${processedValue}" (元の値: "${value}")`);
       
+      // 変更を記録するだけで自動保存はしない
       setPendingChanges(prev => ({
         ...prev,
         [fieldName]: processedValue,
       }));
       
-      if (!skipAutosave) {
-        debounceSave();
-      }
+      // 説明フィールドは常に自動保存しない - 明示的に保存ボタンで保存する必要がある
       return;
     }
     
