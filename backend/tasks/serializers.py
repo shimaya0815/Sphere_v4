@@ -169,7 +169,7 @@ class TaskSerializer(serializers.ModelSerializer):
     fiscal_period = serializers.ReadOnlyField(source='fiscal_year.fiscal_period', default=None)
     
     # 追加フィールド - フロントエンドからの入力専用
-    priority_value = serializers.IntegerField(write_only=True, required=False)
+    priority_value = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     
     # 一貫した形式でフロントエンドに送信するための拡張フィールド
     # これにより、フロントエンドがリレーション処理を簡素化できる
