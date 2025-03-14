@@ -1,8 +1,10 @@
 import React from 'react';
 import { Controller } from 'react-hook-form';
+import TaskDescriptionEditor from '../../../../editor/TaskDescriptionEditor';
 
 /**
  * タスクの説明を表示・編集するコンポーネント
+ * リッチテキストエディタを使用
  */
 const TaskDescriptionSection = ({ control, handleFieldChange }) => {
   return (
@@ -15,20 +17,17 @@ const TaskDescriptionSection = ({ control, handleFieldChange }) => {
           name="description"
           control={control}
           render={({ field }) => (
-            <textarea
-              id="description"
-              className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-              rows={4}
-              placeholder="タスクの詳細を入力"
-              {...field}
-              onChange={(e) => {
-                field.onChange(e);
+            <TaskDescriptionEditor
+              value={field.value || ''}
+              onChange={(content) => {
+                field.onChange(content);
                 // 説明フィールドも自動保存しない
-                handleFieldChange('description', e.target.value, true);
+                handleFieldChange('description', content, true);
               }}
-              // 最後の文字が消える問題に対応（オートコンプリートを無効化）
-              autoComplete="off"
-              spellCheck="false"
+              onSave={(content) => {
+                field.onChange(content);
+                handleFieldChange('description', content, false);
+              }}
             />
           )}
         />
