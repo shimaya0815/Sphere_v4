@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
-import { tasksApi, clientsApi } from '../../api';
+import { tasksApi, clientsApi, timeManagementApi } from '../../api';
 import toast from 'react-hot-toast';
 import TaskComments from './TaskComments';
-import { HiOutlineX } from 'react-icons/hi';
+import { HiOutlineX, HiOutlineClock, HiCheck } from 'react-icons/hi';
 
 const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated }) => {
   const [categories, setCategories] = useState([]);
@@ -14,6 +14,7 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
   const [selectedClient, setSelectedClient] = useState(null);
   const [isFiscalTask, setIsFiscalTask] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTimer, setActiveTimer] = useState(null);
   
   const { register, handleSubmit, formState: { errors }, reset, setValue, watch, getValues } = useForm({
     defaultValues: {
@@ -50,9 +51,33 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
       if (task) {
         // 詳細な現在のタスク情報をログ出力（デバッグ用）
         console.log('Current task in SlideOver:', JSON.stringify(task));
+        
+        // アクティブなタイマーの確認
+        checkForActiveTimer(task.id);
       }
     }
   }, [isOpen, task?.id]); // タスクIDが変更された場合も再取得
+  
+  // アクティブなタイマーがあるか確認する関数
+  const checkForActiveTimer = async (taskId) => {
+    if (!taskId) return;
+    
+    try {
+      const activeTimers = await timeManagementApi.getTimeEntries({ 
+        task_id: taskId,
+        active: 'true'
+      });
+      
+      if (activeTimers && activeTimers.length > 0) {
+        setActiveTimer(activeTimers[0]);
+      } else {
+        setActiveTimer(null);
+      }
+    } catch (error) {
+      console.error('Failed to check for active timer:', error);
+      setActiveTimer(null);
+    }
+  };
   
   // タスク作成・更新用の関数
   const saveTask = async () => {
@@ -1029,6 +1054,103 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                           {selectedClient.fiscal_year && (
                             <div className="bg-white p-2 rounded">
                               <span className="font-medium">現在の決算期:</span> 第{selectedClient.fiscal_year}期
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* 時間記録セクション (編集中でなく、既存タスクの場合のみ表示) */}
+                    {!isNewTask && task && task.id && (
+                      <div className="border-t border-gray-200 pt-4 mt-4">
+                        <div className="flex flex-wrap items-center justify-between">
+                          <h3 className="text-md font-medium text-gray-700 flex items-center">
+                            <svg stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true" className="mr-2 text-gray-500" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            時間記録
+                          </h3>
+                          <div className="flex space-x-2">
+                            {activeTimer ? (
+                              <button 
+                                type="button" 
+                                className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
+                                onClick={async () => {
+                                  try {
+                                    await timeManagementApi.stopTimeEntry(activeTimer.id);
+                                    setActiveTimer(null);
+                                    toast.success('タイマーを停止しました');
+                                    
+                                    // タイマー状態を更新
+                                    checkForActiveTimer(task.id);
+                                  } catch (error) {
+                                    console.error('Error stopping timer:', error);
+                                    toast.error('タイマーの停止に失敗しました');
+                                  }
+                                }}
+                              >
+                                <svg 
+                                  stroke="currentColor" 
+                                  fill="currentColor" 
+                                  strokeWidth="0" 
+                                  viewBox="0 0 20 20" 
+                                  aria-hidden="true" 
+                                  className="mr-1" 
+                                  height="1em" 
+                                  width="1em" 
+                                  xmlns="http://www.w3.org/2000/svg"
+                                >
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path>
+                                </svg>
+                                記録を終了
+                              </button>
+                            ) : (
+                              <button 
+                                type="button" 
+                                className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                                onClick={() => {
+                                  console.log('時間記録ボタンがクリックされました');
+                                  // カスタムイベント発火（TaskDetailコンポーネントで受け取る）
+                                  window.dispatchEvent(new CustomEvent('open-time-tracker', {
+                                    detail: { taskId: task.id }
+                                  }));
+                                  // スライドパネルを閉じる
+                                  onClose();
+                                }}
+                              >
+                                <svg 
+                                  stroke="currentColor" 
+                                  fill="none" 
+                                  strokeWidth="2" 
+                                  viewBox="0 0 24 24" 
+                                  className="mr-1" 
+                                  height="1em" 
+                                  width="1em" 
+                                  xmlns="http://www.w3.org/2000/svg"
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                時間記録を管理
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-3">
+                          {activeTimer ? (
+                            <div className="py-3 px-4 bg-blue-50 rounded-md border border-blue-100 text-sm">
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="font-medium text-blue-800">現在記録中</span>
+                                <span className="text-blue-700 font-mono">
+                                  {new Date(activeTimer.start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}〜
+                                </span>
+                              </div>
+                              <div className="text-blue-700">
+                                {activeTimer.description || 'タスク作業中'}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="py-3 text-center text-sm text-gray-500">
+                              「時間記録を管理」ボタンをクリックすると詳細な時間記録画面が表示されます
                             </div>
                           )}
                         </div>
