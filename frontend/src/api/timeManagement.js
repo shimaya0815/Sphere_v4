@@ -184,12 +184,27 @@ const timeManagementApi = {
   // Stop a time entry
   stopTimeEntry: async (entryId) => {
     try {
+      if (!entryId) {
+        console.error('Invalid entryId for stopTimeEntry:', entryId);
+        throw new Error('有効なタイマーIDが指定されていません');
+      }
+      
       // entryIdを数値に変換
       const numericEntryId = Number(entryId);
+      console.log(`Sending request to stop timer: ${numericEntryId}`);
+      
       const response = await apiClient.post(`/api/time-management/timer/${numericEntryId}/stop/`);
+      console.log('Stop timer API response:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error stopping time entry:', error);
+      
+      // エラーレスポンスの詳細を記録
+      if (error.response) {
+        console.error('Error response status:', error.response.status);
+        console.error('Error response data:', error.response.data);
+      }
+      
       // APIエラー時はエラーを投げて、コンポーネントでハンドリングさせる
       throw error;
     }

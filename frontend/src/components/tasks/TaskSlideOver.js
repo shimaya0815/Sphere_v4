@@ -99,7 +99,8 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
     timerRef.current = setInterval(() => {
       setTimerTick(prev => prev + 1);
     }, 1000);
-  }, []);
+    console.log('Timer started for real-time updates');
+  }, [stopTimerTick]);
   
   // タイマーを停止
   const stopTimerTick = useCallback(() => {
@@ -1113,7 +1114,8 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                                   <span className="text-gray-500 mr-1">経過:</span>
                                   <span className="font-medium text-green-600">
                                     {(() => {
-                                      // 経過時間を計算
+                                      if (!activeTimer || !activeTimer.start_time) return '--:--';
+                                      // timerTickが変更されるたびにこの計算が実行される
                                       const startTime = new Date(activeTimer.start_time);
                                       const now = new Date();
                                       const diffSeconds = Math.floor((now - startTime) / 1000);
@@ -1131,16 +1133,34 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                                 type="button" 
                                 className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
                                 onClick={async () => {
+                                  if (!activeTimer || !activeTimer.id) {
+                                    toast.error('有効なタイマーが存在しません');
+                                    return;
+                                  }
+                                  
                                   try {
-                                    await timeManagementApi.stopTimeEntry(activeTimer.id);
+                                    console.log(`Stopping timer with ID: ${activeTimer.id}`);
+                                    const result = await timeManagementApi.stopTimeEntry(activeTimer.id);
+                                    console.log('Timer stop result:', result);
+                                    
+                                    // タイマーの停止処理
                                     setActiveTimer(null);
+                                    stopTimerTick();
+                                    
                                     toast.success('タイマーを停止しました');
                                     
                                     // タイマー状態を更新
-                                    checkForActiveTimer(task.id);
+                                    setTimeout(() => {
+                                      checkForActiveTimer(task.id);
+                                    }, 500);
                                   } catch (error) {
                                     console.error('Error stopping timer:', error);
                                     toast.error('タイマーの停止に失敗しました');
+                                    
+                                    // エラーが発生してもタイマー状態を更新
+                                    setTimeout(() => {
+                                      checkForActiveTimer(task.id);
+                                    }, 500);
                                   }
                                 }}
                               >
