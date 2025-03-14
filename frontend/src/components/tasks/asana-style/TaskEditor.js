@@ -581,7 +581,10 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
           // IDフィールドの変換
           ['worker', 'reviewer', 'status', 'category', 'client', 'fiscal_year', 'priority'].forEach(field => {
             if (field in updateData) {
-              if (updateData[field] && updateData[field] !== '') {
+              // nullが明示的に送信された場合はそのままnullとして保持
+              if (updateData[field] === null) {
+                // nullはそのまま保持
+              } else if (updateData[field] && updateData[field] !== '') {
                 const parsedValue = parseInt(updateData[field]);
                 updateData[field] = !isNaN(parsedValue) ? parsedValue : null;
               } else {
@@ -712,8 +715,13 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
           submitData.status = parseInt(submitData.status) || null;
         }
         
-        if (submitData.category && submitData.category !== '') {
+        // カテゴリーの処理 - nullなら明示的にnullとして保持
+        if (submitData.category === null) {
+          // nullの場合はそのまま
+        } else if (submitData.category && submitData.category !== '') {
           submitData.category = parseInt(submitData.category) || null;
+        } else {
+          submitData.category = null;
         }
         
         if (submitData.client && submitData.client !== '') {

@@ -112,7 +112,8 @@ const TaskBasicInfoSection = ({
                     {...field}
                     onChange={(e) => {
                       field.onChange(e);
-                      handleFieldChange('category', e.target.value);
+                      // 「カテゴリーなし」を選択した場合は明示的にnullを送信
+                      handleFieldChange('category', e.target.value === '' ? null : e.target.value);
                     }}
                   >
                     <option value="">カテゴリーなし</option>
@@ -152,7 +153,8 @@ const TaskBasicInfoSection = ({
                   {...field}
                   onChange={(e) => {
                     field.onChange(e);
-                    handleFieldChange('client', e.target.value);
+                    // 「クライアントなし」を選択した場合は明示的にnullを送信
+                    handleFieldChange('client', e.target.value === '' ? null : e.target.value);
                   }}
                 >
                   <option value="">クライアントなし</option>
@@ -184,7 +186,8 @@ const TaskBasicInfoSection = ({
                   {...field}
                   onChange={(e) => {
                     field.onChange(e);
-                    handleFieldChange('fiscal_year', e.target.value);
+                    // 「決算期なし」を選択した場合は明示的にnullを送信
+                    handleFieldChange('fiscal_year', e.target.value === '' ? null : e.target.value);
                   }}
                 >
                   <option value="">決算期なし</option>
