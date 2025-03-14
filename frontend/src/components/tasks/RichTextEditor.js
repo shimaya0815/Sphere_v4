@@ -1,125 +1,111 @@
-import React, { forwardRef, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
-// ReactQuillが正しく動作するためのデバッグログ
+
+// ReactQuillコンポーネントの存在チェック
 console.log('RichTextEditor component loaded, ReactQuill:', ReactQuill ? 'available' : 'not available');
 
-// ReactQuillのfindDOMNode非推奨警告を抑制するためのラッパーコンポーネント
-const RichTextEditor = forwardRef(({ value, onChange, placeholder, onBlur }, ref) => {
-  const [editorValue, setEditorValue] = useState(value || '');
-
-  // エディタ設定
-  const modules = {
-    toolbar: [
-      ['bold', 'italic', 'underline', 'strike'],
-      ['blockquote', 'code-block'],
-      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-      ['link'],
-      ['clean']
-    ],
-    clipboard: {
-      matchVisual: false,
-    }
-  };
+// シンプルな実装に変更して問題を特定
+const RichTextEditor = ({ value, onChange, placeholder, onBlur }) => {
+  // デバッグ情報を追加
+  console.log('RichTextEditor rendering with props:', { value, placeholder });
   
-  // フォーマット指定
-  const formats = [
-    'bold', 'italic', 'underline', 'strike',
-    'blockquote', 'code-block',
-    'list', 'bullet',
-    'link'
-  ];
+  // 内部状態として値を保持
+  const [editorContent, setEditorContent] = useState(value || '');
   
-  // コンポーネントがマウントされたときにデバッグログを出力
+  // 外部からの値変更を内部状態に反映
   useEffect(() => {
-    console.log('RichTextEditor mounted, modules:', modules);
-  }, [modules]);
-
-  // 外部からvalueが変更された場合に反映
-  useEffect(() => {
-    if (value !== undefined) {
-      console.log('RichTextEditor value changed:', value);
-      setEditorValue(value);
-    }
+    console.log('RichTextEditor value prop changed:', value);
+    setEditorContent(value || '');
   }, [value]);
 
-  // エディタの変更を処理
+  // エディタ設定（シンプルにする）
+  const modules = {
+    toolbar: [
+      ['bold', 'italic'], 
+      [{ 'list': 'ordered' }, { 'list': 'bullet' }]
+    ]
+  };
+
+  // 値が変更された時の処理
   const handleChange = (content) => {
-    setEditorValue(content);
+    console.log('Editor content changed:', content);
+    setEditorContent(content);
+    
+    // 親コンポーネントに通知
     if (onChange) {
       onChange(content);
     }
   };
 
-  // エディタがフォーカスを失った時の処理
+  // フォーカスが外れたときの処理
   const handleBlur = () => {
+    console.log('Editor lost focus, current content:', editorContent);
     if (onBlur) {
-      onBlur(editorValue);
+      onBlur(editorContent);
     }
   };
 
-  // レンダリング時にデバッグログ
-  console.log('RichTextEditor rendering with value:', editorValue);
+  // 説明テキスト用のダミーデータ
+  const dummyText = `これはリッチテキストエディタのサンプルです。
+
+- 箇条書き1
+- 箇条書き2
+- **太字テキスト**
+- *斜体テキスト*
+
+編集してみてください。`;
 
   return (
-    <div className="rich-text-editor" style={{ border: '1px solid #ccc', borderRadius: '4px', marginBottom: '1rem' }}>
+    <div className="rich-text-editor-container">
+      {/* スタイル定義 */}
       <style>
         {`
-          .rich-text-editor .ql-container {
-            border-radius: 0 0 4px 4px;
+          .rich-text-editor-container {
+            border: 2px solid #e5e7eb;
+            border-radius: 0.375rem;
+            overflow: hidden;
+            margin-bottom: 1rem;
+          }
+          
+          .ql-toolbar {
+            background-color: #f9fafb;
+            border-bottom: 1px solid #e5e7eb !important;
+            padding: 0.5rem !important;
+          }
+          
+          .ql-container {
             min-height: 150px;
-            font-size: 0.875rem;
-            background-color: white;
+            font-size: 0.875rem !important;
           }
           
-          .rich-text-editor .ql-toolbar {
-            border-radius: 4px 4px 0 0;
-            background-color: #f8f8f8;
-            border-bottom: 1px solid #ccc;
-          }
-          
-          .rich-text-editor .ql-editor {
+          .ql-editor {
             min-height: 150px;
-            background-color: white;
-          }
-          
-          .rich-text-editor .ql-editor p {
-            margin-bottom: 0.5rem;
-          }
-          
-          .rich-text-editor .ql-editor blockquote {
-            border-left: 3px solid #ccc;
-            padding-left: 0.75rem;
-            margin-left: 0;
-            color: #666;
-          }
-          
-          .rich-text-editor .ql-editor pre {
-            background-color: #f1f1f1;
-            border-radius: 3px;
-            padding: 0.5rem;
-            font-family: monospace;
-            white-space: pre-wrap;
           }
         `}
       </style>
 
+      {/* フォールバック表示（エディタが表示されない場合） */}
+      <div className="fallback-message hidden">
+        <p className="p-4 text-sm text-gray-500">エディタを読み込み中...</p>
+      </div>
+      
+      {/* ReactQuillエディタ */}
       <ReactQuill
-        ref={ref}
-        value={editorValue}
+        value={editorContent}
         onChange={handleChange}
         modules={modules}
-        formats={formats}
-        placeholder={placeholder || 'ここに入力...'}
+        placeholder={placeholder || 'ここに入力してください...'}
         theme="snow"
         onBlur={handleBlur}
-        style={{ height: '200px' }}
       />
-      <div className="text-xs text-gray-500 mt-1">
-        書式設定: 太字・斜体・リスト・引用などが使えます
+      
+      {/* 書式説明テキスト */}
+      <div className="px-3 py-2 bg-gray-50 text-xs text-gray-500 border-t border-gray-200">
+        書式設定: 太字(Ctrl+B) / 斜体(Ctrl+I) / 箇条書き
       </div>
     </div>
   );
-});
+};
 
 export default RichTextEditor;

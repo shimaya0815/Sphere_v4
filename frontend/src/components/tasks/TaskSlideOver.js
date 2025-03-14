@@ -408,7 +408,16 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
     
     // 元の値を保持（ロールバック用）
     const originalValue = getValues(field);
-    console.log(`Updating field ${field} from "${originalValue}" to "${value}"`);
+    console.log(`更新: ${field} フィールドを "${originalValue}" から "${value}" に変更`);
+    
+    // 特別処理: descriptionフィールドの場合は空文字を特別に処理
+    if (field === 'description') {
+      // 空の<p>タグや<p><br></p>などはnullとして処理
+      if (value === '<p><br></p>' || value === '<p></p>' || value === '') {
+        console.log('説明フィールドは空です。nullとして送信します。');
+        value = null;
+      }
+    }
     
     try {
       // フォームの変更をロック（連続更新防止）
@@ -713,43 +722,54 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         説明
                       </label>
-                      <div className="border border-gray-300 rounded-md">
-                        {/* 開発用メッセージ - このDiv要素はエディタの代わりに表示される可能性がある */}
-                        <textarea
-                          className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md hidden"
-                          name="description"
-                          value={watch('description') || ''}
-                          onChange={(e) => {
-                            setValue('description', e.target.value, { shouldDirty: true, shouldValidate: true });
-                          }}
-                          rows="5"
-                        />
-                        
-                        <RichTextEditor
-                          key="rich-editor"
-                          value={watch('description') || ''}
-                          onChange={(content) => {
-                            // Quillエディタからの内容を保存
-                            console.log(`Description being set to:`, content);
-                            setValue('description', content, { shouldDirty: true, shouldValidate: true });
-                          }}
-                          onBlur={(content) => {
-                            // フォーカスが外れたときに必ずAPIに保存
-                            console.log(`Rich text editor lost focus, current value:`, content);
-                            
-                            // フォーム値を最新化してAPI呼び出し用に取得
-                            const formValues = getValues();
-                            console.log(`Form values at blur:`, formValues);
-                            
-                            // 明示的にAPIを呼び出し
-                            updateTaskField('description', formValues.description);
-                          }}
-                          placeholder="タスクの説明を入力してください..."
-                        />
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        ↑ リッチテキストエディタで書式を設定できます
-                      </p>
+                      
+                      {/* リッチテキストエディタの実装 */}
+                      <RichTextEditor
+                        key={`rich-editor-${task?.id || 'new'}`}
+                        value={watch('description')}
+                        onChange={(content) => {
+                          console.log(`RichText変更:`, content);
+                          // リッチテキストエディタからの内容を保存
+                          setValue('description', content, { shouldDirty: true, shouldValidate: true });
+                        }}
+                        onBlur={(content) => {
+                          console.log(`リッチテキストエディタのフォーカスが外れました`);
+                          // 空のコンテンツも正しく処理
+                          const trimmedContent = typeof content === 'string' ? content.trim() : '';
+                          
+                          // 空の<p><br></p>などもnullとして処理
+                          let cleanContent = trimmedContent;
+                          if (trimmedContent === '<p><br></p>' || trimmedContent === '<p></p>') {
+                            cleanContent = '';
+                          }
+                          
+                          console.log(`保存する内容:`, cleanContent);
+                          setValue('description', cleanContent);
+                          
+                          // APIに保存
+                          updateTaskField('description', cleanContent);
+                        }}
+                        placeholder="タスクの説明を入力してください..."
+                      />
+                      
+                      {/* リッチテキストが動作しない場合のフォールバック */}
+                      {!watch('description') && (
+                        <div className="hidden">
+                          <textarea
+                            className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                            name="description"
+                            value={watch('description') || ''}
+                            onChange={(e) => {
+                              setValue('description', e.target.value, { shouldDirty: true, shouldValidate: true });
+                            }}
+                            onBlur={() => {
+                              updateTaskField('description', getValues().description || '');
+                            }}
+                            rows="5"
+                            placeholder="タスクの説明を入力してください..."
+                          />
+                        </div>
+                      )}
                     </div>
                     
                     {/* ステータスと優先度 */}
