@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { tasksApi, clientsApi } from '../../api';
 import toast from 'react-hot-toast';
 import TaskComments from './TaskComments';
+import RichTextEditor from './RichTextEditor';
 import { HiOutlineX } from 'react-icons/hi';
 
 const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated }) => {
@@ -707,24 +708,21 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                       />
                     </div>
                     
-                    {/* 説明 */}
+                    {/* 説明 (リッチテキストエディタ) */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         説明
                       </label>
-                      <textarea
-                        rows="4"
-                        className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                        name="description"
+                      <RichTextEditor
                         value={watch('description') || ''}
-                        onChange={(e) => {
-                          // 入力した値を即座にフォームに保存
-                          console.log(`Description being set to: "${e.target.value}"`);
-                          setValue('description', e.target.value, { shouldDirty: true, shouldValidate: true });
+                        onChange={(content) => {
+                          // Quillエディタからの内容を保存
+                          console.log(`Description being set to: "${content}"`);
+                          setValue('description', content, { shouldDirty: true, shouldValidate: true });
                         }}
-                        onBlur={(e) => {
+                        onBlur={(content) => {
                           // フォーカスが外れたときに必ずAPIに保存
-                          console.log(`Description field lost focus, current value: "${e.target.value}"`);
+                          console.log(`Rich text editor lost focus, current value:`, content);
                           
                           // フォーム値を最新化してAPI呼び出し用に取得
                           const formValues = getValues();
@@ -733,6 +731,7 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                           // 明示的にAPIを呼び出し
                           updateTaskField('description', formValues.description);
                         }}
+                        placeholder="タスクの説明を入力してください..."
                       />
                     </div>
                     

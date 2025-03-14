@@ -5,6 +5,7 @@ import TaskTimeTracker from './TaskTimeTracker';
 import TaskComments from './TaskComments';
 import { tasksApi } from '../../api';
 import { toast } from 'react-hot-toast';
+import DOMPurify from 'dompurify';
 
 const TaskDetail = () => {
   const { taskId } = useParams();
@@ -169,13 +170,54 @@ const TaskDetail = () => {
             <h2 className="text-lg font-semibold mb-3 text-gray-800">説明</h2>
             <div className="bg-gray-50 rounded-lg p-4 min-h-[200px]">
               {task.description ? (
-                <div className="whitespace-pre-wrap text-sm">
-                  {task.description}
+                <div className="task-description text-sm">
+                  {task.description.startsWith('<') ? (
+                    // HTML形式の場合はリッチテキストとして表示
+                    <div 
+                      className="rich-text-content"
+                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(task.description) }}
+                    />
+                  ) : (
+                    // プレーンテキストの場合は改行を維持
+                    <div className="whitespace-pre-wrap">
+                      {task.description}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p className="text-gray-500 italic">説明はありません</p>
               )}
             </div>
+            <style>
+              {`
+                .rich-text-content p {
+                  margin-bottom: 0.5rem;
+                }
+                .rich-text-content blockquote {
+                  border-left: 3px solid #ccc;
+                  padding-left: 0.75rem;
+                  margin-left: 0;
+                  color: #666;
+                }
+                .rich-text-content pre {
+                  background-color: #f1f1f1;
+                  border-radius: 3px;
+                  padding: 0.5rem;
+                  font-family: monospace;
+                  white-space: pre-wrap;
+                }
+                .rich-text-content ul, .rich-text-content ol {
+                  padding-left: 1.5rem;
+                  margin-bottom: 0.5rem;
+                }
+                .rich-text-content ul {
+                  list-style-type: disc;
+                }
+                .rich-text-content ol {
+                  list-style-type: decimal;
+                }
+              `}
+            </style>
           </div>
         </div>
         
