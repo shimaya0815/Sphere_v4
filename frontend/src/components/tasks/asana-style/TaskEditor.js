@@ -491,7 +491,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
   /**
    * フィールド変更時の処理
    */
-  const handleFieldChange = (fieldName, value) => {
+  const handleFieldChange = (fieldName, value, skipAutosave = false) => {
     setIsDirty(true);
     
     // タイトル関連の特別処理
@@ -518,8 +518,11 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         return;
       }
       
-      // タイトル、レビュアー、作業者の変更は自動保存しない
-      if (fieldName === 'reviewer' || fieldName === 'worker' || fieldName === 'title') {
+      // 特定のフィールドは自動保存しない
+      // - タイトル、レビュアー、作業者
+      // - 完了日（skipAutosaveフラグが設定された場合）
+      const noAutosaveFields = ['reviewer', 'worker', 'title', 'completed_at'];
+      if (noAutosaveFields.includes(fieldName) || skipAutosave) {
         setPendingChanges(prev => ({
           ...prev,
           [fieldName]: value,
