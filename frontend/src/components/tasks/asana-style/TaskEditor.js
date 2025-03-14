@@ -531,6 +531,24 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       return;
     }
     
+    // 日付フィールドの特別処理
+    const dateFields = ['due_date', 'start_date', 'completed_at', 'recurrence_end_date'];
+    if (dateFields.includes(fieldName)) {
+      // 空の値でも明示的に追跡する
+      console.log(`日付フィールド ${fieldName} の変更: "${value}"`);
+      // 必ず変更を記録する
+      setPendingChanges(prev => ({
+        ...prev,
+        [fieldName]: value,
+      }));
+      
+      // 完了日以外は自動保存する
+      if (!skipAutosave && fieldName !== 'completed_at') {
+        debounceSave();
+      }
+      return;
+    }
+    
     if (!isNewTask && task) {
       // 空のタイトルになる変更は許可しない追加チェック
       if (fieldName === 'title' && value.trim() === '' && task.title) {
@@ -542,7 +560,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       // - タイトル、レビュアー、作業者
       // - 説明(別で処理済み)
       // - 完了日（skipAutosaveフラグが設定された場合）
-      const noAutosaveFields = ['reviewer', 'worker', 'title', 'completed_at'];
+      const noAutosaveFields = ['reviewer', 'worker', 'title'];
       if (noAutosaveFields.includes(fieldName) || skipAutosave) {
         setPendingChanges(prev => ({
           ...prev,
