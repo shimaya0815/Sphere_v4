@@ -17,7 +17,7 @@ const CustomFormats = [
  * Slackスタイルのリッチテキストエディタ
  * - リアルタイムフォーマット適用
  * - ショートカット対応
- * - 自動保存機能
+ * - URL自動リンク機能
  */
 const TaskDescriptionEditor = ({ value, onChange }) => {
   // 内部状態
@@ -78,50 +78,59 @@ const TaskDescriptionEditor = ({ value, onChange }) => {
       const Clipboard = quill.getModule('clipboard');
       const originalMatchers = Clipboard.matchers;
       
-      // URLを検出する新しいマッチャーを追加
-      const urlMatcher = [
-        /https?:\/\/[^\s]+/g,
-        (node, delta) => {
-          // textノードの場合のみ処理
-          if (node.nodeType !== Node.TEXT_NODE) return delta;
-          
-          const text = node.data;
-          let ops = [];
-          let lastIndex = 0;
-          let match;
-          
-          // URLを検索
-          const regex = /https?:\/\/[^\s]+/g;
-          while ((match = regex.exec(text)) !== null) {
-            if (match.index > lastIndex) {
-              ops.push({ insert: text.slice(lastIndex, match.index) });
+      // Quillカスタムマッチャーを定義
+      const customMatchers = [
+        // URLをリンクに変換するマッチャー
+        [
+          Node.TEXT_NODE, 
+          function(node, delta) {
+            const text = node.data;
+            
+            // テキストにURLがなければそのまま返す
+            if (!urlRegex.test(text)) {
+              return delta;
             }
             
-            // URLをリンクとして挿入
-            ops.push({ 
-              insert: match[0], 
-              attributes: { link: match[0] } 
-            });
+            let ops = [];
+            let lastIndex = 0;
+            let match;
             
-            lastIndex = match.index + match[0].length;
+            // 正規表現をリセット
+            urlRegex.lastIndex = 0;
+            
+            // URLを検索
+            while ((match = urlRegex.exec(text)) !== null) {
+              // URLの前のテキスト
+              if (match.index > lastIndex) {
+                ops.push({ insert: text.slice(lastIndex, match.index) });
+              }
+              
+              // URLをリンクとして挿入
+              ops.push({ 
+                insert: match[0], 
+                attributes: { link: match[0] } 
+              });
+              
+              lastIndex = match.index + match[0].length;
+            }
+            
+            // 残りのテキスト
+            if (lastIndex < text.length) {
+              ops.push({ insert: text.slice(lastIndex) });
+            }
+            
+            // 元のdeltaを置き換え
+            if (ops.length > 0) {
+              return { ops };
+            }
+            
+            return delta;
           }
-          
-          // 残りのテキスト
-          if (lastIndex < text.length) {
-            ops.push({ insert: text.slice(lastIndex) });
-          }
-          
-          // 元のdeltaを置き換え
-          if (ops.length > 0) {
-            return { ops };
-          }
-          
-          return delta;
-        }
+        ]
       ];
       
       // マッチャーを配列の先頭に追加（最初に処理されるように）
-      Clipboard.matchers = [urlMatcher].concat(originalMatchers);
+      Clipboard.matchers = customMatchers.concat(originalMatchers);
     }
   }, []);
   
