@@ -43,8 +43,15 @@ const tasksApi = {
       
       // nullとundefinedと空文字列を削除する - 特定のフィールドは例外的に処理
       Object.keys(cleanedData).forEach(key => {
-        // カテゴリー、クライアント、決算期、担当者、レビューアー、説明のフィールドは明示的なnullを保持する
-        const preserveNullFields = ['category', 'client', 'fiscal_year', 'worker', 'reviewer', 'description'];
+        // 説明フィールドは常に送信する（空文字列も保持）
+        if (key === 'description') {
+          // 説明フィールドは空文字列もnullも明示的に送信
+          console.log(`Preserving description value in create: "${cleanedData[key]}"`);
+          return;
+        }
+        
+        // カテゴリー、クライアント、決算期、担当者、レビューアーのフィールドは明示的なnullを保持する
+        const preserveNullFields = ['category', 'client', 'fiscal_year', 'worker', 'reviewer'];
         if (preserveNullFields.includes(key) && cleanedData[key] === null) {
           // これらのフィールドはnullの場合でも保持する（クリアする意図がある）
           console.log(`Preserving null value for ${key}`);
@@ -115,8 +122,15 @@ const tasksApi = {
       
       // nullとundefinedと空文字列を削除する - 特定のフィールドは例外的に処理
       Object.keys(cleanedData).forEach(key => {
-        // カテゴリー、クライアント、決算期、担当者、レビューアー、説明のフィールドは明示的なnullを保持する
-        const preserveNullFields = ['category', 'client', 'fiscal_year', 'worker', 'reviewer', 'description'];
+        // 説明フィールドは常に送信する（空文字列も保持）
+        if (key === 'description') {
+          // 説明フィールドは空文字列もnullも明示的に送信
+          console.log(`Preserving description value: "${cleanedData[key]}"`);
+          return;
+        }
+        
+        // カテゴリー、クライアント、決算期、担当者、レビューアーのフィールドは明示的なnullを保持する
+        const preserveNullFields = ['category', 'client', 'fiscal_year', 'worker', 'reviewer'];
         if (preserveNullFields.includes(key) && cleanedData[key] === null) {
           // これらのフィールドはnullの場合でも保持する（クリアする意図がある）
           console.log(`Preserving null value for ${key} in update`);
