@@ -326,12 +326,17 @@ const TaskList = React.forwardRef((props, ref) => {
   const handleDeleteTask = async () => {
     try {
       await tasksApi.deleteTask(selectedTask.id);
-      toast.success('タスクを削除しました');
-      fetchTasks();
+      // 先にモーダルを閉じる
       setDeleteModalOpen(false);
+      // 削除の成功メッセージを表示
+      toast.success('タスクを削除しました');
+      // バックグラウンドでデータを更新
+      fetchTasks();
+      return true;
     } catch (error) {
       console.error('Error deleting task:', error);
       toast.error('タスクの削除に失敗しました');
+      return false;
     }
   };
 
@@ -624,7 +629,13 @@ const TaskList = React.forwardRef((props, ref) => {
                 <button
                   type="button"
                   className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                  onClick={handleDeleteTask}
+                  onClick={async () => {
+                    await handleDeleteTask();
+                    // ローカルでもタスク配列から該当タスクを削除して即時反映
+                    if (selectedTask) {
+                      setTasks(prevTasks => prevTasks.filter(t => t.id !== selectedTask.id));
+                    }
+                  }}
                 >
                   削除する
                 </button>
