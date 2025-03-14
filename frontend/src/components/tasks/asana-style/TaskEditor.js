@@ -570,6 +570,13 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         
         console.log('Saving changes:', updateData);
         
+        // デバッグ: 説明フィールドの値を確認
+        if ('description' in updateData) {
+          console.log('保存する description 値:', JSON.stringify(updateData.description));
+          // 説明フィールドは空文字列も明示的に保存する (nullやundefinedの場合も空文字列に)
+          updateData.description = updateData.description ?? '';
+        }
+        
         // タイトルが含まれている場合、空でないことを確認
         if ('title' in updateData) {
           if (!updateData.title || updateData.title.trim() === '') {
@@ -704,6 +711,14 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         toast.error('タイトルを入力してください');
         setSaveState('error');
         return; // 送信処理を中断
+      }
+      
+      // 説明フィールドは空白でも保存可能 (明示的に空文字列として処理)
+      if ('description' in submitData) {
+        console.log('submitTask - 説明フィールド処理前:', JSON.stringify(submitData.description));
+        // null/undefinedの場合も空文字列に変換
+        submitData.description = submitData.description ?? '';
+        console.log('submitTask - 説明フィールド処理後:', JSON.stringify(submitData.description));
       }
       
       // boolean値の変換
@@ -1284,7 +1299,15 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                 task={task}
                 onClose={onClose}
                 handleSubmit={handleSubmit}
-                submitTask={submitTask}
+                submitTask={(data) => {
+                  // 明示的に説明フィールドの値を含める
+                  const descriptionValue = getValues('description');
+                  console.log('説明フィールド保存前の値:', JSON.stringify(descriptionValue));
+                  submitTask({
+                    ...data,
+                    description: descriptionValue ?? '' // 明示的に空文字列も保存
+                  });
+                }}
                 saveState={saveState}
                 handleDeleteConfirm={handleDeleteConfirm}
               />
