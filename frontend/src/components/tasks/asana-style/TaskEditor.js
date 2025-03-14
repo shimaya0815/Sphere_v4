@@ -867,6 +867,16 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         onTaskUpdated(null, true);
       }
       
+      // タスク削除のカスタムイベントをディスパッチ
+      const taskDeletedEvent = new CustomEvent('task-deleted', {
+        detail: {
+          taskId: task.id,
+          timestamp: new Date().toISOString()
+        }
+      });
+      window.dispatchEvent(taskDeletedEvent);
+      console.log('📣 Dispatched task-deleted event', { taskId: task.id });
+      
       toast.success('タスクを削除しました');
       onClose();
     } catch (error) {
