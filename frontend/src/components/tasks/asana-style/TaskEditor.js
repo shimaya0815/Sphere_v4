@@ -185,8 +185,10 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       }
       
       // 優先度の数値設定
-      if (formattedTask.priority) {
-        formattedTask.priority_value = formattedTask.priority_value || '';
+      if (formattedTask.priority_data && formattedTask.priority_data.priority_value) {
+        formattedTask.priority_value = formattedTask.priority_data.priority_value.toString();
+      } else {
+        formattedTask.priority_value = '';
       }
       
       Object.keys(formattedTask).forEach(key => {
@@ -726,12 +728,22 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
           submitData.fiscal_year = null;
         }
         
-        if (submitData.priority && submitData.priority !== '') {
-          submitData.priority = parseInt(submitData.priority) || null;
-        }
-        
+        // 優先度値が入力されている場合、優先度オブジェクトを作成または取得
         if (submitData.priority_value && submitData.priority_value !== '') {
-          submitData.priority_value = parseInt(submitData.priority_value) || null;
+          const priorityValue = parseInt(submitData.priority_value) || 50;
+          
+          try {
+            // 優先度値からオブジェクトを作成または取得
+            const priorityResponse = await tasksApi.createPriorityForValue(priorityValue);
+            submitData.priority = priorityResponse.id;
+          } catch (priorityError) {
+            console.error('Error creating priority for value:', priorityError);
+            // エラーが発生した場合はpriorityフィールドをクリア
+            submitData.priority = null;
+          }
+        } else {
+          // 優先度値がない場合はpriorityフィールドもクリア
+          submitData.priority = null;
         }
         
         // 日付フィールドが有効な形式であることを確認
@@ -755,11 +767,11 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       if (isNewTask) {
         // 新規作成
         response = await tasksApi.createTask(submitData);
-        toast.success('タスクを作成しました');
+        toast.success('タスクを作成しました', { duration: 2000 });
       } else {
         // 更新
         response = await tasksApi.updateTask(task.id, submitData);
-        toast.success('タスクを保存しました');
+        toast.success('タスクを保存しました', { duration: 2000 });
       }
       
       // 状態をリセット
