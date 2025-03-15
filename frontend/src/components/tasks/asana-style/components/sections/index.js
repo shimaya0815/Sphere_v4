@@ -6,3 +6,4 @@ export { default as TaskDatePrioritySection } from './TaskDatePrioritySection';
 export { default as TaskDescriptionSection } from './TaskDescriptionSection';
 export { default as TaskMetaInfoSection } from './TaskMetaInfoSection';
 export { default as TaskAdditionalSettingsSection } from './TaskAdditionalSettingsSection';
+export { default as TaskRecurrenceSection } from './TaskRecurrenceSection';

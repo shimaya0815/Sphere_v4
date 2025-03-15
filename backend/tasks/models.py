@@ -327,6 +327,12 @@ class Task(models.Model):
     )
     recurrence_end_date = models.DateTimeField(_('recurrence end date'), null=True, blank=True)
     
+    # 週次繰り返しの曜日指定（0=月曜日、1=火曜日、...、6=日曜日）
+    weekday = models.IntegerField(_('weekday for weekly recurrence'), null=True, blank=True)
+    
+    # 週次繰り返しの複数曜日指定（カンマ区切りの数値を保存: "0,2,4" = 月,水,金）
+    weekdays = models.CharField(_('weekdays for weekly recurrence'), max_length=20, null=True, blank=True)
+    
     # 繰り返しタスクのインスタンス管理のための追加フィールド
     parent_task = models.ForeignKey(
         'self', 
@@ -510,6 +516,53 @@ class Task(models.Model):
         if self.recurrence_pattern == 'daily':
             return date + timedelta(days=frequency)
         elif self.recurrence_pattern == 'weekly':
+            # 複数曜日指定がある場合
+            if self.weekdays:
+                try:
+                    # カンマ区切りの文字列から曜日のリストを作成（0=月曜日、1=火曜日、...、6=日曜日）
+                    weekday_list = [int(d) for d in self.weekdays.split(',') if d]
+                    if weekday_list:
+                        # 現在の曜日を取得（月曜日が0、日曜日が6）
+                        current_weekday = date.weekday()
+                        
+                        # 次の曜日を見つける
+                        next_weekdays = [w for w in weekday_list if w > current_weekday]
+                        if next_weekdays:
+                            # 同じ週内で次の曜日がある場合
+                            next_weekday = min(next_weekdays)
+                            days_to_add = next_weekday - current_weekday
+                        else:
+                            # 次の週の最初の曜日
+                            next_weekday = min(weekday_list)
+                            days_to_add = 7 - current_weekday + next_weekday
+                        
+                        # 繰り返し頻度が1より大きい場合、適切な週数を追加
+                        if frequency > 1 and not next_weekdays:
+                            days_to_add += (frequency - 1) * 7
+                        
+                        return date + timedelta(days=days_to_add)
+                except (ValueError, Exception) as e:
+                    print(f"Error parsing weekdays: {e}")
+            
+            # 単一曜日指定がある場合
+            if self.weekday is not None:
+                # 基準日の曜日を取得（月曜日が0、日曜日が6）
+                current_weekday = date.weekday()
+                # 目標の曜日まで日数を調整
+                if self.weekday >= current_weekday:
+                    # 同じ週の指定曜日
+                    days_to_add = self.weekday - current_weekday
+                else:
+                    # 次の週の指定曜日
+                    days_to_add = 7 - current_weekday + self.weekday
+                
+                # 繰り返し頻度に基づいて週数を追加
+                if frequency > 1:
+                    days_to_add += (frequency - 1) * 7
+                
+                return date + timedelta(days=days_to_add)
+                
+            # 曜日指定がない場合は単純に週数分を追加
             return date + timedelta(weeks=frequency)
         elif self.recurrence_pattern == 'monthly':
             return date + relativedelta(months=frequency)

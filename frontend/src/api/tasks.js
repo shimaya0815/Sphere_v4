@@ -70,6 +70,46 @@ const tasksApi = {
           return; // 優先度フィールドは常に保持する
         }
         
+        // 週次繰り返しの曜日処理
+        if (key === 'weekday') {
+          if (cleanedData[key] === '' || cleanedData[key] === undefined) {
+            cleanedData[key] = null;
+            console.log('週次繰り返しの曜日が空のため、nullに設定します');
+          } else if (typeof cleanedData[key] === 'string' && !isNaN(parseInt(cleanedData[key], 10))) {
+            // 文字列の場合は数値に変換
+            cleanedData[key] = parseInt(cleanedData[key], 10);
+            console.log('週次繰り返しの曜日を数値に変換しました:', cleanedData[key]);
+          }
+          return; // weekdayフィールドは常に保持する
+        }
+        
+        // 複数曜日指定の処理
+        if (key === 'weekdays') {
+          if (cleanedData[key] === '' || cleanedData[key] === undefined) {
+            cleanedData[key] = null;
+            console.log('週次繰り返しの複数曜日指定が空のため、nullに設定します');
+          } else {
+            console.log('週次繰り返しの複数曜日指定:', cleanedData[key]);
+            
+            // weekdaysフィールドが正しい形式かチェック（カンマ区切りの数値）
+            try {
+              const weekdayValues = cleanedData[key].split(',').map(day => parseInt(day.trim(), 10));
+              const validWeekdays = weekdayValues.filter(val => !isNaN(val) && val >= 0 && val <= 6);
+              if (validWeekdays.length > 0) {
+                cleanedData[key] = validWeekdays.join(',');
+                console.log('正規化された複数曜日:', cleanedData[key]);
+              } else {
+                cleanedData[key] = null;
+                console.log('有効な曜日が指定されていないため、nullに設定します');
+              }
+            } catch (e) {
+              console.error('複数曜日の解析エラー:', e);
+              cleanedData[key] = null;
+            }
+          }
+          return; // weekdaysフィールドは常に保持する
+        }
+        
         // カテゴリー、クライアント、決算期、担当者、レビューアーのフィールドは明示的なnullを保持する
         const preserveNullFields = ['category', 'client', 'fiscal_year', 'worker', 'reviewer'];
         if (preserveNullFields.includes(key) && cleanedData[key] === null) {
@@ -133,6 +173,13 @@ const tasksApi = {
   updateTask: async (taskId, taskData) => {
     try {
       console.log('Updating task data:', taskData);
+      console.log('Task ID for update:', taskId);
+      
+      // ステータス関連のデバッグ
+      if ('status' in taskData) {
+        console.log('更新するステータス値:', taskData.status);
+        console.log('ステータス値の型:', typeof taskData.status);
+      }
       
       // データをクリーンアップ
       const cleanedData = { ...taskData };
@@ -141,6 +188,42 @@ const tasksApi = {
       if ('priority_value' in cleanedData && (cleanedData.priority_value === null || cleanedData.priority_value === '')) {
         cleanedData.priority_value = null;
         console.log('優先度値がnullまたは空文字列のため、明示的にnullに設定します');
+      }
+      
+      // 週次繰り返しの曜日処理 - 空文字列はnullに変換
+      if ('weekday' in cleanedData && (cleanedData.weekday === '' || cleanedData.weekday === undefined)) {
+        cleanedData.weekday = null;
+        console.log('週次繰り返しの曜日が空のため、nullに設定します');
+      } else if ('weekday' in cleanedData && typeof cleanedData.weekday === 'string' && !isNaN(parseInt(cleanedData.weekday, 10))) {
+        // 文字列の場合は数値に変換
+        cleanedData.weekday = parseInt(cleanedData.weekday, 10);
+        console.log('週次繰り返しの曜日を数値に変換しました:', cleanedData.weekday);
+      }
+      
+      // 複数曜日指定の処理
+      if ('weekdays' in cleanedData) {
+        if (cleanedData.weekdays === '' || cleanedData.weekdays === undefined) {
+          cleanedData.weekdays = null;
+          console.log('週次繰り返しの複数曜日指定が空のため、nullに設定します');
+        } else {
+          console.log('週次繰り返しの複数曜日指定:', cleanedData.weekdays);
+          
+          // weekdaysフィールドが正しい形式かチェック（カンマ区切りの数値）
+          try {
+            const weekdayValues = cleanedData.weekdays.split(',').map(day => parseInt(day.trim(), 10));
+            const validWeekdays = weekdayValues.filter(val => !isNaN(val) && val >= 0 && val <= 6);
+            if (validWeekdays.length > 0) {
+              cleanedData.weekdays = validWeekdays.join(',');
+              console.log('正規化された複数曜日:', cleanedData.weekdays);
+            } else {
+              cleanedData.weekdays = null;
+              console.log('有効な曜日が指定されていないため、nullに設定します');
+            }
+          } catch (e) {
+            console.error('複数曜日の解析エラー:', e);
+            cleanedData.weekdays = null;
+          }
+        }
       }
       
       // 日付フィールド処理
@@ -176,7 +259,7 @@ const tasksApi = {
         }
         
         // カテゴリー、クライアント、決算期、担当者、レビューアーのフィールドは明示的なnullを保持する
-        const preserveNullFields = ['category', 'client', 'fiscal_year', 'worker', 'reviewer'];
+        const preserveNullFields = ['category', 'client', 'fiscal_year', 'worker', 'reviewer', 'status'];
         if (preserveNullFields.includes(key) && cleanedData[key] === null) {
           // これらのフィールドはnullの場合でも保持する（クリアする意図がある）
           console.log(`Preserving null value for ${key} in update`);
@@ -204,9 +287,29 @@ const tasksApi = {
         throw new Error('タイトルは必須項目です');
       }
       
+      // 最終確認 - ステータスがちゃんと含まれているか
+      if ('status' in cleanedData) {
+        console.log('最終的なステータス値:', cleanedData.status);
+      } else {
+        console.log('ステータス値はクリーニング中に削除されました');
+      }
+      
       // PATCHメソッドを使用して部分更新
       console.log('Using PATCH method with cleaned data');
       const response = await apiClient.patch(`/api/tasks/${taskId}/`, cleanedData);
+      console.log('Task update response:', response.data);
+      
+      // レスポンスのステータス確認
+      if (response.data && response.data.status) {
+        console.log('更新後のステータスID:', response.data.status);
+        
+        // ステータスIDが文字列の場合は数値に変換（バックエンドとの一貫性のため）
+        if (response.data.status && typeof response.data.status === 'string' && !isNaN(parseInt(response.data.status, 10))) {
+          response.data.status = parseInt(response.data.status, 10);
+          console.log('ステータスIDを数値に変換しました:', response.data.status);
+        }
+      }
+      
       return response.data;
     } catch (error) {
       console.error('Error updating task:', error);
@@ -397,28 +500,59 @@ const tasksApi = {
       const response = await apiClient.get('/api/tasks/statuses/');
       console.log('API response for statuses:', response);
       
+      let statusesList = [];
+      
       // レスポンスがpaginationフォーマットかどうかをチェック
       if (response.data && response.data.results) {
-        console.log('Pagination format detected, returning results array');
-        return {
-          data: response.data.results
-        };
+        console.log('Pagination format detected, using results array');
+        statusesList = response.data.results;
       }
-      
       // 配列形式のレスポンスをチェック
-      if (Array.isArray(response.data)) {
-        console.log('Array format detected, returning as is');
-        return {
-          data: response.data
-        };
+      else if (Array.isArray(response.data)) {
+        console.log('Array format detected, using as is');
+        statusesList = response.data;
+      }
+      // その他の形式
+      else if (response.data) {
+        console.log('Unknown format, using raw data');
+        statusesList = [response.data];
+      } else {
+        console.warn('No data found in API response');
+        statusesList = [];
       }
       
-      // その他の形式
-      console.log('Unknown format, returning raw data');
-      return response;
+      // 「完了」ステータスが存在するか確認
+      const hasCompletedStatus = statusesList.some(status => status.name === '完了');
+      console.log('Does status list include 完了?', hasCompletedStatus);
+      
+      // 「完了」ステータスがない場合はフォールバックリストを使用
+      if (!hasCompletedStatus && statusesList.length > 0) {
+        console.warn('Completed status not found in API response. Adding a default one.');
+        
+        // IDを数値型で設定する（文字列型からの変更）
+        const maxId = Math.max(...statusesList.map(s => parseInt(s.id) || 0));
+        statusesList.push({
+          id: maxId + 1,  // 既存の最大IDに+1した数値を使用
+          name: '完了',
+          color: '#10B981',
+          order: 999,
+          business: statusesList[0].business
+        });
+      }
+      
+      return {
+        data: statusesList
+      };
     } catch (error) {
       console.error('Error fetching statuses:', error);
-      throw error;
+      // エラー時はフォールバック値を返す
+      return {
+        data: [
+          { id: 1, name: '未着手', color: '#9CA3AF', order: 1 },
+          { id: 2, name: '進行中', color: '#3B82F6', order: 2 },
+          { id: 3, name: '完了', color: '#10B981', order: 3 }
+        ]
+      };
     }
   },
   
@@ -705,6 +839,74 @@ const tasksApi = {
       return response.data;
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * タスクの完了状態を更新
+   */
+  completeTask: async (taskId, isCompleted) => {
+    try {
+      // 完了日時は自動設定せず、ステータスのみを変更
+      const cachedStatuses = window.__SPHERE_CACHED_STATUSES;
+      let statusId = null;
+      
+      if (cachedStatuses && cachedStatuses.length > 0) {
+        if (isCompleted) {
+          // 完了ステータスを検索
+          const completedStatus = cachedStatuses.find(s => s.name === '完了');
+          if (completedStatus) {
+            statusId = completedStatus.id;
+          }
+        } else {
+          // 未着手ステータスを検索（完了から戻す場合）
+          const notStartedStatus = cachedStatuses.find(s => s.name === '未着手');
+          if (notStartedStatus) {
+            statusId = notStartedStatus.id;
+          }
+        }
+      }
+      
+      // ステータスIDが見つかった場合のみ更新
+      const updateData = {};
+      if (statusId !== null) {
+        updateData.status = statusId;
+      }
+      
+      console.log(`タスク${taskId}の完了状態を${isCompleted ? '完了' : '未完了'}に変更します。ステータスID: ${statusId}`);
+      const response = await apiClient.patch(`/api/tasks/${taskId}/`, updateData);
+      return response.data;
+    } catch (error) {
+      console.error('Error completing task:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 次回の繰り返しタスクを作成
+   */
+  createNextRecurringTask: async (taskId) => {
+    try {
+      // APIのパスを修正
+      const response = await apiClient.post(`/api/tasks/${taskId}/create-next-recurring/`);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating next recurring task:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 次回の繰り返し日付を計算
+   */
+  calculateNextRecurringDates: async (taskId) => {
+    try {
+      // APIのパスを修正
+      const response = await apiClient.get(`/api/tasks/${taskId}/calculate-next-dates/`);
+      return response.data;
+    } catch (error) {
+      console.error('Error calculating next dates:', error);
       throw error;
     }
   }

@@ -16,6 +16,7 @@ import toast from 'react-hot-toast';
 import CurrentAssignee from './components/CurrentAssignee';
 import TimeTracking from './components/TimeTracking';
 import DeleteTaskModal from './components/DeleteTaskModal';
+import TaskComments from '../TaskComments';
 
 // セクションコンポーネントのインポート
 import {
@@ -26,7 +27,8 @@ import {
   TaskDatePrioritySection,
   TaskDescriptionSection,
   TaskMetaInfoSection,
-  TaskAdditionalSettingsSection
+  TaskAdditionalSettingsSection,
+  TaskRecurrenceSection
 } from './components/sections';
 
 /**
@@ -48,7 +50,6 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
   const [businessId, setBusinessId] = useState(null);
   const [fiscalYears, setFiscalYears] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
-  // is_fiscal_task関連の状態管理は削除
   const [isAssigneeExpanded, setIsAssigneeExpanded] = useState(false);
   const [isDateExpanded, setIsDateExpanded] = useState(false);
   
@@ -103,7 +104,8 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       recurrence_pattern: '',
       recurrence_end_date: '',
       is_template: 'false', // 明示的にfalseを設定
-      template_name: ''
+      template_name: '',
+      weekdays: ''
     },
   });
   
@@ -141,7 +143,8 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
           recurrence_pattern: '',
           recurrence_end_date: '',
           is_template: 'false',
-          template_name: ''
+          template_name: '',
+          weekdays: ''
         });
         // リセットキーを更新して強制的に再レンダリング
         setResetKey(Date.now());
@@ -189,6 +192,23 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         formattedTask.priority_value = formattedTask.priority_data.priority_value.toString();
       } else {
         formattedTask.priority_value = '';
+      }
+      
+      // 週次繰り返しの曜日
+      if (formattedTask.weekday !== undefined && formattedTask.weekday !== null) {
+        // サーバーから数値として受け取ったweekdayをそのまま使用
+        formattedTask.weekday = formattedTask.weekday;
+        
+        // 単一のweekdayがある場合、weekdaysにも反映（後方互換性）
+        if (!formattedTask.weekdays) {
+          formattedTask.weekdays = formattedTask.weekday.toString();
+        }
+      }
+      
+      // 複数曜日指定
+      if (formattedTask.weekdays !== undefined && formattedTask.weekdays !== null) {
+        // サーバーから文字列として受け取ったweekdaysをそのまま使用
+        formattedTask.weekdays = formattedTask.weekdays;
       }
       
       Object.keys(formattedTask).forEach(key => {
@@ -244,6 +264,11 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
           if (Array.isArray(statusesList)) {
             const sortedStatuses = [...statusesList].sort((a, b) => (a.order || 0) - (b.order || 0));
             console.log('Sorted statuses:', sortedStatuses);
+            
+            // デバッグ：完了ステータスの確認
+            const completedStatus = sortedStatuses.find(s => s.name === '完了');
+            console.log('Found 完了 status?', completedStatus);
+            
             setStatuses(sortedStatuses);
             
             // グローバルにステータス一覧をキャッシュして他のコンポーネントで使用できるようにする
@@ -527,7 +552,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         [fieldName]: processedValue,
       }));
       
-      // 自動保存はスキップ - 明示的に保存ボタンで保存する必要がある
+      // 自動保存はスキップ
       return;
     }
     
@@ -542,10 +567,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         [fieldName]: value,
       }));
       
-      // 完了日以外は自動保存する
-      if (!skipAutosave && fieldName !== 'completed_at') {
-        debounceSave();
-      }
+      // 自動保存はスキップ
       return;
     }
     
@@ -564,10 +586,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         [fieldName]: priorityValue,
       }));
       
-      // 優先度は自動保存する
-      if (!skipAutosave) {
-        debounceSave();
-      }
+      // 自動保存はスキップ
       return;
     }
     
@@ -578,26 +597,15 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         return;
       }
       
-      // 特定のフィールドは自動保存しない
-      // - タイトル、レビュアー、作業者
-      // - 説明(別で処理済み)
-      // - 完了日（skipAutosaveフラグが設定された場合）
-      const noAutosaveFields = ['reviewer', 'worker', 'title'];
-      if (noAutosaveFields.includes(fieldName) || skipAutosave) {
-        setPendingChanges(prev => ({
-          ...prev,
-          [fieldName]: value,
-        }));
-        // 特別フィールド変更時は自動保存しない
-        console.log(`${fieldName}を変更しました。保存ボタンを押して変更を確定してください。`);
-      } else {
-        // その他のフィールドは従来通り自動保存
-        setPendingChanges(prev => ({
-          ...prev,
-          [fieldName]: value,
-        }));
-        
-        debounceSave();
+      // すべてのフィールドで自動保存を行わない
+      setPendingChanges(prev => ({
+        ...prev,
+        [fieldName]: value,
+      }));
+      
+      // 変更があることをユーザーに通知
+      if (isDirty) {
+        console.log(`${fieldName}が変更されました。変更を保存するには保存ボタンを押してください。`);
       }
     }
   };
@@ -606,137 +614,158 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
    * 保存処理
    */
   const saveChanges = async () => {
-    if (!isNewTask && task && Object.keys(pendingChanges).length > 0) {
-      setSaveState('saving');
+    console.log('Task saveChanges called with pendingChanges:', pendingChanges);
+    
+    // 保存が必要ない場合は処理をスキップ
+    if (Object.keys(pendingChanges).length === 0) {
+      console.log('No changes to save');
+      return true;
+    }
+    
+    // 保存ボタンのスピナー表示
+    setSaveState('saving');
+    
+    // PATCHリクエストでサーバーに送信する更新データ
+    const updateData = { ...pendingChanges };
+    console.log('Update data object:', updateData);
+    
+    try {
+      console.log('Updating task with ID:', task.id);
       
+      // 数値フィールドの処理
       try {
-        const updateData = { ...pendingChanges };
-        
-        console.log('Saving changes:', updateData);
-        
-        // デバッグ: 説明フィールドの値を確認
-        if ('description' in updateData) {
-          console.log('保存する description 値:', JSON.stringify(updateData.description));
-          // 説明フィールドは空文字列も明示的に保存する (nullやundefinedの場合も空文字列に)
-          updateData.description = updateData.description ?? '';
-        }
-        
-        // タイトルが含まれている場合、空でないことを確認
-        if ('title' in updateData) {
-          if (!updateData.title || updateData.title.trim() === '') {
-            console.warn('タイトルが空のため保存をスキップします');
-            toast.error('タイトルは必須項目です');
-            setPendingChanges(prev => {
-              const newChanges = {...prev};
-              delete newChanges.title; // 無効なタイトル変更を削除
-              return newChanges;
-            });
-            setSaveState('error');
-            return; // 保存処理を中断
-          }
-        }
-        
-        // boolean値の変換
-        if ('is_fiscal_task' in updateData) {
-          updateData.is_fiscal_task = updateData.is_fiscal_task === 'true';
-        }
-        if ('is_recurring' in updateData) {
-          updateData.is_recurring = updateData.is_recurring === 'true';
-        }
-        if ('is_template' in updateData) {
-          updateData.is_template = updateData.is_template === 'true';
-        }
-        
-        // 数値フィールドの処理
-        try {
-          // IDフィールドの変換
-          ['worker', 'reviewer', 'status', 'category', 'client', 'fiscal_year', 'priority'].forEach(field => {
-            if (field in updateData) {
-              // nullが明示的に送信された場合はそのままnullとして保持
-              if (updateData[field] === null) {
-                // nullはそのまま保持
-              } else if (updateData[field] && updateData[field] !== '') {
-                const parsedValue = parseInt(updateData[field]);
-                updateData[field] = !isNaN(parsedValue) ? parsedValue : null;
-              } else {
-                updateData[field] = null;
-              }
+        // IDフィールドの変換
+        ['worker', 'reviewer', 'status', 'category', 'client', 'fiscal_year', 'priority'].forEach(field => {
+          if (field in updateData) {
+            // nullが明示的に送信された場合はそのままnullとして保持
+            if (updateData[field] === null) {
+              // nullはそのまま保持
+            } else if (updateData[field] && updateData[field] !== '') {
+              const parsedValue = parseInt(updateData[field]);
+              updateData[field] = !isNaN(parsedValue) ? parsedValue : null;
+            } else {
+              updateData[field] = null;
             }
-          });
-          
-          // 数値フィールドの変換
-          if ('priority_value' in updateData && updateData.priority_value !== '') {
-            const parsedValue = parseInt(updateData.priority_value);
-            updateData.priority_value = !isNaN(parsedValue) ? parsedValue : null;
           }
-          
-          // 日付フィールドの検証
-          ['due_date', 'start_date', 'completed_at', 'recurrence_end_date'].forEach(dateField => {
-            if (dateField in updateData && updateData[dateField]) {
-              if (!isValidDate(updateData[dateField])) {
-                console.warn(`Invalid date in ${dateField}: ${updateData[dateField]}. Setting to null.`);
-                updateData[dateField] = null;
-              }
+        });
+        
+        // 数値フィールドの変換
+        if ('priority_value' in updateData && updateData.priority_value !== '') {
+          const parsedValue = parseInt(updateData.priority_value);
+          updateData.priority_value = !isNaN(parsedValue) ? parsedValue : null;
+        }
+        
+        // 日付フィールドの検証
+        ['due_date', 'start_date', 'completed_at', 'recurrence_end_date'].forEach(dateField => {
+          if (dateField in updateData && updateData[dateField]) {
+            if (!isValidDate(updateData[dateField])) {
+              console.warn(`Invalid date in ${dateField}: ${updateData[dateField]}. Setting to null.`);
+              updateData[dateField] = null;
             }
-          });
-        } catch (conversionError) {
-          console.error('Error converting field values:', conversionError);
-          // エラーが発生してもプロセスは継続
-        }
-        
-        console.log('Processed update data:', updateData);
-        
-        // タスク更新処理
-        const response = await tasksApi.updateTask(task.id, updateData);
-        console.log('Task update response:', response);
-        
-        // 状態をリセット
-        setPendingChanges({});
-        setIsDirty(false);
-        setSaveState('saved');
-        
-        // 3秒後に保存状態表示をクリア
-        setTimeout(() => {
-          if (setSaveState) setSaveState('idle');
-        }, 3000);
-        
-        // 親コンポーネントに通知 - 更新されたタスクデータを渡す
-        if (onTaskUpdated) {
-          // APIレスポンスがある場合はそれを使用、なければタスクデータと更新内容をマージ
-          const updatedTaskData = response || { ...task, ...updateData };
-          console.log('Sending updated task to parent:', updatedTaskData);
-          onTaskUpdated(updatedTaskData);
-        }
-      } catch (error) {
-        console.error('Error saving task:', error);
-        
-        // APIからのエラーメッセージを取得
-        let errorMessage = 'タスクの保存に失敗しました';
-        
-        if (error.message === 'タイトルは必須項目です') {
-          errorMessage = 'タイトルは必須項目です。空のタイトルでは保存できません。';
-        } else if (error.response) {
-          console.error('Response data:', error.response.data);
-          console.error('Status code:', error.response.status);
-          
-          // タイトルに関するエラーの場合
-          if (error.response.data && error.response.data.title) {
-            errorMessage = `タイトルエラー: ${Array.isArray(error.response.data.title) ? error.response.data.title.join(', ') : error.response.data.title}`;
           }
+        });
+      } catch (conversionError) {
+        console.error('Error converting field values:', conversionError);
+        // エラーが発生してもプロセスは継続
+      }
+      
+      console.log('Processed update data:', updateData);
+      
+      // 完了ステータスかどうかをチェック
+      let isCompletedStatus = false;
+      if (updateData.status) {
+        const selectedStatus = statuses.find(s => s.id.toString() === updateData.status.toString());
+        console.log('選択されたステータス:', selectedStatus);
+        isCompletedStatus = selectedStatus && selectedStatus.name === '完了';
+        console.log('完了ステータスですか？:', isCompletedStatus);
+        
+        // 完了ステータスでも自動的に完了日時を設定しないように変更
+        // 完了日時は手動で設定する必要があります
+        if (!isCompletedStatus) {
+          // 完了以外のステータスの場合、完了日時をクリア
+          updateData.completed_at = null;
+          console.log('完了日時をクリアしました');
         }
         
-        setSaveState('error');
-        toast.error(errorMessage);
-        
-        // タイトルエラーの場合、タイトルを変更せずにpendingChangesからtitleを削除
-        if (errorMessage.includes('タイトル')) {
-          setPendingChanges(prev => {
-            const newChanges = {...prev};
-            delete newChanges.title;
-            return newChanges;
-          });
+        // ステータスの型を数値に確実に変換
+        if (typeof updateData.status === 'string') {
+          updateData.status = parseInt(updateData.status, 10);
+          console.log('ステータスを数値に変換しました:', updateData.status);
         }
       }
+      
+      // タスク更新処理
+      console.log('更新データ送信直前:', JSON.stringify(updateData));
+      const response = await tasksApi.updateTask(task.id, updateData);
+      console.log('Task update response:', response);
+      
+      // レスポンスデータからステータスIDを取得して反映
+      if (response && response.status) {
+        console.log('保存後のステータス設定:', response.status);
+        // ステータスIDが文字列である場合も考慮
+        const statusId = typeof response.status === 'object' 
+          ? response.status.id.toString() 
+          : response.status.toString();
+        
+        // フォームのステータス値を更新
+        setValue('status', statusId);
+      }
+      
+      // 状態をリセット
+      setPendingChanges({});
+      setSaveState('saved');
+      
+      // 3秒後に保存状態表示をクリア
+      setTimeout(() => {
+        if (setSaveState) setSaveState('idle');
+      }, 3000);
+      
+      // 完了ステータスだった場合のメッセージとアクション
+      if (isCompletedStatus) {
+        // 完了メッセージを表示
+        toast.success('タスクを完了しました');
+        
+        // 繰り返しタスクの場合は次回のタスクを作成
+        if (response.is_recurring && response.recurrence_pattern) {
+          try {
+            await tasksApi.createNextRecurringTask(task.id);
+            toast.success('次回の繰り返しタスクを作成しました');
+          } catch (recurringError) {
+            console.error('Error creating next recurring task:', recurringError);
+          }
+        }
+      } else {
+        // 通常の更新完了メッセージ
+        toast.success('タスクを更新しました');
+      }
+      
+      // 親コンポーネントに通知 - 更新されたタスクデータを渡す
+      if (onTaskUpdated) {
+        // APIレスポンスがある場合はそれを使用、なければタスクデータと更新内容をマージ
+        const updatedTaskData = response || { ...task, ...updateData };
+        console.log('Sending updated task to parent:', updatedTaskData);
+        onTaskUpdated(updatedTaskData);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error saving task:', error);
+      setSaveState('error');
+      
+      // エラーメッセージ表示
+      if (error.response && error.response.data) {
+        const errorMsg = error.response.data.detail || JSON.stringify(error.response.data);
+        toast.error(`更新エラー: ${errorMsg}`);
+      } else {
+        toast.error(`更新エラー: ${error.message || 'Unknown error'}`);
+      }
+      
+      // 5秒後にエラー表示をクリア
+      setTimeout(() => {
+        if (setSaveState) setSaveState('idle');
+      }, 5000);
+      
+      return false;
     }
   };
   
@@ -904,7 +933,8 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         recurrence_pattern: '',
         recurrence_end_date: '',
         is_template: 'false',
-        template_name: ''
+        template_name: '',
+        weekdays: ''
       });
       // リセットキーを更新して次回の表示時に確実に新しい状態にする
       setResetKey(Date.now());
@@ -987,8 +1017,15 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
     if (!task || !task.id) return;
     
     try {
-      const response = await timeManagementApi.startTimeEntry(task.id);
-      setTimeEntry(response.data);
+      // 正しいパラメータ形式でAPIを呼び出す
+      const response = await timeManagementApi.startTimeEntry({
+        task_id: task.id,
+        description: `タスク作業: ${task.title || '無題のタスク'}`
+      });
+      
+      // レスポンスがオブジェクトの場合は直接使用、そうでない場合はdata属性を参照
+      const entryData = response.data || response;
+      setTimeEntry(entryData);
       setIsRecordingTime(true);
       setStartTime(new Date());
       
@@ -998,55 +1035,29 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
       }, 1000);
       
       setTimerIntervalId(intervalId);
+
+      // 時間記録リストを即座に更新
+      await fetchTimeEntries();
+      
       toast.success('時間記録を開始しました');
     } catch (error) {
       console.error('Error starting time entry:', error);
-      toast.error('時間記録の開始に失敗しました');
-    }
-  };
-  
-  /**
-   * タスクの時間記録を停止
-   */
-  const stopTimeRecording = async () => {
-    if (!task || !task.id || !timeEntry) return;
-    
-    try {
-      await timeManagementApi.stopTimeEntry(timeEntry.id);
-      setIsRecordingTime(false);
-      setElapsedTime(0);
       
-      // タイマーの停止
-      if (timerIntervalId) {
-        clearInterval(timerIntervalId);
-        setTimerIntervalId(null);
-      }
+      // APIからのエラーメッセージがあれば表示
+      const errorMessage = error.response?.data?.error || '時間記録の開始に失敗しました';
+      toast.error(errorMessage);
       
-      // キャッシュをクリアして時間エントリリストを更新
-      setCachedTimeEntries([]);
-      fetchTimeEntries();
-      
-      toast.success('時間記録を停止しました');
-    } catch (error) {
-      console.error('Error stopping time entry:', error);
-      toast.error('時間記録の停止に失敗しました');
-    }
-  };
-  
-  /**
-   * アクティブな時間エントリを確認
-   */
-  const checkActiveTimeEntry = async (taskId) => {
-    if (!taskId) return;
-    
-    try {
-      const response = await timeManagementApi.getActiveTimeEntry(taskId);
-      if (response.data && response.data.id) {
-        setTimeEntry(response.data);
+      // 既存のアクティブなタイマーがある場合はそのタイマーを使用
+      if (error.response?.data?.time_entry) {
+        const activeEntry = error.response.data.time_entry;
+        toast.info('既存のアクティブなタイマーが検出されました。そのタイマーを使用します。');
+        
+        // UIを既存のタイマーに合わせて更新
+        setTimeEntry(activeEntry);
         setIsRecordingTime(true);
         
         // 開始時間からの経過時間を計算
-        const startTime = new Date(response.data.start_time);
+        const startTime = new Date(activeEntry.start_time);
         const now = new Date();
         const elapsedSeconds = Math.floor((now - startTime) / 1000);
         setElapsedTime(elapsedSeconds);
@@ -1057,10 +1068,125 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
         }, 1000);
         
         setTimerIntervalId(intervalId);
+
+        // 時間記録リストを更新
+        await fetchTimeEntries();
+      }
+    }
+  };
+  
+  /**
+   * タスクの時間記録を停止
+   */
+  const stopTimeRecording = async () => {
+    if (!timeEntry) {
+      toast.error('停止するアクティブなタイマーがありません');
+      // UIの状態をリセット
+      setIsRecordingTime(false);
+      setElapsedTime(0);
+      if (timerIntervalId) {
+        clearInterval(timerIntervalId);
+        setTimerIntervalId(null);
+      }
+      return;
+    }
+    
+    try {
+      console.log('Stopping timer with entry ID:', timeEntry.id);
+      const response = await timeManagementApi.stopTimeEntry(timeEntry.id);
+      console.log('Timer stop response:', response);
+      
+      setIsRecordingTime(false);
+      setElapsedTime(0);
+      setTimeEntry(null);
+      
+      // タイマーの停止
+      if (timerIntervalId) {
+        clearInterval(timerIntervalId);
+        setTimerIntervalId(null);
+      }
+      
+      // 時間記録リストを更新（遅延を入れて確実にサーバーの更新を反映）
+      setTimeout(async () => {
+        await fetchTimeEntries();
+      }, 500);
+      
+      toast.success('時間記録を停止しました');
+    } catch (error) {
+      console.error('Error stopping time entry:', error);
+      
+      // APIからのエラーメッセージがあれば表示
+      const errorMessage = error.response?.data?.error || '時間記録の停止に失敗しました';
+      toast.error(errorMessage);
+      
+      // バックエンドでタイマーの状態を確認するため再取得を試みる
+      try {
+        await fetchTimeEntries();
+        toast.info('タイマーの状態を更新しました');
+        
+        // UIの状態をリセット（エラーからの回復）
+        setIsRecordingTime(false);
+        setElapsedTime(0);
+        setTimeEntry(null);
+        
+        if (timerIntervalId) {
+          clearInterval(timerIntervalId);
+          setTimerIntervalId(null);
+        }
+      } catch (fetchError) {
+        console.error('Error refreshing time entries after stop failure:', fetchError);
+      }
+    }
+  };
+  
+  /**
+   * アクティブな時間エントリを確認
+   */
+  const checkActiveTimeEntry = async (taskId) => {
+    if (!taskId) return;
+    
+    try {
+      // まず、このタスクに関連するアクティブなタイマーを確認
+      const response = await timeManagementApi.getActiveTimeEntry(taskId);
+      
+      if (response.data && (response.data.id || (response.data.active && response.data.data?.id))) {
+        // APIレスポンスの構造に応じてデータを取得
+        const entryData = response.data.data || response.data;
+        console.log('Active time entry found:', entryData);
+        
+        setTimeEntry(entryData);
+        setIsRecordingTime(true);
+        
+        // 開始時間からの経過時間を計算
+        if (entryData.start_time) {
+          const startTime = new Date(entryData.start_time);
+          const now = new Date();
+          const elapsedSeconds = Math.floor((now - startTime) / 1000);
+          setElapsedTime(elapsedSeconds);
+          
+          // タイマーのスタート
+          const intervalId = setInterval(() => {
+            setElapsedTime(prev => prev + 1);
+          }, 1000);
+          
+          setTimerIntervalId(intervalId);
+        }
+        return true;
+      } else {
+        // このタスクにアクティブなタイマーがない場合、他のタスクで実行中のタイマーがないか確認
+        const globalCheck = await timeManagementApi.getDashboardSummary();
+        
+        if (globalCheck.has_active_timer && globalCheck.active_timer) {
+          console.log('Global active timer found but not related to this task:', globalCheck.active_timer);
+          // ユーザーに通知するだけで、UIは更新しない
+          toast.info('別のタスクで時間記録が実行中です');
+        }
       }
     } catch (error) {
       console.error('Error checking active time entry:', error);
     }
+    
+    return false;
   };
   
   /**
@@ -1080,20 +1206,24 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
   const fetchTimeEntries = async () => {
     if (!task || !task.id) return;
     
-    // キャッシュがあれば使用
-    if (cachedTimeEntries && cachedTimeEntries.length > 0) {
-      return;
-    }
-    
     setIsLoadingTimeEntries(true);
     
     try {
+      console.log('Fetching time entries for task:', task.id);
       const response = await timeManagementApi.getTimeEntries(task.id);
-      setCachedTimeEntries(response.data || []);
+      const entries = response.data || response || [];
+      console.log('Fetched time entries:', entries);
+      
+      // 最新の記録が先頭に来るようにソート
+      const sortedEntries = Array.isArray(entries) ? entries.sort((a, b) => {
+        return new Date(b.start_time) - new Date(a.start_time);
+      }) : [];
+      
+      console.log('Sorted time entries:', sortedEntries);
+      setCachedTimeEntries(sortedEntries);
     } catch (error) {
       console.error('Error fetching time entries:', error);
       toast.error('時間記録の取得に失敗しました');
-      // エラー時は空の配列を設定して、以降のエラーを防止
       setCachedTimeEntries([]);
     } finally {
       setIsLoadingTimeEntries(false);
@@ -1257,6 +1387,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                       formState={formState}
                       handleFieldChange={handleFieldChange}
                       watch={watch}
+                      task={task}
                     />
                     
                     <TaskAssigneeSection 
@@ -1280,7 +1411,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                       handleFieldChange={handleFieldChange}
                     />
                     
-                    {/* 作業時間記録セクション - コンポーネント化 */}
+                    {/* 作業時間記録セクション */}
                     {!isNewTask && task && (
                       <TimeTracking 
                         task={task}
@@ -1301,10 +1432,14 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                       />
                     )}
                     
-                    {/* 見積時間 - 削除 */}
+                    {/* 繰り返し設定セクション */}
+                    <TaskRecurrenceSection
+                      control={control}
+                      handleFieldChange={handleFieldChange}
+                      watch={watch}
+                    />
                     
-                    {/* タスク種別（決算期関連）セクションは削除 */}
-                    
+                    {/* テンプレート設定セクション */}
                     <TaskAdditionalSettingsSection 
                       control={control}
                       handleFieldChange={handleFieldChange}
@@ -1314,24 +1449,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                     
                     {/* タスクコメント（新規作成時は表示しない） */}
                     {!isNewTask && task && (
-                      <div className="pt-4 border-t border-gray-200">
-                        <h3 className="text-md font-medium text-gray-700 mb-3">コメント</h3>
-                        {/* TaskCommentsコンポーネントをインポート */}
-                        {task.id && (
-                          <React.Suspense fallback={<div className="text-center py-4">コメントを読み込み中...</div>}>
-                            {/* TaskCommentsコンポーネントの遅延ロード */}
-                            {(() => {
-                              const TaskComments = React.lazy(() => import('../../tasks/TaskComments'));
-                              return <TaskComments taskId={task.id} task={task} onCommentAdded={() => {}} />;
-                            })()}
-                          </React.Suspense>
-                        )}
-                      </div>
-                    )}
-
-                    {/* タスク作成日時（新規作成時は表示しない） */}
-                    {!isNewTask && task && (
-                      <TaskMetaInfoSection task={task} />
+                      <TaskComments taskId={task.id} />
                     )}
                   </div>
                 </form>
@@ -1354,6 +1472,7 @@ const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = 
                 }}
                 saveState={saveState}
                 handleDeleteConfirm={handleDeleteConfirm}
+                isDirty={isDirty}
               />
               
               {/* 削除確認モーダル */}
