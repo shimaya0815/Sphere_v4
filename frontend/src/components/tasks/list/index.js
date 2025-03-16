@@ -493,6 +493,11 @@ const TaskList = forwardRef((props, ref) => {
         delete apiData.worker;
       }
       
+      if (apiData.reviewer) {
+        apiData.reviewer_id = apiData.reviewer;
+        delete apiData.reviewer;
+      }
+      
       // 一括編集データのログ
       console.log('Bulk editing tasks:', selectedTasks);
       console.log('Original edit data:', editData);
