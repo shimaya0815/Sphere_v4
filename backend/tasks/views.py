@@ -599,14 +599,29 @@ class TaskCommentViewSet(viewsets.ModelViewSet):
         # レビュアー
         if task.reviewer and task.reviewer != self.request.user:
             recipients.add(task.reviewer)
-            
+        
+        # メンションされたユーザーを追加
+        if comment.mentioned_users.exists():
+            for mentioned_user in comment.mentioned_users.all():
+                if mentioned_user != self.request.user:
+                    recipients.add(mentioned_user)
+        
         # それぞれに通知を作成
         for recipient in recipients:
+            # 通知タイプとメッセージを判断
+            notification_type = 'comment'
+            content = f'{self.request.user.get_full_name()}さんがタスク「{task.title}」にコメントしました。'
+            
+            # メンションされたユーザーには特別な通知を作成
+            if comment.mentioned_users.filter(id=recipient.id).exists():
+                notification_type = 'mention'
+                content = f'{self.request.user.get_full_name()}さんがタスク「{task.title}」のコメントであなたをメンションしました。'
+            
             TaskNotification.objects.create(
                 user=recipient,
                 task=task,
-                notification_type='comment',
-                content=f'{self.request.user.get_full_name()}さんがタスク「{task.title}」にコメントしました。'
+                notification_type=notification_type,
+                content=content
             )
         
         # コメント作成をWebSocketに通知
@@ -628,7 +643,8 @@ class TaskCommentViewSet(viewsets.ModelViewSet):
                 "comment_id": comment.id,
                 "user_name": self.request.user.get_full_name() or self.request.user.username,
                 "content": comment.content,
-                "created_at": comment.created_at.isoformat()
+                "created_at": comment.created_at.isoformat(),
+                "mentioned_user_ids": [user.id for user in comment.mentioned_users.all()]
             }
             
             # FastAPIサーバーに通知を送信

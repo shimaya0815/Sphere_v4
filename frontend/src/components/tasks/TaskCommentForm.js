@@ -3,12 +3,20 @@ import { HiOutlinePaperAirplane, HiOutlinePaperClip } from 'react-icons/hi';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import toast from 'react-hot-toast';
-import { quillModules, quillFormats } from './TaskCommentsUtils';
+import { quillModules, quillFormats, MENTION_REGEX, findMentionCandidates, extractMentionedUserIds } from './TaskCommentsUtils';
+import { addTaskComment } from '../../api/tasks';
+import { getBusinessUsers } from '../../api/users';
+import MentionUsersList from './MentionUsersList';
 
 const TaskCommentForm = ({ taskId, onCommentAdded, submitting, setSubmitting }) => {
   const [newComment, setNewComment] = useState('');
   const [editorHtml, setEditorHtml] = useState('');
   const [pastedImages, setPastedImages] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionPosition, setMentionPosition] = useState({ top: 0, left: 0 });
+  const [mentionCandidates, setMentionCandidates] = useState([]);
+  const [mentionedUsers, setMentionedUsers] = useState([]);
   
   const quillRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -153,15 +161,115 @@ const TaskCommentForm = ({ taskId, onCommentAdded, submitting, setSubmitting }) 
       // プレーンテキスト形式も保持（API送信用）
       const plainText = editor.getText().trim();
       setNewComment(plainText);
+      checkForMentions(plainText);
     }
+  };
+
+  // ユーザー情報を取得
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await getBusinessUsers();
+        if (response && response.data) {
+          setUsers(response.data);
+        }
+      } catch (error) {
+        console.error('ユーザー一覧の取得に失敗しました:', error);
+      }
+    };
+
+    fetchUsers();
+  }, []);
+
+  // メンションのチェック
+  const checkForMentions = (text) => {
+    const editor = quillRef.current?.getEditor();
+    if (!editor) return;
+
+    const selection = editor.getSelection();
+    if (!selection) return;
+
+    const cursorPosition = selection.index;
+    const textBeforeCursor = editor.getText(0, cursorPosition);
+    
+    // @マークから現在のカーソル位置までをチェック
+    const lastAtSymbol = textBeforeCursor.lastIndexOf('@');
+    if (lastAtSymbol === -1 || textBeforeCursor.slice(lastAtSymbol).includes(' ')) {
+      setMentionCandidates([]);
+      return;
+    }
+
+    // メンションクエリを抽出（@の後の文字列）
+    const query = textBeforeCursor.slice(lastAtSymbol + 1);
+    setMentionQuery(query);
+
+    // クエリに一致するユーザーを検索
+    const candidates = findMentionCandidates(query, users);
+    setMentionCandidates(candidates);
+
+    // メンションリストの位置を計算
+    const bounds = editor.getBounds(lastAtSymbol);
+    setMentionPosition({
+      top: bounds.top + 20, // エディタ内での相対位置に調整
+      left: bounds.left
+    });
+  };
+
+  // メンションユーザーの選択
+  const handleSelectMention = (user) => {
+    const editor = quillRef.current?.getEditor();
+    if (!editor) return;
+
+    const selection = editor.getSelection();
+    if (!selection) return;
+
+    const cursorPosition = selection.index;
+    const textBeforeCursor = editor.getText(0, cursorPosition);
+    const lastAtSymbol = textBeforeCursor.lastIndexOf('@');
+    
+    if (lastAtSymbol !== -1) {
+      // @マークからカーソル位置までを削除
+      editor.deleteText(lastAtSymbol, cursorPosition - lastAtSymbol);
+      
+      // ユーザー名を挿入（@付き）
+      const userFullName = user.get_full_name || 
+                          `${user.first_name || ''} ${user.last_name || ''}`.trim() || 
+                          user.email || 
+                          user.username;
+      
+      editor.insertText(lastAtSymbol, `@${userFullName} `, {
+        color: '#4a86e8',
+        background: 'rgba(74, 134, 232, 0.1)',
+        bold: true
+      });
+      
+      // フォーカスを戻す
+      editor.focus();
+      
+      // メンションされたユーザーを記録
+      setMentionedUsers((prev) => {
+        // 重複を避ける
+        if (!prev.some(u => u.id === user.id)) {
+          return [...prev, user];
+        }
+        return prev;
+      });
+    }
+    
+    // メンション候補をクリア
+    setMentionCandidates([]);
+  };
+
+  // メンション候補を閉じる
+  const closeMentionCandidates = () => {
+    setMentionCandidates([]);
   };
 
   // コメント送信
   const handleSubmit = async (e) => {
     if (e) e.preventDefault(); // イベントが存在する場合は、デフォルトの動作を明示的に防止
     
-    // コメント内容とファイル添付のどちらかがあれば送信可能
-    if ((!newComment.trim() && !editorHtml) && pastedImages.length === 0) {
+    if (!newComment.trim() && !editorHtml && pastedImages.length === 0) {
       toast.error('コメント内容または画像を入力してください');
       return;
     }
@@ -180,6 +288,9 @@ const TaskCommentForm = ({ taskId, onCommentAdded, submitting, setSubmitting }) 
     const imagePreviewUrls = pastedImages.map(img => img.url);
     
     try {
+      // メンションされたユーザーのIDを抽出
+      const mentionedUserIds = extractMentionedUserIds(mentionedUsers);
+      
       // FormDataを作成してファイルと一緒に送信
       const formData = new FormData();
       formData.append('task', taskId);
@@ -200,38 +311,40 @@ const TaskCommentForm = ({ taskId, onCommentAdded, submitting, setSubmitting }) 
         });
       }
       
-      // 親コンポーネントにコメント情報とFormDataを渡す
-      onCommentAdded({
+      // コメントの送信
+      const response = await addTaskComment(taskId, {
         content: savedComment,
         html_content: savedHtml,
-        imageUrls: imagePreviewUrls
-      }, formData);
+        imageUrls: imagePreviewUrls,
+        mentioned_user_ids: mentionedUserIds
+      });
       
-      // フォームをリセット
-      resetForm();
-      
+      // 送信成功
+      if (response && response.data) {
+        setNewComment('');
+        setEditorHtml('');
+        setPastedImages([]);
+        setMentionedUsers([]);
+        onCommentAdded(response.data);
+      }
     } catch (error) {
-      console.error('Error preparing comment form data:', error);
-      toast.error('コメントの準備中にエラーが発生しました');
+      console.error('コメントの送信に失敗しました:', error);
+      toast.error('コメントの送信中にエラーが発生しました');
       setSubmitting(false);
     }
   };
 
-  // フォームリセット
-  const resetForm = () => {
-    setNewComment('');
-    setEditorHtml('');
-    setPastedImages([]);
-    
-    // エディタの内容をクリア
-    if (quillRef.current) {
-      try {
-        const editor = quillRef.current.getEditor();
-        editor.setContents([]);
-      } catch (error) {
-        console.error('エディタのリセットに失敗:', error);
-      }
+  // キー入力イベント
+  const handleKeyDown = (e) => {
+    // Ctrl + Enter でコメント送信
+    if (e.ctrlKey && e.key === 'Enter') {
+      handleSubmit();
     }
+    
+    // メンション候補が表示されていない場合は何もしない
+    if (mentionCandidates.length === 0) return;
+    
+    // メンション候補の操作はMentionUsersListコンポーネントで処理
   };
 
   return (
@@ -287,6 +400,7 @@ const TaskCommentForm = ({ taskId, onCommentAdded, submitting, setSubmitting }) 
                 theme="snow"
                 className="quill-editor"
                 readOnly={submitting}
+                onKeyDown={handleKeyDown}
               />
             </div>
           </div>
@@ -322,6 +436,16 @@ const TaskCommentForm = ({ taskId, onCommentAdded, submitting, setSubmitting }) 
       <div className="mt-2 text-xs text-gray-500">
         <p>画像はクリップボードからペースト、**太字**、*斜体*、`コード`などの書式が使えます。</p>
       </div>
+      
+      {/* メンション候補リスト */}
+      {mentionCandidates.length > 0 && (
+        <MentionUsersList
+          users={mentionCandidates}
+          position={mentionPosition}
+          onSelect={handleSelectMention}
+          onClose={closeMentionCandidates}
+        />
+      )}
     </div>
   );
 };
