@@ -3,10 +3,21 @@ import { HiOutlinePaperAirplane, HiOutlinePaperClip } from 'react-icons/hi';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import toast from 'react-hot-toast';
-import { quillModules, quillFormats, MENTION_REGEX, findMentionCandidates, extractMentionedUserIds } from './TaskCommentsUtils';
-import { addTaskComment } from '../../api/tasks';
-import { getBusinessUsers } from '../../api/users';
+import { 
+  quillModules, 
+  quillFormats, 
+  MENTION_REGEX, 
+  findMentionCandidates, 
+  extractMentionedUserIds,
+  dataURLtoBlob,
+  extractBase64Images 
+} from './TaskCommentsUtils';
+import tasksApi from '../../api/tasks';
+import usersApi from '../../api/users';
 import MentionUsersList from './MentionUsersList';
+
+// エディタのカスタムスタイルをインポート
+import './TaskCommentsStyles';
 
 const TaskCommentForm = ({ taskId, onCommentAdded, submitting, setSubmitting }) => {
   const [newComment, setNewComment] = useState('');
@@ -17,9 +28,19 @@ const TaskCommentForm = ({ taskId, onCommentAdded, submitting, setSubmitting }) 
   const [mentionPosition, setMentionPosition] = useState({ top: 0, left: 0 });
   const [mentionCandidates, setMentionCandidates] = useState([]);
   const [mentionedUsers, setMentionedUsers] = useState([]);
+  const [editorReady, setEditorReady] = useState(false);
   
   const quillRef = useRef(null);
   const fileInputRef = useRef(null);
+  
+  // エディタの初期化確認
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setEditorReady(true);
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, []);
   
   // ペースト処理のハンドラー
   const handlePaste = useCallback((e) => {
@@ -30,26 +51,80 @@ const TaskCommentForm = ({ taskId, onCommentAdded, submitting, setSubmitting }) 
     for (let i = 0; i < items.length; i++) {
       if (items[i].type.indexOf('image') !== -1) {
         hasImage = true;
+        e.preventDefault(); // デフォルトの貼り付けをキャンセル
         
         const blob = items[i].getAsFile();
         const imageUrl = URL.createObjectURL(blob);
         
-        // 画像プレビューを追加
-        setPastedImages(prev => [...prev, {
-          id: Date.now().toString(),
-          file: blob,
-          url: imageUrl
-        }]);
+        // 画像サイズのチェック（最大5MBまで）
+        if (blob.size > 5 * 1024 * 1024) {
+          toast.error('画像サイズが大きすぎます（最大5MB）');
+          return;
+        }
+        
+        // Quillエディタのインスタンスを取得
+        const quill = quillRef.current.getEditor();
+        if (quill) {
+          // 現在のカーソル位置を取得
+          const range = quill.getSelection();
+          const position = range ? range.index : quill.getLength();
+          
+          // 画像をエディタに直接挿入（カスタムスタイル付き）
+          quill.insertEmbed(position, 'image', imageUrl);
+          
+          // 挿入した画像要素を取得して最大幅を設定
+          setTimeout(() => {
+            const imageElements = quill.root.querySelectorAll('img');
+            
+            // 最後に挿入された画像（通常は最後の要素）を取得
+            if (imageElements.length > 0) {
+              const lastImage = imageElements[imageElements.length - 1];
+              
+              // 画像にスタイルを適用
+              lastImage.style.maxWidth = '100%';
+              lastImage.style.height = 'auto';
+              lastImage.style.margin = '10px 0';
+              lastImage.style.borderRadius = '4px';
+              
+              // 画像が大きすぎる場合は最大高さも制限
+              if (lastImage.naturalHeight > 600) {
+                lastImage.style.maxHeight = '400px';
+                lastImage.style.objectFit = 'contain';
+              }
+            }
+          }, 10);
+          
+          // カーソルを画像の後ろに移動
+          quill.setSelection(position + 1);
+          
+          // Base64形式に変換してHTMLに埋め込む
+          const reader = new FileReader();
+          reader.onload = function(event) {
+            const base64Data = event.target.result;
+            // 既存のURLを置き換え
+            const editorContent = quill.root.innerHTML;
+            const updatedContent = editorContent.replace(imageUrl, base64Data);
+            quill.root.innerHTML = updatedContent;
+            
+            // HTMLの更新をStateにも反映
+            setEditorHtml(updatedContent);
+          };
+          reader.readAsDataURL(blob);
+          
+          toast.success('画像がコメントに挿入されました');
+        } else {
+          // エディタが使用できない場合は従来の方法で画像を添付
+          setPastedImages(prev => [...prev, {
+            id: Date.now().toString(),
+            file: blob,
+            url: imageUrl
+          }]);
+          toast.success('画像が添付されました');
+        }
       }
     }
     
-    // 画像がペーストされた場合のみデフォルト動作をキャンセル
-    if (hasImage) {
-      e.preventDefault();
-      toast.success('画像が追加されました');
-    }
-    
-    // テキストのペーストはそのまま通常通り処理
+    // 画像以外のペーストはQuillのデフォルト処理に任せる
   }, []);
   
   // Quill初期化後のクリップボード設定
@@ -69,43 +144,28 @@ const TaskCommentForm = ({ taskId, onCommentAdded, submitting, setSubmitting }) 
     }
   }, [handlePaste]);
   
-  // Quillエディタの初期化を確認
+  // コンポーネントマウント時とエディタ準備完了時の処理
   useEffect(() => {
-    // コンポーネントマウント後に少し遅延させてQuillを初期化
-    const timer = setTimeout(() => {
-      try {
-        if (quillRef.current) {
-          console.log('Quill ref is available, initializing editor');
-          const quill = quillRef.current.getEditor();
-          
-          if (quill) {
-            console.log('Quill editor initialized successfully');
-            
-            // ツールバーが表示されるよう強制的にスタイルを適用
-            const toolbarElement = document.querySelector('.ql-toolbar');
-            if (toolbarElement) {
-              toolbarElement.style.display = 'block';
-              toolbarElement.style.visibility = 'visible';
-            }
-          }
+    if (editorReady) {
+      // エディタの設定を追加
+      setupClipboardHandler();
+      
+      // エディタのツールバーが見えるようにスタイル調整
+      const fixQuillToolbar = () => {
+        const toolbarElement = document.querySelector('.ql-toolbar');
+        if (toolbarElement) {
+          toolbarElement.style.display = 'flex';
+          toolbarElement.style.visibility = 'visible';
+          toolbarElement.style.opacity = '1';
         }
-      } catch (error) {
-        console.error('Error initializing Quill editor:', error);
-      }
-    }, 300);
+      };
+      
+      // 少し遅延を入れてDOM要素が確実に存在するようにする
+      setTimeout(fixQuillToolbar, 100);
+    }
     
     return () => {
-      clearTimeout(timer);
-    };
-  }, []);
-  
-  // 初期化設定をセットアップ - リスナーの設定
-  useEffect(() => {
-    // 初期化時のみリスナーを設定
-    setupClipboardHandler();
-    
-    return () => {
-      // コンポーネントのアンマウント時にリスナーを削除
+      // クリーンアップ処理
       if (quillRef.current) {
         try {
           const quill = quillRef.current.getEditor();
@@ -117,7 +177,7 @@ const TaskCommentForm = ({ taskId, onCommentAdded, submitting, setSubmitting }) 
         }
       }
     };
-  }, [setupClipboardHandler, handlePaste]);
+  }, [setupClipboardHandler, handlePaste, editorReady]);
   
   // 画像の削除
   const handleRemoveImage = (imageId) => {
@@ -134,24 +194,75 @@ const TaskCommentForm = ({ taskId, onCommentAdded, submitting, setSubmitting }) 
     const files = e.target.files;
     if (!files || files.length === 0) return;
     
+    // Quillエディタのインスタンスを取得
+    const quill = quillRef.current?.getEditor();
+    
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (file.type.startsWith('image/')) {
-        const imageUrl = URL.createObjectURL(file);
+        // 画像サイズのチェック（最大5MBまで）
+        if (file.size > 5 * 1024 * 1024) {
+          toast.error('画像サイズが大きすぎます（最大5MB）');
+          continue;
+        }
         
-        // 画像プレビューを追加
-        setPastedImages(prev => [...prev, {
-          id: Date.now().toString() + i,
-          file: file,
-          url: imageUrl
-        }]);
+        if (quill) {
+          // 画像をエディタに直接挿入する
+          const reader = new FileReader();
+          reader.onload = function(event) {
+            const base64Data = event.target.result;
+            // 現在のカーソル位置を取得
+            const range = quill.getSelection();
+            const position = range ? range.index : quill.getLength();
+            
+            // 画像をエディタに挿入
+            quill.insertEmbed(position, 'image', base64Data);
+            
+            // 挿入した画像要素を取得して最大幅を設定
+            setTimeout(() => {
+              const imageElements = quill.root.querySelectorAll('img');
+              
+              // 最後に挿入された画像（通常は最後の要素）を取得
+              if (imageElements.length > 0) {
+                const lastImage = imageElements[imageElements.length - 1];
+                
+                // 画像にスタイルを適用
+                lastImage.style.maxWidth = '100%';
+                lastImage.style.height = 'auto';
+                lastImage.style.margin = '10px 0';
+                lastImage.style.borderRadius = '4px';
+                
+                // 画像が大きすぎる場合は最大高さも制限
+                if (lastImage.naturalHeight > 600) {
+                  lastImage.style.maxHeight = '400px';
+                  lastImage.style.objectFit = 'contain';
+                }
+              }
+            }, 10);
+            
+            // カーソルを画像の後ろに移動
+            quill.setSelection(position + 1);
+            
+            // HTMLの更新をStateにも反映
+            setEditorHtml(quill.root.innerHTML);
+          };
+          reader.readAsDataURL(file);
+          toast.success('画像がコメントに挿入されました');
+        } else {
+          // エディタが使用できない場合は従来の方法で画像を添付
+          const imageUrl = URL.createObjectURL(file);
+          setPastedImages(prev => [...prev, {
+            id: Date.now().toString() + i,
+            file: file,
+            url: imageUrl
+          }]);
+          toast.success('画像が添付されました');
+        }
       }
     }
     
     // ファイル入力をリセット
     e.target.value = '';
-    
-    toast.success('画像が追加されました');
   };
   
   // エディターの変更ハンドラー
@@ -169,12 +280,46 @@ const TaskCommentForm = ({ taskId, onCommentAdded, submitting, setSubmitting }) 
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await getBusinessUsers();
-        if (response && response.data) {
-          setUsers(response.data);
+        console.log('Fetching users for mention feature...');
+        const response = await usersApi.getBusinessUsers();
+        
+        // さまざまな形式のレスポンスに対応
+        let userData = [];
+        
+        if (response) {
+          if (Array.isArray(response)) {
+            userData = response;
+          } else if (response.data && Array.isArray(response.data)) {
+            userData = response.data;
+          } else if (response.data && response.data.results && Array.isArray(response.data.results)) {
+            userData = response.data.results;
+          }
         }
+        
+        console.log(`Loaded ${userData.length} users for mention feature`);
+        
+        // デモユーザーを追加（テスト用）
+        if (userData.length === 0) {
+          userData = [
+            { id: 1, username: 'admin', first_name: '管理者', last_name: 'ユーザー' },
+            { id: 2, username: 'worker1', first_name: '担当者', last_name: '1' },
+            { id: 3, username: 'worker2', first_name: '担当者', last_name: '2' },
+          ];
+          console.log('Using demo users for mention feature');
+        }
+        
+        setUsers(userData);
       } catch (error) {
         console.error('ユーザー一覧の取得に失敗しました:', error);
+        
+        // エラー時はデモユーザーを使用
+        const demoUsers = [
+          { id: 1, username: 'admin', first_name: '管理者', last_name: 'ユーザー' },
+          { id: 2, username: 'worker1', first_name: '担当者', last_name: '1' },
+          { id: 3, username: 'worker2', first_name: '担当者', last_name: '2' },
+        ];
+        setUsers(demoUsers);
+        console.log('Using demo users due to API error');
       }
     };
 
@@ -192,26 +337,60 @@ const TaskCommentForm = ({ taskId, onCommentAdded, submitting, setSubmitting }) 
     const cursorPosition = selection.index;
     const textBeforeCursor = editor.getText(0, cursorPosition);
     
+    console.log('Checking for mentions at position:', cursorPosition);
+    console.log('Text before cursor:', textBeforeCursor);
+    
     // @マークから現在のカーソル位置までをチェック
     const lastAtSymbol = textBeforeCursor.lastIndexOf('@');
-    if (lastAtSymbol === -1 || textBeforeCursor.slice(lastAtSymbol).includes(' ')) {
+    if (lastAtSymbol === -1) {
+      setMentionCandidates([]);
+      return;
+    }
+    
+    // @マークから現在位置までのテキストを抽出し、スペースが含まれていないか確認
+    const textAfterAt = textBeforeCursor.slice(lastAtSymbol + 1);
+    const hasSpace = textAfterAt.includes(' ');
+    
+    console.log('Text after @ symbol:', textAfterAt);
+    console.log('Has space after @:', hasSpace);
+    
+    // スペースが見つかった場合かつ@直後でない場合は、メンション入力が終了したと判断
+    if (hasSpace && textAfterAt.length > 0) {
       setMentionCandidates([]);
       return;
     }
 
     // メンションクエリを抽出（@の後の文字列）
-    const query = textBeforeCursor.slice(lastAtSymbol + 1);
+    const query = textAfterAt;
     setMentionQuery(query);
+    console.log('Mention query:', query);
 
     // クエリに一致するユーザーを検索
     const candidates = findMentionCandidates(query, users);
+    console.log('Found mention candidates:', candidates.length);
     setMentionCandidates(candidates);
 
     // メンションリストの位置を計算
     const bounds = editor.getBounds(lastAtSymbol);
+    const quillContainer = document.querySelector('.quill-container');
+    const quillContainerRect = quillContainer?.getBoundingClientRect();
+    const editorRect = editor.root.getBoundingClientRect();
+    
+    // エディタの絶対位置から計算（固定位置のための計算）
+    const editorTop = editorRect.top;
+    const editorLeft = editorRect.left;
+    
+    // カーソル位置を絶対位置で計算
+    const absoluteTop = editorTop + bounds.top + bounds.height + 10; // @マークの下に表示
+    const absoluteLeft = editorLeft + bounds.left;
+    
+    console.log('Editor rect:', editorRect);
+    console.log('Bounds:', bounds);
+    console.log('Absolute position:', { top: absoluteTop, left: absoluteLeft });
+    
     setMentionPosition({
-      top: bounds.top + 20, // エディタ内での相対位置に調整
-      left: bounds.left
+      top: absoluteTop,
+      left: absoluteLeft
     });
   };
 
@@ -278,14 +457,17 @@ const TaskCommentForm = ({ taskId, onCommentAdded, submitting, setSubmitting }) 
     let savedComment = newComment; // プレーンテキスト
     let savedHtml = editorHtml; // HTML形式
     
+    // デバッグログ: 送信前のデータを確認
+    console.log('Submit data check:');
+    console.log('taskId:', taskId);
+    console.log('savedComment:', savedComment);
+    console.log('savedHtml:', savedHtml);
+    
     // 空のHTMLコンテンツをチェック（Quillが<p><br></p>のような空要素を生成する場合がある）
     if (!savedHtml || savedHtml === '<p><br></p>' || savedHtml === '<p></p>') {
       console.log('Empty HTML content detected, generating from plain text');
       savedHtml = `<p>${newComment.replace(/\n/g, '</p><p>')}</p>`;
     }
-    
-    // イメージのURLリスト（プレビュー用）
-    const imagePreviewUrls = pastedImages.map(img => img.url);
     
     try {
       // メンションされたユーザーのIDを抽出
@@ -293,43 +475,106 @@ const TaskCommentForm = ({ taskId, onCommentAdded, submitting, setSubmitting }) 
       
       // FormDataを作成してファイルと一緒に送信
       const formData = new FormData();
-      formData.append('task', taskId);
-      formData.append('content', savedComment);
       
-      // 必ずHTML形式のコンテンツも送信
-      if (savedHtml && savedHtml.trim() !== '') {
-        formData.append('html_content', savedHtml);
-      } else {
-        const generatedHtml = `<p>${savedComment.replace(/\n/g, '</p><p>')}</p>`;
-        formData.append('html_content', generatedHtml);
+      // taskとcontentは必須フィールドなので、値を確認
+      if (!taskId) {
+        console.error('タスクIDが不正です:', taskId);
+        toast.error('タスクIDが不正です。ページを再読み込みしてください。');
+        setSubmitting(false);
+        return;
       }
       
-      // 画像ファイルを追加
+      if (!savedComment && !pastedImages.length) {
+        console.error('コメント内容が空です');
+        toast.error('コメント内容を入力してください');
+        setSubmitting(false);
+        return;
+      }
+      
+      formData.append('task', taskId);
+      formData.append('content', savedComment || '画像コメント'); // コンテンツが空の場合はプレースホルダーを使用
+      
+      // FormDataに追加されているかを確認（デバッグ用）
+      console.log('FormData values:');
+      console.log('task:', formData.get('task'));
+      console.log('content:', formData.get('content'));
+      
+      // HTML形式のコンテンツを送信
+      formData.append('html_content', savedHtml);
+      console.log('html_content:', formData.get('html_content'));
+      
+      // Base64エンコードされた画像を抽出（HTML内に埋め込まれた画像）
+      const base64Images = extractBase64Images(savedHtml);
+      console.log(`Extracted ${base64Images.length} base64 images from HTML content`);
+      
+      // メンションされたユーザーIDを追加
+      if (mentionedUserIds.length > 0) {
+        console.log('Adding mentioned user IDs:', mentionedUserIds);
+        mentionedUserIds.forEach(userId => {
+          formData.append('mentioned_users', userId.toString());
+        });
+        
+        // デバッグ用：すべてのmentioned_usersが追加されたか確認
+        const mentionedValues = formData.getAll('mentioned_users');
+        console.log('All mentioned_users in FormData:', mentionedValues);
+      }
+      
+      // 添付ファイルとして追加されている画像ファイルを追加
       if (pastedImages.length > 0) {
-        pastedImages.forEach(img => {
+        console.log(`Adding ${pastedImages.length} attachment images to FormData`);
+        pastedImages.forEach((img, index) => {
           formData.append('files', img.file);
+          console.log(`Added image ${index + 1}: ${img.file.name} (${img.file.type}, ${img.file.size} bytes)`);
         });
       }
       
-      // コメントの送信
-      const response = await addTaskComment(taskId, {
-        content: savedComment,
-        html_content: savedHtml,
-        imageUrls: imagePreviewUrls,
-        mentioned_user_ids: mentionedUserIds
-      });
-      
-      // 送信成功
-      if (response && response.data) {
-        setNewComment('');
-        setEditorHtml('');
-        setPastedImages([]);
-        setMentionedUsers([]);
-        onCommentAdded(response.data);
+      // FormDataの全エントリをデバッグ表示（ファイル以外）
+      console.log('FormData entries:');
+      for (let pair of formData.entries()) {
+        // ファイルオブジェクトは大きすぎるのでスキップ
+        if (pair[1] instanceof File) {
+          console.log(pair[0], ':', '[File object]', pair[1].name, pair[1].size, 'bytes');
+        } else {
+          console.log(pair[0], ':', pair[1]);
+        }
       }
+      
+      // コメントを送信
+      console.log('送信開始: addCommentWithFiles API呼び出し');
+      const addedComment = await tasksApi.addCommentWithFiles(taskId, formData);
+      console.log('API応答:', addedComment);
+      
+      // 成功時の処理
+      toast.success('コメントが追加されました');
+      
+      // フォームをクリア
+      setNewComment('');
+      setEditorHtml('');
+      setPastedImages([]);
+      setMentionedUsers([]);
+      
+      // 親コンポーネントにコメント追加を通知
+      if (onCommentAdded) {
+        onCommentAdded(addedComment);
+      }
+      
+      setSubmitting(false);
     } catch (error) {
       console.error('コメントの送信に失敗しました:', error);
-      toast.error('コメントの送信中にエラーが発生しました');
+      // エラーの詳細情報を表示
+      if (error.response) {
+        console.error('エラーレスポンス:', error.response.data);
+        console.error('エラーステータス:', error.response.status);
+        // ユーザーにわかりやすいメッセージを表示
+        toast.error(`コメントの送信に失敗しました (${error.response.status}): サーバーエラーが発生しました`);
+      } else if (error.request) {
+        // リクエストは送信されたがレスポンスがない場合
+        console.error('リクエストエラー:', error.request);
+        toast.error('コメントの送信に失敗しました: サーバーから応答がありません');
+      } else {
+        // リクエスト設定中にエラーが発生した場合
+        toast.error('コメントの送信に失敗しました: ' + error.message);
+      }
       setSubmitting(false);
     }
   };
@@ -389,19 +634,31 @@ const TaskCommentForm = ({ taskId, onCommentAdded, submitting, setSubmitting }) 
         {/* リッチテキストエディタ */}
         <div className="flex items-start space-x-3">
           <div className="relative flex-1">
-            <div className="quill-container" style={{ minHeight: '150px' }}>
-              <ReactQuill
-                ref={quillRef}
-                value={editorHtml}
-                onChange={handleEditorChange}
-                modules={quillModules}
-                formats={quillFormats}
-                placeholder="コメントを入力..."
-                theme="snow"
-                className="quill-editor"
-                readOnly={submitting}
-                onKeyDown={handleKeyDown}
-              />
+            <div className="quill-container relative" style={{ minHeight: '150px' }}>
+              {editorReady && (
+                <ReactQuill
+                  ref={quillRef}
+                  value={editorHtml}
+                  onChange={handleEditorChange}
+                  modules={quillModules}
+                  formats={quillFormats}
+                  placeholder="コメントを入力..."
+                  theme="snow"
+                  className="quill-editor"
+                  readOnly={submitting}
+                  onKeyDown={handleKeyDown}
+                />
+              )}
+              
+              {/* メンション候補リスト - エディタ内に配置 */}
+              {mentionCandidates.length > 0 && (
+                <MentionUsersList
+                  users={mentionCandidates}
+                  position={mentionPosition}
+                  onSelect={handleSelectMention}
+                  onClose={closeMentionCandidates}
+                />
+              )}
             </div>
           </div>
           
@@ -436,16 +693,6 @@ const TaskCommentForm = ({ taskId, onCommentAdded, submitting, setSubmitting }) 
       <div className="mt-2 text-xs text-gray-500">
         <p>画像はクリップボードからペースト、**太字**、*斜体*、`コード`などの書式が使えます。</p>
       </div>
-      
-      {/* メンション候補リスト */}
-      {mentionCandidates.length > 0 && (
-        <MentionUsersList
-          users={mentionCandidates}
-          position={mentionPosition}
-          onSelect={handleSelectMention}
-          onClose={closeMentionCandidates}
-        />
-      )}
     </div>
   );
 };
