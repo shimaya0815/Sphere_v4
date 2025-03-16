@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import FiscalYearManagement from './FiscalYearManagement';
 import TaxRulesView from './tax/TaxRulesView';
 import ServiceCheckSettings from './ServiceCheckSettings';
+import ClientContractsSection from './contracts/ClientContractsSection';
 import { 
   HiOutlineOfficeBuilding, 
   HiOutlinePhone, 
@@ -540,7 +541,7 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
           onClick={() => setActiveTab('tax_rules')}
           type="button"
         >
-          源泉/住民税
+          税務ルール
         </button>
         <button 
           className={`tab ${activeTab === 'salary' ? 'tab-active' : ''}`}
@@ -550,18 +551,18 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
           給与情報
         </button>
         <button 
-          className={`tab ${activeTab === 'fiscal' ? 'tab-active' : ''}`}
-          onClick={() => setActiveTab('fiscal')}
+          className={`tab ${activeTab === 'task_settings' ? 'tab-active' : ''}`}
+          onClick={() => setActiveTab('task_settings')}
           type="button"
         >
-          決算期管理
+          タスク設定
         </button>
         <button 
-          className={`tab ${activeTab === 'service_settings' ? 'tab-active' : ''}`}
-          onClick={() => setActiveTab('service_settings')}
+          className={`tab ${activeTab === 'contracts' ? 'tab-active' : ''}`}
+          onClick={() => setActiveTab('contracts')}
           type="button"
         >
-          タスクテンプレート
+          契約情報
         </button>
       </div>
       
@@ -1068,6 +1069,20 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
               クライアントを作成してからサービス設定を行ってください。先に基本情報を入力して登録してください。
             </div>
           )}
+        </div>
+      )}
+
+      {/* タスク設定タブ */}
+      {activeTab === 'task_settings' && clientId && (
+        <div className="mt-6">
+          <ServiceCheckSettings clientId={clientId} />
+        </div>
+      )}
+      
+      {/* 契約情報タブ - 新しく追加 */}
+      {activeTab === 'contracts' && clientId && (
+        <div className="mt-6">
+          <ClientContractsSection clientId={clientId} />
         </div>
       )}
 

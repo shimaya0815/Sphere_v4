@@ -4,11 +4,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db.models import Count, Q as models_Q
 from django.shortcuts import get_object_or_404
-from .models import Client, FiscalYear, TaxRuleHistory, TaskTemplateSchedule, ClientTaskTemplate
+from .models import Client, FiscalYear, TaxRuleHistory, TaskTemplateSchedule, ClientTaskTemplate, ContractService, ClientContract
 from .serializers import (
     ClientSerializer, FiscalYearSerializer,
     TaxRuleHistorySerializer, TaskTemplateScheduleSerializer,
-    ClientTaskTemplateSerializer
+    ClientTaskTemplateSerializer, ContractServiceSerializer, ClientContractSerializer
 )
 from business.permissions import IsSameBusiness
 from tasks.serializers import TaskSerializer
@@ -320,42 +320,26 @@ class ClientTaskTemplateViewSet(viewsets.ModelViewSet):
 
 
 class ClientTaskTemplatesView(APIView):
-    """View to manage task templates for a specific client."""
-    permission_classes = [permissions.IsAuthenticated, IsSameBusiness]
+    """View for retrieving all task templates for a client."""
+    permission_classes = [permissions.IsAuthenticated]
     
-    def get_client(self, client_id, request):
-        """Get the client object ensuring it belongs to the user's business."""
-        return get_object_or_404(Client, id=client_id, business=request.user.business)
-    
-    def get(self, request, client_id):
+    def get(self, request, client_id=None, format=None):
         """Get all task templates for a client."""
-        client = self.get_client(client_id, request)
-        templates = client.task_templates.all()
-        
-        # Filter by active status if provided
-        is_active = request.query_params.get('is_active', None)
-        if is_active is not None:
-            is_active_bool = is_active.lower() == 'true'
-            templates = templates.filter(is_active=is_active_bool)
-            
-        serializer = ClientTaskTemplateSerializer(templates, many=True)
-        return Response(serializer.data)
-    
-    def post(self, request, client_id):
-        """Create a new task template for a client."""
-        client = self.get_client(client_id, request)
-        
-        # Add client to request data
-        data = request.data.copy()
-        data['client'] = client.id
-        
-        serializer = ClientTaskTemplateSerializer(data=data)
-        
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            client = Client.objects.get(id=client_id, business=request.user.business)
+            task_templates = ClientTaskTemplate.objects.filter(client=client)
+            serializer = ClientTaskTemplateSerializer(task_templates, many=True)
+            return Response(serializer.data)
+        except Client.DoesNotExist:
+            return Response(
+                {"detail": "Client not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class TaxRuleHistoryViewSet(viewsets.ModelViewSet):
@@ -408,7 +392,7 @@ class TaxRuleHistoryViewSet(viewsets.ModelViewSet):
 
 
 class ClientTaxRulesView(APIView):
-    """View to manage tax rules for a specific client."""
+    """View for retrieving tax rules for a client."""
     permission_classes = [permissions.IsAuthenticated, IsSameBusiness]
     
     def get_client(self, client_id, request):
@@ -463,4 +447,90 @@ class ClientTaxRulesView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# ClientTaskTemplatesViewは削除されました
+# 新しく追加するViewSet
+class ContractServiceViewSet(viewsets.ModelViewSet):
+    """契約サービスタイプを管理するViewSet"""
+    serializer_class = ContractServiceSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        """認証されたユーザーのビジネスに属する契約サービスのみ返す"""
+        return ContractService.objects.filter(business=self.request.user.business)
+    
+    def perform_create(self, serializer):
+        """作成時にビジネスを自動設定"""
+        serializer.save(business=self.request.user.business)
+    
+    @action(detail=False, methods=['post'])
+    def create_defaults(self, request):
+        """デフォルトの契約サービスタイプを作成"""
+        business = request.user.business
+        
+        # デフォルトのサービスタイプ
+        defaults = [
+            {"name": "顧問契約", "description": "会計顧問契約"},
+            {"name": "記帳代行", "description": "月次記帳代行サービス"},
+            {"name": "給与計算", "description": "月次給与計算"},
+            {"name": "源泉所得税", "description": "源泉所得税の計算および納付"},
+            {"name": "住民税対応", "description": "住民税の計算および納付"},
+            {"name": "社会保険対応", "description": "社会保険の手続き"},
+            {"name": "その他", "description": "その他のカスタムサービス", "is_custom": True}
+        ]
+        
+        created = []
+        for service in defaults:
+            # すでに存在するか確認
+            if not ContractService.objects.filter(business=business, name=service["name"]).exists():
+                is_custom = service.get("is_custom", False)
+                new_service = ContractService.objects.create(
+                    business=business,
+                    name=service["name"],
+                    description=service.get("description", ""),
+                    is_custom=is_custom
+                )
+                created.append(new_service)
+        
+        serializer = ContractServiceSerializer(created, many=True)
+        return Response(
+            {"detail": f"Created {len(created)} default services", "services": serializer.data},
+            status=status.HTTP_201_CREATED
+        )
+
+
+class ClientContractViewSet(viewsets.ModelViewSet):
+    """クライアント契約情報を管理するViewSet"""
+    serializer_class = ClientContractSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        """ユーザーのビジネスに属するクライアントの契約のみ返す"""
+        return ClientContract.objects.filter(client__business=self.request.user.business)
+    
+    def perform_create(self, serializer):
+        """契約作成時の処理"""
+        # クライアントが正しいビジネスに属しているか確認
+        client_id = self.request.data.get('client')
+        if client_id:
+            client = get_object_or_404(Client, id=client_id)
+            if client.business != self.request.user.business:
+                raise PermissionDenied("このクライアントにアクセスする権限がありません")
+        serializer.save()
+    
+    @action(detail=False, methods=['get'])
+    def client_contracts(self, request):
+        """特定のクライアントの契約一覧を取得"""
+        client_id = request.query_params.get('client_id')
+        if not client_id:
+            return Response(
+                {"detail": "client_id query parameter is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # クライアントが正しいビジネスに属しているか確認
+        client = get_object_or_404(Client, id=client_id)
+        if client.business != request.user.business:
+            raise PermissionDenied("このクライアントにアクセスする権限がありません")
+            
+        contracts = ClientContract.objects.filter(client=client_id)
+        serializer = ClientContractSerializer(contracts, many=True)
+        return Response(serializer.data)

@@ -473,3 +473,94 @@ class TaxRuleHistory(models.Model):
 
 
 # ClientTaskTemplate モデルは削除されました
+
+# 新しく追加するモデル
+class ContractService(models.Model):
+    """契約サービスの種類を定義するモデル"""
+    
+    name = models.CharField(_('サービス名'), max_length=100)
+    description = models.TextField(_('説明'), blank=True)
+    business = models.ForeignKey(
+        'business.Business',
+        on_delete=models.CASCADE,
+        related_name='contract_services'
+    )
+    is_custom = models.BooleanField(_('カスタムサービス'), default=False)
+    created_at = models.DateTimeField(_('作成日時'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('更新日時'), auto_now=True)
+    
+    class Meta:
+        verbose_name = _('契約サービス')
+        verbose_name_plural = _('契約サービス')
+        ordering = ['name']
+        unique_together = ('business', 'name')
+    
+    def __str__(self):
+        return self.name
+
+
+class ClientContract(models.Model):
+    """クライアントとの契約情報を管理するモデル"""
+    
+    # 基本情報
+    client = models.ForeignKey(
+        Client,
+        on_delete=models.CASCADE,
+        related_name='contracts'
+    )
+    service = models.ForeignKey(
+        ContractService,
+        on_delete=models.CASCADE,
+        related_name='client_contracts'
+    )
+    
+    # 契約状態
+    CONTRACT_STATUS_CHOICES = (
+        ('active', _('契約中')),
+        ('suspended', _('休止中')),
+        ('terminated', _('終了')),
+        ('preparing', _('準備中')),
+    )
+    status = models.CharField(_('契約状態'), max_length=20, choices=CONTRACT_STATUS_CHOICES, default='active')
+    
+    # 契約期間
+    start_date = models.DateField(_('開始日'))
+    end_date = models.DateField(_('終了日'), null=True, blank=True)
+    
+    # 報酬情報
+    fee = models.DecimalField(_('報酬額'), max_digits=12, decimal_places=0, null=True, blank=True)
+    FEE_CYCLE_CHOICES = (
+        ('monthly', _('月次')),
+        ('quarterly', _('四半期')),
+        ('yearly', _('年次')),
+        ('one_time', _('一時金')),
+    )
+    fee_cycle = models.CharField(_('報酬サイクル'), max_length=20, choices=FEE_CYCLE_CHOICES, default='monthly')
+    
+    # その他
+    notes = models.TextField(_('備考'), blank=True)
+    
+    # カスタムサービス名（「その他」の場合に使用）
+    custom_service_name = models.CharField(_('カスタムサービス名'), max_length=100, blank=True)
+    
+    # メタデータ
+    created_at = models.DateTimeField(_('作成日時'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('更新日時'), auto_now=True)
+    
+    class Meta:
+        verbose_name = _('クライアント契約')
+        verbose_name_plural = _('クライアント契約')
+        ordering = ['-start_date']
+    
+    def __str__(self):
+        service_name = self.custom_service_name if self.service.is_custom and self.custom_service_name else self.service.name
+        return f"{self.client.name} - {service_name}"
+    
+    def is_active(self):
+        """現在アクティブな契約かどうかをチェック"""
+        today = timezone.now().date()
+        if self.status != 'active':
+            return False
+        if self.end_date and self.end_date < today:
+            return False
+        return True

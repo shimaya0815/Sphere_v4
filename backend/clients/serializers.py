@@ -1,7 +1,8 @@
 from rest_framework import serializers
-from .models import Client, FiscalYear, TaxRuleHistory, TaskTemplateSchedule, ClientTaskTemplate
+from .models import Client, FiscalYear, TaxRuleHistory, TaskTemplateSchedule, ClientTaskTemplate, ContractService, ClientContract
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from business.models import Business, Workspace
 
 User = get_user_model()
 
@@ -163,6 +164,20 @@ class ClientTaskTemplateSerializer(serializers.ModelSerializer):
             return obj.reviewer.get_full_name()
         return None
 
+    def to_representation(self, instance):
+        """Add worker and reviewer names for frontend display."""
+        representation = super().to_representation(instance)
+        
+        # Include worker name if available
+        if instance.worker:
+            representation['worker_name'] = instance.worker.get_full_name() or instance.worker.username
+        
+        # Include reviewer name if available
+        if instance.reviewer:
+            representation['reviewer_name'] = instance.reviewer.get_full_name() or instance.reviewer.username
+        
+        return representation
+
 
 class TaxRuleHistorySerializer(serializers.ModelSerializer):
     client_name = serializers.CharField(source='client.name', read_only=True)
@@ -199,3 +214,52 @@ class TaxRuleHistorySerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({"end_date": "終了日は開始日より後である必要があります。"})
         
         return data
+
+
+# 新しく追加するシリアライザー
+class ContractServiceSerializer(serializers.ModelSerializer):
+    """契約サービスのシリアライザー"""
+    
+    class Meta:
+        model = ContractService
+        fields = '__all__'
+
+
+class ClientContractSerializer(serializers.ModelSerializer):
+    """クライアント契約のシリアライザー"""
+    
+    service_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ClientContract
+        fields = '__all__'
+    
+    def get_service_name(self, obj):
+        """サービス名を取得（カスタムサービスの場合はそちらを優先）"""
+        if obj.service.is_custom and obj.custom_service_name:
+            return obj.custom_service_name
+        return obj.service.name
+    
+    def to_representation(self, instance):
+        """関連データを追加"""
+        representation = super().to_representation(instance)
+        
+        # ステータス表示名を追加
+        status_map = dict(ClientContract.CONTRACT_STATUS_CHOICES)
+        representation['status_display'] = status_map.get(instance.status, instance.status)
+        
+        # 報酬サイクル表示名を追加
+        cycle_map = dict(ClientContract.FEE_CYCLE_CHOICES)
+        representation['fee_cycle_display'] = cycle_map.get(instance.fee_cycle, instance.fee_cycle)
+        
+        # サービス情報を追加
+        if hasattr(instance, 'service') and instance.service:
+            representation['service_data'] = {
+                'name': instance.service.name,
+                'is_custom': instance.service.is_custom,
+            }
+        
+        # アクティブフラグを追加
+        representation['is_active'] = instance.is_active()
+        
+        return representation

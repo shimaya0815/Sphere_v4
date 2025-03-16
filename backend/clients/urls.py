@@ -1,19 +1,24 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from . import views
+from .views import (
+    ClientViewSet, ClientPrefecturesView, ClientIndustriesView,
+    ClientFiscalYearsView, ClientTaskTemplateViewSet, ClientTaskTemplatesView,
+    ClientTaxRulesView, ContractServiceViewSet, ClientContractViewSet
+)
 
 router = DefaultRouter()
-router.register(r'fiscal-years', views.FiscalYearViewSet)
-router.register(r'task-template-schedules', views.TaskTemplateScheduleViewSet)
-router.register(r'client-task-templates', views.ClientTaskTemplateViewSet)
-router.register(r'tax-rules', views.TaxRuleHistoryViewSet)
-router.register(r'', views.ClientViewSet)
+router.register(r'clients', ClientViewSet, basename='client')
+router.register(r'client-task-templates', ClientTaskTemplateViewSet, basename='client-task-template')
+router.register(r'contract-services', ContractServiceViewSet, basename='contract-service')
+router.register(r'client-contracts', ClientContractViewSet, basename='client-contract')
 
 urlpatterns = [
-    path('prefectures/', views.ClientPrefecturesView.as_view(), name='client-prefectures'),
-    path('industries/', views.ClientIndustriesView.as_view(), name='client-industries'),
-    path('<int:client_id>/fiscal-years/', views.ClientFiscalYearsView.as_view(), name='client-fiscal-years'),
-    path('<int:client_id>/task-templates/', views.ClientTaskTemplatesView.as_view(), name='client-task-templates'),
-    path('<int:client_id>/tax-rules/', views.ClientTaxRulesView.as_view(), name='client-tax-rules'),
     path('', include(router.urls)),
+    path('clients/<int:client_id>/fiscal-years/', ClientFiscalYearsView.as_view(), name='client-fiscal-years'),
+    path('clients/<int:client_id>/task-templates/', ClientTaskTemplatesView.as_view(), name='client-task-templates'),
+    path('clients/<int:client_id>/tax-rules/', ClientTaxRulesView.as_view(), name='client-tax-rules'),
+    path('clients/prefectures/', ClientPrefecturesView.as_view(), name='client-prefectures'),
+    path('clients/industries/', ClientIndustriesView.as_view(), name='client-industries'),
+    path('contract-services/create-defaults/', ContractServiceViewSet.as_view({'post': 'create_defaults'}), name='create-default-services'),
+    path('client-contracts/client/', ClientContractViewSet.as_view({'get': 'client_contracts'}), name='client-contracts-list'),
 ]
