@@ -13,7 +13,7 @@ import {
   HiOutlineDocumentText,
   HiCheck
 } from 'react-icons/hi';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 
 // forwardRefを使用してコンポーネントから参照できるようにする
 const TaskList = forwardRef((props, ref) => {
@@ -124,6 +124,8 @@ const TaskList = forwardRef((props, ref) => {
       console.log('⭐⭐⭐ Using API endpoint: /api/tasks/');
       console.group('Task API Request Debugging');
       
+      let fetchedTasks = [];
+      
       try {
         // APIリクエスト
         const response = await tasksApi.getTasks(cleanFilters);
@@ -139,8 +141,6 @@ const TaskList = forwardRef((props, ref) => {
             console.log('Results length:', Array.isArray(response.results) ? response.results.length : 'N/A');
           }
         }
-        
-        let fetchedTasks = [];
         
         // API応答チェック - 改良版で詳細なログを出力
         if (response && Array.isArray(response.results)) {
