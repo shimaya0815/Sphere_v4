@@ -34,7 +34,8 @@ const TaskTable = ({
     
     if (statusName.includes('完了')) return 'badge-success';
     if (statusName.includes('作業中') || statusName.includes('進行中')) return 'badge-info';
-    if (statusName.includes('レビュー')) return 'badge-warning';
+    if (statusName === 'レビュー中') return 'badge-warning';
+    if (statusName.includes('差戻')) return 'badge-error';
     return 'badge-ghost';
   };
 

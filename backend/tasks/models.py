@@ -114,58 +114,37 @@ class TaskStatus(models.Model):
                 'assignee_type': 'reviewer'
             },
             {
-                'name': 'レビュー開始前', 
-                'color': '#FBBF24', 
-                'order': 4, 
-                'description': 'レビュー担当者がレビューを開始する前の状態',
-                'assignee_type': 'reviewer'
-            },
-            {
                 'name': 'レビュー中', 
                 'color': '#A78BFA', 
-                'order': 5, 
+                'order': 4, 
                 'description': 'レビュー担当者が現在レビューを行っている状態',
                 'assignee_type': 'reviewer'
             },
             {
                 'name': '差戻中', 
                 'color': '#EF4444', 
-                'order': 6, 
+                'order': 5, 
                 'description': 'レビューで指摘された内容について、作業者がまだ対応を開始していない状態',
                 'assignee_type': 'worker'
             },
             {
                 'name': '差戻対応中', 
                 'color': '#FB7185', 
-                'order': 7, 
+                'order': 6, 
                 'description': '差戻された内容に対して、作業者が対応を進めている状態',
                 'assignee_type': 'worker'
             },
             {
                 'name': '差戻対応済', 
                 'color': '#FCD34D', 
-                'order': 8, 
+                'order': 7, 
                 'description': '作業者が差戻内容の対応を完了し、再レビュー待ちの状態',
-                'assignee_type': 'reviewer'
-            },
-            {
-                'name': '差戻レビュー開始前', 
-                'color': '#D8B4FE', 
-                'order': 9, 
-                'description': '差戻対応後、レビュー担当者が再レビューを開始する前の状態',
-                'assignee_type': 'reviewer'
-            },
-            {
-                'name': '差戻レビュー中', 
-                'color': '#C084FC', 
-                'order': 10, 
-                'description': 'レビュー担当者が差戻対応後の再レビューを行っている状態',
                 'assignee_type': 'reviewer'
             },
             {
                 'name': '完了', 
                 'color': '#10B981', 
-                'order': 11, 
+                'order': 8, 
                 'description': 'タスクが全ての作業とレビューを終えて完全に終了した状態',
                 'assignee_type': 'none'
             },
@@ -304,8 +283,7 @@ class Task(models.Model):
         related_name='tasks'
     )
     
-    # 決算期関連タスクフラグと参照
-    is_fiscal_task = models.BooleanField(_('is fiscal year task'), default=False)
+    # 決算期参照
     fiscal_year = models.ForeignKey(
         'clients.FiscalYear',
         on_delete=models.SET_NULL,
@@ -528,7 +506,6 @@ class Task(models.Model):
                 start_date=next_start_date,
                 estimated_hours=self.estimated_hours,
                 client=self.client,
-                is_fiscal_task=self.is_fiscal_task,
                 fiscal_year=self.fiscal_year,
                 is_recurring=self.is_recurring,
                 recurrence_pattern=self.recurrence_pattern,
@@ -778,9 +755,15 @@ class Task(models.Model):
             'creator': user or self.creator,
             'client': client,
             'fiscal_year': fiscal_year,
-            'is_fiscal_task': fiscal_year is not None,
-            'start_date': creation_date,
-            'due_date': due_date
+            'is_recurring': self.is_recurring,
+            'recurrence_pattern': self.recurrence_pattern,
+            'recurrence_end_date': self.recurrence_end_date,
+            'weekday': self.weekday,
+            'weekdays': self.weekdays,
+            'monthday': self.monthday,
+            'business_day': self.business_day,
+            'parent_task': self,
+            'recurrence_frequency': self.recurrence_frequency
         }
         
         # 追加のタスクデータがあれば上書き
@@ -1214,9 +1197,13 @@ class TemplateChildTask(models.Model):
             creator=parent_task.creator,
             client=parent_task.client,
             fiscal_year=fiscal_year,
-            is_fiscal_task=parent_task.is_fiscal_task,
-            start_date=creation_date,
-            due_date=due_date,
+            is_recurring=parent_task.is_recurring,
+            recurrence_pattern=parent_task.recurrence_pattern,
+            recurrence_end_date=parent_task.recurrence_end_date,
+            weekday=parent_task.weekday,
+            weekdays=parent_task.weekdays,
+            monthday=parent_task.monthday,
+            business_day=parent_task.business_day,
             parent_task=parent_task
         )
         
