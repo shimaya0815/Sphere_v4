@@ -36,7 +36,8 @@ const TaskBulkEditModal = ({
   onBulkEditDataChange, 
   onSubmit, 
   isLoading,
-  currentUser 
+  currentUser,
+  usersList = [] 
 }) => {
   if (!isOpen) return null;
   
@@ -61,10 +62,14 @@ const TaskBulkEditModal = ({
                 onChange={(e) => onBulkEditDataChange('status', e.target.value)}
               >
                 <option value="">変更しない</option>
-                <option value="not_started">未着手</option>
-                <option value="in_progress">進行中</option>
-                <option value="in_review">レビュー中</option>
-                <option value="completed">完了</option>
+                <option value="1">未着手</option>
+                <option value="2">作業中</option>
+                <option value="3">作業者完了</option>
+                <option value="4">レビュー中</option>
+                <option value="5">差戻中</option>
+                <option value="6">差戻対応中</option>
+                <option value="7">差戻対応済</option>
+                <option value="8">完了</option>
               </select>
             </div>
             
@@ -77,7 +82,15 @@ const TaskBulkEditModal = ({
               >
                 <option value="">変更しない</option>
                 <option value={currentUser?.id || ''}>自分</option>
-                {/* 他のユーザー選択肢はここに追加 */}
+                {usersList && usersList.length > 0 && 
+                  usersList
+                    .filter(user => user.id !== currentUser?.id) // 自分以外のユーザー
+                    .map(user => (
+                      <option key={user.id} value={user.id}>
+                        {user.full_name || user.username || user.email || `ユーザー ${user.id}`}
+                      </option>
+                    ))
+                }
               </select>
             </div>
             
@@ -90,7 +103,15 @@ const TaskBulkEditModal = ({
               >
                 <option value="">変更しない</option>
                 <option value={currentUser?.id || ''}>自分</option>
-                {/* 他のユーザー選択肢はここに追加 */}
+                {usersList && usersList.length > 0 && 
+                  usersList
+                    .filter(user => user.id !== currentUser?.id) // 自分以外のユーザー
+                    .map(user => (
+                      <option key={user.id} value={user.id}>
+                        {user.full_name || user.username || user.email || `ユーザー ${user.id}`}
+                      </option>
+                    ))
+                }
               </select>
             </div>
             
