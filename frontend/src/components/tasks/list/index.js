@@ -54,13 +54,18 @@ const TaskList = forwardRef((props, ref) => {
     const query = new URLSearchParams(location.search);
     const assigneeParam = query.get('assignee');
     
+    console.log('🔍 URLクエリパラメータから担当者情報を取得:', assigneeParam);
+    console.log('🔍 現在のユーザーID:', currentUser?.id);
+    
     // URLにassigneeパラメータがなければ、現在のユーザーをフィルタリング条件に設定
     if (!assigneeParam && currentUser?.id) {
+      console.log('🔄 URLに担当者パラメータがないため、現在のユーザーを設定します');
       setFilters(prev => ({
         ...prev,
         assignee: currentUser.id
       }));
     } else if (assigneeParam) {
+      console.log('🔄 URLから指定された担当者でフィルターを設定します:', assigneeParam);
       setFilters(prev => ({
         ...prev,
         assignee: assigneeParam
@@ -84,11 +89,18 @@ const TaskList = forwardRef((props, ref) => {
       // フィルターのクリーンアップ（空の値は送信しない）
       const cleanFilters = {};
       Object.entries(filters).forEach(([key, value]) => {
-        if (value !== '') {
+        if (value !== '' && value !== null && value !== undefined) {
           cleanFilters[key] = value;
         }
       });
       
+      // 担当者フィルターが明示的に設定されていることを確認
+      if (currentUser?.id && !cleanFilters.assignee) {
+        cleanFilters.assignee = currentUser.id;
+        console.log('🚨 担当者フィルターが未設定のため、現在のユーザーIDを設定しました:', currentUser.id);
+      }
+      
+      console.log('🔍 最終的なフィルター設定:', cleanFilters);
       console.log('⭐⭐⭐ Fetching tasks with filters:', cleanFilters);
       console.log('⭐⭐⭐ Using API endpoint: /api/tasks/');
       console.group('Task API Request Debugging');
