@@ -88,12 +88,12 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
     // 楽観的UI更新 - 送信中のコメントを表示
     const tempComment = {
       id: `temp-${Date.now()}`,
-      content: commentData.content,
-      html_content: commentData.html_content,
+      content: commentData?.content || '画像コメント',
+      html_content: commentData?.html_content || '<p>画像コメント</p>',
       user_name: 'あなた', // 現在のユーザー名は後でAPIから取得
       created_at: new Date().toISOString(),
       isSending: true,
-      imageUrls: commentData.imageUrls
+      imageUrls: commentData?.imageUrls || []
     };
     
     // 一時的にコメントを表示（リストの最後に追加）
@@ -102,11 +102,30 @@ const TaskComments = ({ taskId, task, onCommentAdded }) => {
     try {
       console.log(`Sending comment to task ${taskId}`);
       
+      // formDataがundefined/nullの場合、新しいFormDataオブジェクトを作成
+      if (!formData) {
+        console.log('FormData is not provided, creating a new one');
+        formData = new FormData();
+        
+        // 必須フィールドを設定
+        if (taskId) formData.append('task', taskId);
+        if (commentData && commentData.content) {
+          formData.append('content', commentData.content);
+        } else {
+          formData.append('content', '画像コメント');
+        }
+        
+        if (commentData && commentData.html_content) {
+          formData.append('html_content', commentData.html_content);
+        }
+      }
+      
+      console.log('FormData before API call:', formData);
+      
       // URLにリダイレクトされないようにパス指定を修正
       // APIでコメント追加（FormDataを使用）
       const addedComment = await tasksApi.addCommentWithFiles(taskId, formData);
       console.log('Comment added successfully:', addedComment);
-      toast.success('コメントが追加されました');
       
       // 一覧を再取得（一時コメントを実際のコメントで置き換え）
       await fetchComments();

@@ -855,7 +855,36 @@ const tasksApi = {
   // ファイル添付ありのコメント追加
   addCommentWithFiles: async (taskId, formData) => {
     try {
-      console.log('Sending files to API:', formData);
+      console.log('Sending files to API, taskId:', taskId);
+      
+      // formDataがundefinedの場合は新しく作成する
+      if (!formData || typeof formData !== 'object' || typeof formData.has !== 'function') {
+        console.warn('FormData is invalid or undefined, creating a new FormData object');
+        formData = new FormData();
+      }
+      
+      // FormDataの内容を確認し、taskフィールドがない場合は追加する
+      if (!formData.has('task') && taskId) {
+        console.log('Adding task ID to FormData:', taskId);
+        formData.append('task', taskId);
+      }
+      
+      // content フィールドが空の場合のデフォルト値を設定
+      if (!formData.has('content')) {
+        console.log('Adding default content to FormData');
+        formData.append('content', '画像コメント');
+      }
+      
+      // FormDataの全エントリをデバッグ表示
+      console.log('Final FormData entries:');
+      for (let pair of formData.entries()) {
+        if (pair[1] instanceof File) {
+          console.log(pair[0], ':', '[File object]', pair[1].name);
+        } else {
+          console.log(pair[0], ':', pair[1]);
+        }
+      }
+      
       // タスクIDがFormDataに含まれているため、URLに直接指定する必要はない
       const response = await apiClient.post('/api/tasks/comments/', formData, {
         headers: {
