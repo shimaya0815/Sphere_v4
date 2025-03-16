@@ -2,6 +2,9 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+import calendar
+from datetime import timedelta
+from dateutil.relativedelta import relativedelta
 
 User = get_user_model()
 
@@ -333,6 +336,12 @@ class Task(models.Model):
     # 週次繰り返しの複数曜日指定（カンマ区切りの数値を保存: "0,2,4" = 月,水,金）
     weekdays = models.CharField(_('weekdays for weekly recurrence'), max_length=20, null=True, blank=True)
     
+    # 月次繰り返しの日指定（1-31の数値）
+    monthday = models.IntegerField(_('day of month for monthly recurrence'), null=True, blank=True)
+    
+    # 月次繰り返しの営業日指定（1=第1営業日、2=第2営業日、...）
+    business_day = models.IntegerField(_('business day of month for monthly recurrence'), null=True, blank=True)
+    
     # 繰り返しタスクのインスタンス管理のための追加フィールド
     parent_task = models.ForeignKey(
         'self', 
@@ -485,6 +494,10 @@ class Task(models.Model):
             is_recurring=self.is_recurring,
             recurrence_pattern=self.recurrence_pattern,
             recurrence_end_date=self.recurrence_end_date,
+            weekday=self.weekday,
+            weekdays=self.weekdays,
+            monthday=self.monthday,
+            business_day=self.business_day,
             parent_task=self,
             recurrence_frequency=self.recurrence_frequency
         )
@@ -565,7 +578,46 @@ class Task(models.Model):
             # 曜日指定がない場合は単純に週数分を追加
             return date + timedelta(weeks=frequency)
         elif self.recurrence_pattern == 'monthly':
-            return date + relativedelta(months=frequency)
+            # 基本の次回日付（単純に月を進める）
+            next_date = date + relativedelta(months=frequency)
+            
+            # 指定日がある場合（毎月X日）
+            if self.monthday is not None and self.monthday > 0:
+                # 該当月の最終日を取得
+                month_last_day = calendar.monthrange(next_date.year, next_date.month)[1]
+                
+                # 指定日が月の最終日を超える場合は、月の最終日を使用
+                day_to_use = min(self.monthday, month_last_day)
+                
+                # 次回日付の日を設定
+                next_date = next_date.replace(day=day_to_use)
+                
+                return next_date
+            
+            # 営業日指定がある場合（毎月X営業日）
+            elif self.business_day is not None and self.business_day > 0:
+                # 月の初日から開始
+                current_date = next_date.replace(day=1)
+                business_day_count = 0
+                
+                # 指定された営業日数に達するまで日付を進める
+                while business_day_count < self.business_day:
+                    # 土日でない場合（0=月曜日、6=日曜日）
+                    if current_date.weekday() < 5:  # 0-4は平日（月-金）
+                        business_day_count += 1
+                        
+                        # 目的の営業日に達したらその日付を返す
+                        if business_day_count == self.business_day:
+                            return current_date
+                    
+                    # 次の日へ
+                    current_date += timedelta(days=1)
+                
+                # 念のため、ここまで来たら最後に計算した日付を返す
+                return current_date
+            
+            # 指定がない場合は同じ日付で月だけ進める
+            return next_date
         elif self.recurrence_pattern == 'yearly':
             return date + relativedelta(years=frequency)
         

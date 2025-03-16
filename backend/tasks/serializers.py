@@ -196,7 +196,7 @@ class TaskSerializer(serializers.ModelSerializer):
             'client', 'client_name', 'client_data',
             'is_fiscal_task', 'fiscal_year', 'fiscal_year_data', 'fiscal_period',  
             'is_recurring', 'recurrence_pattern', 'recurrence_end_date', 
-            'is_template', 'template_name'
+            'is_template', 'template_name', 'weekday', 'weekdays', 'monthday', 'business_day'
         ]
         read_only_fields = ('business', 'creator', 'created_at', 'updated_at')
     

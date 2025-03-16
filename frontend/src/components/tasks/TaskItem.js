@@ -70,10 +70,36 @@ const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
     try {
       await tasksApi.markComplete(task.id);
       toast.success('タスクを完了としてマークしました');
+      
+      // タスクリストを強制的に更新するイベントを発火
+      window.dispatchEvent(new CustomEvent('task-update-force-refresh'));
+      
+      // 親コンポーネントの更新関数を呼び出し
       onTaskUpdated && onTaskUpdated();
     } catch (error) {
       console.error('Error marking task as complete:', error);
       toast.error('タスクの完了操作中にエラーが発生しました');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (statusId) => {
+    if (loading) return;
+    
+    setLoading(true);
+    try {
+      await tasksApi.changeStatus(task.id, { status_id: statusId });
+      toast.success('タスクのステータスを変更しました');
+      
+      // タスクリストを強制的に更新するイベントを発火
+      window.dispatchEvent(new CustomEvent('task-update-force-refresh'));
+      
+      // 親コンポーネントの更新関数を呼び出し
+      onTaskUpdated && onTaskUpdated();
+    } catch (error) {
+      console.error('Error changing task status:', error);
+      toast.error('ステータス変更中にエラーが発生しました');
     } finally {
       setLoading(false);
     }

@@ -89,12 +89,21 @@ const tasksApi = {
             cleanedData[key] = null;
             console.log('週次繰り返しの複数曜日指定が空のため、nullに設定します');
           } else {
-            console.log('週次繰り返しの複数曜日指定:', cleanedData[key]);
+            console.log('週次繰り返しの複数曜日指定(処理前):', cleanedData[key], typeof cleanedData[key]);
             
             // weekdaysフィールドが正しい形式かチェック（カンマ区切りの数値）
             try {
-              const weekdayValues = cleanedData[key].split(',').map(day => parseInt(day.trim(), 10));
+              // 数値の場合は文字列に変換（単一の数値が直接来た場合の対応）
+              const weekdaysValue = typeof cleanedData[key] === 'number' 
+                ? cleanedData[key].toString() 
+                : cleanedData[key];
+              
+              const weekdayValues = weekdaysValue.split(',').map(day => parseInt(day.trim(), 10));
+              console.log('解析された曜日配列:', weekdayValues);
+              
               const validWeekdays = weekdayValues.filter(val => !isNaN(val) && val >= 0 && val <= 6);
+              console.log('有効な曜日配列:', validWeekdays);
+              
               if (validWeekdays.length > 0) {
                 cleanedData[key] = validWeekdays.join(',');
                 console.log('正規化された複数曜日:', cleanedData[key]);
@@ -103,11 +112,49 @@ const tasksApi = {
                 console.log('有効な曜日が指定されていないため、nullに設定します');
               }
             } catch (e) {
-              console.error('複数曜日の解析エラー:', e);
+              console.error('複数曜日の解析エラー:', e, 'value:', cleanedData[key]);
               cleanedData[key] = null;
             }
           }
           return; // weekdaysフィールドは常に保持する
+        }
+        
+        // 月次繰り返しの日指定処理
+        if (key === 'monthday') {
+          if (cleanedData[key] === '' || cleanedData[key] === undefined) {
+            cleanedData[key] = null;
+            console.log('月次繰り返しの日指定が空のため、nullに設定します');
+          } else if (typeof cleanedData[key] === 'string' && !isNaN(parseInt(cleanedData[key], 10))) {
+            // 文字列の場合は数値に変換
+            const day = parseInt(cleanedData[key], 10);
+            // 1-31の範囲内かチェック
+            if (day >= 1 && day <= 31) {
+              cleanedData[key] = day;
+              console.log('月次繰り返しの日指定を数値に変換しました:', cleanedData[key]);
+            } else {
+              cleanedData[key] = null;
+              console.log('無効な月次繰り返しの日指定のため、nullに設定します');
+            }
+          }
+        }
+        
+        // 月次繰り返しの営業日指定処理
+        if (key === 'business_day') {
+          if (cleanedData[key] === '' || cleanedData[key] === undefined) {
+            cleanedData[key] = null;
+            console.log('月次繰り返しの営業日指定が空のため、nullに設定します');
+          } else if (typeof cleanedData[key] === 'string' && !isNaN(parseInt(cleanedData[key], 10))) {
+            // 文字列の場合は数値に変換
+            const day = parseInt(cleanedData[key], 10);
+            // 1-31の範囲内かチェック（営業日は月に最大で23日程度）
+            if (day >= 1 && day <= 31) {
+              cleanedData[key] = day;
+              console.log('月次繰り返しの営業日指定を数値に変換しました:', cleanedData[key]);
+            } else {
+              cleanedData[key] = null;
+              console.log('無効な月次繰り返しの営業日指定のため、nullに設定します');
+            }
+          }
         }
         
         // カテゴリー、クライアント、決算期、担当者、レビューアーのフィールドは明示的なnullを保持する
@@ -222,6 +269,44 @@ const tasksApi = {
           } catch (e) {
             console.error('複数曜日の解析エラー:', e);
             cleanedData.weekdays = null;
+          }
+        }
+      }
+      
+      // 月次繰り返しの日指定処理
+      if ('monthday' in cleanedData) {
+        if (cleanedData.monthday === '' || cleanedData.monthday === undefined) {
+          cleanedData.monthday = null;
+          console.log('月次繰り返しの日指定が空のため、nullに設定します');
+        } else if (typeof cleanedData.monthday === 'string' && !isNaN(parseInt(cleanedData.monthday, 10))) {
+          // 文字列の場合は数値に変換
+          const day = parseInt(cleanedData.monthday, 10);
+          // 1-31の範囲内かチェック
+          if (day >= 1 && day <= 31) {
+            cleanedData.monthday = day;
+            console.log('月次繰り返しの日指定を数値に変換しました:', cleanedData.monthday);
+          } else {
+            cleanedData.monthday = null;
+            console.log('無効な月次繰り返しの日指定のため、nullに設定します');
+          }
+        }
+      }
+      
+      // 月次繰り返しの営業日指定処理
+      if ('business_day' in cleanedData) {
+        if (cleanedData.business_day === '' || cleanedData.business_day === undefined) {
+          cleanedData.business_day = null;
+          console.log('月次繰り返しの営業日指定が空のため、nullに設定します');
+        } else if (typeof cleanedData.business_day === 'string' && !isNaN(parseInt(cleanedData.business_day, 10))) {
+          // 文字列の場合は数値に変換
+          const day = parseInt(cleanedData.business_day, 10);
+          // 1-31の範囲内かチェック（営業日は月に最大で23日程度）
+          if (day >= 1 && day <= 31) {
+            cleanedData.business_day = day;
+            console.log('月次繰り返しの営業日指定を数値に変換しました:', cleanedData.business_day);
+          } else {
+            cleanedData.business_day = null;
+            console.log('無効な月次繰り返しの営業日指定のため、nullに設定します');
           }
         }
       }
