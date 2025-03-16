@@ -45,9 +45,7 @@ const TaskList = forwardRef((props, ref) => {
   // デフォルトのフィルターを設定（自分担当のみ）
   const [filters, setFilters] = useState({
     status: '',
-    priority: '',
     searchTerm: '',
-    is_fiscal_task: '',
     client: '',
     assignee: currentUser?.id || '',  // 自分の担当タスクのみをデフォルト表示
   });
@@ -408,9 +406,7 @@ const TaskList = forwardRef((props, ref) => {
     // リセット時には自分が担当者のタスクのみに戻す（デフォルト状態）
     setFilters({
       status: '',
-      priority: '',
       searchTerm: '',
-      is_fiscal_task: '',
       client: '',
       assignee: currentUser?.id || '',
     });

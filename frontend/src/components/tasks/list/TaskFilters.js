@@ -49,7 +49,7 @@ const TaskFilters = ({
         </button>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">タスク名検索</label>
           <div className="relative">
@@ -79,20 +79,6 @@ const TaskFilters = ({
                 {status.name}
               </option>
             ))}
-          </select>
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">優先度</label>
-          <select
-            className="appearance-none relative block w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-            value={filters.priority}
-            onChange={(e) => onFilterChange('priority', e.target.value)}
-          >
-            <option value="">すべて</option>
-            <option value="1">高 (1)</option>
-            <option value="2">中 (2)</option>
-            <option value="3">低 (3)</option>
           </select>
         </div>
         
