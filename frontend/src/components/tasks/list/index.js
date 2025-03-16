@@ -10,6 +10,7 @@ import {
 } from 'react-icons/hi';
 import { useAuth } from '../../../context/AuthContext';
 import { tasksApi } from '../../../api';
+import usersApi from '../../../api/users';  // ユーザーAPIをインポート
 
 // 分割したコンポーネントのインポート
 import TaskFilters from './TaskFilters';
@@ -28,6 +29,7 @@ const TaskList = forwardRef((props, ref) => {
   const [showFilters, setShowFilters] = useState(false);
   const { currentUser } = useAuth();
   const [initialized, setInitialized] = useState(false);
+  const [usersList, setUsersList] = useState([]); // ユーザー一覧を保持するstate
   
   // 一括編集関連の状態
   const [bulkEditMode, setBulkEditMode] = useState(false);
@@ -239,11 +241,25 @@ const TaskList = forwardRef((props, ref) => {
     }
   };
 
+  // ユーザー一覧を取得
+  const fetchUsers = async () => {
+    try {
+      console.log('🔍 ユーザー一覧を取得します');
+      const users = await usersApi.getAvailableWorkers();
+      console.log('📋 取得したユーザー一覧:', users);
+      setUsersList(users);
+    } catch (error) {
+      console.error('ユーザー一覧の取得中にエラーが発生しました:', error);
+      toast.error('ユーザー一覧の取得に失敗しました');
+    }
+  };
+
   // 初期読み込み時
   useEffect(() => {
     if (currentUser?.id) {
       console.log('🔄 初期読み込み時に現在のユーザーID確認:', currentUser.id);
       fetchTasks();
+      fetchUsers(); // ユーザー一覧を取得
       
       // 冗長性のために第2の初期ロードを実施 (APIが安定するまでの一時的な対策)
       const retryTimeout = setTimeout(() => {
@@ -565,6 +581,7 @@ const TaskList = forwardRef((props, ref) => {
           onResetFilters={handleFilterReset}
           onClose={() => setShowFilters(false)}
           currentUser={currentUser}
+          usersList={usersList} // ユーザー一覧を渡す
         />
       )}
       

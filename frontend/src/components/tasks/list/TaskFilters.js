@@ -7,7 +7,8 @@ const TaskFilters = ({
   onApplyFilters, 
   onResetFilters, 
   onClose, 
-  currentUser 
+  currentUser,
+  usersList = [] // ユーザー一覧を受け取る
 }) => {
   return (
     <div className="bg-white shadow-card rounded-lg p-4 mb-6">
@@ -91,6 +92,23 @@ const TaskFilters = ({
             <option value="">すべてのタスク</option>
             <option value={currentUser?.id || ''}>自分の担当タスク</option>
             <option value="unassigned">未割り当てタスク</option>
+            
+            {/* 他のユーザーのオプションを表示 */}
+            {usersList.length > 0 && (
+              <>
+                <option disabled>──────────</option>
+                {usersList
+                  .filter(user => user.id !== currentUser?.id) // 自分以外のユーザーをフィルタリング
+                  .map(user => (
+                    <option key={user.id} value={user.id}>
+                      {user.first_name && user.last_name 
+                        ? `${user.last_name} ${user.first_name}`
+                        : user.username || `ユーザー ${user.id}`}
+                    </option>
+                  ))
+                }
+              </>
+            )}
           </select>
         </div>
         
