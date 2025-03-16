@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import TaskList from '../components/tasks/TaskList';
+import TaskList from '../components/tasks/list/index';
 import TaskDetail from '../components/tasks/TaskDetail';
 import TaskEditor from '../components/tasks/asana-style/TaskEditor';
 import { tasksApi } from '../api';
@@ -14,9 +14,18 @@ const TasksPage = ({ view }) => {
   const location = useLocation();
   const taskListRef = useRef(null);
   
-  // タスクIDが指定されている場合、そのタスクを取得して表示
+  // 新規タスク作成の場合は自動的にフォームを開く
   useEffect(() => {
-    if (taskId && !view) {
+    if (taskId === 'new') {
+      console.log('Opening new task form from URL');
+      setSelectedTask(null);
+      setIsNewTask(true);
+      setSlideOverOpen(true);
+      return; // API呼び出しをスキップ
+    }
+    
+    // タスクIDが指定されている場合（新規以外）、そのタスクを取得して表示
+    if (taskId && !view && taskId !== 'new') {
       const fetchTask = async () => {
         try {
           const task = await tasksApi.getTask(taskId);
@@ -57,6 +66,9 @@ const TasksPage = ({ view }) => {
     setSelectedTask(null);
     setIsNewTask(true);
     setSlideOverOpen(true);
+    
+    // URLを新規タスク作成に更新
+    navigate('/tasks/new', { replace: true });
   };
   
   // タスク更新後の処理
