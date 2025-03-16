@@ -16,7 +16,8 @@ import clientsApi from '../../../api/clients';  // クライアントAPIをイ�
 // 分割したコンポーネントのインポート
 import TaskFilters from './TaskFilters';
 import TaskTable from './TaskTable';
-import TaskBulkEditModal, { TaskBulkEditBar } from './TaskBulkEdit';
+import { TaskBulkEditBar } from './TaskBulkEdit';
+import TaskBulkEditModal from './TaskBulkEdit';
 import DeleteConfirmModal from './DeleteConfirmModal';
 import useTaskSorting from './useTaskSorting';
 
@@ -544,6 +545,12 @@ const TaskList = forwardRef((props, ref) => {
     props.onTaskSelect && props.onTaskSelect(task);
   };
   
+  // onBulkEditDataChangeハンドラを修正
+  const handleBulkEditDataChange = (field, value) => {
+    console.log('Bulk edit data change:', field, value);
+    setBulkEditData(prev => ({ ...prev, [field]: value }));
+  };
+  
   // ----- レンダリング -----
   return (
     <div className="mb-6 space-y-6">
@@ -603,7 +610,8 @@ const TaskList = forwardRef((props, ref) => {
       {bulkEditMode && selectedTasks.length > 0 && (
         <TaskBulkEditBar
           selectedCount={selectedTasks.length}
-          onEdit={() => setBulkEditModalOpen(true)}
+          onEditClick={() => setBulkEditModalOpen(true)}
+          onClearSelection={() => setSelectedTasks([])}
         />
       )}
       
@@ -665,10 +673,11 @@ const TaskList = forwardRef((props, ref) => {
         isOpen={bulkEditModalOpen}
         onClose={() => setBulkEditModalOpen(false)}
         selectedCount={selectedTasks.length}
-        editData={bulkEditData}
-        onEditDataChange={(field, value) => setBulkEditData(prev => ({ ...prev, [field]: value }))}
-        onSave={handleBulkEdit}
-        loading={loading}
+        bulkEditData={bulkEditData}
+        onBulkEditDataChange={handleBulkEditDataChange}
+        onSubmit={handleBulkEdit}
+        isLoading={loading}
+        currentUser={currentUser}
       />
       
       {/* 削除確認モーダル */}
