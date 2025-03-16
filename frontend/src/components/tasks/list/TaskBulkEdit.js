@@ -69,25 +69,24 @@ const TaskBulkEditModal = ({
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">優先度</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">作業者</label>
               <select
                 className="appearance-none relative block w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                value={bulkEditData.priority}
-                onChange={(e) => onBulkEditDataChange('priority', e.target.value)}
+                value={bulkEditData.worker}
+                onChange={(e) => onBulkEditDataChange('worker', e.target.value)}
               >
                 <option value="">変更しない</option>
-                <option value="high">高</option>
-                <option value="medium">中</option>
-                <option value="low">低</option>
+                <option value={currentUser?.id || ''}>自分</option>
+                {/* 他のユーザー選択肢はここに追加 */}
               </select>
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">担当者</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">レビュアー</label>
               <select
                 className="appearance-none relative block w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                value={bulkEditData.assignee}
-                onChange={(e) => onBulkEditDataChange('assignee', e.target.value)}
+                value={bulkEditData.reviewer}
+                onChange={(e) => onBulkEditDataChange('reviewer', e.target.value)}
               >
                 <option value="">変更しない</option>
                 <option value={currentUser?.id || ''}>自分</option>

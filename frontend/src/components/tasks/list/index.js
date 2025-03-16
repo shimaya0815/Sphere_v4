@@ -40,8 +40,8 @@ const TaskList = forwardRef((props, ref) => {
   const [bulkEditModalOpen, setBulkEditModalOpen] = useState(false);
   const [bulkEditData, setBulkEditData] = useState({
     status: '',
-    priority: '',
-    assignee: '',
+    worker: '',
+    reviewer: '',
     due_date: ''
   });
 
@@ -497,8 +497,8 @@ const TaskList = forwardRef((props, ref) => {
       setBulkEditModalOpen(false);
       setBulkEditData({
         status: '',
-        priority: '',
-        assignee: '',
+        worker: '',
+        reviewer: '',
         due_date: ''
       });
       fetchTasks();
