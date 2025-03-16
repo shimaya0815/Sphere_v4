@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef, useRef, useImperativeHandle } from 'react';
 import { Link } from 'react-router-dom';
 import TaskItem from './TaskItem';
 import TaskForm from './TaskForm';
@@ -10,27 +10,50 @@ import {
   HiOutlineSearch,
   HiOutlineX,
   HiOutlineExclamationCircle,
-  HiOutlineDocumentText
+  HiOutlineDocumentText,
+  HiCheck
 } from 'react-icons/hi';
-// import { Dialog, Transition } from '@headlessui/react';
+import { useAuth } from '../../contexts/AuthContext';
 
 // forwardRefを使用してコンポーネントから参照できるようにする
-const TaskList = React.forwardRef((props, ref) => {
+const TaskList = forwardRef((props, ref) => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const { currentUser } = useAuth();
+  
+  // 一括編集関連の状態追加
+  const [bulkEditMode, setBulkEditMode] = useState(false);
+  const [selectedTasks, setSelectedTasks] = useState([]);
+  const [bulkEditModalOpen, setBulkEditModalOpen] = useState(false);
+  const [bulkEditData, setBulkEditData] = useState({
+    status: '',
+    priority: '',
+    assignee: '',
+    due_date: ''
+  });
+
+  // デフォルトのフィルターを設定（自分担当のみ）
   const [filters, setFilters] = useState({
     status: '',
     priority: '',
     searchTerm: '',
     is_fiscal_task: '',
     client: '',
+    assignee: currentUser?.id || '',  // 自分の担当タスクのみをデフォルト表示
   });
-  const [showFilters, setShowFilters] = useState(false);
   
+  // ソート順を設定
+  const [sortConfig, setSortConfig] = useState({
+    field: 'due_date', // デフォルトは期限日でソート
+    direction: 'asc'   // 昇順
+  });
+  const [secondarySortField, setSecondarySortField] = useState('priority'); // 第2ソートフィールド
+
   const getPriorityName = (priority) => {
     if (!priority) return '未設定';
     
@@ -76,6 +99,15 @@ const TaskList = React.forwardRef((props, ref) => {
     return String(status);
   };
 
+  const getPriorityValue = (priority) => {
+    switch (priority) {
+      case 'high': return 3;
+      case 'medium': return 2;
+      case 'low': return 1;
+      default: return 0;
+    }
+  };
+
   // タスク一覧を取得
   const fetchTasks = async () => {
     setLoading(true);
@@ -108,21 +140,23 @@ const TaskList = React.forwardRef((props, ref) => {
           }
         }
         
+        let fetchedTasks = [];
+        
         // API応答チェック - 改良版で詳細なログを出力
         if (response && Array.isArray(response.results)) {
           console.log('Using API response results array:', response.results.length);
-          setTasks(response.results);
+          fetchedTasks = response.results;
           setError(null);
         } else if (Array.isArray(response)) {
           console.log('Using raw API response array:', response.length);
-          setTasks(response);
+          fetchedTasks = response;
           setError(null);
         } else if (response && typeof response === 'object' && Object.keys(response).length > 0) {
           console.warn('API response format unexpected:', response);
           if (response.results && response.results.length === 0) {
             // 結果が空の場合は空のタスク配列を設定
             console.log('Empty results from API');
-            setTasks([]);
+            fetchedTasks = [];
             setError(null);
           } else {
             // 形式は想定外だが何かデータはある
@@ -131,11 +165,11 @@ const TaskList = React.forwardRef((props, ref) => {
               // エラーメッセージがある場合
               console.error('API returned error:', response.detail);
               setError(`APIエラー: ${response.detail}`);
-              setTasks([]);
+              fetchedTasks = [];
             } else {
               // それ以外の場合、オブジェクトをタスクとして扱う
               console.log('Treating response object as a task');
-              setTasks([response]);
+              fetchedTasks = [response];
               setError(null);
             }
           }
@@ -143,11 +177,15 @@ const TaskList = React.forwardRef((props, ref) => {
           // APIからのデータがない場合はエラー表示
           console.error('API returned no usable data');
           setError('タスク情報の読み込みに失敗しました。データ形式が不正です。');
-          setTasks([]);
+          fetchedTasks = [];
         }
       } finally {
         console.groupEnd();
       }
+      
+      // ソート処理を適用
+      const sortedTasks = sortTasks(fetchedTasks);
+      setTasks(sortedTasks);
     } catch (error) {
       console.error('Error in fetchTasks:', error);
       setError('タスク一覧の取得に失敗しました');
@@ -157,6 +195,70 @@ const TaskList = React.forwardRef((props, ref) => {
       setLoading(false);
     }
   };
+
+  // タスクをソートする関数
+  const sortTasks = (tasksToSort) => {
+    return [...tasksToSort].sort((a, b) => {
+      // 第1ソートフィールド（期限日）
+      let comparison = 0;
+      
+      if (sortConfig.field === 'due_date') {
+        // 期限日ソート (null値は最後に)
+        const dateA = a.due_date ? new Date(a.due_date) : new Date(8640000000000000);
+        const dateB = b.due_date ? new Date(b.due_date) : new Date(8640000000000000);
+        comparison = sortConfig.direction === 'asc' ? dateA - dateB : dateB - dateA;
+      } else if (sortConfig.field === 'priority') {
+        // 優先度ソート
+        const priorityA = getPriorityValue(a.priority);
+        const priorityB = getPriorityValue(b.priority);
+        comparison = sortConfig.direction === 'asc' ? priorityB - priorityA : priorityA - priorityB; // 高い優先度が先
+      } else {
+        // その他のフィールド
+        const valA = a[sortConfig.field] || '';
+        const valB = b[sortConfig.field] || '';
+        comparison = sortConfig.direction === 'asc' ? 
+          valA.toString().localeCompare(valB.toString()) : 
+          valB.toString().localeCompare(valA.toString());
+      }
+      
+      // 第1ソートが同値の場合は第2ソートを適用
+      if (comparison === 0 && secondarySortField) {
+        if (secondarySortField === 'priority') {
+          const priorityA = getPriorityValue(a.priority);
+          const priorityB = getPriorityValue(b.priority);
+          return priorityB - priorityA; // 高い優先度が先（昇順）
+        } else if (secondarySortField === 'due_date') {
+          const dateA = a.due_date ? new Date(a.due_date) : new Date(8640000000000000);
+          const dateB = b.due_date ? new Date(b.due_date) : new Date(8640000000000000);
+          return dateA - dateB; // 日付昇順
+        }
+      }
+      
+      return comparison;
+    });
+  };
+  
+  // ソート設定変更ハンドラー
+  const handleSortChange = (field) => {
+    if (sortConfig.field === field) {
+      // 同じフィールドの場合は昇順/降順を切り替え
+      setSortConfig({
+        field,
+        direction: sortConfig.direction === 'asc' ? 'desc' : 'asc'
+      });
+    } else {
+      // 別フィールドの場合は新しいフィールドで昇順から
+      setSortConfig({
+        field,
+        direction: 'asc'
+      });
+    }
+  };
+
+  useEffect(() => {
+    // ソート変更時にタスクを並べ替え
+    setTasks(prevTasks => sortTasks([...prevTasks]));
+  }, [sortConfig, secondarySortField]);
 
   useEffect(() => {
     const loadTasks = async () => {
@@ -324,6 +426,7 @@ const TaskList = React.forwardRef((props, ref) => {
       searchTerm: '',
       is_fiscal_task: '',
       client: '',
+      assignee: '', // リセット時は自分のタスクフィルターも解除
     });
     fetchTasks();
   };
@@ -372,6 +475,70 @@ const TaskList = React.forwardRef((props, ref) => {
     }
   };
 
+  // 一括編集モード切り替え
+  const toggleBulkEditMode = () => {
+    setBulkEditMode(!bulkEditMode);
+    if (bulkEditMode) {
+      // 一括編集モード終了時に選択をクリア
+      setSelectedTasks([]);
+    }
+  };
+  
+  // タスク選択の切り替え
+  const toggleTaskSelection = (taskId) => {
+    setSelectedTasks(prev => {
+      if (prev.includes(taskId)) {
+        return prev.filter(id => id !== taskId);
+      } else {
+        return [...prev, taskId];
+      }
+    });
+  };
+  
+  // 全タスク選択/解除
+  const toggleSelectAll = () => {
+    if (selectedTasks.length === tasks.length) {
+      setSelectedTasks([]);
+    } else {
+      setSelectedTasks(tasks.map(task => task.id));
+    }
+  };
+  
+  // 一括編集処理
+  const handleBulkEdit = async () => {
+    try {
+      setLoading(true);
+      
+      // 編集対象のフィールドだけを抽出
+      const updateData = {};
+      if (bulkEditData.status) updateData.status = bulkEditData.status;
+      if (bulkEditData.priority) updateData.priority = bulkEditData.priority;
+      if (bulkEditData.assignee) updateData.assignee = bulkEditData.assignee;
+      if (bulkEditData.due_date) updateData.due_date = bulkEditData.due_date;
+      
+      // 選択されたすべてのタスクに対して更新を実行
+      const updatePromises = selectedTasks.map(taskId => 
+        tasksApi.updateTask(taskId, updateData)
+      );
+      
+      await Promise.all(updatePromises);
+      
+      // 完了後の処理
+      toast.success(`${selectedTasks.length}件のタスクを一括更新しました`);
+      setBulkEditModalOpen(false);
+      setBulkEditMode(false);
+      setSelectedTasks([]);
+      
+      // データを再取得
+      await fetchTasks();
+    } catch (error) {
+      console.error('一括編集エラー:', error);
+      toast.error('タスクの一括更新に失敗しました');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div>
       {/* ヘッダー部分 */}
@@ -385,6 +552,14 @@ const TaskList = React.forwardRef((props, ref) => {
           >
             <HiOutlineFilter className="mr-2" />
             フィルター
+          </button>
+          
+          <button
+            className={`${bulkEditMode ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'} py-2 px-4 rounded-lg transition-colors flex items-center`}
+            onClick={toggleBulkEditMode}
+          >
+            <HiCheck className="mr-2" />
+            一括編集
           </button>
           
           <Link
@@ -425,7 +600,7 @@ const TaskList = React.forwardRef((props, ref) => {
             </button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">タスク名検索</label>
               <div className="relative">
@@ -485,6 +660,18 @@ const TaskList = React.forwardRef((props, ref) => {
               </select>
             </div>
             
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">担当者</label>
+              <select
+                className="appearance-none relative block w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                value={filters.assignee}
+                onChange={(e) => handleFilterChange('assignee', e.target.value)}
+              >
+                <option value="">すべて</option>
+                <option value={currentUser?.id || ''}>自分のタスク</option>
+              </select>
+            </div>
+            
             <div className="flex items-end space-x-2">
               <button
                 className="flex-1 bg-primary-600 hover:bg-primary-700 text-white py-2 px-4 rounded-lg transition-colors text-sm"
@@ -499,6 +686,29 @@ const TaskList = React.forwardRef((props, ref) => {
                 リセット
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      
+      {/* 一括編集操作バー */}
+      {bulkEditMode && selectedTasks.length > 0 && (
+        <div className="bg-indigo-50 border border-indigo-200 p-3 rounded-lg mb-4 flex justify-between items-center">
+          <div className="font-medium text-indigo-800">
+            {selectedTasks.length}件のタスクを選択中
+          </div>
+          <div className="flex space-x-2">
+            <button
+              className="bg-indigo-600 hover:bg-indigo-700 text-white py-1.5 px-4 rounded-lg transition-colors text-sm"
+              onClick={() => setBulkEditModalOpen(true)}
+            >
+              一括編集
+            </button>
+            <button
+              className="bg-gray-200 hover:bg-gray-300 text-gray-700 py-1.5 px-4 rounded-lg transition-colors text-sm"
+              onClick={() => setSelectedTasks([])}
+            >
+              選択解除
+            </button>
           </div>
         </div>
       )}
@@ -537,11 +747,35 @@ const TaskList = React.forwardRef((props, ref) => {
           <table className="table w-full">
             <thead>
               <tr>
+                {bulkEditMode && (
+                  <th className="w-12">
+                    <input 
+                      type="checkbox" 
+                      className="checkbox" 
+                      checked={selectedTasks.length === tasks.length}
+                      onChange={toggleSelectAll}
+                    />
+                  </th>
+                )}
                 <th>ステータス</th>
                 <th>タイトル</th>
                 <th>担当者</th>
-                <th>期限日</th>
-                <th>優先度</th>
+                <th onClick={() => handleSortChange('due_date')} className="cursor-pointer select-none">
+                  期限日
+                  {sortConfig.field === 'due_date' && (
+                    <span className="ml-1">
+                      {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </th>
+                <th onClick={() => handleSortChange('priority')} className="cursor-pointer select-none">
+                  優先度
+                  {sortConfig.field === 'priority' && (
+                    <span className="ml-1">
+                      {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </th>
                 <th>クライアント</th>
                 <th>カテゴリー</th>
               </tr>
@@ -550,14 +784,33 @@ const TaskList = React.forwardRef((props, ref) => {
               {tasks.map(task => (
                 <tr 
                   key={task.id} 
-                  className="hover cursor-pointer" 
+                  className={`hover ${selectedTasks.includes(task.id) ? 'bg-indigo-50' : ''}`}
                   onClick={(e) => {
-                    // クリックが「編集」や「削除」ボタンでなければ、行全体のクリックとして扱う
+                    // 一括編集モードの場合はタスク選択処理
+                    if (bulkEditMode) {
+                      // チェックボックス自体のクリックイベントは親に伝播させない
+                      if (!e.target.closest('input[type="checkbox"]')) {
+                        toggleTaskSelection(task.id);
+                      }
+                      return;
+                    }
+                    
+                    // 通常モードの場合は詳細表示処理
                     if (!e.target.closest('button')) {
                       if (props.onTaskSelect) props.onTaskSelect(task);
                     }
                   }}
                 >
+                  {bulkEditMode && (
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <input 
+                        type="checkbox" 
+                        className="checkbox" 
+                        checked={selectedTasks.includes(task.id)}
+                        onChange={() => toggleTaskSelection(task.id)}
+                      />
+                    </td>
+                  )}
                   <td>
                     {task.status && (
                       <span className={`badge ${
@@ -626,6 +879,95 @@ const TaskList = React.forwardRef((props, ref) => {
                   setModalOpen(false);
                 }}
               />
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* 一括編集モーダル */}
+      {bulkEditModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="min-h-screen px-4 text-center">
+            <div className="fixed inset-0 bg-black opacity-30"></div>
+            
+            <span className="inline-block h-screen align-middle" aria-hidden="true">&#8203;</span>
+            
+            <div className="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle bg-white rounded-lg shadow-xl transform transition-all">
+              <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">
+                タスクの一括編集
+              </h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">ステータス</label>
+                  <select
+                    className="appearance-none relative block w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    value={bulkEditData.status}
+                    onChange={(e) => setBulkEditData({...bulkEditData, status: e.target.value})}
+                  >
+                    <option value="">変更しない</option>
+                    <option value="not_started">未着手</option>
+                    <option value="in_progress">進行中</option>
+                    <option value="in_review">レビュー中</option>
+                    <option value="completed">完了</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">優先度</label>
+                  <select
+                    className="appearance-none relative block w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    value={bulkEditData.priority}
+                    onChange={(e) => setBulkEditData({...bulkEditData, priority: e.target.value})}
+                  >
+                    <option value="">変更しない</option>
+                    <option value="high">高</option>
+                    <option value="medium">中</option>
+                    <option value="low">低</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">担当者</label>
+                  <select
+                    className="appearance-none relative block w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    value={bulkEditData.assignee}
+                    onChange={(e) => setBulkEditData({...bulkEditData, assignee: e.target.value})}
+                  >
+                    <option value="">変更しない</option>
+                    <option value={currentUser?.id || ''}>自分</option>
+                    {/* 他のユーザー選択肢はここに追加 */}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">期限日</label>
+                  <input
+                    type="date"
+                    className="appearance-none relative block w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    value={bulkEditData.due_date}
+                    onChange={(e) => setBulkEditData({...bulkEditData, due_date: e.target.value})}
+                  />
+                </div>
+              </div>
+              
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  type="button"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                  onClick={() => setBulkEditModalOpen(false)}
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="button"
+                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  onClick={handleBulkEdit}
+                  disabled={loading}
+                >
+                  {loading ? '更新中...' : '一括更新'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
