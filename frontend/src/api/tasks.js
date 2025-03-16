@@ -122,8 +122,8 @@ const tasksApi = {
         // 月次繰り返しの日指定処理
         if (key === 'monthday') {
           if (cleanedData[key] === '' || cleanedData[key] === undefined) {
-            cleanedData[key] = null;
-            console.log('月次繰り返しの日指定が空のため、nullに設定します');
+            cleanedData[key] = 0; // nullではなく0を使用
+            console.log('月次繰り返しの日指定が空のため、0に設定します');
           } else if (typeof cleanedData[key] === 'string' && !isNaN(parseInt(cleanedData[key], 10))) {
             // 文字列の場合は数値に変換
             const day = parseInt(cleanedData[key], 10);
@@ -132,8 +132,8 @@ const tasksApi = {
               cleanedData[key] = day;
               console.log('月次繰り返しの日指定を数値に変換しました:', cleanedData[key]);
             } else {
-              cleanedData[key] = null;
-              console.log('無効な月次繰り返しの日指定のため、nullに設定します');
+              cleanedData[key] = 0; // 無効な値の場合は0
+              console.log('無効な月次繰り返しの日指定のため、0に設定します');
             }
           }
         }
@@ -141,8 +141,8 @@ const tasksApi = {
         // 月次繰り返しの営業日指定処理
         if (key === 'business_day') {
           if (cleanedData[key] === '' || cleanedData[key] === undefined) {
-            cleanedData[key] = null;
-            console.log('月次繰り返しの営業日指定が空のため、nullに設定します');
+            cleanedData[key] = 0; // nullではなく0を使用
+            console.log('月次繰り返しの営業日指定が空のため、0に設定します');
           } else if (typeof cleanedData[key] === 'string' && !isNaN(parseInt(cleanedData[key], 10))) {
             // 文字列の場合は数値に変換
             const day = parseInt(cleanedData[key], 10);
@@ -151,8 +151,8 @@ const tasksApi = {
               cleanedData[key] = day;
               console.log('月次繰り返しの営業日指定を数値に変換しました:', cleanedData[key]);
             } else {
-              cleanedData[key] = null;
-              console.log('無効な月次繰り返しの営業日指定のため、nullに設定します');
+              cleanedData[key] = 0; // 無効な値の場合は0
+              console.log('無効な月次繰り返しの営業日指定のため、0に設定します');
             }
           }
         }
@@ -276,8 +276,8 @@ const tasksApi = {
       // 月次繰り返しの日指定処理
       if ('monthday' in cleanedData) {
         if (cleanedData.monthday === '' || cleanedData.monthday === undefined) {
-          cleanedData.monthday = null;
-          console.log('月次繰り返しの日指定が空のため、nullに設定します');
+          cleanedData.monthday = 0; // nullではなく0を使用
+          console.log('月次繰り返しの日指定が空のため、0に設定します');
         } else if (typeof cleanedData.monthday === 'string' && !isNaN(parseInt(cleanedData.monthday, 10))) {
           // 文字列の場合は数値に変換
           const day = parseInt(cleanedData.monthday, 10);
@@ -286,8 +286,8 @@ const tasksApi = {
             cleanedData.monthday = day;
             console.log('月次繰り返しの日指定を数値に変換しました:', cleanedData.monthday);
           } else {
-            cleanedData.monthday = null;
-            console.log('無効な月次繰り返しの日指定のため、nullに設定します');
+            cleanedData.monthday = 0; // 無効な値の場合は0
+            console.log('無効な月次繰り返しの日指定のため、0に設定します');
           }
         }
       }
@@ -295,8 +295,8 @@ const tasksApi = {
       // 月次繰り返しの営業日指定処理
       if ('business_day' in cleanedData) {
         if (cleanedData.business_day === '' || cleanedData.business_day === undefined) {
-          cleanedData.business_day = null;
-          console.log('月次繰り返しの営業日指定が空のため、nullに設定します');
+          cleanedData.business_day = 0; // nullではなく0を使用
+          console.log('月次繰り返しの営業日指定が空のため、0に設定します');
         } else if (typeof cleanedData.business_day === 'string' && !isNaN(parseInt(cleanedData.business_day, 10))) {
           // 文字列の場合は数値に変換
           const day = parseInt(cleanedData.business_day, 10);
@@ -305,8 +305,8 @@ const tasksApi = {
             cleanedData.business_day = day;
             console.log('月次繰り返しの営業日指定を数値に変換しました:', cleanedData.business_day);
           } else {
-            cleanedData.business_day = null;
-            console.log('無効な月次繰り返しの営業日指定のため、nullに設定します');
+            cleanedData.business_day = 0; // 無効な値の場合は0
+            console.log('無効な月次繰り返しの営業日指定のため、0に設定します');
           }
         }
       }
@@ -856,6 +856,7 @@ const tasksApi = {
   addCommentWithFiles: async (taskId, formData) => {
     try {
       console.log('Sending files to API:', formData);
+      // タスクIDがFormDataに含まれているため、URLに直接指定する必要はない
       const response = await apiClient.post('/api/tasks/comments/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
@@ -933,6 +934,8 @@ const tasksApi = {
    */
   completeTask: async (taskId, isCompleted) => {
     try {
+      console.log(`[DEBUG API] completeTask: taskId=${taskId}, isCompleted=${isCompleted}`);
+      
       // 完了日時は自動設定せず、ステータスのみを変更
       const cachedStatuses = window.__SPHERE_CACHED_STATUSES;
       let statusId = null;
@@ -943,14 +946,23 @@ const tasksApi = {
           const completedStatus = cachedStatuses.find(s => s.name === '完了');
           if (completedStatus) {
             statusId = completedStatus.id;
+            console.log(`[DEBUG API] 完了ステータスID: ${statusId} が見つかりました`);
+          } else {
+            console.log(`[DEBUG API] 警告: '完了'ステータスが見つかりません`);
+            console.log('利用可能なステータス:', cachedStatuses);
           }
         } else {
           // 未着手ステータスを検索（完了から戻す場合）
           const notStartedStatus = cachedStatuses.find(s => s.name === '未着手');
           if (notStartedStatus) {
             statusId = notStartedStatus.id;
+            console.log(`[DEBUG API] 未着手ステータスID: ${statusId} が見つかりました`);
+          } else {
+            console.log(`[DEBUG API] 警告: '未着手'ステータスが見つかりません`);
           }
         }
+      } else {
+        console.log(`[DEBUG API] 警告: キャッシュされたステータスがありません`);
       }
       
       // ステータスIDが見つかった場合のみ更新
@@ -959,11 +971,24 @@ const tasksApi = {
         updateData.status = statusId;
       }
       
-      console.log(`タスク${taskId}の完了状態を${isCompleted ? '完了' : '未完了'}に変更します。ステータスID: ${statusId}`);
+      // 完了時には明示的に完了日時も設定する
+      if (isCompleted) {
+        updateData.completed_at = new Date().toISOString();
+        console.log(`[DEBUG API] 完了日時を設定: ${updateData.completed_at}`);
+      } else {
+        updateData.completed_at = null;
+        console.log(`[DEBUG API] 完了日時をクリア`);
+      }
+      
+      console.log(`[DEBUG API] タスク${taskId}の更新データ:`, updateData);
       const response = await apiClient.patch(`/api/tasks/${taskId}/`, updateData);
+      console.log(`[DEBUG API] PATCH レスポンス:`, response.data);
       return response.data;
     } catch (error) {
-      console.error('Error completing task:', error);
+      console.error('[ERROR API] タスク完了処理エラー:', error);
+      if (error.response) {
+        console.error('[ERROR API] エラーレスポンス:', error.response.data);
+      }
       throw error;
     }
   },
@@ -973,11 +998,25 @@ const tasksApi = {
    */
   createNextRecurringTask: async (taskId) => {
     try {
+      console.log(`[DEBUG API] createNextRecurringTask: タスクID=${taskId}の次回タスク生成を開始`);
       // APIのパスを修正
       const response = await apiClient.post(`/api/tasks/${taskId}/create-next-recurring/`);
+      console.log(`[DEBUG API] 次回タスク生成成功:`, response.data);
+      
+      // 次回生成されたタスクをリストに追加するためのイベント発火
+      if (response.data && response.data.id) {
+        window.dispatchEvent(new CustomEvent('task-updated', { 
+          detail: { task: response.data, isNew: true }
+        }));
+      }
+      
       return response.data;
     } catch (error) {
-      console.error('Error creating next recurring task:', error);
+      console.error('[ERROR API] 次回タスク生成エラー:', error);
+      if (error.response) {
+        console.error('[ERROR API] エラーステータス:', error.response.status);
+        console.error('[ERROR API] エラーレスポンス:', error.response.data);
+      }
       throw error;
     }
   },
