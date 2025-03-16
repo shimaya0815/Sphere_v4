@@ -65,7 +65,11 @@ const TaskBulkEditModal = ({
                 <option value="1">未着手</option>
                 <option value="2">作業中</option>
                 <option value="3">作業者完了</option>
-                <option value="8">完了</option>
+                <option value="5">レビュー中</option>
+                <option value="6">差戻中</option>
+                <option value="7">差戻対応中</option>
+                <option value="8">差戻対応済</option>
+                <option value="11">完了</option>
               </select>
             </div>
             
