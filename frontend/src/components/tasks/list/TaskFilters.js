@@ -129,20 +129,36 @@ const TaskFilters = ({
           </select>
         </div>
         
-        <div className="flex items-end space-x-2">
-          <button
-            className="flex-1 bg-primary-600 hover:bg-primary-700 text-white py-2 px-4 rounded-lg transition-colors text-sm flex items-center justify-center"
-            onClick={onApplyFilters}
-          >
-            <HiOutlineAdjustments className="mr-2 h-4 w-4" />
-            適用
-          </button>
-          <button
-            className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-4 rounded-lg transition-colors text-sm"
-            onClick={onResetFilters}
-          >
-            リセット
-          </button>
+        <div className="flex flex-col space-y-4">
+          {/* 完了タスク非表示のチェックボックス */}
+          <div className="flex items-center">
+            <input
+              id="hide-completed"
+              type="checkbox"
+              className="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+              checked={filters.hide_completed || false}
+              onChange={(e) => onFilterChange('hide_completed', e.target.checked)}
+            />
+            <label htmlFor="hide-completed" className="ml-2 block text-sm text-gray-700">
+              完了タスクを非表示
+            </label>
+          </div>
+          
+          <div className="flex items-end space-x-2">
+            <button
+              className="flex-1 bg-primary-600 hover:bg-primary-700 text-white py-2 px-4 rounded-lg transition-colors text-sm flex items-center justify-center"
+              onClick={onApplyFilters}
+            >
+              <HiOutlineAdjustments className="mr-2 h-4 w-4" />
+              適用
+            </button>
+            <button
+              className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-4 rounded-lg transition-colors text-sm"
+              onClick={onResetFilters}
+            >
+              リセット
+            </button>
+          </div>
         </div>
       </div>
     </div>

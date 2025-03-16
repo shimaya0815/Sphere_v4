@@ -1,4 +1,4 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { 
@@ -45,13 +45,63 @@ const TaskList = forwardRef((props, ref) => {
     due_date: ''
   });
 
-  // デフォルトのフィルターを設定（自分担当のみ）
+  // デフォルトのフィルターを設定（自分担当のみ、完了タスク非表示）
   const [filters, setFilters] = useState({
     status: '',
     searchTerm: '',
     client: '',
-    assignee: currentUser?.id || '',  // 自分の担当タスクのみをデフォルト表示
+    assignee: currentUser?.id || '',
+    hide_completed: true,  // デフォルトで完了タスクを非表示
   });
+  
+  // ユーザーごとのフィルター設定を保存・復元
+  useEffect(() => {
+    const loadUserFilters = () => {
+      if (!currentUser?.id) return;
+      
+      // ローカルストレージからユーザーのフィルター設定を取得
+      const savedFilters = localStorage.getItem(`task_filters_${currentUser.id}`);
+      if (savedFilters) {
+        try {
+          const parsedFilters = JSON.parse(savedFilters);
+          console.log('保存されたフィルター設定を読み込みました:', parsedFilters);
+          setFilters(parsedFilters);
+        } catch (error) {
+          console.error('フィルター設定の読み込みでエラーが発生しました:', error);
+        }
+      } else {
+        // 保存された設定がない場合はデフォルト設定を使用
+        setFilters({
+          status: '',
+          searchTerm: '',
+          client: '',
+          assignee: currentUser.id,
+          hide_completed: true,
+        });
+      }
+    };
+    
+    loadUserFilters();
+  }, [currentUser]);
+  
+  // フィルター設定が変更されたときに保存
+  const saveUserFilters = useCallback(() => {
+    if (!currentUser?.id) return;
+    
+    try {
+      localStorage.setItem(`task_filters_${currentUser.id}`, JSON.stringify(filters));
+      console.log('フィルター設定を保存しました:', filters);
+    } catch (error) {
+      console.error('フィルター設定の保存でエラーが発生しました:', error);
+    }
+  }, [filters, currentUser]);
+  
+  // フィルター設定が変更されたときに保存
+  useEffect(() => {
+    if (initialized) {
+      saveUserFilters();
+    }
+  }, [filters, initialized, saveUserFilters]);
   
   // 初期化：ユーザー情報が取得できた直後に担当者フィルタを設定
   useEffect(() => {
@@ -160,7 +210,11 @@ const TaskList = forwardRef((props, ref) => {
         console.log('🚨 担当者フィルターが未設定のため、現在のユーザーIDを設定しました:', currentUser.id);
       }
       
-      console.log('🔍 最終的なフィルター設定:', cleanFilters);
+      // hide_completedフィルターを処理 (APIに送信せず、クライアント側でフィルターする)
+      const hideCompleted = filters.hide_completed;
+      delete cleanFilters.hide_completed;
+      
+      console.log('🔍 最終的なフィルター設定:', cleanFilters, 'クライアント側完了タスク非表示:', hideCompleted);
       console.log('⭐⭐⭐ Fetching tasks with filters:', cleanFilters);
       console.log('⭐⭐⭐ Using API endpoint: /api/tasks/');
       console.group('Task API Request Debugging');
@@ -198,44 +252,46 @@ const TaskList = forwardRef((props, ref) => {
               fetchedTasks = [];
             } else {
               // それ以外の場合、オブジェクトをタスクとして扱う
-              console.log('Treating response object as a task');
               fetchedTasks = [response];
               setError(null);
             }
           }
         } else {
-          // APIからのデータがない場合はエラー表示
-          console.error('API returned no usable data');
-          setError('タスク情報の読み込みに失敗しました。データ形式が不正です。');
+          console.error('API response is empty or invalid:', response);
           fetchedTasks = [];
+          setError('タスクデータの取得に失敗しました');
         }
         
-        // バックエンドフィルタリングがうまくいかない場合のためにクライアント側でも再度フィルタリング
-        // 「すべてのタスク」が選択されている場合はクライアント側フィルタリングをスキップ
-        if (filters.assignee !== '' && fetchedTasks.length > 0) {
-          console.log('バックエンドでフィルタリングされたタスク数:', fetchedTasks.length);
-          
-          // 担当者フィルタリングを適用
-          const filteredTasks = filterTasksByAssignee(fetchedTasks, filters.assignee);
-          console.log('クライアント側でフィルタリング後のタスク数:', filteredTasks.length);
-          
-          if (filteredTasks.length < fetchedTasks.length) {
-            console.warn('⚠️ バックエンドフィルタリングが機能していない可能性があります');
-            fetchedTasks = filteredTasks;
-          }
-        } else {
-          console.log('🔍「すべてのタスク」表示モード - クライアント側フィルタリングをスキップします');
+        // 担当者に基づくフィルタリング
+        if (filters.assignee) {
+          fetchedTasks = filterTasksByAssignee(fetchedTasks, filters.assignee);
         }
-      } finally {
-        console.groupEnd();
+        
+        // 完了タスク非表示フィルター
+        if (hideCompleted) {
+          fetchedTasks = fetchedTasks.filter(task => {
+            // 完了ステータスを検出
+            const isCompleted = 
+              (task.status && task.status.toString() === '11') || // 完了ステータスID
+              (task.status_name && task.status_name === '完了') || 
+              (task.status_data && task.status_data.name === '完了');
+            return !isCompleted;
+          });
+          console.log('完了タスクを非表示にしました:', fetchedTasks.length);
+        }
+        
+        // タスクデータを設定
+        updateTasks(fetchedTasks);
+      } catch (apiError) {
+        console.error('API request failed:', apiError);
+        setError('APIリクエストが失敗しました');
+        updateTasks([]);
       }
       
-      // カスタムフックを使ってソート処理を適用
-      updateTasks(fetchedTasks);
+      console.groupEnd();
     } catch (error) {
-      console.error('Error in fetchTasks:', error);
-      setError('タスク一覧の取得に失敗しました');
-      toast.error('タスク一覧の取得に失敗しました');
+      console.error('タスクの取得中にエラーが発生しました:', error);
+      setError('タスクの取得に失敗しました');
       updateTasks([]);
     } finally {
       setLoading(false);
@@ -422,12 +478,22 @@ const TaskList = forwardRef((props, ref) => {
   // フィルターリセット
   const handleFilterReset = () => {
     // リセット時には自分が担当者のタスクのみに戻す（デフォルト状態）
-    setFilters({
+    const defaultFilters = {
       status: '',
       searchTerm: '',
       client: '',
       assignee: currentUser?.id || '',
-    });
+      hide_completed: true,
+    };
+    setFilters(defaultFilters);
+    
+    // ローカルストレージからも削除
+    if (currentUser?.id) {
+      localStorage.removeItem(`task_filters_${currentUser.id}`);
+    }
+    
+    // すぐに適用
+    setTimeout(() => fetchTasks(), 0);
   };
   
   // 一括編集モード切り替え
