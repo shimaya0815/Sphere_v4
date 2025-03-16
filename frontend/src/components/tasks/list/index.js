@@ -11,6 +11,7 @@ import {
 import { useAuth } from '../../../context/AuthContext';
 import { tasksApi } from '../../../api';
 import usersApi from '../../../api/users';  // ユーザーAPIをインポート
+import clientsApi from '../../../api/clients';  // クライアントAPIをインポート
 
 // 分割したコンポーネントのインポート
 import TaskFilters from './TaskFilters';
@@ -30,6 +31,7 @@ const TaskList = forwardRef((props, ref) => {
   const { currentUser } = useAuth();
   const [initialized, setInitialized] = useState(false);
   const [usersList, setUsersList] = useState([]); // ユーザー一覧を保持するstate
+  const [clientsList, setClientsList] = useState([]); // クライアント一覧を保持するstate
   
   // 一括編集関連の状態
   const [bulkEditMode, setBulkEditMode] = useState(false);
@@ -252,12 +254,27 @@ const TaskList = forwardRef((props, ref) => {
     }
   };
 
+  // クライアント一覧を取得
+  const fetchClients = async () => {
+    try {
+      console.log('🔍 クライアント一覧を取得します');
+      const response = await clientsApi.getClients();
+      const clients = response.results || [];
+      console.log('📋 取得したクライアント一覧:', clients);
+      setClientsList(clients);
+    } catch (error) {
+      console.error('クライアント一覧の取得中にエラーが発生しました:', error);
+      toast.error('クライアント一覧の取得に失敗しました');
+    }
+  };
+
   // 初期読み込み時
   useEffect(() => {
     if (currentUser?.id) {
       console.log('🔄 初期読み込み時に現在のユーザーID確認:', currentUser.id);
       fetchTasks();
       fetchUsers(); // ユーザー一覧を取得
+      fetchClients(); // クライアント一覧を取得
       
       // 冗長性のために第2の初期ロードを実施 (APIが安定するまでの一時的な対策)
       const retryTimeout = setTimeout(() => {
@@ -578,6 +595,7 @@ const TaskList = forwardRef((props, ref) => {
           onClose={() => setShowFilters(false)}
           currentUser={currentUser}
           usersList={usersList} // ユーザー一覧を渡す
+          clientsList={clientsList} // クライアント一覧を渡す
         />
       )}
       
@@ -635,7 +653,9 @@ const TaskList = forwardRef((props, ref) => {
           <HiOutlineDocumentText className="mx-auto h-12 w-12 text-gray-400" />
           <h3 className="mt-2 text-lg font-medium text-gray-900">タスクがありません</h3>
           <p className="mt-1 text-sm text-gray-500">
-            {filters.assignee ? '条件に一致するタスクはありません。' : 'まだタスクが登録されていません。「新規タスク」から追加してください。'}
+            {Object.values(filters).some(value => value !== '') 
+              ? 'フィルター条件に一致するタスクはありません。条件を変更してください。' 
+              : 'まだタスクが登録されていません。「新規タスク」から追加してください。'}
           </p>
         </div>
       )}
