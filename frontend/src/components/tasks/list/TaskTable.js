@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 
 const TaskTable = ({
   tasks,
@@ -10,6 +10,18 @@ const TaskTable = ({
   onSelectAll,
   onTaskSelect
 }) => {
+  // デバッグ用：タスクデータの構造を確認
+  useEffect(() => {
+    if (tasks.length > 0) {
+      console.log('タスクデータのサンプル:', tasks[0]);
+      console.log('決算期関連のプロパティ:', {
+        fiscal_year: tasks[0].fiscal_year,
+        fiscal_year_data: tasks[0].fiscal_year_data,
+        fiscal_year_name: tasks[0].fiscal_year_name
+      });
+    }
+  }, [tasks]);
+
   // ステータス名の表示形式を整える
   const getStatusName = (task) => {
     if (!task.status) return '未設定';
@@ -34,9 +46,30 @@ const TaskTable = ({
 
   // 決算期の表示形式を整える
   const getFiscalYearName = (task) => {
-    if (!task.fiscal_year) return '-';
-    return task.fiscal_year_data ? task.fiscal_year_data.name : 
-           (typeof task.fiscal_year === 'object' ? task.fiscal_year.name : task.fiscal_year);
+    // デバッグログ
+    console.log('決算期データ:', {
+      task_id: task.id,
+      fiscal_year: task.fiscal_year,
+      fiscal_year_data: task.fiscal_year_data,
+      fiscal_year_name: task.fiscal_year_name
+    });
+    
+    if (task.fiscal_year_name) return task.fiscal_year_name;
+    
+    if (task.fiscal_year_data && task.fiscal_year_data.name) 
+      return task.fiscal_year_data.name;
+    
+    if (task.fiscal_year) {
+      if (typeof task.fiscal_year === 'object' && task.fiscal_year.name)
+        return task.fiscal_year.name;
+      
+      return String(task.fiscal_year);
+    }
+    
+    // 決算関連タスクだが決算期が未指定の場合
+    if (task.is_fiscal_task) return '期未設定';
+    
+    return '-';
   };
 
   return (
@@ -137,9 +170,13 @@ const TaskTable = ({
                 {task.is_fiscal_task && <span className="ml-1 badge badge-xs badge-accent">決算</span>}
               </td>
               <td>
-                <span className="badge badge-outline badge-secondary">
-                  {getFiscalYearName(task)}
-                </span>
+                {task.is_fiscal_task ? (
+                  <span className="badge badge-outline badge-secondary">
+                    {getFiscalYearName(task)}
+                  </span>
+                ) : (
+                  '-'
+                )}
               </td>
               <td>
                 {task.category && (
