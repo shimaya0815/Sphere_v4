@@ -23,49 +23,39 @@ class TaskViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsSameBusiness]
     filter_backends = [SearchFilter, OrderingFilter]
     search_fields = ['title', 'description']
-    ordering_fields = ['created_at', 'due_date', 'status__order', 'priority__level', 'assignee__first_name', 'category__name']
+    ordering_fields = ['created_at', 'due_date', 'start_date', 'completed_at', 'updated_at']
     ordering = ['-created_at']
     
     def update(self, request, *args, **kwargs):
         """Custom update method to handle task updates properly"""
-        print(f"⭐ TASK UPDATE REQUEST DATA: {request.data}")
+        print(f"⭐ TASK UPDATE CALLED WITH: {request.data}")
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         
-        # Log the update details for debugging
-        print(f"⭐ Updating task {instance.id} with data: {request.data}")
-        print(f"⭐ Current task priority: {instance.priority.id if instance.priority else None}")
-        print(f"⭐ Current task status: {instance.status.id if instance.status else None}")
+        # Extract and save the old status for history tracking
+        old_status = instance.status
+        old_status_id = old_status.id if old_status else None
+        new_status_id = request.data.get('status')
         
-        # 優先度をチェック
-        if 'priority' in request.data:
-            print(f"⭐ Priority in request data: {request.data['priority']}, type: {type(request.data['priority'])}")
+        # Convert status ID to integer if it's a string
+        if new_status_id and isinstance(new_status_id, str) and new_status_id.isdigit():
+            new_status_id = int(new_status_id)
             
-            # 指定された優先度IDのオブジェクトが存在するか確認
-            try:
-                if request.data['priority']:
-                    priority_id = request.data['priority']
-                    if isinstance(priority_id, str) and priority_id.isdigit():
-                        priority_id = int(priority_id)
-                    
-                    try:
-                        priority = TaskPriority.objects.get(id=priority_id)
-                        print(f"⭐ Found priority by ID: {priority.id}, value: {priority.priority_value}")
-                    except TaskPriority.DoesNotExist:
-                        print(f"⭐ Priority with ID {priority_id} does not exist")
-                        return Response(
-                            {"priority": [f"指定された優先度ID {priority_id} が見つかりません"]},
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
-            except (TypeError, ValueError) as e:
-                print(f"⭐ Error validating priority: {e}")
+        print(f"⭐ Old status: {old_status_id}, New status: {new_status_id}")
+            
+        # Add debugging for priority
+        old_priority = instance.priority
+        old_priority_id = old_priority.id if old_priority else None
+        new_priority_id = request.data.get('priority')
+        
+        # Convert priority ID to integer if it's a string
+        if new_priority_id and isinstance(new_priority_id, str) and new_priority_id.isdigit():
+            new_priority_id = int(new_priority_id)
+            
+        print(f"⭐ Old priority: {old_priority_id}, New priority: {new_priority_id}")
         
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        
-        # バリデーションエラーの詳細なログ
-        if not serializer.is_valid():
-            print(f"⭐ Validation errors: {serializer.errors}")
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
         
         try:
             self.perform_update(serializer)
@@ -74,6 +64,19 @@ class TaskViewSet(viewsets.ModelViewSet):
             updated_instance = self.get_object()
             print(f"⭐ Updated task priority: {updated_instance.priority.id if updated_instance.priority else None}")
             print(f"⭐ Updated task status: {updated_instance.status.id if updated_instance.status else None}")
+            
+            # チェック: タスクが完了ステータスに変更された場合、かつcompleted_atがまだ設定されていない場合
+            if updated_instance.status and updated_instance.status.name == '完了' and not updated_instance.completed_at:
+                # 完了日時を設定
+                print(f"⭐ Setting completed_at for task {updated_instance.id}")
+                updated_instance.completed_at = timezone.now()
+                updated_instance.save(update_fields=['completed_at'])
+                
+                # 繰り返しタスクの場合、次のタスクインスタンスを生成
+                if updated_instance.is_recurring and updated_instance.recurrence_pattern:
+                    next_task = updated_instance.generate_next_instance()
+                    if next_task:
+                        print(f"⭐ Generated next recurring task: {next_task.id}")
             
             # Create a serialized response with the fully updated task
             response_serializer = self.get_serializer(updated_instance)
@@ -218,7 +221,23 @@ class TaskViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def mark_complete(self, request, pk=None):
         task = self.get_object()
+        print(f"[DEBUG] mark_complete called for task {task.id} ({task.title})")
+        print(f"[DEBUG] Before mark_complete - recurring: {task.is_recurring}, pattern: {task.recurrence_pattern}, completed_at: {task.completed_at}")
+        
         task.mark_complete(user=request.user)
+        print(f"[DEBUG] After mark_complete - completed_at now set to: {task.completed_at}")
+        
+        # 繰り返しタスクの場合、次のタスクインスタンスを生成
+        if task.is_recurring and task.recurrence_pattern:
+            print(f"[DEBUG] Task {task.id} is recurring with pattern {task.recurrence_pattern}, monthday={task.monthday}")
+            next_task = task.generate_next_instance()
+            if next_task:
+                print(f"[DEBUG] 繰り返しタスクの次のインスタンスを生成しました: ID={next_task.id}, due_date={next_task.due_date}")
+            else:
+                print(f"[DEBUG] 次のタスクインスタンスを生成できませんでした")
+        else:
+            print(f"[DEBUG] Task {task.id} is not recurring or has no pattern - recurring: {task.is_recurring}, pattern: {task.recurrence_pattern}")
+        
         serializer = self.get_serializer(task)
         return Response(serializer.data)
         
@@ -247,6 +266,20 @@ class TaskViewSet(viewsets.ModelViewSet):
             if new_status.name == '完了' and not task.completed_at:
                 task.completed_at = timezone.now()
                 task.save(user=request.user)
+                print(f"[DEBUG] Task {task.id} marked as completed via status change - set completed_at to {task.completed_at}")
+                
+                # 繰り返しタスクの場合、次のタスクインスタンスを生成
+                if task.is_recurring and task.recurrence_pattern:
+                    print(f"[DEBUG] Task {task.id} is recurring with pattern {task.recurrence_pattern}, monthday={task.monthday}")
+                    next_task = task.generate_next_instance()
+                    if next_task:
+                        print(f"[DEBUG] 繰り返しタスクの次のインスタンスを生成しました: ID={next_task.id}, due_date={next_task.due_date}")
+                    else:
+                        print(f"[DEBUG] 次のタスクインスタンスを生成できませんでした")
+                else:
+                    print(f"[DEBUG] Task {task.id} is not recurring or has no pattern - recurring: {task.is_recurring}, pattern: {task.recurrence_pattern}")
+            else:
+                print(f"[DEBUG] Task {task.id} status changed but not marked as completed - status name: {new_status.name}, completed_at: {task.completed_at}")
             
             # 通知作成（ステータス変更）
             TaskNotification.objects.create(
@@ -328,6 +361,86 @@ class TaskViewSet(viewsets.ModelViewSet):
             'active_timer': False,
             'duration': str(timer.duration)
         })
+    
+    @action(detail=True, methods=['post'], url_path='create-next-recurring')
+    def create_next_recurring(self, request, pk=None):
+        """
+        完了したタスクの次の繰り返しインスタンスを生成するエンドポイント
+        """
+        task = self.get_object()
+        print(f"[DEBUG] create_next_recurring called for task {task.id} ({task.title})")
+        print(f"[DEBUG] Task details: is_recurring={task.is_recurring}, recurrence_pattern={task.recurrence_pattern}, completed_at={task.completed_at}")
+        print(f"[DEBUG] Monthly settings: monthday={task.monthday}, business_day={task.business_day}")
+        print(f"[DEBUG] Monthly details: monthday_type={type(task.monthday)}, business_day_type={type(task.business_day)}")
+        
+        if task.recurrence_pattern == 'monthly':
+            if task.business_day is not None and task.business_day > 0:
+                print(f"[DEBUG] 月次営業日指定が有効です: {task.business_day}営業日目")
+            elif task.monthday is not None and task.monthday > 0:
+                print(f"[DEBUG] 月次日付指定が有効です: {task.monthday}日")
+            else:
+                print(f"[DEBUG] 月次設定が不完全です: monthday={task.monthday}, business_day={task.business_day}")
+        
+        # タスクが繰り返し設定を持っているか確認
+        if not task.is_recurring or not task.recurrence_pattern:
+            print(f"[DEBUG] Task {task.id} does not have recurring settings: is_recurring={task.is_recurring}, recurrence_pattern={task.recurrence_pattern}")
+            return Response(
+                {"detail": "このタスクは繰り返し設定がありません"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # タスクが完了しているか確認
+        if not task.completed_at:
+            print(f"[DEBUG] Task {task.id} is not completed (completed_at is None)")
+            return Response(
+                {"detail": "タスクが完了していません。完了したタスクのみ次のインスタンスを生成できます"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 次のインスタンスを生成
+        print(f"[DEBUG] Generating next instance for task {task.id}")
+        next_task = task.generate_next_instance()
+        
+        if not next_task:
+            print(f"[DEBUG] Failed to generate next instance for task {task.id}")
+            return Response(
+                {"detail": "次のタスクを生成できませんでした。繰り返し終了日を過ぎている可能性があります"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        print(f"[DEBUG] Successfully generated next instance: task_id={next_task.id}, due_date={next_task.due_date}")
+        
+        # 生成したタスクのデータを返す
+        serializer = self.get_serializer(next_task)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=True, methods=['get'], url_path='calculate-next-dates')
+    def calculate_next_dates(self, request, pk=None):
+        """
+        タスクの次回の日付を計算するエンドポイント
+        """
+        task = self.get_object()
+        
+        # タスクが繰り返し設定を持っているか確認
+        if not task.is_recurring or not task.recurrence_pattern:
+            return Response(
+                {"detail": "このタスクは繰り返し設定がありません"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 次回の日付を計算
+        next_dates = {
+            "current_due_date": task.due_date,
+            "current_start_date": task.start_date,
+        }
+        
+        if task.due_date:
+            next_dates["next_due_date"] = task._calculate_next_date(task.due_date)
+        
+        if task.start_date:
+            next_dates["next_start_date"] = task._calculate_next_date(task.start_date)
+        
+        return Response(next_dates)
 
 
 class TaskCategoryViewSet(viewsets.ModelViewSet):

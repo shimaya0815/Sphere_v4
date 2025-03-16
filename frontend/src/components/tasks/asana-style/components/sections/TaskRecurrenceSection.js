@@ -15,6 +15,7 @@ const TaskRecurrenceSection = ({
   const weekdays = watch('weekdays');
   const monthday = watch('monthday');
   const business_day = watch('business_day');
+  const consider_holidays = watch('consider_holidays');
 
   // 選択された曜日を管理する内部状態
   const [selectedWeekdays, setSelectedWeekdays] = useState([]);
@@ -59,30 +60,51 @@ const TaskRecurrenceSection = ({
     const previousTaskId = previousTaskRef.current?.id;
     const currentTaskId = task.id;
     
-    console.log(`[${debugId}] タスク検証: 前回=${previousTaskId}, 現在=${currentTaskId}`);
+    console.log(`[${debugId}] タスク初期化処理: ${previousTaskId} -> ${currentTaskId}, is_template:${task.is_template}`);
     
-    // タスクIDが変わった場合や初期化されていない場合は初期化を実行
-    if (previousTaskId !== currentTaskId || !initializedRef.current) {
-      console.log(`[${debugId}] タスク変更検出 - 初期化を実行します`, { task });
+    // データの初期化
+    if (task?.is_recurring === true) {
+      console.log(`[${debugId}] 繰り返しタスクを検出しました: パターン=${task.recurrence_pattern}`);
+      setValue('is_recurring', 'true', { shouldDirty: true });
       
-      // タスクの参照を保存
-      previousTaskRef.current = { ...task };
+      // パターンがある場合は設定
+      if (task.recurrence_pattern) {
+        setValue('recurrence_pattern', task.recurrence_pattern, { shouldDirty: true });
+        
+        // パターンに応じた詳細設定
+        if (task.recurrence_pattern === 'weekly') {
+          // 週次設定の初期化
+          initializeWeekly(task, debugId);
+        } 
+        else if (task.recurrence_pattern === 'monthly') {
+          // 月次設定の初期化
+          initializeMonthly(task, debugId);
+        }
+      }
       
-      // 初期化処理
-      initializeFromTaskData(task, debugId);
+      // 祝日考慮設定
+      if (task.consider_holidays !== undefined) {
+        setValue('consider_holidays', task.consider_holidays, { shouldDirty: true });
+      } else {
+        // デフォルトは営業日指定の場合のみtrue
+        const isBusinessDayType = task.business_day !== undefined && task.business_day !== null && task.business_day > 0;
+        setValue('consider_holidays', isBusinessDayType, { shouldDirty: true });
+      }
       
-      // 初期化完了を記録
-      initializedRef.current = true;
+      // 終了日がある場合は設定
+      if (task.recurrence_end_date) {
+        setValue('recurrence_end_date', task.recurrence_end_date, { shouldDirty: true });
+      }
+    } else {
+      console.log(`[${debugId}] 非繰り返しタスクです`);
+      setValue('is_recurring', 'false', { shouldDirty: true });
+      // 祝日考慮はデフォルトでfalse
+      setValue('consider_holidays', false, { shouldDirty: true });
     }
-  }, [
-    task?.id, 
-    task?.weekdays, 
-    task?.weekday, 
-    task?.monthday,
-    task?.business_day,
-    task?.is_recurring, 
-    task?.recurrence_pattern
-  ]);
+    
+    // 現在のタスクを記憶
+    previousTaskRef.current = task;
+  }, [task?.id]);
 
   // 曜日選択の状態が変わったときにフォーム値を更新
   useEffect(() => {
@@ -174,33 +196,82 @@ const TaskRecurrenceSection = ({
   
   // 月次繰り返しの初期化
   const initializeMonthly = (taskData, debugId) => {
-    const isRecurringTask = taskData.is_recurring === true || taskData.is_recurring === 'true';
-    const isMonthlyPattern = taskData.recurrence_pattern === 'monthly';
+    if (!taskData) return;
     
-    if (isRecurringTask && isMonthlyPattern) {
-      console.log(`[${debugId}] 月次繰り返しタスクを検出、設定の初期化を行います`);
+    console.log(`[${debugId}] 月次設定の初期化を実行します:`, {
+      monthday: taskData.monthday,
+      business_day: taskData.business_day,
+      consider_holidays: taskData.consider_holidays
+    });
+    
+    // すでに選択されている月次タイプがある場合はそれを続行
+    if (monthlyType) {
+      console.log(`[${debugId}] 既存の月次タイプを検出: ${monthlyType}`);
       
-      // タスクに設定されている値に基づいて初期化
-      if (taskData.monthday !== undefined && taskData.monthday !== null && taskData.monthday > 0) {
-        console.log(`[${debugId}] 月次日付指定を検出:`, taskData.monthday);
-        setMonthlyType('day');
-        setValue('monthday', taskData.monthday.toString(), { shouldDirty: true });
+      // 既存のタイプに基づいてフォームを設定
+      if (monthlyType === 'day') {
+        console.log(`[${debugId}] 日付タイプが選択されているため、日付設定を優先します`);
+        setValue('monthday', taskData.monthday?.toString() || '1', { shouldDirty: true });
         setValue('business_day', '', { shouldDirty: true });
-      } 
-      else if (taskData.business_day !== undefined && taskData.business_day !== null && taskData.business_day > 0) {
-        console.log(`[${debugId}] 月次営業日指定を検出:`, taskData.business_day);
-        setMonthlyType('business');
-        setValue('business_day', taskData.business_day.toString(), { shouldDirty: true });
+        handleFieldChange('monthday', parseInt(taskData.monthday?.toString() || '1', 10));
+        handleFieldChange('business_day', null);
+        // 祝日考慮は無効化
+        setValue('consider_holidays', false, { shouldDirty: true });
+        handleFieldChange('consider_holidays', false);
+        return;
+      } else if (monthlyType === 'business') {
+        console.log(`[${debugId}] 営業日タイプが選択されているため、営業日設定を優先します`);
+        setValue('business_day', taskData.business_day?.toString() || '1', { shouldDirty: true });
         setValue('monthday', '', { shouldDirty: true });
+        handleFieldChange('business_day', parseInt(taskData.business_day?.toString() || '1', 10));
+        handleFieldChange('monthday', null);
+        // 祝日考慮設定を設定
+        const considerHolidays = taskData.consider_holidays !== undefined ? taskData.consider_holidays : true;
+        setValue('consider_holidays', considerHolidays, { shouldDirty: true });
+        handleFieldChange('consider_holidays', considerHolidays);
+        return;
       }
-      else {
-        // どちらも設定されていない場合はデフォルト値
-        console.log(`[${debugId}] 月次設定が未設定、デフォルト値を使用します`);
-        setMonthlyType('day');
-        setValue('monthday', '1', { shouldDirty: true });
-        setValue('business_day', '', { shouldDirty: true });
-        handleFieldChange('monthday', '1');
-      }
+      // デフォルトはdayタイプを優先
+    }
+    
+    // タスクに設定されている値に基づいて初期化
+    if (taskData.monthday !== undefined && taskData.monthday !== null && taskData.monthday > 0) {
+      console.log(`[${debugId}] 月次日付指定を検出:`, taskData.monthday);
+      setMonthlyType('day');
+      setValue('monthday', taskData.monthday.toString(), { shouldDirty: true });
+      // 営業日を空に設定
+      setValue('business_day', '', { shouldDirty: true });
+      // 祝日考慮は無効化
+      setValue('consider_holidays', false, { shouldDirty: true });
+      // APIに送信するデータも更新
+      handleFieldChange('monthday', parseInt(taskData.monthday.toString(), 10));
+      handleFieldChange('business_day', null);
+      handleFieldChange('consider_holidays', false);
+    } 
+    else if (taskData.business_day !== undefined && taskData.business_day !== null && taskData.business_day > 0) {
+      console.log(`[${debugId}] 月次営業日指定を検出:`, taskData.business_day);
+      setMonthlyType('business');
+      setValue('business_day', taskData.business_day.toString(), { shouldDirty: true });
+      // 日付指定を空に設定
+      setValue('monthday', '', { shouldDirty: true });
+      // 祝日考慮設定を設定
+      const considerHolidays = taskData.consider_holidays !== undefined ? taskData.consider_holidays : true;
+      setValue('consider_holidays', considerHolidays, { shouldDirty: true });
+      // APIに送信するデータも更新
+      handleFieldChange('business_day', parseInt(taskData.business_day.toString(), 10));
+      handleFieldChange('monthday', null);
+      handleFieldChange('consider_holidays', considerHolidays);
+    }
+    else {
+      // どちらも設定されていない場合はデフォルト値
+      console.log(`[${debugId}] 月次設定が未設定、デフォルト値を使用します`);
+      setMonthlyType('day');
+      setValue('monthday', '1', { shouldDirty: true });
+      setValue('business_day', '', { shouldDirty: true });
+      setValue('consider_holidays', false, { shouldDirty: true });
+      handleFieldChange('monthday', 1);
+      handleFieldChange('business_day', null);
+      handleFieldChange('consider_holidays', false);
     }
   };
 
@@ -228,25 +299,72 @@ const TaskRecurrenceSection = ({
     
     // 切り替え時に他方の値をクリア
     if (type === 'day') {
+      // 日付指定の場合
       setValue('business_day', '', { shouldDirty: true });
-      handleFieldChange('business_day', '');
+      // 現在のmonthdayが空の場合はデフォルト値を設定
+      const currentMonthday = watch('monthday') || '1';
+      setValue('monthday', currentMonthday, { shouldDirty: true });
       
-      // 日指定が空の場合はデフォルト値を設定
-      if (!monthday) {
-        setValue('monthday', '1', { shouldDirty: true });
-        handleFieldChange('monthday', '1');
-      }
+      // API送信用のデータも更新
+      handleFieldChange('business_day', null); // nullで送信して明示的にクリア
+      handleFieldChange('monthday', parseInt(currentMonthday, 10) || 1); // 整数変換
+      
+      // 営業日指定でないため祝日考慮設定を無効化
+      setValue('consider_holidays', false, { shouldDirty: true });
+      handleFieldChange('consider_holidays', false);
     } else {
+      // 営業日指定の場合
       setValue('monthday', '', { shouldDirty: true });
-      handleFieldChange('monthday', '');
+      // 現在のbusiness_dayが空の場合はデフォルト値を設定
+      const currentBusinessDay = watch('business_day') || '1';
+      setValue('business_day', currentBusinessDay, { shouldDirty: true });
       
-      // 営業日指定が空の場合はデフォルト値を設定
-      if (!business_day) {
-        setValue('business_day', '1', { shouldDirty: true });
-        handleFieldChange('business_day', '1');
-      }
+      // API送信用のデータも更新
+      handleFieldChange('monthday', null); // nullで送信して明示的にクリア
+      handleFieldChange('business_day', parseInt(currentBusinessDay, 10) || 1); // 整数変換
+      
+      // 営業日指定の場合は祝日考慮設定をデフォルトで有効化
+      setValue('consider_holidays', true, { shouldDirty: true });
+      handleFieldChange('consider_holidays', true);
     }
   };
+
+  // タスクデータの変更を監視し、毎月の繰り返し設定を初期化
+  useEffect(() => {
+    if (task) {
+      // デバッグID生成
+      const debugId = `taskInit-${debugCounterRef.current++}`;
+      console.log(`[${debugId}] タスクデータ変更を検出、月次設定を初期化します:`, {
+        task_id: task.id,
+        is_recurring: task.is_recurring,
+        recurrence_pattern: task.recurrence_pattern,
+        monthday: task.monthday,
+        business_day: task.business_day
+      });
+      
+      // タスクデータに基づいて月次設定を初期化
+      initializeMonthly(task, debugId);
+    }
+  }, [task, setValue]);
+  
+  // タスクと繰り返しパターンの変更を監視し、パターンがmonthlyに変わった場合も初期化
+  useEffect(() => {
+    if (recurrencePattern === 'monthly' && isRecurring === true) {
+      const debugId = `patternChange-${debugCounterRef.current++}`;
+      console.log(`[${debugId}] 月次パターンへの変更を検出、初期化します`);
+      
+      // フォーム値から現在の状態を構築
+      const currentData = {
+        is_recurring: isRecurring,
+        recurrence_pattern: recurrencePattern,
+        monthday: monthday || null,
+        business_day: business_day || null
+      };
+      
+      // 現在のフォーム値に基づいて初期化
+      initializeMonthly(currentData, debugId);
+    }
+  }, [recurrencePattern, isRecurring]);
 
   return (
     <div className="space-y-4">
@@ -414,7 +532,9 @@ const TaskRecurrenceSection = ({
                             {...field}
                             onChange={(e) => {
                               field.onChange(e);
-                              handleFieldChange('monthday', e.target.value);
+                              // 整数値として送信
+                              const numValue = parseInt(e.target.value, 10);
+                              handleFieldChange('monthday', isNaN(numValue) ? null : numValue);
                             }}
                             className="w-16 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
                           />
@@ -444,7 +564,9 @@ const TaskRecurrenceSection = ({
                             {...field}
                             onChange={(e) => {
                               field.onChange(e);
-                              handleFieldChange('business_day', e.target.value);
+                              // 整数値として送信
+                              const numValue = parseInt(e.target.value, 10);
+                              handleFieldChange('business_day', isNaN(numValue) ? null : numValue);
                             }}
                             className="w-16 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
                           />
@@ -454,6 +576,36 @@ const TaskRecurrenceSection = ({
                     />
                     <p className="mt-1 text-xs text-gray-500">
                       ※ 営業日は土日を除く平日です
+                    </p>
+                  </div>
+                )}
+                
+                {/* 祝日考慮設定（営業日指定の場合のみ表示） */}
+                {monthlyType === 'business' && (
+                  <div className="mt-2">
+                    <Controller
+                      name="consider_holidays"
+                      control={control}
+                      render={({ field }) => (
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id="consider-holidays"
+                            checked={field.value}
+                            onChange={(e) => {
+                              field.onChange(e.target.checked);
+                              handleFieldChange('consider_holidays', e.target.checked);
+                            }}
+                            className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                          />
+                          <label htmlFor="consider-holidays" className="ml-2 block text-sm text-gray-700">
+                            日本の祝日も営業日から除外する
+                          </label>
+                        </div>
+                      )}
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      ※ チェックを入れると、土日に加えて日本の祝日も営業日としてカウントしません
                     </p>
                   </div>
                 )}

@@ -275,6 +275,18 @@ class TaskSerializer(serializers.ModelSerializer):
         validated_data['business'] = user.business
         validated_data['creator'] = user
         
+        # business_dayとmonthdayフィールドの型変換処理
+        for field in ['business_day', 'monthday']:
+            if field in validated_data and validated_data[field] is not None:
+                try:
+                    # 文字列の場合は整数に変換
+                    if isinstance(validated_data[field], str) and validated_data[field].strip():
+                        validated_data[field] = int(validated_data[field])
+                        print(f"[DEBUG] {field}を文字列から整数に変換: {validated_data[field]}")
+                except (ValueError, TypeError) as e:
+                    print(f"[ERROR] {field}の変換中にエラー: {e}")
+                    validated_data[field] = None
+        
         # Priorityの処理
         priority_value = validated_data.pop('priority_value', None)
         if priority_value is not None:
@@ -298,6 +310,18 @@ class TaskSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
         
     def update(self, instance, validated_data):
+        # business_dayとmonthdayフィールドの型変換処理
+        for field in ['business_day', 'monthday']:
+            if field in validated_data and validated_data[field] is not None:
+                try:
+                    # 文字列の場合は整数に変換
+                    if isinstance(validated_data[field], str) and validated_data[field].strip():
+                        validated_data[field] = int(validated_data[field])
+                        print(f"[DEBUG] 更新時に{field}を文字列から整数に変換: {validated_data[field]}")
+                except (ValueError, TypeError) as e:
+                    print(f"[ERROR] 更新時の{field}変換中にエラー: {e}")
+                    validated_data[field] = None
+        
         # Priorityの処理
         priority_value = validated_data.pop('priority_value', None)
         

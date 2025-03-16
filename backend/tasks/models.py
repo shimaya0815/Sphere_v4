@@ -331,16 +331,44 @@ class Task(models.Model):
     recurrence_end_date = models.DateTimeField(_('recurrence end date'), null=True, blank=True)
     
     # 週次繰り返しの曜日指定（0=月曜日、1=火曜日、...、6=日曜日）
-    weekday = models.IntegerField(_('weekday for weekly recurrence'), null=True, blank=True)
+    weekday = models.IntegerField(
+        _('weekday for weekly recurrence'), 
+        null=True, 
+        blank=True,
+        help_text=_('週次繰り返しの曜日指定（0=月曜日、1=火曜日、...、6=日曜日）')
+    )
     
     # 週次繰り返しの複数曜日指定（カンマ区切りの数値を保存: "0,2,4" = 月,水,金）
-    weekdays = models.CharField(_('weekdays for weekly recurrence'), max_length=20, null=True, blank=True)
+    weekdays = models.CharField(
+        _('weekdays for weekly recurrence'), 
+        max_length=20, 
+        null=True, 
+        blank=True,
+        help_text=_('週次繰り返しの複数曜日指定（カンマ区切りの数値を保存: "0,2,4" = 月,水,金）')
+    )
     
     # 月次繰り返しの日指定（1-31の数値）
-    monthday = models.IntegerField(_('day of month for monthly recurrence'), null=True, blank=True)
+    monthday = models.IntegerField(
+        _('day of month for monthly recurrence'), 
+        null=True, 
+        blank=True,
+        help_text=_('毎月の特定の日に実行する場合に設定（例：15日）')
+    )
     
     # 月次繰り返しの営業日指定（1=第1営業日、2=第2営業日、...）
-    business_day = models.IntegerField(_('business day of month for monthly recurrence'), null=True, blank=True)
+    business_day = models.IntegerField(
+        _('business day of month for monthly recurrence'), 
+        null=True, 
+        blank=True,
+        help_text=_('毎月の特定の営業日（平日）に実行する場合に設定（例：第5営業日）')
+    )
+    
+    # 営業日計算時に祝日を考慮するかどうか
+    consider_holidays = models.BooleanField(
+        _('consider holidays in business day calculation'),
+        default=True,
+        help_text=_('営業日計算時に祝日を考慮するかどうか（Trueの場合、土日と祝日をスキップ）')
+    )
     
     # 繰り返しタスクのインスタンス管理のための追加フィールド
     parent_task = models.ForeignKey(
@@ -433,7 +461,7 @@ class Task(models.Model):
             ).first()
             
             if not completed_status:
-                # 「完了」がない場合はnameに'complete'が含まれるものを探す
+                # "完了"がない場合はnameに'complete'が含まれるものを探す
                 completed_status = TaskStatus.objects.filter(
                     business=self.business,
                     name__icontains='complete'
@@ -451,62 +479,81 @@ class Task(models.Model):
         """
         繰り返しタスクの次回インスタンスを生成する
         """
+        print(f"[DEBUG] generate_next_instance called for task {self.id} ({self.title})")
+        print(f"[DEBUG] is_recurring: {self.is_recurring}, recurrence_pattern: {self.recurrence_pattern}, completed_at: {self.completed_at}")
+        
         if not self.is_recurring or not self.recurrence_pattern or self.completed_at is None:
+            print(f"[DEBUG] Task {self.id} cannot generate next instance: recurring={self.is_recurring}, pattern={self.recurrence_pattern}, completed_at={self.completed_at}")
             return None
             
         # 繰り返し終了日をチェック
         if self.recurrence_end_date and timezone.now() > self.recurrence_end_date:
+            print(f"[DEBUG] Task {self.id} cannot generate next instance: recurrence_end_date {self.recurrence_end_date} is in the past")
             return None
             
         # 次回の日付を計算
         if self.due_date:
             next_due_date = self._calculate_next_date(self.due_date)
+            print(f"[DEBUG] Task {self.id} calculated next_due_date: {next_due_date} from current due_date: {self.due_date}")
         else:
             next_due_date = None
+            print(f"[DEBUG] Task {self.id} has no due_date, next_due_date will be None")
             
         if self.start_date:
             next_start_date = self._calculate_next_date(self.start_date)
+            print(f"[DEBUG] Task {self.id} calculated next_start_date: {next_start_date} from current start_date: {self.start_date}")
         else:
             next_start_date = None
+            print(f"[DEBUG] Task {self.id} has no start_date, next_start_date will be None")
             
         # 新しいタスクインスタンスを作成
         default_status = TaskStatus.objects.filter(business=self.business, name='未着手').first()
+        print(f"[DEBUG] Task {self.id} found default_status: {default_status.id if default_status else None}")
         
-        # 既存タスクのコピーを作成
-        new_task = Task.objects.create(
-            title=self.title,
-            description=self.description,
-            business=self.business,
-            workspace=self.workspace,
-            status=default_status,
-            priority=self.priority,
-            category=self.category,
-            creator=self.creator,
-            worker=self.worker,
-            reviewer=self.reviewer,
-            approver=self.approver,
-            due_date=next_due_date,
-            start_date=next_start_date,
-            estimated_hours=self.estimated_hours,
-            client=self.client,
-            is_fiscal_task=self.is_fiscal_task,
-            fiscal_year=self.fiscal_year,
-            is_recurring=self.is_recurring,
-            recurrence_pattern=self.recurrence_pattern,
-            recurrence_end_date=self.recurrence_end_date,
-            weekday=self.weekday,
-            weekdays=self.weekdays,
-            monthday=self.monthday,
-            business_day=self.business_day,
-            parent_task=self,
-            recurrence_frequency=self.recurrence_frequency
-        )
-        
-        # 最終生成日を更新
-        self.last_generated_date = timezone.now()
-        self.save(update_fields=['last_generated_date'])
-        
-        return new_task
+        try:
+            # 既存タスクのコピーを作成
+            new_task = Task.objects.create(
+                title=self.title,
+                description=self.description,
+                business=self.business,
+                workspace=self.workspace,
+                status=default_status,
+                priority=self.priority,
+                category=self.category,
+                creator=self.creator,
+                worker=self.worker,
+                reviewer=self.reviewer,
+                approver=self.approver,
+                due_date=next_due_date,
+                start_date=next_start_date,
+                estimated_hours=self.estimated_hours,
+                client=self.client,
+                is_fiscal_task=self.is_fiscal_task,
+                fiscal_year=self.fiscal_year,
+                is_recurring=self.is_recurring,
+                recurrence_pattern=self.recurrence_pattern,
+                recurrence_end_date=self.recurrence_end_date,
+                weekday=self.weekday,
+                weekdays=self.weekdays,
+                monthday=self.monthday,
+                business_day=self.business_day,
+                parent_task=self,
+                recurrence_frequency=self.recurrence_frequency
+            )
+            
+            print(f"[DEBUG] Task {self.id} successfully created next recurring task: {new_task.id}")
+            
+            # 最終生成日を更新
+            self.last_generated_date = timezone.now()
+            self.save(update_fields=['last_generated_date'])
+            print(f"[DEBUG] Task {self.id} updated last_generated_date to {self.last_generated_date}")
+            
+            return new_task
+        except Exception as e:
+            print(f"[ERROR] Failed to create next recurring task for {self.id}: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return None
     
     def _calculate_next_date(self, date):
         """
@@ -580,40 +627,96 @@ class Task(models.Model):
         elif self.recurrence_pattern == 'monthly':
             # 基本の次回日付（単純に月を進める）
             next_date = date + relativedelta(months=frequency)
+            print(f"[DEBUG] 月次繰り返し計算: 基本の次回日付 = {next_date} (元の日付: {date}, 頻度: {frequency})")
             
             # 指定日がある場合（毎月X日）
             if self.monthday is not None and self.monthday > 0:
+                print(f"[DEBUG] 月次日付指定あり: {self.monthday}日")
                 # 該当月の最終日を取得
                 month_last_day = calendar.monthrange(next_date.year, next_date.month)[1]
+                print(f"[DEBUG] 次回月の最終日: {month_last_day}日")
                 
                 # 指定日が月の最終日を超える場合は、月の最終日を使用
                 day_to_use = min(self.monthday, month_last_day)
+                print(f"[DEBUG] 使用する日: {day_to_use}日")
                 
                 # 次回日付の日を設定
-                next_date = next_date.replace(day=day_to_use)
+                try:
+                    next_date = next_date.replace(day=day_to_use)
+                    print(f"[DEBUG] 最終的な次回日付: {next_date}")
+                except ValueError as e:
+                    print(f"[ERROR] 日付設定エラー: {e}")
+                    # エラーが発生した場合、月の最終日を使用
+                    next_date = next_date.replace(day=month_last_day)
+                    print(f"[DEBUG] エラー発生後の修正日付: {next_date}")
                 
                 return next_date
             
             # 営業日指定がある場合（毎月X営業日）
             elif self.business_day is not None and self.business_day > 0:
+                print(f"[DEBUG] 月次営業日指定あり: {self.business_day}営業日目")
+                
+                # business_dayが文字列の場合、整数に変換を試みる
+                business_day_value = self.business_day
+                if isinstance(business_day_value, str) and business_day_value.isdigit():
+                    business_day_value = int(business_day_value)
+                    print(f"[DEBUG] 文字列から整数へ変換しました: {business_day_value}")
+                
+                if not isinstance(business_day_value, int) or business_day_value <= 0:
+                    print(f"[ERROR] 無効な営業日値です: {business_day_value}, 型: {type(business_day_value)}")
+                    # 無効な値の場合は安全に第1営業日として処理
+                    business_day_value = 1
+                
                 # 月の初日から開始
                 current_date = next_date.replace(day=1)
                 business_day_count = 0
                 
+                print(f"[DEBUG] 営業日計算開始: 開始日={current_date}, 目標営業日={business_day_value}")
+                
+                # 祝日チェック機能を準備
+                if self.consider_holidays:
+                    print(f"[DEBUG] 祝日考慮設定が有効です")
+                    try:
+                        import jpholiday
+                        use_jpholiday = True
+                        print(f"[DEBUG] jpholidayライブラリを使用して祝日判定を行います")
+                    except ImportError:
+                        use_jpholiday = False
+                        print(f"[WARNING] jpholidayライブラリがインストールされていないため、祝日判定はスキップします")
+                else:
+                    use_jpholiday = False
+                    print(f"[DEBUG] 祝日考慮設定が無効です")
+                
                 # 指定された営業日数に達するまで日付を進める
-                while business_day_count < self.business_day:
-                    # 土日でない場合（0=月曜日、6=日曜日）
-                    if current_date.weekday() < 5:  # 0-4は平日（月-金）
+                while business_day_count < business_day_value:
+                    # 土日チェック（0=月曜日、6=日曜日）
+                    is_weekend = current_date.weekday() >= 5  # 5=土曜日, 6=日曜日
+                    
+                    # 祝日チェック
+                    is_holiday = False
+                    if use_jpholiday and self.consider_holidays:
+                        is_holiday = jpholiday.is_holiday(current_date)
+                        if is_holiday:
+                            holiday_name = jpholiday.is_holiday_name(current_date)
+                            print(f"[DEBUG] 祝日のためスキップ: 日付={current_date}, 祝日名={holiday_name}")
+                    
+                    # 平日（土日祝以外）の場合のみカウント
+                    if not is_weekend and not is_holiday:
                         business_day_count += 1
+                        print(f"[DEBUG] 営業日カウント: {business_day_count}日目, 日付={current_date}, 曜日={current_date.weekday()}")
                         
                         # 目的の営業日に達したらその日付を返す
-                        if business_day_count == self.business_day:
+                        if business_day_count == business_day_value:
+                            print(f"[DEBUG] 指定された営業日に到達: {business_day_count}日目 = {current_date}")
                             return current_date
+                    elif is_weekend:
+                        print(f"[DEBUG] 土日のためスキップ: 日付={current_date}, 曜日={current_date.weekday()}")
                     
                     # 次の日へ
                     current_date += timedelta(days=1)
                 
                 # 念のため、ここまで来たら最後に計算した日付を返す
+                print(f"[DEBUG] 営業日計算完了、最終日付: {current_date}")
                 return current_date
             
             # 指定がない場合は同じ日付で月だけ進める
