@@ -27,6 +27,7 @@ const TaskList = forwardRef((props, ref) => {
   const [selectedTask, setSelectedTask] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const { currentUser } = useAuth();
+  const [initialized, setInitialized] = useState(false);
   
   // 一括編集関連の状態
   const [bulkEditMode, setBulkEditMode] = useState(false);
@@ -48,6 +49,18 @@ const TaskList = forwardRef((props, ref) => {
     client: '',
     assignee: currentUser?.id || '',  // 自分の担当タスクのみをデフォルト表示
   });
+  
+  // 初期化：ユーザー情報が取得できた直後に担当者フィルタを設定
+  useEffect(() => {
+    if (currentUser?.id && !initialized) {
+      console.log('🔄 初期化時に現在のユーザーをフィルターに設定します:', currentUser.id);
+      setFilters(prev => ({
+        ...prev,
+        assignee: currentUser.id
+      }));
+      setInitialized(true);
+    }
+  }, [currentUser, initialized]);
   
   // URLクエリパラメータからフィルターを取得
   useEffect(() => {
@@ -81,6 +94,32 @@ const TaskList = forwardRef((props, ref) => {
     updateTasks, 
     sortTasks 
   } = useTaskSorting([]);
+
+  // 担当者IDに基づいてクライアント側でタスクをフィルタリング
+  const filterTasksByAssignee = (allTasks, assigneeId) => {
+    if (!assigneeId) return allTasks;
+    
+    console.log('🔍クライアント側でタスクをフィルタリング - 担当者ID:', assigneeId);
+    
+    return allTasks.filter(task => {
+      // 担当者IDがマッチするか確認
+      const taskAssigneeId = 
+        task.assignee || 
+        (task.assignee_data && task.assignee_data.id) || 
+        (task.assignee_name && task.assignee_name.id);
+      
+      const isMatch = String(taskAssigneeId) === String(assigneeId);
+      if (!isMatch) {
+        console.log(`タスク「${task.title}」(ID: ${task.id})は担当者が一致しないためフィルタリングされました`);
+        console.log('タスクの担当者:', {
+          assignee: task.assignee,
+          assignee_data: task.assignee_data,
+          assignee_name: task.assignee_name
+        });
+      }
+      return isMatch;
+    });
+  };
 
   // タスク一覧取得
   const fetchTasks = async () => {
@@ -149,6 +188,18 @@ const TaskList = forwardRef((props, ref) => {
           setError('タスク情報の読み込みに失敗しました。データ形式が不正です。');
           fetchedTasks = [];
         }
+        
+        // バックエンドフィルタリングがうまくいかない場合のためにクライアント側でも再度フィルタリング
+        if (cleanFilters.assignee && fetchedTasks.length > 0) {
+          console.log('バックエンドでフィルタリングされたタスク数:', fetchedTasks.length);
+          const filteredTasks = filterTasksByAssignee(fetchedTasks, cleanFilters.assignee);
+          console.log('クライアント側でフィルタリング後のタスク数:', filteredTasks.length);
+          
+          if (filteredTasks.length < fetchedTasks.length) {
+            console.warn('⚠️ バックエンドフィルタリングが機能していない可能性があります');
+            fetchedTasks = filteredTasks;
+          }
+        }
       } finally {
         console.groupEnd();
       }
@@ -167,22 +218,27 @@ const TaskList = forwardRef((props, ref) => {
 
   // 初期読み込み時
   useEffect(() => {
-    fetchTasks();
-    
-    // 冗長性のために第2の初期ロードを実施 (APIが安定するまでの一時的な対策)
-    const retryTimeout = setTimeout(() => {
-      console.log('Retry fetchTasks after timeout');
+    if (currentUser?.id) {
+      console.log('🔄 初期読み込み時に現在のユーザーID確認:', currentUser.id);
       fetchTasks();
-    }, 1500);
-    
-    return () => clearTimeout(retryTimeout);
-  }, []);
+      
+      // 冗長性のために第2の初期ロードを実施 (APIが安定するまでの一時的な対策)
+      const retryTimeout = setTimeout(() => {
+        console.log('Retry fetchTasks after timeout');
+        fetchTasks();
+      }, 1500);
+      
+      return () => clearTimeout(retryTimeout);
+    }
+  }, [currentUser?.id]);
   
   // フィルターが変更されたときにタスクを再取得
   useEffect(() => {
     console.log('Filters changed, fetching tasks with:', filters);
-    fetchTasks();
-  }, [filters]);
+    if (initialized) {
+      fetchTasks();
+    }
+  }, [filters, initialized]);
 
   // タスク更新イベントの監視
   useEffect(() => {
@@ -507,6 +563,16 @@ const TaskList = forwardRef((props, ref) => {
             <div className="ml-3">
               <p className="text-sm text-red-700">{error}</p>
             </div>
+          </div>
+        </div>
+      )}
+      
+      {/* 現在のフィルター表示 */}
+      {filters.assignee === currentUser?.id && (
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4">
+          <div className="flex items-center">
+            <HiOutlineFilter className="h-5 w-5 text-blue-500 mr-2" />
+            <p className="text-sm text-blue-700">現在「自分の担当タスク」のみを表示しています</p>
           </div>
         </div>
       )}
