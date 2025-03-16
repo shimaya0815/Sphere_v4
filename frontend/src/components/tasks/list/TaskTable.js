@@ -66,10 +66,14 @@ const TaskTable = ({
       return String(task.fiscal_year);
     }
     
-    // 決算関連タスクだが決算期が未指定の場合
-    if (task.is_fiscal_task) return '期未設定';
-    
     return '-';
+  };
+
+  // 決算期データが存在するかどうかをチェック
+  const hasFiscalYearData = (task) => {
+    return !!(task.fiscal_year_name || 
+              (task.fiscal_year_data && task.fiscal_year_data.name) || 
+              task.fiscal_year);
   };
 
   return (
@@ -170,7 +174,7 @@ const TaskTable = ({
                 {task.is_fiscal_task && <span className="ml-1 badge badge-xs badge-accent">決算</span>}
               </td>
               <td>
-                {task.is_fiscal_task ? (
+                {hasFiscalYearData(task) ? (
                   <span className="badge badge-outline badge-secondary">
                     {getFiscalYearName(task)}
                   </span>
