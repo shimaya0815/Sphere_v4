@@ -54,19 +54,59 @@ const TaskTable = ({
       fiscal_year_name: task.fiscal_year_name
     });
     
-    if (task.fiscal_year_name) return task.fiscal_year_name;
+    // 既に整形された名前がある場合はそれを使用
+    if (task.fiscal_year_name) {
+      // 既に「第X期」の形式になっているか確認
+      if (task.fiscal_year_name.includes('第') && task.fiscal_year_name.includes('期')) {
+        return task.fiscal_year_name;
+      }
+      // そうでなければ整形
+      return formatFiscalYearDisplay(task.fiscal_year_name);
+    }
     
-    if (task.fiscal_year_data && task.fiscal_year_data.name) 
-      return task.fiscal_year_data.name;
+    // fiscal_year_dataオブジェクトがある場合
+    if (task.fiscal_year_data && task.fiscal_year_data.name) {
+      // 既に「第X期」の形式になっているか確認
+      if (task.fiscal_year_data.name.includes('第') && task.fiscal_year_data.name.includes('期')) {
+        return task.fiscal_year_data.name;
+      }
+      // そうでなければ整形
+      return formatFiscalYearDisplay(task.fiscal_year_data.name, task.fiscal_year_data.end_date);
+    }
     
+    // fiscal_yearプロパティがある場合
     if (task.fiscal_year) {
-      if (typeof task.fiscal_year === 'object' && task.fiscal_year.name)
-        return task.fiscal_year.name;
+      if (typeof task.fiscal_year === 'object' && task.fiscal_year.name) {
+        // オブジェクトの場合
+        if (task.fiscal_year.name.includes('第') && task.fiscal_year.name.includes('期')) {
+          return task.fiscal_year.name;
+        }
+        return formatFiscalYearDisplay(task.fiscal_year.name, task.fiscal_year.end_date);
+      }
       
-      return String(task.fiscal_year);
+      // 数値または文字列の場合
+      return formatFiscalYearDisplay(String(task.fiscal_year));
     }
     
     return '-';
+  };
+
+  // 決算期の表示形式を整形する補助関数
+  const formatFiscalYearDisplay = (fiscalYearValue, endDate) => {
+    // 数値または数字のみの文字列かチェック
+    const isNumeric = /^\d+$/.test(fiscalYearValue);
+    
+    if (isNumeric) {
+      // 今年の日付をデフォルトの期末日として使用
+      const defaultEndDate = endDate || '2024-12-31';
+      const formattedEndDate = typeof defaultEndDate === 'string' ? defaultEndDate : defaultEndDate.toISOString().split('T')[0];
+      
+      // 「第X期(YYYY-MM-DD)」の形式で返す
+      return `第${fiscalYearValue}期(${formattedEndDate})`;
+    }
+    
+    // 数値でない場合はそのまま返す
+    return fiscalYearValue;
   };
 
   // 決算期データが存在するかどうかをチェック
