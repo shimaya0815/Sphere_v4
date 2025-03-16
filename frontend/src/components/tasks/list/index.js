@@ -26,7 +26,7 @@ const TaskList = forwardRef((props, ref) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
   const { currentUser } = useAuth();
   const [initialized, setInitialized] = useState(false);
   const [usersList, setUsersList] = useState([]); // ユーザー一覧を保持するstate

@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { HiOutlineSearch, HiOutlineX } from 'react-icons/hi';
+import { tasksApi } from '../../../api';
 
 const TaskFilters = ({ 
   filters, 
@@ -10,6 +11,32 @@ const TaskFilters = ({
   currentUser,
   usersList = [] // ユーザー一覧を受け取る
 }) => {
+  // ステータス一覧を状態として保持
+  const [statusesList, setStatusesList] = useState([]);
+  
+  // コンポーネントマウント時にステータス一覧を取得
+  useEffect(() => {
+    const fetchStatuses = async () => {
+      try {
+        // キャッシュからステータス一覧を取得
+        if (window.__SPHERE_CACHED_STATUSES && window.__SPHERE_CACHED_STATUSES.length > 0) {
+          setStatusesList(window.__SPHERE_CACHED_STATUSES);
+          return;
+        }
+        
+        // APIからステータス一覧を取得
+        const response = await tasksApi.getStatuses();
+        if (response.data && Array.isArray(response.data)) {
+          setStatusesList(response.data.sort((a, b) => a.order - b.order));
+        }
+      } catch (error) {
+        console.error('ステータス一覧の取得中にエラーが発生しました:', error);
+      }
+    };
+    
+    fetchStatuses();
+  }, []);
+
   return (
     <div className="bg-white shadow-card rounded-lg p-4 mb-6">
       <div className="flex justify-between items-center mb-4">
@@ -22,7 +49,7 @@ const TaskFilters = ({
         </button>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">タスク名検索</label>
           <div className="relative">
@@ -47,10 +74,11 @@ const TaskFilters = ({
             onChange={(e) => onFilterChange('status', e.target.value)}
           >
             <option value="">すべて</option>
-            <option value="not_started">未着手</option>
-            <option value="in_progress">進行中</option>
-            <option value="in_review">レビュー中</option>
-            <option value="completed">完了</option>
+            {statusesList.map(status => (
+              <option key={status.id} value={status.id}>
+                {status.name}
+              </option>
+            ))}
           </select>
         </div>
         
@@ -62,23 +90,9 @@ const TaskFilters = ({
             onChange={(e) => onFilterChange('priority', e.target.value)}
           >
             <option value="">すべて</option>
-            <option value="high">高</option>
-            <option value="medium">中</option>
-            <option value="low">低</option>
-          </select>
-        </div>
-        
-        {/* 決算期タスクフィルター追加 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">タスク種別</label>
-          <select
-            className="appearance-none relative block w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-            value={filters.is_fiscal_task}
-            onChange={(e) => onFilterChange('is_fiscal_task', e.target.value)}
-          >
-            <option value="">すべて</option>
-            <option value="true">決算期関連タスク</option>
-            <option value="false">通常タスク</option>
+            <option value="1">高 (1)</option>
+            <option value="2">中 (2)</option>
+            <option value="3">低 (3)</option>
           </select>
         </div>
         
