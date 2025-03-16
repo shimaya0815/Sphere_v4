@@ -484,11 +484,23 @@ const TaskList = forwardRef((props, ref) => {
         return;
       }
       
-      console.log('Bulk editing tasks:', selectedTasks, 'with data:', editData);
+      // APIに送信するデータを整形
+      const apiData = { ...editData };
+      
+      // worker と reviewer フィールドを適切にマッピング
+      if (apiData.worker) {
+        apiData.assignee = apiData.worker;
+        delete apiData.worker;
+      }
+      
+      // 一括編集データのログ
+      console.log('Bulk editing tasks:', selectedTasks);
+      console.log('Original edit data:', editData);
+      console.log('API送信データ:', apiData);
       
       // 選択されたタスクごとに更新を実行
       const promises = selectedTasks.map(taskId => 
-        tasksApi.updateTask(taskId, editData)
+        tasksApi.updateTask(taskId, apiData)
       );
       
       await Promise.all(promises);
@@ -678,6 +690,7 @@ const TaskList = forwardRef((props, ref) => {
         onSubmit={handleBulkEdit}
         isLoading={loading}
         currentUser={currentUser}
+        usersList={usersList}
       />
       
       {/* 削除確認モーダル */}
