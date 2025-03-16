@@ -133,13 +133,16 @@ const ClientsPage = () => {
                 <th>電話番号</th>
                 <th>メールアドレス</th>
                 <th>決算期</th>
-                <th>操作</th>
               </tr>
             </thead>
             <tbody>
               {filteredClients.length > 0 ? (
                 filteredClients.map(client => (
-                  <tr key={client.id} className="hover">
+                  <tr 
+                    key={client.id} 
+                    className="hover cursor-pointer" 
+                    onClick={() => navigate(`/clients/${client.id}/edit`)}
+                  >
                     <td className="font-medium">{client.name}</td>
                     <td>{client.client_code || '-'}</td>
                     <td>
@@ -162,27 +165,11 @@ const ClientsPage = () => {
                     <td>{client.phone || '-'}</td>
                     <td>{client.email || '-'}</td>
                     <td>{client.fiscal_year ? `第${client.fiscal_year}期` : '-'}</td>
-                    <td>
-                      <div className="flex space-x-2">
-                        <button 
-                          className="btn btn-xs btn-outline"
-                          onClick={() => navigate(`/clients/${client.id}`)}
-                        >
-                          詳細
-                        </button>
-                        <button 
-                          className="btn btn-xs btn-outline"
-                          onClick={() => navigate(`/clients/${client.id}/edit`)}
-                        >
-                          編集
-                        </button>
-                      </div>
-                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="8" className="text-center py-4">
+                  <td colSpan="7" className="text-center py-4">
                     条件に一致するクライアントが見つかりませんでした。
                   </td>
                 </tr>
