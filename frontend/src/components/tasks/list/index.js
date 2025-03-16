@@ -1,5 +1,5 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { 
   HiOutlinePlus, 
@@ -19,6 +19,7 @@ import DeleteConfirmModal from './DeleteConfirmModal';
 import useTaskSorting from './useTaskSorting';
 
 const TaskList = forwardRef((props, ref) => {
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -47,6 +48,25 @@ const TaskList = forwardRef((props, ref) => {
     client: '',
     assignee: currentUser?.id || '',  // 自分の担当タスクのみをデフォルト表示
   });
+  
+  // URLクエリパラメータからフィルターを取得
+  useEffect(() => {
+    const query = new URLSearchParams(location.search);
+    const assigneeParam = query.get('assignee');
+    
+    // URLにassigneeパラメータがなければ、現在のユーザーをフィルタリング条件に設定
+    if (!assigneeParam && currentUser?.id) {
+      setFilters(prev => ({
+        ...prev,
+        assignee: currentUser.id
+      }));
+    } else if (assigneeParam) {
+      setFilters(prev => ({
+        ...prev,
+        assignee: assigneeParam
+      }));
+    }
+  }, [location.search, currentUser?.id]);
   
   // ソート機能のカスタムフック
   const { 
@@ -133,40 +153,22 @@ const TaskList = forwardRef((props, ref) => {
     }
   };
 
-  // 初期読み込み
+  // 初期読み込み時
   useEffect(() => {
-    const loadTasks = async () => {
-      try {
-        await fetchTasks();
-        console.log('Initial tasks loaded successfully');
-      } catch (err) {
-        console.error('Failed to load initial tasks:', err);
-      }
-    };
-    
-    loadTasks();
+    fetchTasks();
     
     // 冗長性のために第2の初期ロードを実施 (APIが安定するまでの一時的な対策)
     const retryTimeout = setTimeout(() => {
       console.log('Retry fetchTasks after timeout');
-      loadTasks();
+      fetchTasks();
     }, 1500);
     
     return () => clearTimeout(retryTimeout);
   }, []);
   
-  // 現在のユーザーIDが変更されたときにフィルターを更新
-  useEffect(() => {
-    if (currentUser?.id) {
-      setFilters(prev => ({
-        ...prev,
-        assignee: currentUser.id
-      }));
-    }
-  }, [currentUser?.id]);
-
   // フィルターが変更されたときにタスクを再取得
   useEffect(() => {
+    console.log('Filters changed, fetching tasks with:', filters);
     fetchTasks();
   }, [filters]);
 
