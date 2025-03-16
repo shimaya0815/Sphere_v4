@@ -97,9 +97,25 @@ const TaskList = forwardRef((props, ref) => {
 
   // 担当者IDに基づいてクライアント側でタスクをフィルタリング
   const filterTasksByAssignee = (allTasks, assigneeId) => {
-    if (!assigneeId) return allTasks;
+    // フィルターが空の場合はすべてのタスクを表示
+    if (!assigneeId || assigneeId === '') {
+      console.log('🔍 担当者フィルターなし - すべてのタスクを表示します');
+      return allTasks;
+    }
     
-    console.log('🔍クライアント側でタスクをフィルタリング - 担当者ID:', assigneeId);
+    // 未割り当てタスクのフィルタリング
+    if (assigneeId === 'unassigned') {
+      console.log('🔍 未割り当てタスクをフィルタリングします');
+      return allTasks.filter(task => {
+        const hasAssignee = 
+          task.assignee || 
+          (task.assignee_data && task.assignee_data.id) || 
+          (task.assignee_name && task.assignee_name.id);
+        return !hasAssignee;
+      });
+    }
+    
+    console.log('🔍 クライアント側でタスクをフィルタリング - 担当者ID:', assigneeId);
     
     return allTasks.filter(task => {
       // 担当者IDがマッチするか確認
@@ -133,8 +149,10 @@ const TaskList = forwardRef((props, ref) => {
         }
       });
       
-      // 担当者フィルターが明示的に設定されていることを確認
-      if (currentUser?.id && !cleanFilters.assignee) {
+      // 担当者フィルターが明示的に設定されていないかつ、フィルターリセットでない場合のみ
+      // 現在のユーザーIDをデフォルトとして使用
+      const userSelectedFilter = filters.assignee === '' || filters.assignee === 'unassigned';
+      if (currentUser?.id && !cleanFilters.assignee && !userSelectedFilter) {
         cleanFilters.assignee = currentUser.id;
         console.log('🚨 担当者フィルターが未設定のため、現在のユーザーIDを設定しました:', currentUser.id);
       }
@@ -190,15 +208,20 @@ const TaskList = forwardRef((props, ref) => {
         }
         
         // バックエンドフィルタリングがうまくいかない場合のためにクライアント側でも再度フィルタリング
-        if (cleanFilters.assignee && fetchedTasks.length > 0) {
+        // 「すべてのタスク」が選択されている場合はクライアント側フィルタリングをスキップ
+        if (filters.assignee !== '' && fetchedTasks.length > 0) {
           console.log('バックエンドでフィルタリングされたタスク数:', fetchedTasks.length);
-          const filteredTasks = filterTasksByAssignee(fetchedTasks, cleanFilters.assignee);
+          
+          // 担当者フィルタリングを適用
+          const filteredTasks = filterTasksByAssignee(fetchedTasks, filters.assignee);
           console.log('クライアント側でフィルタリング後のタスク数:', filteredTasks.length);
           
           if (filteredTasks.length < fetchedTasks.length) {
             console.warn('⚠️ バックエンドフィルタリングが機能していない可能性があります');
             fetchedTasks = filteredTasks;
           }
+        } else {
+          console.log('🔍「すべてのタスク」表示モード - クライアント側フィルタリングをスキップします');
         }
       } finally {
         console.groupEnd();

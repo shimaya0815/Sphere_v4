@@ -89,7 +89,7 @@ const TaskFilters = ({
             onChange={(e) => onFilterChange('assignee', e.target.value)}
           >
             <option value="">すべてのタスク</option>
-            <option value={currentUser?.id || ''} selected={filters.assignee === currentUser?.id}>自分の担当タスク</option>
+            <option value={currentUser?.id || ''}>自分の担当タスク</option>
             <option value="unassigned">未割り当てタスク</option>
           </select>
         </div>
