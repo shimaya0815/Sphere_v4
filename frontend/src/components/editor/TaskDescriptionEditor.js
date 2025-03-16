@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
-import { HiCodeBracket, HiLink, HiListBullet } from 'react-icons/hi2';
+import { HiCodeBracket, HiLink, HiListBullet, HiPhoto } from 'react-icons/hi2';
 import { HiOutlinePencil } from 'react-icons/hi';
+import toast from 'react-hot-toast';
 
 // Quillエディタのカスタムフォーマット定義
 const CustomFormats = [
@@ -10,7 +11,8 @@ const CustomFormats = [
   'list', 'bullet', 'ordered',
   'link', 'code-block', 'code', 
   'blockquote', 'header',
-  'indent', 'align'
+  'indent', 'align',
+  'image'
 ];
 
 /**
@@ -18,6 +20,7 @@ const CustomFormats = [
  * - リアルタイムフォーマット適用
  * - ショートカット対応
  * - URL自動リンク機能
+ * - 画像貼り付け機能
  */
 const TaskDescriptionEditor = ({ value, onChange }) => {
   // 内部状態
@@ -28,11 +31,71 @@ const TaskDescriptionEditor = ({ value, onChange }) => {
   const simpleToolbar = [
     ['bold', 'italic', 'code'],
     [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-    ['link'],
+    ['link', 'image'],
   ];
 
   const modules = useMemo(() => ({
-    toolbar: simpleToolbar,
+    toolbar: {
+      container: simpleToolbar,
+      handlers: {
+        image: function() {
+          const input = document.createElement('input');
+          input.setAttribute('type', 'file');
+          input.setAttribute('accept', 'image/*');
+          input.click();
+          
+          input.onchange = () => {
+            if (input.files && input.files[0]) {
+              const file = input.files[0];
+              
+              // ファイルサイズチェック (5MB)
+              if (file.size > 5 * 1024 * 1024) {
+                toast.error('画像サイズが大きすぎます（最大5MB）');
+                return;
+              }
+              
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                const quill = this.quill;
+                const range = quill.getSelection(true);
+                const position = range ? range.index : 0;
+                
+                // 画像を挿入
+                quill.insertEmbed(position, 'image', e.target.result);
+                
+                // 挿入した画像にスタイルを適用
+                setTimeout(() => {
+                  const imageElements = quill.root.querySelectorAll('img');
+                  if (imageElements.length > 0) {
+                    const lastImage = imageElements[imageElements.length - 1];
+                    lastImage.style.maxWidth = '100%';
+                    lastImage.style.height = 'auto';
+                    lastImage.style.margin = '10px 0';
+                    lastImage.style.borderRadius = '4px';
+                    
+                    // 大きな画像の場合は高さも制限
+                    if (lastImage.naturalHeight > 600) {
+                      lastImage.style.maxHeight = '400px';
+                      lastImage.style.objectFit = 'contain';
+                    }
+                  }
+                }, 10);
+                
+                // カーソルを画像の後ろに移動
+                quill.setSelection(position + 1);
+                
+                // 変更を通知
+                if (onChange) {
+                  onChange(quill.root.innerHTML);
+                }
+              };
+              
+              reader.readAsDataURL(file);
+            }
+          };
+        }
+      }
+    },
     keyboard: {
       bindings: {
         bold: {
@@ -116,6 +179,79 @@ const TaskDescriptionEditor = ({ value, onChange }) => {
       }
     };
     
+    // クリップボードからの画像貼り付け処理
+    const handlePaste = (e) => {
+      const clipboardData = e.clipboardData;
+      if (!clipboardData) return;
+      
+      const items = clipboardData.items;
+      let hasImage = false;
+      
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          hasImage = true;
+          
+          const blob = items[i].getAsFile();
+          
+          // 画像サイズのチェック（最大5MBまで）
+          if (blob.size > 5 * 1024 * 1024) {
+            toast.error('画像サイズが大きすぎます（最大5MB）');
+            return;
+          }
+          
+          // FileReaderを使用してBase64に変換
+          const reader = new FileReader();
+          reader.onload = (readerEvent) => {
+            const base64Data = readerEvent.target.result;
+            
+            // 現在のカーソル位置を取得
+            const range = quill.getSelection(true);
+            const position = range ? range.index : quill.getLength();
+            
+            // 画像をエディタに直接挿入
+            quill.insertEmbed(position, 'image', base64Data);
+            
+            // 挿入した画像要素を取得して最大幅を設定
+            setTimeout(() => {
+              const imageElements = quill.root.querySelectorAll('img');
+              if (imageElements.length > 0) {
+                const lastImage = imageElements[imageElements.length - 1];
+                
+                // 画像にスタイルを適用
+                lastImage.style.maxWidth = '100%';
+                lastImage.style.height = 'auto';
+                lastImage.style.margin = '10px 0';
+                lastImage.style.borderRadius = '4px';
+                
+                // 画像が大きすぎる場合は最大高さも制限
+                if (lastImage.naturalHeight > 600) {
+                  lastImage.style.maxHeight = '400px';
+                  lastImage.style.objectFit = 'contain';
+                }
+              }
+            }, 10);
+            
+            // カーソルを画像の後ろに移動
+            quill.setSelection(position + 1);
+            
+            // 変更を通知
+            if (onChange) {
+              onChange(quill.root.innerHTML);
+            }
+            
+            toast.success('画像が挿入されました');
+          };
+          
+          // Base64として読み込み
+          reader.readAsDataURL(blob);
+          
+          // 他のアプリケーションのデフォルト貼り付け動作を停止
+          e.preventDefault();
+          break;
+        }
+      }
+    };
+    
     // 以下の場合にURLを処理
     // 1. テキスト変更時
     quill.on('text-change', (delta, oldContents, source) => {
@@ -125,10 +261,7 @@ const TaskDescriptionEditor = ({ value, onChange }) => {
     });
     
     // 2. ペースト後
-    quill.root.addEventListener('paste', () => {
-      // ペースト後に少し待ってからURLを処理
-      setTimeout(handleURLs, 10);
-    });
+    quill.root.addEventListener('paste', handlePaste);
     
     // 3. 初期表示時
     setTimeout(handleURLs, 100);
@@ -137,10 +270,10 @@ const TaskDescriptionEditor = ({ value, onChange }) => {
     return () => {
       quill.off('text-change');
       if (quill.root) {
-        quill.root.removeEventListener('paste', handleURLs);
+        quill.root.removeEventListener('paste', handlePaste);
       }
     };
-  }, []);
+  }, [onChange]);
   
   // エディタの内容変更時
   const handleChange = (content) => {
@@ -164,6 +297,7 @@ const TaskDescriptionEditor = ({ value, onChange }) => {
       <span className="shortcut"><kbd>Ctrl/Cmd</kbd> + <kbd>I</kbd>: 斜体</span>
       <span className="shortcut"><kbd>Ctrl/Cmd</kbd> + <kbd>E</kbd>: コード</span>
       <span className="shortcut">URLを貼り付けるとリンクに自動変換</span>
+      <span className="shortcut">画像は貼り付け(<kbd>Ctrl/Cmd</kbd> + <kbd>V</kbd>)またはツールバーから追加可能</span>
     </div>
   );
   
@@ -221,6 +355,13 @@ const TaskDescriptionEditor = ({ value, onChange }) => {
             border-left: 4px solid #e5e7eb;
             padding-left: 1rem;
             color: #6b7280;
+          }
+          
+          .task-description-editor .ql-editor img {
+            max-width: 100%;
+            height: auto;
+            margin: 10px 0;
+            border-radius: 4px;
           }
           
           .editor-footer {
@@ -304,44 +445,37 @@ const TaskDescriptionEditor = ({ value, onChange }) => {
           }
           
           .shortcut-help {
-            display: flex;
-            gap: 8px;
             font-size: 0.7rem;
-            color: #9ca3af;
+            color: #6b7280;
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
           }
           
           .shortcut kbd {
-            font-family: monospace;
-            background: #f3f4f6;
-            padding: 1px 3px;
+            background-color: #f3f4f6;
+            border: 1px solid #d1d5db;
             border-radius: 3px;
-            border: 1px solid #e5e7eb;
-          }
-          
-          @media (max-width: 640px) {
-            .shortcut-help {
-              display: none;
-            }
+            box-shadow: 0 1px 0 rgba(0,0,0,0.2);
+            color: #374151;
+            display: inline-block;
+            font-family: inherit;
+            font-size: 0.65rem;
+            line-height: 1;
+            padding: 0.15rem 0.25rem;
           }
         `}
       </style>
-      
       <ReactQuill
         ref={quillRef}
         value={editorContent}
         onChange={handleChange}
         modules={modules}
         formats={CustomFormats}
-        placeholder="タスクの説明を入力してください...（Ctrl+Bで太字、Ctrl+Iで斜体）"
-        theme="snow"
+        placeholder="タスクの詳細を記入..."
       />
-      
       <div className="editor-footer">
-        <div className="editor-hint">
-          <div className="flex items-center">
-            {renderShortcutHelp()}
-          </div>
-        </div>
+        {renderShortcutHelp()}
       </div>
     </div>
   );
