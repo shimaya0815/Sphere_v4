@@ -351,14 +351,6 @@ const ClientContractsSection = ({ clientId }) => {
               <HiOutlineRefresh className={`mr-1 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               更新
             </button>
-            <button
-              onClick={() => handleAddContract()}
-              disabled={loading}
-              className="flex items-center text-sm bg-primary-50 text-primary-600 hover:bg-primary-100 px-3 py-1 rounded-md"
-            >
-              <HiOutlinePlus className="mr-1" />
-              新規契約
-            </button>
           </div>
         </div>
       </div>
