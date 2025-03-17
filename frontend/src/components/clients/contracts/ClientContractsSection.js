@@ -8,8 +8,19 @@ import {
   HiOutlineCurrencyYen,
   HiOutlinePlus,
   HiOutlinePencilAlt,
-  HiOutlineRefresh
+  HiOutlineRefresh,
+  HiOutlineClipboardCheck
 } from 'react-icons/hi';
+
+const ContractTypes = [
+  { id: 'advisory', name: '顧問契約' },
+  { id: 'bookkeeping', name: '記帳代行' },
+  { id: 'payroll', name: '給与計算' },
+  { id: 'tax_withholding', name: '源泉所得税' },
+  { id: 'resident_tax', name: '住民税' },
+  { id: 'social_insurance', name: '社会保険' },
+  { id: 'other', name: 'その他' }
+];
 
 const ClientContractsSection = ({ clientId }) => {
   const [contracts, setContracts] = useState([]);
@@ -38,6 +49,17 @@ const ClientContractsSection = ({ clientId }) => {
         // バックアップとして契約サービス一覧を取得して空の契約リストを表示
         await clientsApi.getContractServices();
         console.log('Using empty contracts list as fallback');
+        
+        // ローカルストレージからデータを取得（APIが未実装の場合のフォールバック）
+        try {
+          const localData = JSON.parse(localStorage.getItem(`client_${clientId}_contracts`) || '[]');
+          if (localData.length > 0) {
+            console.log('Using contracts from local storage:', localData);
+            data = localData;
+          }
+        } catch (storageError) {
+          console.error('Error reading from local storage:', storageError);
+        }
       }
       
       setContracts(Array.isArray(data) ? data : []);
@@ -62,9 +84,11 @@ const ClientContractsSection = ({ clientId }) => {
   };
 
   // 新規契約追加の開始
-  const handleAddContract = () => {
+  const handleAddContract = (contractType = null) => {
     setEditingContract(null);
     setShowForm(true);
+    // 選択された契約タイプを記憶
+    window.selectedContractType = contractType;
   };
 
   // フォームのキャンセル
@@ -129,7 +153,7 @@ const ClientContractsSection = ({ clientId }) => {
               更新
             </button>
             <button
-              onClick={handleAddContract}
+              onClick={() => handleAddContract()}
               disabled={loading}
               className="flex items-center text-sm bg-primary-50 text-primary-600 hover:bg-primary-100 px-3 py-1 rounded-md"
             >
@@ -151,6 +175,7 @@ const ClientContractsSection = ({ clientId }) => {
           <ClientContractForm
             clientId={clientId}
             contract={editingContract}
+            contractType={window.selectedContractType}
             onSave={handleSaveContract}
             onCancel={handleCancelForm}
             onDelete={handleDeleteContract}
@@ -163,15 +188,40 @@ const ClientContractsSection = ({ clientId }) => {
               <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-600"></div>
             </div>
           ) : contracts.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              <p>契約情報がまだ登録されていません</p>
-              <button
-                onClick={handleAddContract}
-                className="mt-2 inline-flex items-center text-primary-600 hover:text-primary-900"
-              >
-                <HiOutlinePlus className="mr-1" />
-                新規契約を追加
-              </button>
+            <div className="p-6">
+              <div className="mb-6 text-center">
+                <div className="bg-gray-50 rounded-lg p-8 border border-gray-200">
+                  <HiOutlineClipboardCheck className="mx-auto h-12 w-12 text-gray-400 mb-3" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">契約情報がまだ登録されていません</h3>
+                  <p className="text-gray-600 mb-4">
+                    以下の契約タイプから必要なものを追加してください。各種契約情報を登録することで、
+                    クライアントとの契約状況を一元管理できます。
+                  </p>
+                  <button
+                    onClick={() => handleAddContract()}
+                    className="inline-flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
+                  >
+                    <HiOutlinePlus className="mr-2" />
+                    新規契約を追加
+                  </button>
+                </div>
+              </div>
+              
+              <div className="mt-6">
+                <h4 className="text-sm font-medium text-gray-700 mb-3">主な契約タイプ</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {ContractTypes.map(type => (
+                    <div 
+                      key={type.id} 
+                      className="border border-gray-200 rounded-md p-4 hover:bg-gray-50 cursor-pointer" 
+                      onClick={() => handleAddContract(type.id)}
+                    >
+                      <div className="font-medium text-gray-800 mb-1">{type.name}</div>
+                      <div className="text-xs text-gray-500">クリックして追加</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           ) : (
             <div className="p-4">
