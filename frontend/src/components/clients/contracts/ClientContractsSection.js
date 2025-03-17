@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import clientsApi from '../../../api/clients';
 import ClientContractForm from './ClientContractForm';
+import ContractHistoryModal from './ContractHistoryModal';
 import { 
   HiOutlineDocumentText, 
   HiOutlineCalendar,
@@ -10,7 +11,8 @@ import {
   HiOutlinePencilAlt,
   HiOutlineRefresh,
   HiOutlineClipboardCheck,
-  HiOutlineCheck
+  HiOutlineCheck,
+  HiOutlineClipboard
 } from 'react-icons/hi';
 
 const ContractTypes = [
@@ -32,6 +34,11 @@ const ClientContractsSection = ({ clientId }) => {
   const [editingContract, setEditingContract] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [contractStatuses, setContractStatuses] = useState({});
+  
+  // 履歴モーダル用のステート
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [selectedContractType, setSelectedContractType] = useState(null);
+  const [selectedContractTypeName, setSelectedContractTypeName] = useState('');
 
   // 契約データを取得
   const fetchContracts = async () => {
@@ -42,9 +49,10 @@ const ClientContractsSection = ({ clientId }) => {
       console.log(`契約情報を取得中 - クライアントID: ${clientId}`);
       
       // まずローカルストレージをチェック
+      const localStorageKey = `client_${clientId}_contracts`;
       let localData = [];
+      
       try {
-        const localStorageKey = `client_${clientId}_contracts`;
         const storedData = localStorage.getItem(localStorageKey);
         
         if (storedData) {
@@ -63,50 +71,40 @@ const ClientContractsSection = ({ clientId }) => {
         console.error('ローカルストレージからの読み込みエラー:', localStorageError);
       }
       
-      // ローカルストレージにデータがある場合は、APIは呼び出さない
+      // ローカルストレージにデータがあればそれを使用する
       if (localData.length > 0) {
         console.log('ローカルストレージのデータを使用します');
         setContracts(localData);
-        
-        // ステータスマップの作成
         updateContractStatusMap(localData);
-        setLoading(false);
-        return;
-      }
-      
-      // APIからのデータ取得を試みる（ローカルストレージにデータがない場合のみ）
-      try {
-        console.log('APIから契約情報を取得します');
-        const response = await clientsApi.getClientContracts(clientId);
-        
-        if (response && (Array.isArray(response) && response.length > 0)) {
-          console.log(`APIから ${response.length} 件の契約情報を取得しました`);
-          setContracts(response);
-          updateContractStatusMap(response);
-          
-          // ローカルストレージに保存
-          try {
-            localStorage.setItem(`client_${clientId}_contracts`, JSON.stringify(response));
-            console.log('契約情報をローカルストレージに保存しました');
-          } catch (saveError) {
-            console.error('ローカルストレージへの保存エラー:', saveError);
-          }
-        } else {
-          console.log('APIからデータが取得できませんでした。空の契約リストを表示します');
-          setContracts([]);
-          updateContractStatusMap([]);
-        }
-      } catch (apiError) {
-        console.error('API呼び出しエラー:', apiError);
-        console.log('APIエラーが発生したため、空の契約リストを表示します');
+        setError(null);
+      } else {
+        // ローカルストレージにデータがない場合は空の配列を設定
+        console.log('契約データがないため、空の契約リストを表示します');
         setContracts([]);
         updateContractStatusMap([]);
+        setError(null);
+        
+        // 開発環境でのみAPIリクエストを試行（オプション）
+        if (process.env.NODE_ENV === 'development' && false) { // falseにして無効化
+          try {
+            console.log('開発環境: APIからの契約データ取得を試みます');
+            const response = await clientsApi.getClientContracts(clientId);
+            if (response && Array.isArray(response) && response.length > 0) {
+              console.log('APIから契約データを取得しました');
+              // データをローカルストレージに保存
+              localStorage.setItem(localStorageKey, JSON.stringify(response));
+              setContracts(response);
+              updateContractStatusMap(response);
+            }
+          } catch (apiError) {
+            // APIエラーは無視
+            console.log('APIエンドポイントは利用できません');
+          }
+        }
       }
-      
-      setError(null);
     } catch (error) {
       console.error('契約情報取得中のエラー:', error);
-      setError(`契約情報の取得に失敗しました: ${error.message || '不明なエラー'}`);
+      setError(`契約情報の表示に問題が発生しました`);
       setContracts([]);
       updateContractStatusMap([]);
     } finally {
@@ -190,6 +188,18 @@ const ClientContractsSection = ({ clientId }) => {
   const handleDeleteContract = () => {
     setShowForm(false);
     setEditingContract(null);
+    fetchContracts();
+  };
+
+  // 契約履歴モーダルを表示
+  const handleShowHistory = (contractType, contractTypeName) => {
+    setSelectedContractType(contractType);
+    setSelectedContractTypeName(contractTypeName);
+    setShowHistoryModal(true);
+  };
+
+  // 履歴モーダルからの保存完了時の処理
+  const handleHistorySaveComplete = () => {
     fetchContracts();
   };
 
@@ -333,23 +343,33 @@ const ClientContractsSection = ({ clientId }) => {
                           )}
                         </td>
                         <td className="px-4 py-3">
-                          {contractStatus.exists ? (
+                          <div className="flex space-x-2">
                             <button
-                              onClick={() => handleEditContract(contract)}
-                              className="text-primary-600 hover:text-primary-800"
-                              title="編集"
+                              onClick={() => handleShowHistory(type.id, type.name)}
+                              className="text-gray-600 hover:text-gray-800"
+                              title="履歴を表示"
                             >
-                              <HiOutlinePencilAlt className="h-5 w-5" />
+                              <HiOutlineClipboard className="h-5 w-5" />
                             </button>
-                          ) : (
-                            <button
-                              onClick={() => handleAddContract(type.id)}
-                              className="text-green-600 hover:text-green-800"
-                              title="登録"
-                            >
-                              <HiOutlinePlus className="h-5 w-5" />
-                            </button>
-                          )}
+                            
+                            {contractStatus.exists ? (
+                              <button
+                                onClick={() => handleEditContract(contract)}
+                                className="text-primary-600 hover:text-primary-800"
+                                title="編集"
+                              >
+                                <HiOutlinePencilAlt className="h-5 w-5" />
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleAddContract(type.id)}
+                                className="text-green-600 hover:text-green-800"
+                                title="登録"
+                              >
+                                <HiOutlinePlus className="h-5 w-5" />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -422,6 +442,16 @@ const ClientContractsSection = ({ clientId }) => {
           )}
         </>
       )}
+      
+      {/* 契約履歴モーダル */}
+      <ContractHistoryModal
+        isOpen={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+        clientId={clientId}
+        contractType={selectedContractType}
+        contractTypeName={selectedContractTypeName}
+        onSaveComplete={handleHistorySaveComplete}
+      />
     </div>
   );
 };
