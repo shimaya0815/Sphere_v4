@@ -18,7 +18,7 @@ const CONTRACT_TYPE_DEFAULTS = {
     status: 'active'
   },
   tax_return_final: {
-    name: '確定申告',
+    name: '決算申告',
     fee_cycle: 'yearly',
     status: 'active'
   },
