@@ -24,12 +24,22 @@ const ClientsPage = () => {
     setLoading(true);
     try {
       const data = await clientsApi.getClients({});
-      setClients(data.results || data);
+      // APIレスポンスの構造が変わっているため、resultsプロパティがあればそれを使用
+      // ない場合はデータ自体が配列か確認し、どちらでもない場合は空配列を設定
+      if (data && data.results) {
+        setClients(data.results);
+      } else if (Array.isArray(data)) {
+        setClients(data);
+      } else {
+        console.error('Unexpected API response format:', data);
+        setClients([]);
+      }
       setError(null);
     } catch (error) {
       console.error('Error fetching clients:', error);
       setError('クライアント情報の取得に失敗しました');
       toast.error('クライアント情報の取得に失敗しました');
+      setClients([]); // エラー時は空配列を設定
     } finally {
       setLoading(false);
     }
