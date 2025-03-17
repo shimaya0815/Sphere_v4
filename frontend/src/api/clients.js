@@ -46,7 +46,7 @@ const clientsApi = {
   // Get a specific client by ID
   getClient: async (clientId) => {
     try {
-      const response = await apiClient.get(`/api/clients/${clientId}/`);
+      const response = await apiClient.get(`/api/clients/clients/${clientId}/`);
       return response.data;
     } catch (error) {
       console.error(`Error fetching client ${clientId}:`, error);
@@ -58,7 +58,7 @@ const clientsApi = {
   createClient: async (clientData) => {
     console.log("Creating client with data:", clientData);
     try {
-      const response = await apiClient.post('/api/clients/', clientData);
+      const response = await apiClient.post('/api/clients/clients/', clientData);
       console.log("Client created successfully:", response.data);
       return response.data;
     } catch (error) {
@@ -69,13 +69,13 @@ const clientsApi = {
   
   // Update a client
   updateClient: async (clientId, clientData) => {
-    const response = await apiClient.patch(`/api/clients/${clientId}/`, clientData);
+    const response = await apiClient.patch(`/api/clients/clients/${clientId}/`, clientData);
     return response.data;
   },
   
   // Delete a client
   deleteClient: async (clientId) => {
-    const response = await apiClient.delete(`/api/clients/${clientId}/`);
+    const response = await apiClient.delete(`/api/clients/clients/${clientId}/`);
     return response.data;
   },
   
@@ -91,7 +91,7 @@ const clientsApi = {
       console.log('Fetching fiscal years for client ID:', clientId);
       
       // 明示的なHTTPヘッダーとオプションを設定してリクエスト
-      const response = await apiClient.get(`/api/clients/${clientId}/fiscal-years/`, {
+      const response = await apiClient.get(`/api/clients/clients/${clientId}/fiscal-years/`, {
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
@@ -157,7 +157,7 @@ const clientsApi = {
   createFiscalYear: async (clientId, fiscalYearData) => {
     console.log(`API - Creating fiscal year for client ${clientId}:`, fiscalYearData);
     try {
-      const response = await apiClient.post(`/api/clients/${clientId}/fiscal-years/`, fiscalYearData);
+      const response = await apiClient.post(`/api/clients/clients/${clientId}/fiscal-years/`, fiscalYearData);
       console.log('API - Fiscal year created successfully:', response.data);
       return response.data;
     } catch (error) {
@@ -215,7 +215,7 @@ const clientsApi = {
   getCurrentFiscalYear: async (clientId) => {
     console.log(`API - Getting current fiscal year for client ${clientId}`);
     try {
-      const response = await apiClient.get(`/api/clients/${clientId}/fiscal-years/`, {
+      const response = await apiClient.get(`/api/clients/clients/${clientId}/fiscal-years/`, {
         params: { is_current: true }
       });
       console.log('API - Current fiscal year fetched successfully:', response.data);
@@ -342,7 +342,7 @@ const clientsApi = {
         console.error('Client ID is required to fetch client task templates');
         return [];
       }
-      const response = await apiClient.get(`/api/clients/${clientId}/task-templates/`);
+      const response = await apiClient.get(`/api/clients/clients/${clientId}/task-templates/`);
       return response.data;
     } catch (error) {
       console.error('Error fetching client task templates:', error);
@@ -354,7 +354,7 @@ const clientsApi = {
   // Create client task template
   createClientTaskTemplate: async (clientId, templateData) => {
     try {
-      const response = await apiClient.post(`/api/clients/${clientId}/task-templates/`, templateData);
+      const response = await apiClient.post(`/api/clients/clients/${clientId}/task-templates/`, templateData);
       return response.data;
     } catch (error) {
       console.error('Error creating client task template:', error);
@@ -445,7 +445,7 @@ const clientsApi = {
   
   // Get client tasks
   getTasks: async (clientId) => {
-    const response = await apiClient.get(`/api/clients/${clientId}/tasks/`);
+    const response = await apiClient.get(`/api/clients/clients/${clientId}/tasks/`);
     return response.data;
   },
   
@@ -459,7 +459,7 @@ const clientsApi = {
   getTaxRules: async (clientId, params = {}) => {
     console.log(`API - Getting tax rules for client ${clientId}:`, params);
     try {
-      const response = await apiClient.get(`/api/clients/${clientId}/tax-rules/`, { 
+      const response = await apiClient.get(`/api/clients/clients/${clientId}/tax-rules/`, { 
         params,
         headers: {
           'Accept': 'application/json'
@@ -489,7 +489,7 @@ const clientsApi = {
   createTaxRule: async (clientId, ruleData) => {
     console.log(`API - Creating tax rule for client ${clientId}:`, ruleData);
     try {
-      const response = await apiClient.post(`/api/clients/${clientId}/tax-rules/`, ruleData, {
+      const response = await apiClient.post(`/api/clients/clients/${clientId}/tax-rules/`, ruleData, {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
@@ -514,7 +514,7 @@ const clientsApi = {
   updateTaxRule: async (ruleId, ruleData) => {
     console.log(`API - Updating tax rule ${ruleId}:`, ruleData);
     try {
-      const response = await apiClient.patch(`/api/clients/tax-rules/${ruleId}/`, ruleData, {
+      const response = await apiClient.patch(`/api/clients/clients/tax-rules/${ruleId}/`, ruleData, {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
@@ -539,7 +539,7 @@ const clientsApi = {
   deleteTaxRule: async (ruleId) => {
     console.log(`API - Deleting tax rule ${ruleId}`);
     try {
-      const response = await apiClient.delete(`/api/clients/tax-rules/${ruleId}/`, {
+      const response = await apiClient.delete(`/api/clients/clients/tax-rules/${ruleId}/`, {
         headers: {
           'Accept': 'application/json'
         }
@@ -568,7 +568,7 @@ const clientsApi = {
     }
     
     try {
-      const response = await apiClient.get(`/api/clients/${clientId}/tax-rules/`, { 
+      const response = await apiClient.get(`/api/clients/clients/${clientId}/tax-rules/`, { 
         params,
         headers: {
           'Accept': 'application/json'
