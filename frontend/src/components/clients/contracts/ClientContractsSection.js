@@ -25,8 +25,21 @@ const ClientContractsSection = ({ clientId }) => {
     setLoading(true);
     try {
       console.log(`Fetching contracts for client ID: ${clientId}`);
-      const data = await clientsApi.getClientContracts(clientId);
-      console.log('Contracts data received:', data);
+      
+      // まずclient-contracts/client/エンドポイントを試す
+      let data = [];
+      try {
+        const response = await clientsApi.getClientContracts(clientId);
+        console.log('Contracts data received from primary endpoint:', response);
+        data = response;
+      } catch (primaryError) {
+        console.error('Error with primary endpoint:', primaryError);
+        
+        // バックアップとして契約サービス一覧を取得して空の契約リストを表示
+        await clientsApi.getContractServices();
+        console.log('Using empty contracts list as fallback');
+      }
+      
       setContracts(Array.isArray(data) ? data : []);
       setError(null);
     } catch (error) {

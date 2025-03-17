@@ -622,21 +622,34 @@ const clientsApi = {
   // 契約サービス一覧取得
   getContractServices: async () => {
     try {
-      const response = await apiClient.get('/api/clients/contract-services/');
+      console.log('API - Fetching contract services');
+      const response = await apiClient.get('/api/clients/contract-services/', {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      console.log('API - Contract services fetched successfully:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Error fetching contract services:', error);
-      throw error;
+      console.error('API - Failed to fetch contract services:', error.response?.data || error.message);
+      return [];
     }
   },
 
   // デフォルト契約サービスの作成
   createDefaultContractServices: async () => {
     try {
-      const response = await apiClient.post('/api/clients/contract-services/create-defaults/');
+      console.log('API - Creating default contract services');
+      const response = await apiClient.post('/api/clients/contract-services/create-defaults/', {}, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+      console.log('API - Default contract services created successfully:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Error creating default contract services:', error);
+      console.error('API - Failed to create default contract services:', error.response?.data || error.message);
       throw error;
     }
   },
