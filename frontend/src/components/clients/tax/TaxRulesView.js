@@ -7,7 +7,8 @@ import {
   HiOutlinePencilAlt, 
   HiOutlineTrash,
   HiOutlineRefresh,
-  HiOutlineClock
+  HiOutlineClock,
+  HiOutlineClipboard
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import TaxRuleForm from './TaxRuleForm';
@@ -336,7 +337,7 @@ const TaxRulesView = ({ clientId }) => {
                             className="text-blue-600 hover:text-blue-900"
                             title="新規追加"
                           >
-                            <HiOutlinePlus className="h-5 w-5" />
+                            <HiOutlineClipboard className="h-5 w-5" />
                           </button>
                         </div>
                       </td>
@@ -368,7 +369,7 @@ const TaxRulesView = ({ clientId }) => {
                           className="text-blue-600 hover:text-blue-900"
                           title="新規追加"
                         >
-                          <HiOutlinePlus className="h-5 w-5" />
+                          <HiOutlineClipboard className="h-5 w-5" />
                         </button>
                       </td>
                     </tr>
@@ -413,7 +414,7 @@ const TaxRulesView = ({ clientId }) => {
                             className="text-green-600 hover:text-green-900"
                             title="新規追加"
                           >
-                            <HiOutlinePlus className="h-5 w-5" />
+                            <HiOutlineClipboard className="h-5 w-5" />
                           </button>
                         </div>
                       </td>
@@ -445,7 +446,7 @@ const TaxRulesView = ({ clientId }) => {
                           className="text-green-600 hover:text-green-900"
                           title="新規追加"
                         >
-                          <HiOutlinePlus className="h-5 w-5" />
+                          <HiOutlineClipboard className="h-5 w-5" />
                         </button>
                       </td>
                     </tr>
