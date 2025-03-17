@@ -17,6 +17,9 @@ import {
 
 const ContractTypes = [
   { id: 'advisory', name: '顧問契約' },
+  { id: 'tax_return_final', name: '確定申告' },
+  { id: 'tax_return_interim', name: '中間申告' },
+  { id: 'tax_return_provisional', name: '予定申告' },
   { id: 'bookkeeping', name: '記帳代行' },
   { id: 'payroll', name: '給与計算' },
   { id: 'tax_withholding_standard', name: '源泉所得税(原則)' },

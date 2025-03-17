@@ -17,6 +17,21 @@ const CONTRACT_TYPE_DEFAULTS = {
     fee_cycle: 'monthly',
     status: 'active'
   },
+  tax_return_final: {
+    name: '確定申告',
+    fee_cycle: 'yearly',
+    status: 'active'
+  },
+  tax_return_interim: {
+    name: '中間申告',
+    fee_cycle: 'yearly',
+    status: 'active'
+  },
+  tax_return_provisional: {
+    name: '予定申告',
+    fee_cycle: 'yearly',
+    status: 'active'
+  },
   bookkeeping: {
     name: '記帳代行',
     fee_cycle: 'monthly',
