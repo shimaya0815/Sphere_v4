@@ -42,7 +42,7 @@ const ClientContractsSection = ({ clientId }) => {
 
   // 契約データを取得
   const fetchContracts = async () => {
-    if (!clientId) return;
+    if (!clientId) return Promise.resolve();
     
     setLoading(true);
     try {
@@ -102,11 +102,13 @@ const ClientContractsSection = ({ clientId }) => {
           }
         }
       }
+      return Promise.resolve();
     } catch (error) {
       console.error('契約情報取得中のエラー:', error);
       setError(`契約情報の表示に問題が発生しました`);
       setContracts([]);
       updateContractStatusMap([]);
+      return Promise.reject(error);
     } finally {
       setLoading(false);
     }
@@ -345,8 +347,18 @@ const ClientContractsSection = ({ clientId }) => {
       e.stopPropagation();
     }
     
+    // 更新中の表示
+    toast.loading('契約情報を更新中...', { id: 'contracts-refresh' });
+    
     // 契約データを再取得
-    fetchContracts();
+    fetchContracts().then(() => {
+      // 更新完了の表示
+      toast.success('契約情報を更新しました', { id: 'contracts-refresh' });
+    }).catch((error) => {
+      // エラー時の表示
+      toast.error('契約情報の更新に失敗しました', { id: 'contracts-refresh' });
+      console.error('契約情報更新エラー:', error);
+    });
   };
 
   return (
@@ -358,10 +370,14 @@ const ClientContractsSection = ({ clientId }) => {
             <button
               onClick={handleRefreshClick}
               disabled={loading}
-              className="flex items-center text-sm text-gray-600 hover:text-gray-900"
+              className={`flex items-center text-sm px-3 py-1 rounded-md transition-colors ${
+                loading 
+                  ? 'bg-gray-100 text-gray-500 cursor-not-allowed' 
+                  : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+              }`}
             >
               <HiOutlineRefresh className={`mr-1 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              更新
+              {loading ? '更新中...' : '更新'}
             </button>
           </div>
         </div>
