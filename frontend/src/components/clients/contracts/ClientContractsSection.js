@@ -159,61 +159,53 @@ const ClientContractsSection = ({ clientId }) => {
               </button>
             </div>
           ) : (
-            <div className="divide-y divide-gray-200">
-              {contracts.map(contract => (
-                <div key={contract.id} className="p-6 hover:bg-gray-50">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="flex items-center mb-2">
-                        <h4 className="text-lg font-medium text-gray-900 mr-3">
-                          {contract.service_name || 'サービス未設定'}
-                        </h4>
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeStyle(contract.status)}`}>
+            <div className="p-4">
+              <table className="w-full table-auto border-collapse">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left font-medium text-gray-500 text-sm border-b">サービス名</th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-500 text-sm border-b">契約状態</th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-500 text-sm border-b">期間</th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-500 text-sm border-b">報酬</th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-500 text-sm border-b">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {contracts.map(contract => (
+                    <tr key={contract.id} className="border-b hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium">
+                        {contract.service_name || 'サービス未設定'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeStyle(contract.status)}`}>
                           {contract.status_display || contract.status}
                         </span>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
-                        <div className="flex items-center">
-                          <HiOutlineCalendar className="mr-2 text-gray-400" />
-                          <span>
-                            {contract.start_date 
-                              ? `開始: ${new Date(contract.start_date).toLocaleDateString('ja-JP')}`
-                              : '開始日未設定'}
-                            {contract.end_date && 
-                              ` 〜 終了: ${new Date(contract.end_date).toLocaleDateString('ja-JP')}`}
-                          </span>
-                        </div>
-                        
-                        {contract.fee && (
-                          <div className="flex items-center">
-                            <HiOutlineCurrencyYen className="mr-2 text-gray-400" />
-                            <span>
-                              {parseInt(contract.fee).toLocaleString()}円 
-                              ({getFeeCycleDisplay(contract.fee_cycle) || '未設定'})
-                            </span>
-                          </div>
-                        )}
-                        
-                        {contract.notes && (
-                          <div className="flex items-start col-span-2">
-                            <HiOutlineDocumentText className="mr-2 text-gray-400 mt-1" />
-                            <span>{contract.notes}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <button
-                      onClick={() => handleEditContract(contract)}
-                      className="text-gray-400 hover:text-gray-600"
-                      title="編集"
-                    >
-                      <HiOutlinePencilAlt className="h-5 w-5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">
+                        {contract.start_date 
+                          ? new Date(contract.start_date).toLocaleDateString('ja-JP')
+                          : '開始日未設定'}
+                        {contract.end_date && 
+                          ` 〜 ${new Date(contract.end_date).toLocaleDateString('ja-JP')}`}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">
+                        {contract.fee 
+                          ? `${parseInt(contract.fee).toLocaleString()}円 (${getFeeCycleDisplay(contract.fee_cycle) || '未設定'})`
+                          : '未設定'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => handleEditContract(contract)}
+                          className="text-primary-600 hover:text-primary-800"
+                          title="編集"
+                        >
+                          <HiOutlinePencilAlt className="h-5 w-5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </>
