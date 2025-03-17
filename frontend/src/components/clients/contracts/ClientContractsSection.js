@@ -9,7 +9,8 @@ import {
   HiOutlinePlus,
   HiOutlinePencilAlt,
   HiOutlineRefresh,
-  HiOutlineClipboardCheck
+  HiOutlineClipboardCheck,
+  HiOutlineCheck
 } from 'react-icons/hi';
 
 const ContractTypes = [
@@ -28,6 +29,7 @@ const ClientContractsSection = ({ clientId }) => {
   const [error, setError] = useState(null);
   const [editingContract, setEditingContract] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [contractStatuses, setContractStatuses] = useState({});
 
   // 契約データを取得
   const fetchContracts = async () => {
@@ -63,6 +65,24 @@ const ClientContractsSection = ({ clientId }) => {
       }
       
       setContracts(Array.isArray(data) ? data : []);
+
+      // 各契約タイプのステータスマップを作成
+      const statusMap = {};
+      ContractTypes.forEach(type => {
+        // 対応する契約があるか確認
+        const existingContract = data.find(contract => 
+          (contract.service_name && contract.service_name.includes(type.name)) || 
+          (contract.custom_service_name && contract.custom_service_name.includes(type.name))
+        );
+        
+        statusMap[type.id] = {
+          exists: !!existingContract,
+          status: existingContract?.status || 'none',
+          contract: existingContract
+        };
+      });
+      
+      setContractStatuses(statusMap);
       setError(null);
     } catch (error) {
       console.error('Error fetching contracts:', error);
@@ -127,6 +147,18 @@ const ClientContractsSection = ({ clientId }) => {
     }
   };
 
+  // 契約状態の表示名を取得
+  const getStatusDisplay = (status) => {
+    const statusMap = {
+      'active': '契約中',
+      'suspended': '休止中',
+      'terminated': '終了',
+      'preparing': '準備中',
+      'none': '未設定'
+    };
+    return statusMap[status] || status;
+  };
+
   // 報酬サイクルの表示名を取得
   const getFeeCycleDisplay = (cycle) => {
     const cycleMap = {
@@ -183,94 +215,147 @@ const ClientContractsSection = ({ clientId }) => {
         </div>
       ) : (
         <>
-          {loading && !contracts.length ? (
+          {loading ? (
             <div className="p-8 flex justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-600"></div>
-            </div>
-          ) : contracts.length === 0 ? (
-            <div className="p-6">
-              <div className="mb-6 text-center">
-                <div className="bg-gray-50 rounded-lg p-8 border border-gray-200">
-                  <HiOutlineClipboardCheck className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">契約情報がまだ登録されていません</h3>
-                  <p className="text-gray-600 mb-4">
-                    以下の契約タイプから必要なものを追加してください。各種契約情報を登録することで、
-                    クライアントとの契約状況を一元管理できます。
-                  </p>
-                  <button
-                    onClick={() => handleAddContract()}
-                    className="inline-flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
-                  >
-                    <HiOutlinePlus className="mr-2" />
-                    新規契約を追加
-                  </button>
-                </div>
-              </div>
-              
-              <div className="mt-6">
-                <h4 className="text-sm font-medium text-gray-700 mb-3">主な契約タイプ</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {ContractTypes.map(type => (
-                    <div 
-                      key={type.id} 
-                      className="border border-gray-200 rounded-md p-4 hover:bg-gray-50 cursor-pointer" 
-                      onClick={() => handleAddContract(type.id)}
-                    >
-                      <div className="font-medium text-gray-800 mb-1">{type.name}</div>
-                      <div className="text-xs text-gray-500">クリックして追加</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           ) : (
             <div className="p-4">
               <table className="w-full table-auto border-collapse">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-2 text-left font-medium text-gray-500 text-sm border-b">サービス名</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-500 text-sm border-b">契約状態</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-500 text-sm border-b">期間</th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-500 text-sm border-b">契約タイプ</th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-500 text-sm border-b">契約状況</th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-500 text-sm border-b">契約期間</th>
                     <th className="px-4 py-2 text-left font-medium text-gray-500 text-sm border-b">報酬</th>
                     <th className="px-4 py-2 text-left font-medium text-gray-500 text-sm border-b">操作</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {contracts.map(contract => (
-                    <tr key={contract.id} className="border-b hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium">
-                        {contract.service_name || 'サービス未設定'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeStyle(contract.status)}`}>
-                          {contract.status_display || contract.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
-                        {contract.start_date 
-                          ? new Date(contract.start_date).toLocaleDateString('ja-JP')
-                          : '開始日未設定'}
-                        {contract.end_date && 
-                          ` 〜 ${new Date(contract.end_date).toLocaleDateString('ja-JP')}`}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
-                        {contract.fee 
-                          ? `${parseInt(contract.fee).toLocaleString()}円 (${getFeeCycleDisplay(contract.fee_cycle) || '未設定'})`
-                          : '未設定'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() => handleEditContract(contract)}
-                          className="text-primary-600 hover:text-primary-800"
-                          title="編集"
-                        >
-                          <HiOutlinePencilAlt className="h-5 w-5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {ContractTypes.map(type => {
+                    const contractStatus = contractStatuses[type.id] || { exists: false, status: 'none' };
+                    const contract = contractStatus.contract;
+                    
+                    return (
+                      <tr 
+                        key={type.id} 
+                        className={`border-b hover:bg-gray-50 ${contractStatus.exists ? '' : 'opacity-60'}`}
+                      >
+                        <td className="px-4 py-3 font-medium">
+                          {type.name}
+                        </td>
+                        <td className="px-4 py-3">
+                          {contractStatus.exists ? (
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeStyle(contractStatus.status)}`}>
+                              {getStatusDisplay(contractStatus.status)}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-sm">未登録</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {contractStatus.exists && contract.start_date ? (
+                            <>
+                              {new Date(contract.start_date).toLocaleDateString('ja-JP')}
+                              {contract.end_date && ` 〜 ${new Date(contract.end_date).toLocaleDateString('ja-JP')}`}
+                            </>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {contractStatus.exists && contract.fee ? (
+                            `${parseInt(contract.fee).toLocaleString()}円 (${getFeeCycleDisplay(contract.fee_cycle) || '未設定'})`
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          {contractStatus.exists ? (
+                            <button
+                              onClick={() => handleEditContract(contract)}
+                              className="text-primary-600 hover:text-primary-800"
+                              title="編集"
+                            >
+                              <HiOutlinePencilAlt className="h-5 w-5" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleAddContract(type.id)}
+                              className="text-green-600 hover:text-green-800"
+                              title="登録"
+                            >
+                              <HiOutlinePlus className="h-5 w-5" />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  
+                  {contracts.length > 0 && contracts.some(contract => {
+                    // 定義済みの契約タイプに含まれていない契約を探す
+                    const contractTypeName = contract.service_name || contract.custom_service_name || '';
+                    return !ContractTypes.some(type => contractTypeName.includes(type.name));
+                  }) && (
+                    // 追加の契約（定義済みタイプ以外）を表示するセクション
+                    <>
+                      <tr className="border-b bg-gray-50">
+                        <td colSpan="5" className="px-4 py-2 text-sm font-medium text-gray-600">
+                          その他の契約
+                        </td>
+                      </tr>
+                      
+                      {contracts.filter(contract => {
+                        const contractTypeName = contract.service_name || contract.custom_service_name || '';
+                        return !ContractTypes.some(type => contractTypeName.includes(type.name));
+                      }).map(contract => (
+                        <tr key={contract.id} className="border-b hover:bg-gray-50">
+                          <td className="px-4 py-3 font-medium">
+                            {contract.service_name || contract.custom_service_name || 'サービス未設定'}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeStyle(contract.status)}`}>
+                              {contract.status_display || getStatusDisplay(contract.status)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {contract.start_date 
+                              ? new Date(contract.start_date).toLocaleDateString('ja-JP')
+                              : '開始日未設定'}
+                            {contract.end_date && 
+                              ` 〜 ${new Date(contract.end_date).toLocaleDateString('ja-JP')}`}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {contract.fee 
+                              ? `${parseInt(contract.fee).toLocaleString()}円 (${getFeeCycleDisplay(contract.fee_cycle) || '未設定'})`
+                              : '未設定'}
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              onClick={() => handleEditContract(contract)}
+                              className="text-primary-600 hover:text-primary-800"
+                              title="編集"
+                            >
+                              <HiOutlinePencilAlt className="h-5 w-5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </>
+                  )}
                 </tbody>
               </table>
+              
+              {contracts.length === 0 && (
+                <div className="text-center py-6 text-gray-500">
+                  <HiOutlineClipboardCheck className="mx-auto h-12 w-12 text-gray-300 mb-3" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">契約情報がまだ登録されていません</h3>
+                  <p className="text-sm mb-4">
+                    上記の各契約タイプの登録ボタンから、必要な契約を追加してください。
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </>
