@@ -524,7 +524,7 @@ const ClientContractForm = ({
           <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-primary-600"></div>
         </div>
       ) : (
-        <form onSubmit={handleSubmit}>
+        <div className="contract-form-container">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">サービス <span className="text-red-500">*</span></label>
@@ -647,7 +647,8 @@ const ClientContractForm = ({
 
           <div className="mt-6 flex justify-end">
             <button
-              type="submit"
+              type="button"
+              onClick={handleSubmit}
               disabled={saving}
               className="bg-primary-600 text-white hover:bg-primary-700 px-4 py-2 rounded-md text-sm flex items-center"
             >
@@ -664,7 +665,7 @@ const ClientContractForm = ({
               )}
             </button>
           </div>
-        </form>
+        </div>
       )}
     </div>
   );
