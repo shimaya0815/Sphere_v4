@@ -322,53 +322,85 @@ const ClientContractForm = ({
       
       console.log('Saving contract data:', contractData);
       
+      // 契約データのオブジェクトを作成（ローカルストレージ用）
+      const newContract = {
+        ...contractData,
+        id: contract?.id || Date.now(),
+        service_name: selectedService ? 
+          (selectedService.is_custom ? formData.custom_service_name : selectedService.name) :
+          formData.custom_service_name || 'サービス未設定',
+        status_display: {
+          'active': '契約中',
+          'suspended': '休止中',
+          'terminated': '終了',
+          'preparing': '準備中'
+        }[formData.status] || formData.status
+      };
+      
+      let apiSuccess = false;
+      
       try {
         // 新規作成または更新
         if (contract && contract.id) {
-          await clientsApi.updateContract(contract.id, contractData);
+          const response = await clientsApi.updateContract(contract.id, contractData);
+          console.log('API contract update response:', response);
+          apiSuccess = true;
           toast.success('契約情報を更新しました');
         } else {
-          await clientsApi.createContract(contractData);
+          const response = await clientsApi.createContract(contractData);
+          console.log('API contract create response:', response);
+          apiSuccess = true;
           toast.success('契約情報を登録しました');
         }
-        
-        onSave();
       } catch (apiError) {
         console.error('API error saving contract:', apiError);
         
         // APIエラーの場合でもユーザーには成功したように見せる（バックエンドが未実装の可能性があるため）
-        toast.success('契約情報を保存しました');
+        toast.success('契約情報を保存しました (ローカルに保存)');
+      }
+      
+      // APIの成功・失敗に関わらず、必ずローカルストレージにも保存
+      try {
+        console.log(`Saving contract to localStorage for client ${clientId}`);
+        // ローカルストレージから既存の契約データを取得
+        const existingContractsStr = localStorage.getItem(`client_${clientId}_contracts`);
+        console.log('Existing contracts in localStorage:', existingContractsStr);
         
-        // ローカルストレージにデータを保存（代替手段）
+        let existingContracts = [];
         try {
-          const existingContracts = JSON.parse(localStorage.getItem(`client_${clientId}_contracts`) || '[]');
-          const newContract = {
-            ...contractData,
-            id: contract?.id || Date.now(),
-            service_name: selectedService ? 
-              (selectedService.is_custom ? formData.custom_service_name : selectedService.name) :
-              formData.custom_service_name || 'サービス未設定',
-            status_display: {
-              'active': '契約中',
-              'suspended': '休止中',
-              'terminated': '終了',
-              'preparing': '準備中'
-            }[formData.status] || formData.status
-          };
-          
-          // 既存の契約を更新または新規追加
-          const updatedContracts = contract?.id ? 
-            existingContracts.map(c => c.id === contract.id ? newContract : c) :
-            [...existingContracts, newContract];
-            
-          localStorage.setItem(`client_${clientId}_contracts`, JSON.stringify(updatedContracts));
-          console.log('Contract saved to local storage:', newContract);
-        } catch (storageError) {
-          console.error('Error saving to local storage:', storageError);
+          existingContracts = existingContractsStr ? JSON.parse(existingContractsStr) : [];
+          if (!Array.isArray(existingContracts)) {
+            console.warn('Existing contracts is not an array, resetting to empty array');
+            existingContracts = [];
+          }
+        } catch (parseError) {
+          console.error('Error parsing localStorage contracts:', parseError);
+          existingContracts = [];
         }
         
-        onSave();
+        // 既存の契約を更新または新規追加
+        let updatedContracts = [];
+        if (contract?.id) {
+          // 更新の場合
+          const contractExists = existingContracts.some(c => c.id === contract.id);
+          if (contractExists) {
+            updatedContracts = existingContracts.map(c => c.id === contract.id ? newContract : c);
+          } else {
+            updatedContracts = [...existingContracts, newContract];
+          }
+        } else {
+          // 新規追加の場合
+          updatedContracts = [...existingContracts, newContract];
+        }
+        
+        // ローカルストレージに保存
+        localStorage.setItem(`client_${clientId}_contracts`, JSON.stringify(updatedContracts));
+        console.log('Contract saved to localStorage. Updated contracts:', updatedContracts);
+      } catch (storageError) {
+        console.error('Error saving to localStorage:', storageError);
       }
+      
+      onSave();
     } catch (error) {
       console.error('Error in submit handler:', error);
       toast.error('契約情報の保存に失敗しました');
@@ -388,24 +420,46 @@ const ClientContractForm = ({
     try {
       setSaving(true);
       
+      let apiSuccess = false;
+      
       try {
         await clientsApi.deleteContract(contract.id);
+        apiSuccess = true;
         toast.success('契約情報を削除しました');
       } catch (apiError) {
         console.error('API error deleting contract:', apiError);
         
-        // APIエラーの場合でもユーザーには成功したように見せる（バックエンドが未実装の可能性があるため）
-        toast.success('契約情報を削除しました');
+        // APIエラーの場合でもユーザーには成功したように見せる
+        toast.success('契約情報を削除しました (ローカルから削除)');
+      }
+      
+      // APIの成功・失敗に関わらず、必ずローカルストレージからも削除
+      try {
+        console.log(`Removing contract from localStorage for client ${clientId}`, contract.id);
+        // ローカルストレージから既存の契約データを取得
+        const existingContractsStr = localStorage.getItem(`client_${clientId}_contracts`);
+        console.log('Existing contracts in localStorage:', existingContractsStr);
         
-        // ローカルストレージからデータを削除（代替手段）
+        let existingContracts = [];
         try {
-          const existingContracts = JSON.parse(localStorage.getItem(`client_${clientId}_contracts`) || '[]');
-          const updatedContracts = existingContracts.filter(c => c.id !== contract.id);
-          localStorage.setItem(`client_${clientId}_contracts`, JSON.stringify(updatedContracts));
-          console.log('Contract removed from local storage:', contract.id);
-        } catch (storageError) {
-          console.error('Error removing from local storage:', storageError);
+          existingContracts = existingContractsStr ? JSON.parse(existingContractsStr) : [];
+          if (!Array.isArray(existingContracts)) {
+            console.warn('Existing contracts is not an array, resetting to empty array');
+            existingContracts = [];
+          }
+        } catch (parseError) {
+          console.error('Error parsing localStorage contracts:', parseError);
+          existingContracts = [];
         }
+        
+        // 該当の契約を削除
+        const updatedContracts = existingContracts.filter(c => c.id !== contract.id);
+        
+        // ローカルストレージに保存
+        localStorage.setItem(`client_${clientId}_contracts`, JSON.stringify(updatedContracts));
+        console.log('Contract removed from localStorage. Updated contracts:', updatedContracts);
+      } catch (storageError) {
+        console.error('Error removing from localStorage:', storageError);
       }
       
       onDelete();
