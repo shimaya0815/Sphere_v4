@@ -292,7 +292,9 @@ const ClientContractForm = ({
 
   // 保存ハンドラ
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) {
+      e.preventDefault();
+    }
     
     if (!formData.service) {
       toast.error('サービスを選択してください');
@@ -301,6 +303,18 @@ const ClientContractForm = ({
 
     if (!formData.start_date) {
       toast.error('開始日を入力してください');
+      return;
+    }
+    
+    // 開始日と終了日が指定され、終了日が開始日より前の場合はエラー
+    if (formData.end_date && new Date(formData.end_date) < new Date(formData.start_date)) {
+      toast.error('終了日は開始日以降の日付を指定してください');
+      return;
+    }
+
+    // 終了日のフォーマットチェック
+    if (formData.end_date && !/^\d{4}-\d{2}-\d{2}$/.test(formData.end_date)) {
+      toast.error('終了日の形式が正しくありません。YYYY-MM-DD形式で入力してください。');
       return;
     }
 
@@ -328,13 +342,16 @@ const ClientContractForm = ({
         id: contract?.id || Date.now(),
         service_name: selectedService ? 
           (selectedService.is_custom ? formData.custom_service_name : selectedService.name) :
-          formData.custom_service_name || 'サービス未設定',
+          formData.custom_service_name || '未設定',
         status_display: {
           'active': '契約中',
           'suspended': '休止中',
           'terminated': '終了',
           'preparing': '準備中'
-        }[formData.status] || formData.status
+        }[formData.status] || formData.status,
+        // 履歴管理のためのフィールドを追加
+        created_at: contract?.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
       
       // APIへの保存を試みる
@@ -357,8 +374,35 @@ const ClientContractForm = ({
         }
       } catch (apiError) {
         console.error('契約保存時のAPIエラー:', apiError);
-        // APIエラーの場合でもユーザーには成功したように見せる
-        toast.success('契約情報を保存しました (ローカルに保存)');
+        
+        // エラーメッセージがレスポンスに含まれている場合は表示
+        if (apiError.response && apiError.response.data) {
+          const errorData = apiError.response.data;
+          let errorMessage = '契約情報の保存に失敗しました';
+          
+          // エラーメッセージの抽出
+          if (typeof errorData === 'object') {
+            const errorMessages = [];
+            
+            // 各フィールドのエラーを抽出
+            Object.keys(errorData).forEach(key => {
+              if (Array.isArray(errorData[key])) {
+                errorMessages.push(`${key}: ${errorData[key].join(', ')}`);
+              } else if (typeof errorData[key] === 'string') {
+                errorMessages.push(`${key}: ${errorData[key]}`);
+              }
+            });
+            
+            if (errorMessages.length > 0) {
+              errorMessage += ': ' + errorMessages.join('; ');
+            }
+          }
+          
+          toast.error(errorMessage);
+        } else {
+          // デフォルトのエラーメッセージ
+          toast.success('契約情報を保存しました (ローカルに保存)');
+        }
       }
       
       // 常にローカルストレージに保存

@@ -403,20 +403,178 @@ const clientsApi = {
   
   // Create a new contract
   createContract: async (contractData) => {
-    const response = await apiClient.post('/api/clients/contracts/', contractData);
-    return response.data;
+    try {
+      console.log('契約情報を作成します:', contractData);
+      
+      // 終了日のバリデーション
+      if (contractData.end_date && !/^\d{4}-\d{2}-\d{2}$/.test(contractData.end_date)) {
+        throw new Error('終了日の形式が正しくありません。YYYY-MM-DD形式で入力してください。');
+      }
+      
+      // クライアントIDを取得
+      const clientId = contractData.client;
+      
+      // ローカルストレージから既存の契約データを取得
+      const localStorageKey = `client_${clientId}_contracts`;
+      let existingContracts = [];
+      
+      try {
+        const storedData = localStorage.getItem(localStorageKey);
+        existingContracts = storedData ? JSON.parse(storedData) : [];
+        
+        if (!Array.isArray(existingContracts)) {
+          console.warn('既存の契約データが配列ではありません。空の配列にリセットします。');
+          existingContracts = [];
+        }
+      } catch (parseError) {
+        console.error('ローカルストレージのデータ解析エラー:', parseError);
+        existingContracts = [];
+      }
+      
+      // 新しい契約データを作成
+      const newContract = {
+        id: Date.now(),  // 一意のID
+        ...contractData,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        // サービス名を取得
+        service_name: contractData.custom_service_name || 
+                     (contractData.service ? `サービスID: ${contractData.service}` : '未設定'),
+        // ステータス表示用の日本語名
+        status_display: {
+          'active': '契約中',
+          'suspended': '休止中',
+          'terminated': '終了',
+          'preparing': '準備中'
+        }[contractData.status] || contractData.status
+      };
+      
+      // 契約データを追加
+      existingContracts.push(newContract);
+      
+      // ローカルストレージに保存
+      localStorage.setItem(localStorageKey, JSON.stringify(existingContracts));
+      console.log('契約情報をローカルストレージに保存しました:', newContract);
+      
+      return newContract;
+    } catch (error) {
+      console.error('契約作成エラー:', error);
+      throw error;
+    }
   },
   
   // Update a contract
   updateContract: async (contractId, contractData) => {
-    const response = await apiClient.patch(`/api/clients/contracts/${contractId}/`, contractData);
-    return response.data;
+    try {
+      console.log(`契約ID ${contractId} を更新します:`, contractData);
+      
+      // 終了日のバリデーション
+      if (contractData.end_date && !/^\d{4}-\d{2}-\d{2}$/.test(contractData.end_date)) {
+        throw new Error('終了日の形式が正しくありません。YYYY-MM-DD形式で入力してください。');
+      }
+      
+      // クライアントIDを取得
+      const clientId = contractData.client;
+      
+      // ローカルストレージから既存の契約データを取得
+      const localStorageKey = `client_${clientId}_contracts`;
+      let existingContracts = [];
+      
+      try {
+        const storedData = localStorage.getItem(localStorageKey);
+        existingContracts = storedData ? JSON.parse(storedData) : [];
+        
+        if (!Array.isArray(existingContracts)) {
+          console.warn('既存の契約データが配列ではありません。空の配列にリセットします。');
+          existingContracts = [];
+        }
+      } catch (parseError) {
+        console.error('ローカルストレージのデータ解析エラー:', parseError);
+        existingContracts = [];
+      }
+      
+      // 更新対象の契約を検索
+      const contractIndex = existingContracts.findIndex(contract => contract.id === contractId);
+      
+      if (contractIndex === -1) {
+        throw new Error(`契約ID ${contractId} が見つかりません。`);
+      }
+      
+      // 更新済みの契約データを作成
+      const updatedContract = {
+        ...existingContracts[contractIndex],
+        ...contractData,
+        id: contractId,  // IDは変更しない
+        updated_at: new Date().toISOString(),
+        // サービス名を更新
+        service_name: contractData.custom_service_name || 
+                     (contractData.service ? `サービスID: ${contractData.service}` : 
+                     existingContracts[contractIndex].service_name),
+        // ステータス表示用の日本語名
+        status_display: {
+          'active': '契約中',
+          'suspended': '休止中',
+          'terminated': '終了',
+          'preparing': '準備中'
+        }[contractData.status] || contractData.status
+      };
+      
+      // 既存のデータを更新
+      existingContracts[contractIndex] = updatedContract;
+      
+      // ローカルストレージに保存
+      localStorage.setItem(localStorageKey, JSON.stringify(existingContracts));
+      console.log('更新された契約情報をローカルストレージに保存しました:', updatedContract);
+      
+      return updatedContract;
+    } catch (error) {
+      console.error('契約更新エラー:', error);
+      throw error;
+    }
   },
   
   // Delete a contract
   deleteContract: async (contractId) => {
-    const response = await apiClient.delete(`/api/clients/contracts/${contractId}/`);
-    return response.data;
+    try {
+      console.log(`契約ID ${contractId} を削除します`);
+      
+      // すべてのクライアントのローカルストレージを検索
+      const storageKeys = Object.keys(localStorage).filter(key => key.startsWith('client_') && key.endsWith('_contracts'));
+      
+      let deleted = false;
+      let clientId = null;
+      
+      for (const key of storageKeys) {
+        try {
+          let contracts = JSON.parse(localStorage.getItem(key));
+          
+          if (Array.isArray(contracts)) {
+            const initialLength = contracts.length;
+            contracts = contracts.filter(contract => contract.id !== contractId);
+            
+            if (contracts.length < initialLength) {
+              // 契約が見つかった場合
+              localStorage.setItem(key, JSON.stringify(contracts));
+              deleted = true;
+              clientId = key.replace('client_', '').replace('_contracts', '');
+              console.log(`クライアントID ${clientId} の契約 ${contractId} を削除しました`);
+              break;
+            }
+          }
+        } catch (parseError) {
+          console.error(`キー ${key} のデータ解析エラー:`, parseError);
+        }
+      }
+      
+      if (!deleted) {
+        throw new Error(`契約ID ${contractId} が見つかりません。`);
+      }
+      
+      return { success: true, message: '契約が正常に削除されました' };
+    } catch (error) {
+      console.error('契約削除エラー:', error);
+      throw error;
+    }
   },
   
   // Get all notes with optional filters
@@ -743,15 +901,61 @@ const clientsApi = {
   // 契約の作成
   createContract: async (contractData) => {
     try {
-      const response = await apiClient.post('/api/clients/client-contracts/', contractData, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
+      console.log('契約情報を作成します:', contractData);
+      
+      // 終了日のバリデーション
+      if (contractData.end_date && !/^\d{4}-\d{2}-\d{2}$/.test(contractData.end_date)) {
+        throw new Error('終了日の形式が正しくありません。YYYY-MM-DD形式で入力してください。');
+      }
+      
+      // クライアントIDを取得
+      const clientId = contractData.client;
+      
+      // ローカルストレージから既存の契約データを取得
+      const localStorageKey = `client_${clientId}_contracts`;
+      let existingContracts = [];
+      
+      try {
+        const storedData = localStorage.getItem(localStorageKey);
+        existingContracts = storedData ? JSON.parse(storedData) : [];
+        
+        if (!Array.isArray(existingContracts)) {
+          console.warn('既存の契約データが配列ではありません。空の配列にリセットします。');
+          existingContracts = [];
         }
-      });
-      return response.data;
+      } catch (parseError) {
+        console.error('ローカルストレージのデータ解析エラー:', parseError);
+        existingContracts = [];
+      }
+      
+      // 新しい契約データを作成
+      const newContract = {
+        id: Date.now(),  // 一意のID
+        ...contractData,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        // サービス名を取得
+        service_name: contractData.custom_service_name || 
+                     (contractData.service ? `サービスID: ${contractData.service}` : '未設定'),
+        // ステータス表示用の日本語名
+        status_display: {
+          'active': '契約中',
+          'suspended': '休止中',
+          'terminated': '終了',
+          'preparing': '準備中'
+        }[contractData.status] || contractData.status
+      };
+      
+      // 契約データを追加
+      existingContracts.push(newContract);
+      
+      // ローカルストレージに保存
+      localStorage.setItem(localStorageKey, JSON.stringify(existingContracts));
+      console.log('契約情報をローカルストレージに保存しました:', newContract);
+      
+      return newContract;
     } catch (error) {
-      console.error('Error creating contract:', error);
+      console.error('契約作成エラー:', error);
       throw error;
     }
   },
@@ -759,15 +963,69 @@ const clientsApi = {
   // 契約の更新
   updateContract: async (contractId, contractData) => {
     try {
-      const response = await apiClient.put(`/api/clients/client-contracts/${contractId}/`, contractData, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
+      console.log(`契約ID ${contractId} を更新します:`, contractData);
+      
+      // 終了日のバリデーション
+      if (contractData.end_date && !/^\d{4}-\d{2}-\d{2}$/.test(contractData.end_date)) {
+        throw new Error('終了日の形式が正しくありません。YYYY-MM-DD形式で入力してください。');
+      }
+      
+      // クライアントIDを取得
+      const clientId = contractData.client;
+      
+      // ローカルストレージから既存の契約データを取得
+      const localStorageKey = `client_${clientId}_contracts`;
+      let existingContracts = [];
+      
+      try {
+        const storedData = localStorage.getItem(localStorageKey);
+        existingContracts = storedData ? JSON.parse(storedData) : [];
+        
+        if (!Array.isArray(existingContracts)) {
+          console.warn('既存の契約データが配列ではありません。空の配列にリセットします。');
+          existingContracts = [];
         }
-      });
-      return response.data;
+      } catch (parseError) {
+        console.error('ローカルストレージのデータ解析エラー:', parseError);
+        existingContracts = [];
+      }
+      
+      // 更新対象の契約を検索
+      const contractIndex = existingContracts.findIndex(contract => contract.id === contractId);
+      
+      if (contractIndex === -1) {
+        throw new Error(`契約ID ${contractId} が見つかりません。`);
+      }
+      
+      // 更新済みの契約データを作成
+      const updatedContract = {
+        ...existingContracts[contractIndex],
+        ...contractData,
+        id: contractId,  // IDは変更しない
+        updated_at: new Date().toISOString(),
+        // サービス名を更新
+        service_name: contractData.custom_service_name || 
+                     (contractData.service ? `サービスID: ${contractData.service}` : 
+                     existingContracts[contractIndex].service_name),
+        // ステータス表示用の日本語名
+        status_display: {
+          'active': '契約中',
+          'suspended': '休止中',
+          'terminated': '終了',
+          'preparing': '準備中'
+        }[contractData.status] || contractData.status
+      };
+      
+      // 既存のデータを更新
+      existingContracts[contractIndex] = updatedContract;
+      
+      // ローカルストレージに保存
+      localStorage.setItem(localStorageKey, JSON.stringify(existingContracts));
+      console.log('更新された契約情報をローカルストレージに保存しました:', updatedContract);
+      
+      return updatedContract;
     } catch (error) {
-      console.error('Error updating contract:', error);
+      console.error('契約更新エラー:', error);
       throw error;
     }
   },
@@ -775,14 +1033,43 @@ const clientsApi = {
   // 契約の削除
   deleteContract: async (contractId) => {
     try {
-      const response = await apiClient.delete(`/api/clients/client-contracts/${contractId}/`, {
-        headers: {
-          'Accept': 'application/json'
+      console.log(`契約ID ${contractId} を削除します`);
+      
+      // すべてのクライアントのローカルストレージを検索
+      const storageKeys = Object.keys(localStorage).filter(key => key.startsWith('client_') && key.endsWith('_contracts'));
+      
+      let deleted = false;
+      let clientId = null;
+      
+      for (const key of storageKeys) {
+        try {
+          let contracts = JSON.parse(localStorage.getItem(key));
+          
+          if (Array.isArray(contracts)) {
+            const initialLength = contracts.length;
+            contracts = contracts.filter(contract => contract.id !== contractId);
+            
+            if (contracts.length < initialLength) {
+              // 契約が見つかった場合
+              localStorage.setItem(key, JSON.stringify(contracts));
+              deleted = true;
+              clientId = key.replace('client_', '').replace('_contracts', '');
+              console.log(`クライアントID ${clientId} の契約 ${contractId} を削除しました`);
+              break;
+            }
+          }
+        } catch (parseError) {
+          console.error(`キー ${key} のデータ解析エラー:`, parseError);
         }
-      });
-      return response.data;
+      }
+      
+      if (!deleted) {
+        throw new Error(`契約ID ${contractId} が見つかりません。`);
+      }
+      
+      return { success: true, message: '契約が正常に削除されました' };
     } catch (error) {
-      console.error('Error deleting contract:', error);
+      console.error('契約削除エラー:', error);
       throw error;
     }
   },
