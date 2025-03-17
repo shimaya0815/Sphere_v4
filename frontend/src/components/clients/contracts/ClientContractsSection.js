@@ -24,12 +24,14 @@ const ClientContractsSection = ({ clientId }) => {
     
     setLoading(true);
     try {
+      console.log(`Fetching contracts for client ID: ${clientId}`);
       const data = await clientsApi.getClientContracts(clientId);
+      console.log('Contracts data received:', data);
       setContracts(Array.isArray(data) ? data : []);
       setError(null);
     } catch (error) {
       console.error('Error fetching contracts:', error);
-      setError('契約情報の取得に失敗しました');
+      setError(`契約情報の取得に失敗しました: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }

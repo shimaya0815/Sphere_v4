@@ -678,15 +678,18 @@ const clientsApi = {
   // クライアントの契約一覧取得
   getClientContracts: async (clientId) => {
     try {
-      const response = await apiClient.get(`/api/clients/clients/${clientId}/contracts/`, {
+      const response = await apiClient.get('/api/clients/client-contracts/client/', {
+        params: { client_id: clientId },
         headers: {
           'Accept': 'application/json'
         }
       });
+      console.log('API - Client contracts fetched successfully:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error fetching client contracts:', error);
-      // エラー時は空の配列を返す
+      // エラー時でもフロントエンドの動作を継続させるため、空の配列を返す
+      console.log('Returning empty array due to error');
       return [];
     }
   },
