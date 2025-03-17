@@ -691,69 +691,36 @@ const clientsApi = {
   // クライアントの契約一覧取得
   getClientContracts: async (clientId) => {
     try {
-      console.log(`Fetching contracts for client ID: ${clientId}`);
-      // 新しいAPIのエンドポイントパターンを試みる
-      try {
-        // 新しいパターン：/api/clients/clients/{client_id}/contracts/
-        const response = await apiClient.get(`/api/clients/clients/${clientId}/contracts/`, {
-          headers: {
-            'Accept': 'application/json'
-          }
-        });
-        console.log('API - Client contracts fetched successfully (new endpoint):', response.data);
-        return response.data;
-      } catch (primaryError) {
-        console.error('Error with new endpoint pattern:', primaryError);
-        
-        // 古いパターン: /api/clients/client-contracts/client/?client_id={client_id}
-        try {
-          const response = await apiClient.get('/api/clients/client-contracts/client/', {
-            params: { client_id: clientId },
-            headers: {
-              'Accept': 'application/json'
-            }
-          });
-          console.log('API - Client contracts fetched successfully (old endpoint):', response.data);
-          return response.data;
-        } catch (fallbackError) {
-          console.error('Error with fallback endpoint pattern:', fallbackError);
-          
-          // どちらの方法でも失敗した場合はローカルストレージから取得
-          console.log('Attempting to fetch from localStorage');
-          const localData = localStorage.getItem(`client_${clientId}_contracts`);
-          if (localData) {
-            try {
-              const parsedData = JSON.parse(localData);
-              console.log('Contracts loaded from localStorage:', parsedData);
-              return parsedData;
-            } catch (parseError) {
-              console.error('Error parsing localStorage data:', parseError);
-            }
-          } else {
-            console.log('No local data found for client contracts');
-          }
-          
-          // すべての取得方法が失敗した場合は空配列を返す
-          return [];
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching client contracts:', error);
-      // エラー時でもフロントエンドの動作を継続させるため、空の配列を返す
-      console.log('Returning empty array due to error');
+      console.log(`契約情報取得 - クライアントID: ${clientId}`);
       
-      // 最終的なフォールバックとしてローカルストレージから取得を試みる
+      // ローカルストレージから契約データを取得
+      const localStorageKey = `client_${clientId}_contracts`;
+      let localData = [];
+      
       try {
-        const localData = localStorage.getItem(`client_${clientId}_contracts`);
-        if (localData) {
-          const parsedData = JSON.parse(localData);
-          console.log('Fallback: Contracts loaded from localStorage:', parsedData);
-          return parsedData;
+        const storedData = localStorage.getItem(localStorageKey);
+        
+        if (storedData) {
+          localData = JSON.parse(storedData);
+          
+          if (!Array.isArray(localData)) {
+            console.warn('ローカルストレージのデータが配列ではありません。空の配列にリセットします。');
+            localData = [];
+          } else if (localData.length > 0) {
+            console.log(`ローカルストレージから ${localData.length} 件の契約情報を読み込みました`);
+          }
+        } else {
+          console.log('ローカルストレージに契約情報がありません');
         }
       } catch (localStorageError) {
-        console.error('Fallback error accessing localStorage:', localStorageError);
+        console.error('ローカルストレージからの読み込みエラー:', localStorageError);
+        localData = [];
       }
       
+      // APIリクエストを行わず、ローカルストレージのデータのみを返す
+      return localData;
+    } catch (error) {
+      console.error('契約情報取得エラー:', error);
       return [];
     }
   },
