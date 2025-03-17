@@ -119,27 +119,57 @@ const ClientContractsSection = ({ clientId }) => {
       // 対応する契約があるか確認
       const existingContract = contractsData.find(contract => {
         const serviceName = contract.service_name || contract.custom_service_name || '';
+        const serviceId = contract.service ? contract.service.toString() : '';
         
-        // 特殊なマッピング処理（既存の契約を新しい契約タイプに紐付ける）
-        if (type.id === 'tax_withholding_standard' && serviceName.includes('源泉所得税') && 
-            (serviceName.includes('原則') || !serviceName.includes('特例'))) {
-          return true;
+        // 契約タイプ別の判定ロジック
+        switch (type.id) {
+          case 'advisory':
+            // 顧問契約の場合 - 名前一致またはサービスID=1
+            return serviceName.includes('顧問契約') || serviceId === '1';
+          
+          case 'bookkeeping':
+            // 記帳代行の場合
+            return serviceName.includes('記帳代行') || serviceId === '2';
+          
+          case 'payroll':
+            // 給与計算の場合
+            return serviceName.includes('給与計算') || serviceId === '3';
+          
+          case 'tax_withholding_standard':
+            // 源泉所得税(原則)の場合
+            return (serviceName.includes('源泉所得税') && 
+                   (serviceName.includes('原則') || !serviceName.includes('特例'))) || 
+                   serviceId === '4';
+          
+          case 'tax_withholding_special':
+            // 源泉所得税(特例)の場合
+            return serviceName.includes('源泉所得税') && 
+                   serviceName.includes('特例') || 
+                   serviceId === '5';
+          
+          case 'resident_tax_standard':
+            // 住民税(原則)の場合
+            return (serviceName.includes('住民税') && 
+                   (serviceName.includes('原則') || !serviceName.includes('特例'))) || 
+                   serviceId === '6';
+          
+          case 'resident_tax_special':
+            // 住民税(特例)の場合
+            return serviceName.includes('住民税') && 
+                   serviceName.includes('特例') || 
+                   serviceId === '7';
+          
+          case 'social_insurance':
+            // 社会保険の場合
+            return serviceName.includes('社会保険') || serviceId === '8';
+          
+          case 'other':
+            // その他の場合
+            return serviceName.includes('その他') || serviceId === '9';
+          
+          default:
+            return false;
         }
-        if (type.id === 'tax_withholding_special' && serviceName.includes('源泉所得税') && 
-            serviceName.includes('特例')) {
-          return true;
-        }
-        if (type.id === 'resident_tax_standard' && serviceName.includes('住民税') && 
-            (serviceName.includes('原則') || !serviceName.includes('特例'))) {
-          return true;
-        }
-        if (type.id === 'resident_tax_special' && serviceName.includes('住民税') && 
-            serviceName.includes('特例')) {
-          return true;
-        }
-        
-        // 通常のマッチング（名前が含まれているかどうか）
-        return serviceName.includes(type.name);
       });
       
       statusMap[type.id] = {
@@ -240,6 +270,65 @@ const ClientContractsSection = ({ clientId }) => {
       'one_time': '一時金'
     };
     return cycleMap[cycle] || cycle;
+  };
+
+  // 既存の契約を「その他の契約」セクションに表示するかどうかを判定
+  const isOtherContract = (contract) => {
+    const serviceName = contract.service_name || contract.custom_service_name || '';
+    const serviceId = contract.service ? contract.service.toString() : '';
+    
+    // サービスIDが1の場合は顧問契約（その他ではない）
+    if (serviceId === '1') {
+      return false;
+    }
+    
+    // すべての契約タイプと照合
+    return !ContractTypes.some(type => {
+      switch (type.id) {
+        case 'advisory':
+          // 顧問契約の場合
+          return serviceName.includes('顧問契約') || serviceId === '1';
+        
+        case 'bookkeeping':
+          // 記帳代行の場合
+          return serviceName.includes('記帳代行') || serviceId === '2';
+        
+        case 'payroll':
+          // 給与計算の場合
+          return serviceName.includes('給与計算') || serviceId === '3';
+        
+        case 'tax_withholding_standard':
+          // 源泉所得税(原則)の場合
+          return (serviceName.includes('源泉所得税') && 
+                 (serviceName.includes('原則') || !serviceName.includes('特例'))) || 
+                 serviceId === '4';
+        
+        case 'tax_withholding_special':
+          // 源泉所得税(特例)の場合
+          return (serviceName.includes('源泉所得税') && 
+                 serviceName.includes('特例')) || 
+                 serviceId === '5';
+        
+        case 'resident_tax_standard':
+          // 住民税(原則)の場合
+          return (serviceName.includes('住民税') && 
+                 (serviceName.includes('原則') || !serviceName.includes('特例'))) || 
+                 serviceId === '6';
+        
+        case 'resident_tax_special':
+          // 住民税(特例)の場合
+          return (serviceName.includes('住民税') && 
+                 serviceName.includes('特例')) || 
+                 serviceId === '7';
+        
+        case 'social_insurance':
+          // 社会保険の場合
+          return serviceName.includes('社会保険') || serviceId === '8';
+        
+        default:
+          return false;
+      }
+    });
   };
 
   return (
@@ -375,11 +464,7 @@ const ClientContractsSection = ({ clientId }) => {
                     );
                   })}
                   
-                  {contracts.length > 0 && contracts.some(contract => {
-                    // 定義済みの契約タイプに含まれていない契約を探す
-                    const contractTypeName = contract.service_name || contract.custom_service_name || '';
-                    return !ContractTypes.some(type => contractTypeName.includes(type.name));
-                  }) && (
+                  {contracts.length > 0 && contracts.some(contract => isOtherContract(contract)) && (
                     // 追加の契約（定義済みタイプ以外）を表示するセクション
                     <>
                       <tr className="border-b bg-gray-50">
@@ -388,13 +473,10 @@ const ClientContractsSection = ({ clientId }) => {
                         </td>
                       </tr>
                       
-                      {contracts.filter(contract => {
-                        const contractTypeName = contract.service_name || contract.custom_service_name || '';
-                        return !ContractTypes.some(type => contractTypeName.includes(type.name));
-                      }).map(contract => (
+                      {contracts.filter(contract => isOtherContract(contract)).map(contract => (
                         <tr key={contract.id} className="border-b hover:bg-gray-50">
                           <td className="px-4 py-3 font-medium">
-                            {contract.service_name || contract.custom_service_name || 'サービス未設定'}
+                            {contract.service_name || contract.custom_service_name || '未設定'}
                           </td>
                           <td className="px-4 py-3">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeStyle(contract.status)}`}>
