@@ -337,6 +337,18 @@ const ClientContractsSection = ({ clientId }) => {
     });
   };
 
+  // 更新ボタンクリック時の処理
+  const handleRefreshClick = (e) => {
+    // イベント伝播を停止
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    // 契約データを再取得
+    fetchContracts();
+  };
+
   return (
     <div className="bg-white shadow rounded-lg overflow-hidden mb-6">
       <div className="p-6 border-b border-gray-200">
@@ -344,7 +356,7 @@ const ClientContractsSection = ({ clientId }) => {
           <h3 className="text-lg font-medium text-gray-900">契約情報</h3>
           <div className="flex space-x-2">
             <button
-              onClick={fetchContracts}
+              onClick={handleRefreshClick}
               disabled={loading}
               className="flex items-center text-sm text-gray-600 hover:text-gray-900"
             >
