@@ -440,24 +440,6 @@ const ClientContractsSection = ({ clientId }) => {
                             >
                               <HiOutlineClipboard className="h-5 w-5" />
                             </button>
-                            
-                            {contractStatus.exists ? (
-                              <button
-                                onClick={() => handleEditContract(contract)}
-                                className="text-primary-600 hover:text-primary-800"
-                                title="編集"
-                              >
-                                <HiOutlinePencilAlt className="h-5 w-5" />
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleAddContract(type.id)}
-                                className="text-green-600 hover:text-green-800"
-                                title="登録"
-                              >
-                                <HiOutlinePlus className="h-5 w-5" />
-                              </button>
-                            )}
                           </div>
                         </td>
                       </tr>

@@ -129,34 +129,66 @@ const ContractHistoryModal = ({
       // 該当する契約タイプに関連する契約のみをフィルタリング
       const filteredContracts = contracts.filter(contract => {
         const serviceName = contract.service_name || contract.custom_service_name || '';
+        const serviceId = contract.service ? contract.service.toString() : '';
         
         // 契約タイプによるフィルタリング
-        if (contractType === 'tax_withholding_standard' && serviceName.includes('源泉所得税') && 
-            (serviceName.includes('原則') || !serviceName.includes('特例'))) {
-          return true;
+        switch (contractType) {
+          case 'advisory':
+            // 顧問契約の場合 - 名前一致またはサービスID=1
+            return serviceName.includes('顧問契約') || serviceId === '1';
+          
+          case 'bookkeeping':
+            // 記帳代行の場合
+            return serviceName.includes('記帳代行') || serviceId === '2';
+          
+          case 'payroll':
+            // 給与計算の場合
+            return serviceName.includes('給与計算') || serviceId === '3';
+          
+          case 'tax_withholding_standard':
+            // 源泉所得税(原則)の場合
+            return (serviceName.includes('源泉所得税') && 
+                   (serviceName.includes('原則') || !serviceName.includes('特例'))) || 
+                   serviceId === '4';
+          
+          case 'tax_withholding_special':
+            // 源泉所得税(特例)の場合
+            return (serviceName.includes('源泉所得税') && 
+                   serviceName.includes('特例')) || 
+                   serviceId === '5';
+          
+          case 'resident_tax_standard':
+            // 住民税(原則)の場合
+            return (serviceName.includes('住民税') && 
+                   (serviceName.includes('原則') || !serviceName.includes('特例'))) || 
+                   serviceId === '6';
+          
+          case 'resident_tax_special':
+            // 住民税(特例)の場合
+            return (serviceName.includes('住民税') && 
+                   serviceName.includes('特例')) || 
+                   serviceId === '7';
+          
+          case 'social_insurance':
+            // 社会保険の場合
+            return serviceName.includes('社会保険') || serviceId === '8';
+          
+          case 'other':
+            // その他の場合
+            return serviceName.includes('その他') || serviceId === '9';
+            
+          default:
+            // タイプが指定されていない場合は、名前に契約タイプ名が含まれているかで判断
+            return serviceName.includes(contractTypeName);
         }
-        if (contractType === 'tax_withholding_special' && serviceName.includes('源泉所得税') && 
-            serviceName.includes('特例')) {
-          return true;
-        }
-        if (contractType === 'resident_tax_standard' && serviceName.includes('住民税') && 
-            (serviceName.includes('原則') || !serviceName.includes('特例'))) {
-          return true;
-        }
-        if (contractType === 'resident_tax_special' && serviceName.includes('住民税') && 
-            serviceName.includes('特例')) {
-          return true;
-        }
-        
-        // その他の契約タイプ
-        return serviceName.includes(contractTypeName);
       });
       
-      // 開始日でソートする
+      // 開始日でソートする（新しい順）
       const sortedContracts = filteredContracts.sort((a, b) => {
         return new Date(b.start_date) - new Date(a.start_date);
       });
       
+      console.log(`契約履歴: ${contractType || contractTypeName}`, sortedContracts);
       setContracts(sortedContracts);
       
       // 新規契約フォームの初期値を設定
