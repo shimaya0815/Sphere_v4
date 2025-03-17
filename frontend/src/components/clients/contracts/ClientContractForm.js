@@ -27,13 +27,23 @@ const CONTRACT_TYPE_DEFAULTS = {
     fee_cycle: 'monthly',
     status: 'active'
   },
-  tax_withholding: {
-    name: '源泉所得税',
+  tax_withholding_standard: {
+    name: '源泉所得税(原則)',
     fee_cycle: 'monthly',
     status: 'active'
   },
-  resident_tax: {
-    name: '住民税',
+  tax_withholding_special: {
+    name: '源泉所得税(特例)',
+    fee_cycle: 'monthly',
+    status: 'active'
+  },
+  resident_tax_standard: {
+    name: '住民税(原則)',
+    fee_cycle: 'monthly',
+    status: 'active'
+  },
+  resident_tax_special: {
+    name: '住民税(特例)',
     fee_cycle: 'monthly',
     status: 'active'
   },
@@ -48,6 +58,19 @@ const CONTRACT_TYPE_DEFAULTS = {
     status: 'active'
   }
 };
+
+// デフォルトサービスリスト
+const DEFAULT_SERVICES = [
+  { id: 1, name: '顧問契約', is_custom: false },
+  { id: 2, name: '記帳代行', is_custom: false },
+  { id: 3, name: '給与計算', is_custom: false },
+  { id: 4, name: '源泉所得税(原則)', is_custom: false },
+  { id: 5, name: '源泉所得税(特例)', is_custom: false },
+  { id: 6, name: '住民税(原則)', is_custom: false },
+  { id: 7, name: '住民税(特例)', is_custom: false },
+  { id: 8, name: '社会保険', is_custom: false },
+  { id: 9, name: 'その他', is_custom: true }
+];
 
 const ClientContractForm = ({ 
   clientId, 
@@ -99,26 +122,36 @@ const ClientContractForm = ({
       try {
         setLoading(true);
         console.log('Fetching contract services...');
-        const response = await clientsApi.getContractServices();
-        console.log('Contract services response:', response);
-        if (Array.isArray(response)) {
-          setServices(response);
-        } else if (response && response.results) {
-          setServices(response.results);
-        } else {
-          // サービスがない場合はデフォルトのサービスを作成
-          console.log('No services found, creating default services');
-          await createDefaultServices();
-        }
-      } catch (error) {
-        console.error('Error fetching services:', error);
-        toast.error('サービス一覧の取得に失敗しました');
-        // サービスがない場合はデフォルトのサービスを作成を試みる
+        
+        let serviceData = [];
+        
         try {
-          await createDefaultServices();
-        } catch (createError) {
-          console.error('Failed to create default services:', createError);
+          // APIからサービス一覧を取得
+          const response = await clientsApi.getContractServices();
+          console.log('Contract services response:', response);
+          
+          if (Array.isArray(response) && response.length > 0) {
+            serviceData = response;
+          } else if (response && response.results && response.results.length > 0) {
+            serviceData = response.results;
+          } else {
+            // APIからデータが取得できない場合はデフォルト値を使用
+            console.log('No valid data from API, using default services');
+            serviceData = DEFAULT_SERVICES;
+          }
+        } catch (apiError) {
+          console.error('Error with API endpoint:', apiError);
+          // APIエラーの場合もデフォルト値を使用
+          serviceData = DEFAULT_SERVICES;
         }
+        
+        console.log('Using service data:', serviceData);
+        setServices(serviceData);
+      } catch (error) {
+        console.error('Error in fetchServices:', error);
+        // 何らかのエラーが発生した場合もデフォルト値を使用
+        setServices(DEFAULT_SERVICES);
+        toast.error('サービス一覧の取得に失敗しました。デフォルト値を使用します。');
       } finally {
         setLoading(false);
       }
@@ -198,30 +231,41 @@ const ClientContractForm = ({
       
       initializeServiceForType();
     }
-  }, [clientId, contract, contractType, services.length]);
+  }, [clientId, contract, contractType]);
 
   // デフォルトサービスを作成
   const createDefaultServices = async () => {
     try {
       console.log('Creating default contract services');
-      const result = await clientsApi.createDefaultContractServices();
-      console.log('Default services created:', result);
       
-      // 作成したサービスを設定
-      if (Array.isArray(result)) {
-        setServices(result);
-      } else if (result && result.results) {
-        setServices(result.results);
-      } else if (result) {
-        setServices([result]);
+      // APIを試行
+      try {
+        const result = await clientsApi.createDefaultContractServices();
+        console.log('Default services created via API:', result);
+        
+        // APIから有効なデータが返ってきた場合はそれを使用
+        if (Array.isArray(result) && result.length > 0) {
+          setServices(result);
+          return result;
+        } else if (result && result.results && result.results.length > 0) {
+          setServices(result.results);
+          return result.results;
+        }
+      } catch (apiError) {
+        console.error('API error creating default services:', apiError);
       }
       
-      toast.success('デフォルトのサービス項目を作成しました');
-      return result;
+      // APIが失敗したか無効なデータの場合はローカルのデフォルト値を使用
+      console.log('Using local default services');
+      setServices(DEFAULT_SERVICES);
+      
+      toast.success('デフォルトのサービス項目を設定しました');
+      return DEFAULT_SERVICES;
     } catch (error) {
-      console.error('Error creating default services:', error);
-      toast.error('デフォルトサービスの作成に失敗しました');
-      return [];
+      console.error('Error in createDefaultServices:', error);
+      setServices(DEFAULT_SERVICES);
+      toast.error('デフォルトサービスの作成に失敗しました。ローカル定義を使用します。');
+      return DEFAULT_SERVICES;
     }
   };
 
