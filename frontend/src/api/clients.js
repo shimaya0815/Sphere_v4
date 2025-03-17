@@ -678,31 +678,43 @@ const clientsApi = {
   // クライアントの契約一覧取得
   getClientContracts: async (clientId) => {
     try {
-      const response = await apiClient.get('/api/clients/client-contracts/client/', {
-        params: { client_id: clientId }
+      const response = await apiClient.get(`/api/clients/clients/${clientId}/contracts/`, {
+        headers: {
+          'Accept': 'application/json'
+        }
       });
       return response.data;
     } catch (error) {
       console.error('Error fetching client contracts:', error);
-      throw error;
+      // エラー時は空の配列を返す
+      return [];
     }
   },
 
   // 契約の詳細を取得
   getContract: async (contractId) => {
     try {
-      const response = await apiClient.get(`/api/clients/client-contracts/${contractId}/`);
+      const response = await apiClient.get(`/api/clients/client-contracts/${contractId}/`, {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
       return response.data;
     } catch (error) {
       console.error('Error fetching contract details:', error);
-      throw error;
+      return null;
     }
   },
 
   // 契約の作成
   createContract: async (contractData) => {
     try {
-      const response = await apiClient.post('/api/clients/client-contracts/', contractData);
+      const response = await apiClient.post('/api/clients/client-contracts/', contractData, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
       return response.data;
     } catch (error) {
       console.error('Error creating contract:', error);
@@ -713,7 +725,12 @@ const clientsApi = {
   // 契約の更新
   updateContract: async (contractId, contractData) => {
     try {
-      const response = await apiClient.put(`/api/clients/client-contracts/${contractId}/`, contractData);
+      const response = await apiClient.put(`/api/clients/client-contracts/${contractId}/`, contractData, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
       return response.data;
     } catch (error) {
       console.error('Error updating contract:', error);
@@ -724,7 +741,11 @@ const clientsApi = {
   // 契約の削除
   deleteContract: async (contractId) => {
     try {
-      const response = await apiClient.delete(`/api/clients/client-contracts/${contractId}/`);
+      const response = await apiClient.delete(`/api/clients/client-contracts/${contractId}/`, {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
       return response.data;
     } catch (error) {
       console.error('Error deleting contract:', error);
