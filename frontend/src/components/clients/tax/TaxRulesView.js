@@ -251,13 +251,6 @@ const TaxRulesView = ({ clientId }) => {
             >
               <HiOutlineRefresh className="h-5 w-5" />
             </button>
-            <button 
-              className="flex items-center justify-center p-2 rounded-md text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:outline-none"
-              onClick={(e) => handleShowHistory(e, 'income')}
-              title="源泉所得税の履歴"
-            >
-              <HiOutlineClock className="h-5 w-5" />
-            </button>
           </div>
         </div>
         
@@ -328,14 +321,7 @@ const TaxRulesView = ({ clientId }) => {
                           <button
                             onClick={(e) => handleShowHistory(e, 'income')}
                             className="text-blue-600 hover:text-blue-900"
-                            title="履歴を表示"
-                          >
-                            <HiOutlineClock className="h-5 w-5" />
-                          </button>
-                          <button
-                            onClick={() => handleAddClick('income')}
-                            className="text-blue-600 hover:text-blue-900"
-                            title="新規追加"
+                            title="源泉所得税の履歴"
                           >
                             <HiOutlineClipboard className="h-5 w-5" />
                           </button>
@@ -365,9 +351,9 @@ const TaxRulesView = ({ clientId }) => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <button
-                          onClick={() => handleAddClick('income')}
+                          onClick={(e) => handleShowHistory(e, 'income')}
                           className="text-blue-600 hover:text-blue-900"
-                          title="新規追加"
+                          title="源泉所得税の履歴"
                         >
                           <HiOutlineClipboard className="h-5 w-5" />
                         </button>
@@ -405,14 +391,7 @@ const TaxRulesView = ({ clientId }) => {
                           <button
                             onClick={(e) => handleShowHistory(e, 'residence')}
                             className="text-green-600 hover:text-green-900"
-                            title="履歴を表示"
-                          >
-                            <HiOutlineClock className="h-5 w-5" />
-                          </button>
-                          <button
-                            onClick={() => handleAddClick('residence')}
-                            className="text-green-600 hover:text-green-900"
-                            title="新規追加"
+                            title="住民税の履歴"
                           >
                             <HiOutlineClipboard className="h-5 w-5" />
                           </button>
@@ -442,9 +421,9 @@ const TaxRulesView = ({ clientId }) => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <button
-                          onClick={() => handleAddClick('residence')}
+                          onClick={(e) => handleShowHistory(e, 'residence')}
                           className="text-green-600 hover:text-green-900"
-                          title="新規追加"
+                          title="住民税の履歴"
                         >
                           <HiOutlineClipboard className="h-5 w-5" />
                         </button>
