@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { clientsApi } from '../../../api';
 import toast from 'react-hot-toast';
-import { HiOutlineCalendar, HiOutlineDocumentText } from 'react-icons/hi';
+import { 
+  HiOutlineCalendar, 
+  HiOutlineDocumentText, 
+  HiOutlineX,
+  HiOutlineSave,
+  HiOutlineInformationCircle
+} from 'react-icons/hi';
 
 const TaxRuleForm = ({ clientId, taxRule = null, taxType = 'income', onClose, onSuccess }) => {
   const initialFormData = {
@@ -32,6 +38,7 @@ const TaxRuleForm = ({ clientId, taxRule = null, taxType = 'income', onClose, on
       setFormData({
         ...initialFormData,
         tax_type: taxType,
+        start_date: new Date().toISOString().split('T')[0], // 今日の日付をデフォルトに
       });
     }
   }, [taxRule, taxType, clientId]);
@@ -144,46 +151,25 @@ const TaxRuleForm = ({ clientId, taxRule = null, taxType = 'income', onClose, on
   };
   
   return (
-    <div 
-      className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex justify-center items-center" 
-      style={{ 
-        zIndex: 50000,
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0
-      }}
-      onClick={(e) => {
-        e.preventDefault();
-        onClose();
-      }}
-    >
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div 
-        className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg" 
-        style={{ position: 'relative' }}
+        className="bg-white rounded-lg shadow-xl w-full max-w-lg"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold flex items-center">
-            <HiOutlineDocumentText className="mr-2" />
+        <div className="p-4 border-b flex justify-between items-center">
+          <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+            <HiOutlineDocumentText className="mr-2 text-primary-600" />
             {taxRule ? '税務ルールを編集' : '税務ルールを追加'} ({getTaxTypeDisplay()})
           </h2>
           <button 
-            type="button" 
-            className="text-gray-400 hover:text-gray-500"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onClose();
-            }}
-            style={{ fontSize: '1.5rem', lineHeight: 1 }}
+            className="text-gray-500 hover:text-gray-700"
+            onClick={onClose}
           >
-            ✕
+            <HiOutlineX className="h-5 w-5" />
           </button>
         </div>
         
-        <div className="space-y-4">
+        <div className="p-6 space-y-4">
           <div>
             <label htmlFor="rule_type" className="block text-sm font-medium text-gray-700 mb-1">
               ルール種別 <span className="text-red-500">*</span>
@@ -193,7 +179,7 @@ const TaxRuleForm = ({ clientId, taxRule = null, taxType = 'income', onClose, on
               name="rule_type"
               value={formData.rule_type}
               onChange={handleChange}
-              className="select select-bordered w-full"
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
             >
               <option value="principle">原則</option>
               <option value="exception">特例</option>
@@ -204,41 +190,45 @@ const TaxRuleForm = ({ clientId, taxRule = null, taxType = 'income', onClose, on
             <label htmlFor="start_date" className="block text-sm font-medium text-gray-700 mb-1">
               開始日 <span className="text-red-500">*</span>
             </label>
-            <div className="flex">
-              <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
-                <HiOutlineCalendar />
-              </span>
+            <div className="mt-1 relative rounded-md shadow-sm">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <HiOutlineCalendar className="h-5 w-5 text-gray-400" />
+              </div>
               <input
                 type="date"
                 id="start_date"
                 name="start_date"
                 value={formData.start_date}
                 onChange={handleChange}
-                className="input input-bordered rounded-l-none w-full"
+                className="pl-10 focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
                 required
               />
             </div>
           </div>
           
           <div>
-            <label htmlFor="end_date" className="block text-sm font-medium text-gray-700 mb-1">
-              終了日 <span className="text-gray-400">(空白の場合は現在まで適用)</span>
-            </label>
-            <div className="flex">
-              <span className="inline-flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
-                <HiOutlineCalendar />
+            <label htmlFor="end_date" className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+              終了日 
+              <span className="ml-2 text-xs text-gray-500 font-normal">
+                (空白の場合は現在まで適用)
               </span>
+            </label>
+            <div className="mt-1 relative rounded-md shadow-sm">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <HiOutlineCalendar className="h-5 w-5 text-gray-400" />
+              </div>
               <input
                 type="date"
                 id="end_date"
                 name="end_date"
                 value={formData.end_date || ''}
                 onChange={handleChange}
-                className="input input-bordered rounded-l-none w-full"
+                className="pl-10 focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
                 placeholder="未入力で現在まで適用"
               />
             </div>
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="mt-1 flex items-center text-xs text-gray-500">
+              <HiOutlineInformationCircle className="h-4 w-4 mr-1" />
               終了日を入力しない場合、現在も適用中のルールとして扱われます
             </div>
           </div>
@@ -253,41 +243,40 @@ const TaxRuleForm = ({ clientId, taxRule = null, taxType = 'income', onClose, on
               value={formData.description}
               onChange={handleChange}
               rows="3"
-              className="textarea textarea-bordered w-full"
+              className="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+              placeholder="ルールに関する補足情報"
             ></textarea>
           </div>
         </div>
         
-        <div className="mt-6 flex justify-end space-x-3">
+        <div className="px-6 py-4 bg-gray-50 flex justify-end space-x-3 rounded-b-lg">
           <button
             type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onClose();
-            }}
-            className="btn btn-ghost"
+            onClick={onClose}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
             disabled={loading}
           >
             キャンセル
           </button>
           <button
             type="button"
-            className="btn btn-primary"
+            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
             disabled={loading}
-            onClick={() => {
-              if (!loading) {
-                handleSubmit();
-              }
-            }}
+            onClick={handleSubmit}
           >
             {loading ? (
               <>
-                <span className="loading loading-spinner loading-sm mr-2"></span>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
                 保存中...
               </>
             ) : (
-              taxRule ? '更新する' : '追加する'
+              <>
+                <HiOutlineSave className="mr-2 -ml-1 h-5 w-5" />
+                {taxRule ? '更新する' : '追加する'}
+              </>
             )}
           </button>
         </div>
