@@ -17,14 +17,17 @@ import {
 // デフォルトサービスリスト
 const DEFAULT_SERVICES = [
   { id: 1, name: '顧問契約', is_custom: false },
-  { id: 2, name: '記帳代行', is_custom: false },
-  { id: 3, name: '給与計算', is_custom: false },
-  { id: 4, name: '源泉所得税(原則)', is_custom: false },
-  { id: 5, name: '源泉所得税(特例)', is_custom: false },
-  { id: 6, name: '住民税(原則)', is_custom: false },
-  { id: 7, name: '住民税(特例)', is_custom: false },
-  { id: 8, name: '社会保険', is_custom: false },
-  { id: 9, name: 'その他', is_custom: true }
+  { id: 2, name: '決算申告', is_custom: false },
+  { id: 3, name: '中間申告', is_custom: false },
+  { id: 4, name: '予定申告', is_custom: false },
+  { id: 5, name: '記帳代行', is_custom: false },
+  { id: 6, name: '給与計算', is_custom: false },
+  { id: 7, name: '源泉所得税(原則)', is_custom: false },
+  { id: 8, name: '源泉所得税(特例)', is_custom: false },
+  { id: 9, name: '住民税(原則)', is_custom: false },
+  { id: 10, name: '住民税(特例)', is_custom: false },
+  { id: 11, name: '社会保険', is_custom: false },
+  { id: 12, name: 'その他', is_custom: true }
 ];
 
 // 契約状態の表示名を取得
