@@ -39,123 +39,119 @@ const ClientContractsSection = ({ clientId }) => {
     
     setLoading(true);
     try {
-      console.log(`Fetching contracts for client ID: ${clientId}`);
+      console.log(`契約情報を取得中 - クライアントID: ${clientId}`);
       
       // まずローカルストレージをチェック
       let localData = [];
       try {
         const localStorageKey = `client_${clientId}_contracts`;
         const storedData = localStorage.getItem(localStorageKey);
-        console.log(`Checking localStorage key: ${localStorageKey}`, storedData);
         
         if (storedData) {
           localData = JSON.parse(storedData);
           
           if (!Array.isArray(localData)) {
-            console.warn('localStorage data is not an array:', localData);
+            console.warn('ローカルストレージのデータが配列ではありません:', localData);
             localData = [];
           } else if (localData.length > 0) {
-            console.log(`Found ${localData.length} contracts in localStorage`);
+            console.log(`ローカルストレージから ${localData.length} 件の契約情報を読み込みました`);
           }
         } else {
-          console.log('No contracts data found in localStorage');
+          console.log('ローカルストレージに契約情報がありません');
         }
       } catch (localStorageError) {
-        console.error('Error reading from localStorage:', localStorageError);
+        console.error('ローカルストレージからの読み込みエラー:', localStorageError);
       }
       
-      // APIからのデータ取得を試みる
-      let apiData = [];
-      let apiSuccess = false;
-      
-      try {
-        const response = await clientsApi.getClientContracts(clientId);
-        console.log('API response for contracts:', response);
+      // ローカルストレージにデータがある場合は、APIは呼び出さない
+      if (localData.length > 0) {
+        console.log('ローカルストレージのデータを使用します');
+        setContracts(localData);
         
-        // APIから有効なデータが返ってきた場合
+        // ステータスマップの作成
+        updateContractStatusMap(localData);
+        setLoading(false);
+        return;
+      }
+      
+      // APIからのデータ取得を試みる（ローカルストレージにデータがない場合のみ）
+      try {
+        console.log('APIから契約情報を取得します');
+        const response = await clientsApi.getClientContracts(clientId);
+        
         if (response && (Array.isArray(response) && response.length > 0)) {
-          apiData = response;
-          apiSuccess = true;
-          console.log(`Successfully fetched ${apiData.length} contracts from API`);
-        } else if (response && typeof response === 'object' && Array.isArray(response.results) && response.results.length > 0) {
-          apiData = response.results;
-          apiSuccess = true;
-          console.log(`Successfully fetched ${apiData.length} contracts from API (results property)`);
+          console.log(`APIから ${response.length} 件の契約情報を取得しました`);
+          setContracts(response);
+          updateContractStatusMap(response);
+          
+          // ローカルストレージに保存
+          try {
+            localStorage.setItem(`client_${clientId}_contracts`, JSON.stringify(response));
+            console.log('契約情報をローカルストレージに保存しました');
+          } catch (saveError) {
+            console.error('ローカルストレージへの保存エラー:', saveError);
+          }
         } else {
-          console.log('API returned empty or invalid data');
+          console.log('APIからデータが取得できませんでした。空の契約リストを表示します');
+          setContracts([]);
+          updateContractStatusMap([]);
         }
       } catch (apiError) {
-        console.error('Error fetching contracts from API:', apiError);
+        console.error('API呼び出しエラー:', apiError);
+        console.log('APIエラーが発生したため、空の契約リストを表示します');
+        setContracts([]);
+        updateContractStatusMap([]);
       }
       
-      // 使用するデータを決定（APIが成功した場合はAPIのデータ、それ以外はローカルストレージのデータ）
-      let finalData = [];
-      
-      if (apiSuccess && apiData.length > 0) {
-        console.log('Using API data for contracts display');
-        finalData = apiData;
-        
-        // 将来のためにローカルストレージにも保存
-        try {
-          localStorage.setItem(`client_${clientId}_contracts`, JSON.stringify(apiData));
-          console.log('Updated localStorage with API data');
-        } catch (saveError) {
-          console.error('Error saving API data to localStorage:', saveError);
-        }
-      } else if (localData.length > 0) {
-        console.log('Using localStorage data for contracts display');
-        finalData = localData;
-      } else {
-        console.log('No contract data available from any source');
-      }
-      
-      console.log('Final contracts data:', finalData);
-      setContracts(finalData);
-
-      // 各契約タイプのステータスマップを作成
-      const statusMap = {};
-      ContractTypes.forEach(type => {
-        // 対応する契約があるか確認
-        const existingContract = finalData.find(contract => {
-          const serviceName = contract.service_name || contract.custom_service_name || '';
-          
-          // 特殊なマッピング処理（既存の契約を新しい契約タイプに紐付ける）
-          if (type.id === 'tax_withholding_standard' && serviceName.includes('源泉所得税') && 
-              (serviceName.includes('原則') || !serviceName.includes('特例'))) {
-            return true;
-          }
-          if (type.id === 'tax_withholding_special' && serviceName.includes('源泉所得税') && 
-              serviceName.includes('特例')) {
-            return true;
-          }
-          if (type.id === 'resident_tax_standard' && serviceName.includes('住民税') && 
-              (serviceName.includes('原則') || !serviceName.includes('特例'))) {
-            return true;
-          }
-          if (type.id === 'resident_tax_special' && serviceName.includes('住民税') && 
-              serviceName.includes('特例')) {
-            return true;
-          }
-          
-          // 通常のマッチング（名前が含まれているかどうか）
-          return serviceName.includes(type.name);
-        });
-        
-        statusMap[type.id] = {
-          exists: !!existingContract,
-          status: existingContract?.status || 'none',
-          contract: existingContract
-        };
-      });
-      
-      setContractStatuses(statusMap);
       setError(null);
     } catch (error) {
-      console.error('Error fetching contracts:', error);
-      setError(`契約情報の取得に失敗しました: ${error.message || 'Unknown error'}`);
+      console.error('契約情報取得中のエラー:', error);
+      setError(`契約情報の取得に失敗しました: ${error.message || '不明なエラー'}`);
+      setContracts([]);
+      updateContractStatusMap([]);
     } finally {
       setLoading(false);
     }
+  };
+  
+  // 契約ステータスマップの更新（共通処理を関数化）
+  const updateContractStatusMap = (contractsData) => {
+    const statusMap = {};
+    ContractTypes.forEach(type => {
+      // 対応する契約があるか確認
+      const existingContract = contractsData.find(contract => {
+        const serviceName = contract.service_name || contract.custom_service_name || '';
+        
+        // 特殊なマッピング処理（既存の契約を新しい契約タイプに紐付ける）
+        if (type.id === 'tax_withholding_standard' && serviceName.includes('源泉所得税') && 
+            (serviceName.includes('原則') || !serviceName.includes('特例'))) {
+          return true;
+        }
+        if (type.id === 'tax_withholding_special' && serviceName.includes('源泉所得税') && 
+            serviceName.includes('特例')) {
+          return true;
+        }
+        if (type.id === 'resident_tax_standard' && serviceName.includes('住民税') && 
+            (serviceName.includes('原則') || !serviceName.includes('特例'))) {
+          return true;
+        }
+        if (type.id === 'resident_tax_special' && serviceName.includes('住民税') && 
+            serviceName.includes('特例')) {
+          return true;
+        }
+        
+        // 通常のマッチング（名前が含まれているかどうか）
+        return serviceName.includes(type.name);
+      });
+      
+      statusMap[type.id] = {
+        exists: !!existingContract,
+        status: existingContract?.status || 'none',
+        contract: existingContract
+      };
+    });
+    
+    setContractStatuses(statusMap);
   };
 
   // 初回レンダリング時にデータ取得
