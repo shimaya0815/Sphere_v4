@@ -41,38 +41,56 @@ const ClientContractsSection = ({ clientId }) => {
     try {
       console.log(`Fetching contracts for client ID: ${clientId}`);
       
-      // まずclient-contracts/client/エンドポイントを試す
+      // APIから契約データを取得
       let data = [];
       try {
         const response = await clientsApi.getClientContracts(clientId);
-        console.log('Contracts data received from primary endpoint:', response);
-        data = response;
-      } catch (primaryError) {
-        console.error('Error with primary endpoint:', primaryError);
+        console.log('Contracts data received:', response);
         
-        // バックアップとして契約サービス一覧を取得して空の契約リストを表示
-        await clientsApi.getContractServices();
-        console.log('Using empty contracts list as fallback');
+        // APIから有効なデータが返ってきた場合
+        if (response && (Array.isArray(response) || response.length > 0)) {
+          data = response;
+          console.log('Using contracts data from API:', data);
+        } else {
+          // APIからデータが取得できない場合はローカルストレージを確認
+          console.log('API returned empty data, checking localStorage');
+          throw new Error('API returned empty data');
+        }
+      } catch (apiError) {
+        console.error('Error with API endpoint:', apiError);
         
         // ローカルストレージからデータを取得（APIが未実装の場合のフォールバック）
         try {
           const localData = JSON.parse(localStorage.getItem(`client_${clientId}_contracts`) || '[]');
-          if (localData.length > 0) {
-            console.log('Using contracts from local storage:', localData);
+          if (localData && localData.length > 0) {
+            console.log('Using contracts from localStorage:', localData);
             data = localData;
+          } else {
+            console.log('No contract data in localStorage');
           }
         } catch (storageError) {
-          console.error('Error reading from local storage:', storageError);
+          console.error('Error reading from localStorage:', storageError);
+        }
+        
+        // それでもデータがない場合は空配列を使用
+        if (data.length === 0) {
+          console.log('No contracts data available, using empty array');
         }
       }
       
-      setContracts(Array.isArray(data) ? data : []);
+      // データを確実に配列として扱う
+      const safeData = Array.isArray(data) ? data : 
+                       data && typeof data === 'object' && Array.isArray(data.results) ? data.results : 
+                       [];
+      
+      console.log('Final contracts data for rendering:', safeData);
+      setContracts(safeData);
 
       // 各契約タイプのステータスマップを作成
       const statusMap = {};
       ContractTypes.forEach(type => {
         // 対応する契約があるか確認
-        const existingContract = data.find(contract => {
+        const existingContract = safeData.find(contract => {
           const serviceName = contract.service_name || contract.custom_service_name || '';
           
           // 特殊なマッピング処理（既存の契約を新しい契約タイプに紐付ける）
