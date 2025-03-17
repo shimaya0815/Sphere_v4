@@ -17,8 +17,10 @@ const ContractTypes = [
   { id: 'advisory', name: '顧問契約' },
   { id: 'bookkeeping', name: '記帳代行' },
   { id: 'payroll', name: '給与計算' },
-  { id: 'tax_withholding', name: '源泉所得税' },
-  { id: 'resident_tax', name: '住民税' },
+  { id: 'tax_withholding_standard', name: '源泉所得税(原則)' },
+  { id: 'tax_withholding_special', name: '源泉所得税(特例)' },
+  { id: 'resident_tax_standard', name: '住民税(原則)' },
+  { id: 'resident_tax_special', name: '住民税(特例)' },
   { id: 'social_insurance', name: '社会保険' },
   { id: 'other', name: 'その他' }
 ];
@@ -70,10 +72,30 @@ const ClientContractsSection = ({ clientId }) => {
       const statusMap = {};
       ContractTypes.forEach(type => {
         // 対応する契約があるか確認
-        const existingContract = data.find(contract => 
-          (contract.service_name && contract.service_name.includes(type.name)) || 
-          (contract.custom_service_name && contract.custom_service_name.includes(type.name))
-        );
+        const existingContract = data.find(contract => {
+          const serviceName = contract.service_name || contract.custom_service_name || '';
+          
+          // 特殊なマッピング処理（既存の契約を新しい契約タイプに紐付ける）
+          if (type.id === 'tax_withholding_standard' && serviceName.includes('源泉所得税') && 
+              (serviceName.includes('原則') || !serviceName.includes('特例'))) {
+            return true;
+          }
+          if (type.id === 'tax_withholding_special' && serviceName.includes('源泉所得税') && 
+              serviceName.includes('特例')) {
+            return true;
+          }
+          if (type.id === 'resident_tax_standard' && serviceName.includes('住民税') && 
+              (serviceName.includes('原則') || !serviceName.includes('特例'))) {
+            return true;
+          }
+          if (type.id === 'resident_tax_special' && serviceName.includes('住民税') && 
+              serviceName.includes('特例')) {
+            return true;
+          }
+          
+          // 通常のマッチング（名前が含まれているかどうか）
+          return serviceName.includes(type.name);
+        });
         
         statusMap[type.id] = {
           exists: !!existingContract,
