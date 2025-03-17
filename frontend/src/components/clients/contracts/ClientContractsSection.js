@@ -222,7 +222,13 @@ const ClientContractsSection = ({ clientId }) => {
   };
 
   // 契約履歴モーダルを表示
-  const handleShowHistory = (contractType, contractTypeName) => {
+  const handleShowHistory = (e, contractType, contractTypeName) => {
+    // イベント伝播を停止
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
     setSelectedContractType(contractType);
     setSelectedContractTypeName(contractTypeName);
     setShowHistoryModal(true);
@@ -434,7 +440,7 @@ const ClientContractsSection = ({ clientId }) => {
                         <td className="px-4 py-3">
                           <div className="flex space-x-2">
                             <button
-                              onClick={() => handleShowHistory(type.id, type.name)}
+                              onClick={(e) => handleShowHistory(e, type.id, type.name)}
                               className="text-gray-600 hover:text-gray-800"
                               title="履歴を表示"
                             >
