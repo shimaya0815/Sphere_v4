@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('business', '0001_initial'),
-        ('clients', '0009_alter_client_client_code'),
+        ('clients', '0009_remove_client_check_settings'),
     ]
 
     operations = [

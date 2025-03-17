@@ -622,7 +622,7 @@ const clientsApi = {
   // 契約サービス一覧取得
   getContractServices: async () => {
     try {
-      const response = await apiClient.get('/api/contract-services/');
+      const response = await apiClient.get('/api/clients/contract-services/');
       return response.data;
     } catch (error) {
       console.error('Error fetching contract services:', error);
@@ -633,7 +633,7 @@ const clientsApi = {
   // デフォルト契約サービスの作成
   createDefaultContractServices: async () => {
     try {
-      const response = await apiClient.post('/api/contract-services/create-defaults/');
+      const response = await apiClient.post('/api/clients/contract-services/create-defaults/');
       return response.data;
     } catch (error) {
       console.error('Error creating default contract services:', error);
@@ -644,7 +644,7 @@ const clientsApi = {
   // 契約サービスの作成
   createContractService: async (serviceData) => {
     try {
-      const response = await apiClient.post('/api/contract-services/', serviceData);
+      const response = await apiClient.post('/api/clients/contract-services/', serviceData);
       return response.data;
     } catch (error) {
       console.error('Error creating contract service:', error);
@@ -655,7 +655,7 @@ const clientsApi = {
   // 契約サービスの更新
   updateContractService: async (serviceId, serviceData) => {
     try {
-      const response = await apiClient.put(`/api/contract-services/${serviceId}/`, serviceData);
+      const response = await apiClient.put(`/api/clients/contract-services/${serviceId}/`, serviceData);
       return response.data;
     } catch (error) {
       console.error('Error updating contract service:', error);
@@ -666,7 +666,7 @@ const clientsApi = {
   // 契約サービスの削除
   deleteContractService: async (serviceId) => {
     try {
-      const response = await apiClient.delete(`/api/contract-services/${serviceId}/`);
+      const response = await apiClient.delete(`/api/clients/contract-services/${serviceId}/`);
       return response.data;
     } catch (error) {
       console.error('Error deleting contract service:', error);
@@ -678,7 +678,7 @@ const clientsApi = {
   // クライアントの契約一覧取得
   getClientContracts: async (clientId) => {
     try {
-      const response = await apiClient.get('/api/client-contracts/client/', {
+      const response = await apiClient.get('/api/clients/client-contracts/client/', {
         params: { client_id: clientId }
       });
       return response.data;
@@ -691,7 +691,7 @@ const clientsApi = {
   // 契約の詳細を取得
   getContract: async (contractId) => {
     try {
-      const response = await apiClient.get(`/api/client-contracts/${contractId}/`);
+      const response = await apiClient.get(`/api/clients/client-contracts/${contractId}/`);
       return response.data;
     } catch (error) {
       console.error('Error fetching contract details:', error);
@@ -702,7 +702,7 @@ const clientsApi = {
   // 契約の作成
   createContract: async (contractData) => {
     try {
-      const response = await apiClient.post('/api/client-contracts/', contractData);
+      const response = await apiClient.post('/api/clients/client-contracts/', contractData);
       return response.data;
     } catch (error) {
       console.error('Error creating contract:', error);
@@ -713,7 +713,7 @@ const clientsApi = {
   // 契約の更新
   updateContract: async (contractId, contractData) => {
     try {
-      const response = await apiClient.put(`/api/client-contracts/${contractId}/`, contractData);
+      const response = await apiClient.put(`/api/clients/client-contracts/${contractId}/`, contractData);
       return response.data;
     } catch (error) {
       console.error('Error updating contract:', error);
@@ -724,7 +724,7 @@ const clientsApi = {
   // 契約の削除
   deleteContract: async (contractId) => {
     try {
-      const response = await apiClient.delete(`/api/client-contracts/${contractId}/`);
+      const response = await apiClient.delete(`/api/clients/client-contracts/${contractId}/`);
       return response.data;
     } catch (error) {
       console.error('Error deleting contract:', error);
