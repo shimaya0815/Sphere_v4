@@ -6,7 +6,7 @@ const clientsApi = {
   getClients: async (filters = {}) => {
     try {
       console.log('API - Fetching clients with filters:', filters);
-      const response = await apiClient.get('/api/clients/', { params: filters });
+      const response = await apiClient.get('/api/clients/clients/', { params: filters });
       console.log('API - Client response structure:', {
         hasData: !!response.data,
         dataType: response.data ? typeof response.data : 'undefined',
