@@ -194,7 +194,7 @@ class TaskSerializer(serializers.ModelSerializer):
             'approver', 'approver_name', 'created_at', 'updated_at',
             'due_date', 'start_date', 'completed_at', 'estimated_hours', 
             'client', 'client_name', 'client_data',
-            'is_fiscal_task', 'fiscal_year', 'fiscal_year_data', 'fiscal_period',  
+            'fiscal_year', 'fiscal_year_data', 'fiscal_period',  
             'is_recurring', 'recurrence_pattern', 'recurrence_end_date', 
             'is_template', 'template_name', 'weekday', 'weekdays', 'monthday', 'business_day'
         ]

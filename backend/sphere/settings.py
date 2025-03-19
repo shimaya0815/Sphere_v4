@@ -174,41 +174,18 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# CORS設定（この部分は下部に統合しました）
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
-
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-# User model
-AUTH_USER_MODEL = 'users.User'
-
-# REST Framework
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework.authentication.TokenAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
-    ),
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
-    ],
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 10,
-}
-
 # CORS設定
-# Dockerとローカル開発の両方に対応するCORS設定
+# Docker環境用のCORS設定
 CORS_ALLOWED_ORIGINS = [
-    # ローカル開発環境
+    # Docker環境（優先）
+    "http://frontend:3000",
+    "http://backend:8000",
+    "http://websocket:8001",
+    # ローカル開発環境（フォールバック）
     "http://localhost:3000",
     "http://127.0.0.1:3000", 
-    # Docker環境
-    "http://frontend:3000",
-    # バックエンドとの通信（特定のケースでのみ必要）
     "http://localhost:8000",
     "http://127.0.0.1:8000",
-    "http://backend:8000",
 ]
 
 # 基本設定
@@ -240,6 +217,26 @@ CORS_ALLOW_HEADERS = [
     "x-requested-with",
 ]
 
+# REST Framework settings
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10,
+}
+
+# Authentication settings
+AUTH_USER_MODEL = 'users.User'  # カスタムユーザーモデルを使用
+
+AUTHENTICATION_BACKENDS = (
+    'django.contrib.auth.backends.ModelBackend',  # デフォルトの認証バックエンド
+)
+
 # Djoser settings
 DJOSER = {
     'LOGIN_FIELD': 'email',
@@ -263,4 +260,5 @@ DJOSER = {
         'user': ['rest_framework.permissions.IsAuthenticated'],
         'user_list': ['rest_framework.permissions.IsAdminUser'],
     },
+    'USERNAME_FIELD': 'email',  # usernameフィールドとしてemailを使用
 }

@@ -45,8 +45,21 @@ class UserCreateSerializer(BaseUserCreateSerializer):
         fields = ('id', 'email', 'password', 'first_name', 'last_name', 'phone', 'position')
         
     def create(self, validated_data):
-        # 通常のユーザー作成
-        user = super().create(validated_data)
+        """ユーザーを作成し、ビジネスも自動で作成する"""
+        # validated_dataからusernameフィールドを削除
+        if 'username' in validated_data:
+            # usernameは内部処理のために保持しますが、Userモデルには渡しません
+            username = validated_data.pop('username')
+        else:
+            # usernameがない場合はemailを使用
+            username = validated_data.get('email')
+            
+        # UserManagerのcreate_userメソッドを呼び出す
+        # usernameを明示的に第1引数として渡す
+        user = User.objects.create_user(
+            username=username,
+            **validated_data
+        )
         
         # ユーザー用のビジネスを自動作成
         from business.models import Business
@@ -59,7 +72,7 @@ class UserCreateSerializer(BaseUserCreateSerializer):
             owner=user
         )
         
-        # ユーザーにビジネスを割り当て
+        # ユーザーとビジネスを関連付け
         user.business = business
         user.save()
         

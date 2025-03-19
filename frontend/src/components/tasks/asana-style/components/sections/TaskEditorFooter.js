@@ -5,7 +5,7 @@ import { HiOutlineTrash } from 'react-icons/hi';
  * TaskEditorのフッター部分（保存ボタン、キャンセルボタン、削除ボタン）
  */
 const TaskEditorFooter = ({
-  isNewTask,
+  isNewTask = false,
   task,
   onClose,
   handleSubmit,
@@ -17,7 +17,7 @@ const TaskEditorFooter = ({
     <div className="flex-shrink-0 px-4 py-4 border-t border-gray-200 flex justify-between">
       {/* 左側：削除ボタン（新規作成時は非表示） */}
       <div>
-        {!isNewTask && task && (
+        {!isNewTask && task && handleDeleteConfirm && (
           <button
             type="button"
             className="bg-white py-2 px-4 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
@@ -38,15 +38,25 @@ const TaskEditorFooter = ({
         >
           キャンセル
         </button>
-        <button
-          type="button"
-          className="bg-primary-600 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-          onClick={handleSubmit(submitTask)}
-          disabled={saveState === 'saving'}
-        >
-          {isNewTask ? '作成' : '保存'}
-          {saveState === 'saving' && '中...'}
-        </button>
+        {handleSubmit && submitTask ? (
+          <button
+            type="button"
+            className="bg-primary-600 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+            onClick={handleSubmit(submitTask)}
+            disabled={saveState === 'saving'}
+          >
+            {isNewTask ? '作成' : '保存'}
+            {saveState === 'saving' && '中...'}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="bg-primary-600 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+            disabled={saveState === 'saving'}
+          >
+            {saveState === 'saved' ? '保存済み' : (saveState === 'saving' ? '保存中...' : '保存')}
+          </button>
+        )}
       </div>
     </div>
   );

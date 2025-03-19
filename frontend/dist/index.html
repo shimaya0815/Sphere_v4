@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0ea5e9" />
+    <meta
+      name="description"
+      content="Sphere - タスク管理・チャット・クライアント管理が一つにまとまった業務効率化ツール"
+    />
+    <link rel="apple-touch-icon" href="/logo192.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <title>Sphere - ビジネス管理ツール</title>
+    <!-- 環境変数をウィンドウオブジェクトに注入するためのスクリプト -->
+    <script>
+      window.ENV = {
+        REACT_APP_API_URL: "http://backend:8000",
+        REACT_APP_WS_URL: "http://localhost:8001",
+        NODE_ENV: "development"
+      };
+    </script>
+    <!-- ルートベースパスの設定 -->
+    <base href="/">
+    <!-- SPAのための404リダイレクトヘルパー -->
+    <script>
+      // SPAルーティングのためのヘルパー関数
+      (function() {
+        // フロントエンドのルート
+        const frontendRoutes = [
+          '/dashboard',
+          '/tasks',
+          '/clients',
+          '/chat',
+          '/wiki',
+          '/time-management',
+          '/profile'
+        ];
+        
+        const path = window.location.pathname;
+        
+        // APIリクエストではなく、フロントエンドルートへのアクセスである場合
+        if (!path.startsWith('/api/') && !path.startsWith('/auth/')) {
+          // フロントエンドのルートに一致するかチェック
+          const isAppRoute = frontendRoutes.some(route => 
+            path === route || path.startsWith(route + '/')
+          );
+          
+          if (isAppRoute && document.getElementById('root')) {
+            console.log('SPAルートを処理: ' + path);
+            // このページがSPAルートであることをマークする
+            window.__isSpaRoute = true;
+          }
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <noscript>このアプリを実行するには、JavaScriptを有効にしてください。</noscript>
+    <div id="root"></div>
+  </body>
+</html>

@@ -6,13 +6,13 @@ import { Controller } from 'react-hook-form';
  */
 const TaskBasicInfoSection = ({ 
   control, 
-  statuses, 
-  categories, 
-  clients, 
-  fiscalYears,
-  formState,
+  statuses = [], 
+  categories = [], 
+  clients = [], 
+  fiscalYears = [],
+  formState = {},
   handleFieldChange,
-  watch
+  watch = () => null
 }) => {
   const selectClassName = "mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md";
   const inputClassName = "mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md";
@@ -21,7 +21,7 @@ const TaskBasicInfoSection = ({
   const selectedClientId = watch('client');
   
   // 選択されたクライアントに関連する決算期を取得
-  const filteredFiscalYears = selectedClientId 
+  const filteredFiscalYears = selectedClientId && fiscalYears
     ? fiscalYears.filter(fy => fy.client === parseInt(selectedClientId)) 
     : [];
 
@@ -49,7 +49,7 @@ const TaskBasicInfoSection = ({
                   }}
                 >
                   <option value="">選択してください</option>
-                  {statuses.map((status) => (
+                  {Array.isArray(statuses) && statuses.map((status) => (
                     <option key={status.id} value={status.id}>
                       {status.name}
                     </option>
@@ -117,7 +117,7 @@ const TaskBasicInfoSection = ({
                     }}
                   >
                     <option value="">カテゴリーなし</option>
-                    {categories.map((category) => (
+                    {Array.isArray(categories) && categories.map((category) => (
                       <option key={category.id} value={category.id} data-color={category.color || '#6366F1'}>
                         {category.name}
                       </option>
@@ -158,7 +158,7 @@ const TaskBasicInfoSection = ({
                   }}
                 >
                   <option value="">クライアントなし</option>
-                  {clients.map((client) => (
+                  {Array.isArray(clients) && clients.map((client) => (
                     <option key={client.id} value={client.id}>
                       {client.name}
                     </option>
@@ -191,7 +191,7 @@ const TaskBasicInfoSection = ({
                   }}
                 >
                   <option value="">決算期なし</option>
-                  {filteredFiscalYears.map((fiscalYear) => (
+                  {Array.isArray(filteredFiscalYears) && filteredFiscalYears.map((fiscalYear) => (
                     <option key={fiscalYear.id} value={fiscalYear.id}>
                       {fiscalYear.end_date 
                         ? fiscalYear.end_date.substring(0, 10) // YYYY-MM-DD形式で表示

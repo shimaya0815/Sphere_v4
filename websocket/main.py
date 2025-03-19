@@ -16,15 +16,17 @@ logger = logging.getLogger(__name__)
 # FastAPIアプリケーションの作成
 app = FastAPI(title="Sphere Chat WebSocket Server")
 
-# CORS設定 - すべてのオリジンを明示的に許可
-# 開発環境用に明示的にlocalhostを追加
+# CORS設定 - Docker環境用のサービス名を優先
 specific_origins = [
+    # Docker環境用（優先）
+    "http://frontend:3000",
+    "http://backend:8000",
+    "http://websocket:8001",
+    # 直接アクセス用（フォールバック）
     "http://localhost:3000",
     "http://127.0.0.1:3000", 
     "http://0.0.0.0:3000",
-    "http://frontend:3000",
     "http://localhost:8000",
-    "http://backend:8000",
     "http://localhost",
     "http://127.0.0.1",
     "http://0.0.0.0",

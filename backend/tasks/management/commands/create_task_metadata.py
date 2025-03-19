@@ -27,10 +27,6 @@ class Command(BaseCommand):
             TaskStatus.create_defaults(business)
             self.stdout.write(self.style.SUCCESS(f'Created default task statuses for {business.name}'))
             
-            # Create default priorities
-            TaskPriority.create_defaults(business)
-            self.stdout.write(self.style.SUCCESS(f'Created default task priorities for {business.name}'))
-            
             # Create some example tasks if none exist
             if not Task.objects.filter(business=business).exists():
                 self.create_example_tasks(business)

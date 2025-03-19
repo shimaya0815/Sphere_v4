@@ -87,7 +87,6 @@ class BusinessAuthTokenView(APIView):
             from clients.models import TaskTemplateSchedule, ClientTaskTemplate
             TaskCategory.create_defaults(business)
             TaskStatus.create_defaults(business)
-            TaskPriority.create_defaults(business)
             
             # デフォルトのタスクテンプレートを作成
             try:
@@ -110,21 +109,24 @@ class BusinessAuthTokenView(APIView):
                         schedule_type="monthly_start",
                         recurrence="monthly",
                         creation_day=1,
-                        deadline_day=10
+                        deadline_day=10,
+                        business=business
                     ),
                     "quarterly": TaskTemplateSchedule.objects.create(
                         name="四半期スケジュール",
                         schedule_type="quarterly",
                         recurrence="quarterly",
                         creation_day=1,
-                        deadline_day=15
+                        deadline_day=15,
+                        business=business
                     ),
                     "yearly": TaskTemplateSchedule.objects.create(
                         name="年次スケジュール",
                         schedule_type="yearly",
                         recurrence="yearly",
                         creation_day=1,
-                        deadline_day=28
+                        deadline_day=28,
+                        business=business
                     )
                 }
                 
@@ -381,7 +383,6 @@ class UserCreateView(APIView):
                         from tasks.models import TaskCategory, TaskStatus, TaskPriority
                         TaskCategory.create_defaults(business)
                         TaskStatus.create_defaults(business)
-                        TaskPriority.create_defaults(business)
                         
                         # デフォルトのタスクテンプレートを作成
                         try:

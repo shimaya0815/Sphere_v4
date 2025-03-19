@@ -13,13 +13,29 @@ if (process.env.NODE_ENV === 'development') {
   console.log(`Build timestamp: ${window.BUILD_TIMESTAMP}`);
 }
 
-// 開発モードのデバッグ支援：デモトークンを自動的に設定
+// 開発環境でのデバッグ情報
 if (process.env.NODE_ENV === 'development') {
-  const demoToken = '039542700dd3bcf213ff82e652f6b396d2775049';
-  if (!localStorage.getItem('token')) {
-    console.log('Setting demo token for development:', demoToken);
-    localStorage.setItem('token', demoToken);
+  // 認証情報の確認（削除はしない）
+  const hasToken = !!localStorage.getItem('token');
+  const hasBusinessId = !!localStorage.getItem('business_id');
+  console.log('認証状態:', {
+    hasToken,
+    hasBusinessId,
+    path: window.location.pathname
+  });
+  
+  // 自動ログイン設定は必要に応じて設定可能
+  /*
+  // 認証情報が完全に欠けている場合のみ、デバッグ用トークンを設定する
+  if (!hasToken && !hasBusinessId) {
+    console.log('認証情報がないため、デバッグ用トークンを設定します');
+    const devToken = 'e1e0d7936e26b75695cbb2a99c458eacdd70220d'; // adminユーザーのトークン
+    const devBusinessId = '3'; // 正しいビジネスID（Admin Business）
+    
+    localStorage.setItem('token', devToken);
+    localStorage.setItem('business_id', devBusinessId);
   }
+  */
 }
 
 const queryClient = new QueryClient();

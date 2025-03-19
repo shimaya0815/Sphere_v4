@@ -4,7 +4,7 @@ import { HiOutlinePaperClip } from 'react-icons/hi';
 import DOMPurify from 'dompurify';
 import toast from 'react-hot-toast';
 import tasksApi from '../../api/tasks';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 
 // インラインスタイル
 const styles = {

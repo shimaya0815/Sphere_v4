@@ -13,20 +13,26 @@ services:
     depends_on:
       - backend
       - websocket
+    deploy:
+      resources:
+        limits:
+          memory: 2G
     environment:
       - NODE_ENV=development
       - REACT_APP_API_URL=http://backend:8000
-      - REACT_APP_WS_URL=http://localhost:8001
+      - REACT_APP_WS_URL=http://websocket:8001
       - SOCKET_HOST=websocket:8001
       - WDS_SOCKET_PORT=0
       - CHOKIDAR_USEPOLLING=true
       - HOST=0.0.0.0
       - DANGEROUSLY_DISABLE_HOST_CHECK=true
+      - PROXY_TIMEOUT=120000
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
       - default
       - frontend-network
+      - backend-network
 
   backend:
     build:
@@ -38,18 +44,27 @@ services:
       - ./backend:/app
     depends_on:
       - db
+    deploy:
+      resources:
+        limits:
+          memory: 2G
     environment:
       - DEBUG=True
       - SECRET_KEY=dev_secret_key
-      - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,backend,backend:8000,host.docker.internal,testserver
+      - DJANGO_ALLOWED_HOSTS=backend,frontend,websocket,db,localhost,127.0.0.1,host.docker.internal,testserver
       - DATABASE_URL=postgres://postgres:postgres@db:5432/sphere
     command: >
       sh -c "python manage.py wait_for_db &&
              python manage.py makemigrations &&
-             python manage.py migrate &&
+             python manage.py migrate --noinput &&
+             echo 'from users.models import User; User.objects.filter(email=\"admin@example.com\").exists() or User.objects.create_superuser(\"admin@example.com\", \"adminpassword\")' | python manage.py shell &&
              python manage.py runserver 0.0.0.0:8000"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - default
+      - backend-network
+      - frontend-network
 
   websocket:
     build:
@@ -61,14 +76,19 @@ services:
       - ./websocket:/app
     depends_on:
       - db
+    deploy:
+      resources:
+        limits:
+          memory: 1G
     environment:
       - DATABASE_URL=postgres://postgres:postgres@db:5432/sphere
-      - CORS_ORIGINS=http://localhost:3000,http://frontend:3000,http://localhost:8000,http://backend:8000
+      - CORS_ORIGINS=http://frontend:3000,http://backend:8000,http://websocket:8001
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
       - default
       - frontend-network
+      - backend-network
 
   db:
     image: postgres:14
@@ -84,7 +104,10 @@ services:
 volumes:
   postgres_data:
 
+
 networks:
   default:
   frontend-network:
+    driver: bridge
+  backend-network:
     driver: bridge

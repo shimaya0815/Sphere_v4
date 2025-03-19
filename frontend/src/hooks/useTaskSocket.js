@@ -18,7 +18,7 @@ const useTaskSocket = (taskId) => {
     disconnect
   } = useSocketIO({
     // 接続URLを明示的に指定
-    socketUrl: 'http://localhost:8001',
+    socketUrl: 'http://websocket:8001',
     autoConnect: Boolean(taskId && currentUser),
     onConnect: () => {
       console.log(`Connected to task socket for task ${taskId}`);

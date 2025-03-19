@@ -9,11 +9,11 @@ import toast from 'react-hot-toast';
  */
 const TaskAssigneeSection = ({ 
   task, 
-  users, 
+  users = [], 
   control, 
   handleFieldChange,
-  formState,
-  watch
+  formState = {},
+  watch = () => null
 }) => {
   const selectClassName = "mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md";
 
@@ -27,7 +27,7 @@ const TaskAssigneeSection = ({
         <h3 className="text-md font-medium text-gray-700 mb-2">担当者</h3>
         
         {/* 現在の担当者表示 (編集時のみ) */}
-        {task && !formState.isDirty && (
+        {task && formState && !formState.isDirty && (
           <div className="flex items-start space-x-4 mb-4">
             <CurrentAssignee 
               label="作業者"
@@ -69,7 +69,7 @@ const TaskAssigneeSection = ({
                     }}
                   >
                     <option value="">担当者なし</option>
-                    {users.map((user) => (
+                    {Array.isArray(users) && users.map((user) => (
                       <option key={user.id} value={user.id}>
                         {user.first_name} {user.last_name}
                       </option>
@@ -102,7 +102,7 @@ const TaskAssigneeSection = ({
                     }}
                   >
                     <option value="">担当者なし</option>
-                    {users.map((user) => (
+                    {Array.isArray(users) && users.map((user) => (
                       <option key={user.id} value={user.id}>
                         {user.first_name} {user.last_name}
                       </option>

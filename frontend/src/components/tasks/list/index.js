@@ -207,44 +207,33 @@ const TaskList = forwardRef((props, ref) => {
       const userSelectedFilter = filters.assignee === '' || filters.assignee === 'unassigned';
       if (currentUser?.id && !cleanFilters.assignee && !userSelectedFilter) {
         cleanFilters.assignee = currentUser.id;
-        console.log('🚨 担当者フィルターが未設定のため、現在のユーザーIDを設定しました:', currentUser.id);
       }
       
       // hide_completedフィルターを処理 (APIに送信せず、クライアント側でフィルターする)
       const hideCompleted = filters.hide_completed;
       delete cleanFilters.hide_completed;
       
-      console.log('🔍 最終的なフィルター設定:', cleanFilters, 'クライアント側完了タスク非表示:', hideCompleted);
-      console.log('⭐⭐⭐ Fetching tasks with filters:', cleanFilters);
-      console.log('⭐⭐⭐ Using API endpoint: /api/tasks/');
-      console.group('Task API Request Debugging');
-      
+      // 不要なデバッグログを削減
       let fetchedTasks = [];
       
       try {
         // APIリクエスト
         const response = await tasksApi.getTasks(cleanFilters);
-        console.log('API Response full:', response);
         
         // API応答チェック
         if (response && Array.isArray(response.results)) {
-          console.log('Using API response results array:', response.results.length);
           fetchedTasks = response.results;
           setError(null);
         } else if (Array.isArray(response)) {
-          console.log('Using raw API response array:', response.length);
           fetchedTasks = response;
           setError(null);
         } else if (response && typeof response === 'object' && Object.keys(response).length > 0) {
-          console.warn('API response format unexpected:', response);
           if (response.results && response.results.length === 0) {
             // 結果が空の場合は空のタスク配列を設定
-            console.log('Empty results from API');
             fetchedTasks = [];
             setError(null);
           } else {
             // 形式は想定外だが何かデータはある
-            console.log('Using unexpected API response format as fallback');
             if (response.detail) {
               // エラーメッセージがある場合
               console.error('API returned error:', response.detail);
@@ -277,7 +266,6 @@ const TaskList = forwardRef((props, ref) => {
               (task.status_data && task.status_data.name === '完了');
             return !isCompleted;
           });
-          console.log('完了タスクを非表示にしました:', fetchedTasks.length);
         }
         
         // タスクデータを設定
@@ -287,8 +275,6 @@ const TaskList = forwardRef((props, ref) => {
         setError('APIリクエストが失敗しました');
         updateTasks([]);
       }
-      
-      console.groupEnd();
     } catch (error) {
       console.error('タスクの取得中にエラーが発生しました:', error);
       setError('タスクの取得に失敗しました');
@@ -329,26 +315,28 @@ const TaskList = forwardRef((props, ref) => {
   useEffect(() => {
     if (currentUser?.id) {
       console.log('🔄 初期読み込み時に現在のユーザーID確認:', currentUser.id);
-      fetchTasks();
-      fetchUsers(); // ユーザー一覧を取得
-      fetchClients(); // クライアント一覧を取得
+      // 初期化処理を並列で実行
+      Promise.all([
+        fetchTasks(),
+        fetchUsers(),
+        fetchClients()
+      ]);
       
-      // 冗長性のために第2の初期ロードを実施 (APIが安定するまでの一時的な対策)
-      const retryTimeout = setTimeout(() => {
-        console.log('Retry fetchTasks after timeout');
-        fetchTasks();
-      }, 1500);
-      
-      return () => clearTimeout(retryTimeout);
+      // 冗長な二重ロードを削除（パフォーマンス改善）
+      setInitialized(true);
     }
   }, [currentUser?.id]);
   
-  // フィルターが変更されたときにタスクを再取得
+  // フィルター変更時のタスク取得（debounce処理を追加）
   useEffect(() => {
-    console.log('Filters changed, fetching tasks with:', filters);
-    if (initialized) {
+    if (!initialized) return;
+    
+    // 300msのデバウンスを追加してフィルター変更時の連続API呼び出しを防止
+    const debounceTimer = setTimeout(() => {
       fetchTasks();
-    }
+    }, 300);
+    
+    return () => clearTimeout(debounceTimer);
   }, [filters, initialized]);
 
   // タスク更新イベントの監視

@@ -12,7 +12,7 @@ const SHARED_SOCKET = {
 // 接続URL取得のヘルパー関数
 function getSocketServerUrl() {
   if (process.env.NODE_ENV === 'development') {
-    return 'http://localhost:8001';
+    return 'http://websocket:8001';
   } else if (window.ENV && window.ENV.REACT_APP_WS_URL) {
     return window.ENV.REACT_APP_WS_URL;
   } else if (process.env.REACT_APP_WS_URL) {

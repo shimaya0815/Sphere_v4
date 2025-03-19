@@ -9,7 +9,6 @@
       name="description"
       content="Sphere - タスク管理・チャット・クライアント管理が一つにまとまった業務効率化ツール"
     />
-    <meta name="build-version" content="<%=Date.now()%>"/>
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,7 +19,7 @@
     <script>
       window.ENV = {
         REACT_APP_API_URL: "http://backend:8000",
-        REACT_APP_WS_URL: "http://localhost:8001",
+        REACT_APP_WS_URL: "http://websocket:8001",
         NODE_ENV: "development"
       };
     </script>

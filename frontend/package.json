@@ -9,6 +9,7 @@
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.6.0",
+    "connect-history-api-fallback": "^2.0.0",
     "daisyui": "^3.9.4",
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.10",
@@ -30,6 +31,7 @@
     "recharts": "^2.9.2",
     "remark-gfm": "^4.0.1",
     "socket.io-client": "^4.8.1",
+    "styled-components": "^6.1.15",
     "web-vitals": "^2.1.4"
   },
   "scripts": {

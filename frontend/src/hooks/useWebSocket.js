@@ -68,25 +68,29 @@ const useWebSocket = (url, options = {}) => {
     
     // 代替接続URLのリスト - 優先順位をプロキシ経由に変更
     const proxyUrls = [
-      // フルパスを構築（/wsプレフィックスなし）- 最も信頼性の高い方法
-      `${protocol}//${window.location.host}/${resourceType}/${channelId}/`,
-      
-      // フルパスを構築（/ws/プレフィックス付き）- プロキシ経由
+      // 開発環境でのWebSocket接続 - ローカルホスト経由で接続（最も信頼性が高い）
       `${protocol}//${window.location.host}/ws/${resourceType}/${channelId}/`,
+      
+      // 代替パス - socket.ioパス
+      `${protocol}//${window.location.host}/socket.io/?EIO=4&transport=websocket`,
+      
+      // 単純なプロキシパス
+      `${protocol}//${window.location.host}/ws`,
       
       // URLがws://またはwss://で始まる場合
       wsUrl.startsWith('ws://') || wsUrl.startsWith('wss://') ? wsUrl : null
     ].filter(Boolean); // nullの項目を除外
     
+    // Docker内からの直接接続を試行（最低優先度）
     const directUrls = [
       // WebSocketサーバーのホスト名を直接指定（Docker内部ネットワーク用）
       `${protocol}//websocket:8001/ws/${resourceType}/${channelId}/`,
       
       // ループバックアドレスで試行（開発環境用）
-      `${protocol}//localhost:8001/ws/${resourceType}/${channelId}/`,
+      `${protocol}//127.0.0.1:8001/ws/${resourceType}/${channelId}/`,
       
       // IPアドレスで直接接続
-      `${protocol}//127.0.0.1:8001/ws/${resourceType}/${channelId}/`,
+      `${protocol}//localhost:8001/ws/${resourceType}/${channelId}/`,
       
       // host.docker.internalを使用 - Docker内からホストIPにアクセス
       `${protocol}//host.docker.internal:8001/ws/${resourceType}/${channelId}/`
@@ -99,8 +103,7 @@ const useWebSocket = (url, options = {}) => {
     const uniqueFallbackUrls = [...new Set(fallbackUrls)];
     
     // Docker環境検出（開発モード）
-    const isDockerEnvironment = window.location.hostname === 'localhost' || 
-                               window.location.hostname === '127.0.0.1';
+    const isDockerEnvironment = true; // Docker環境で実行するため常にtrue
     
     console.log(`🔍 環境検出: ${isDockerEnvironment ? 'Docker開発環境' : '本番環境'}`);
     
@@ -212,8 +215,8 @@ const useWebSocket = (url, options = {}) => {
                   // プロキシ経由の接続を優先する（最も信頼性が高い）
                   const proxyConnections = fallbacks.filter(url => 
                     url.includes(window.location.host) && 
-                    !url.includes('localhost:8001') && 
-                    !url.includes('127.0.0.1:8001')
+                    !url.includes('websocket:8001') && 
+                    !url.includes('websocket:8001')
                   );
                   
                   const directConnections = fallbacks.filter(url => 
@@ -436,8 +439,8 @@ const useWebSocket = (url, options = {}) => {
                 // プロキシ経由の接続を優先する（最も信頼性が高い）
                 const proxyConnections = fallbacks.filter(url => 
                   url.includes(window.location.host) && 
-                  !url.includes('localhost:8001') && 
-                  !url.includes('127.0.0.1:8001')
+                  !url.includes('websocket:8001') && 
+                  !url.includes('websocket:8001')
                 );
                 
                 const directConnections = fallbacks.filter(url => 

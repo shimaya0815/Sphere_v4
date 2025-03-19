@@ -22,7 +22,7 @@ const useSimpleSocketIO = () => {
     try {
       // 接続URLs (優先度順)
       const urls = [
-        'http://localhost:8001', // 直接WebSocketサーバーへ
+        'http://websocket:8001', // 直接WebSocketサーバーへ
         window.location.protocol + '//' + window.location.hostname + ':8001', // フルURL
         '/socket.io' // プロキシ経由
       ];
@@ -48,10 +48,10 @@ const useSimpleSocketIO = () => {
       };
       
       // URL形式に基づいてパスを設定
-      if (useUrl.startsWith('http://localhost:8001') || useUrl.includes('localhost:8001')) {
-        // localhost:8001への直接接続の場合
+      if (useUrl.startsWith('http://websocket:8001') || useUrl.includes('websocket:8001')) {
+        // websocket:8001への直接接続の場合
         socketOptions.path = '/socket.io/';
-        console.log('Socket.IO: localhostへの直接接続を使用');
+        console.log('Socket.IO: websocketへの直接接続を使用');
       } else if (useUrl.startsWith('/')) {
         // 相対パスの場合
         socketOptions.path = useUrl;

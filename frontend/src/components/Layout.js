@@ -13,7 +13,8 @@ import {
   HiOutlineMenu,
   HiOutlineX,
   HiOutlineChevronLeft,
-  HiOutlineChevronRight 
+  HiOutlineChevronRight,
+  HiOutlineTemplate
 } from 'react-icons/hi';
 
 const Layout = () => {
@@ -35,6 +36,7 @@ const Layout = () => {
   const navItems = [
     { path: '/dashboard', label: 'ダッシュボード', icon: <HiOutlineChartBar className="w-5 h-5" /> },
     { path: '/tasks', label: 'タスク管理', icon: <HiOutlineClipboardCheck className="w-5 h-5" /> },
+    { path: '/tasks/templates', label: 'タスクテンプレート', icon: <HiOutlineTemplate className="w-5 h-5" /> },
     { path: '/clients', label: 'クライアント', icon: <HiOutlineUserGroup className="w-5 h-5" /> },
     // チャット機能は一時的に無効
     { path: '/wiki', label: 'ナレッジ', icon: <HiOutlineDocumentText className="w-5 h-5" /> },

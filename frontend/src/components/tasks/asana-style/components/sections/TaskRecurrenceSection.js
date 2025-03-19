@@ -4,9 +4,12 @@ import { HiOutlineRefresh } from 'react-icons/hi';
 
 const TaskRecurrenceSection = ({ 
   control, 
-  handleFieldChange, 
-  watch,
+  handleFieldChange,
+  inputClassName = "",
+  selectClassName = "", 
+  watch = () => null,
   setValue,
+  formState = {},
   task  // タスクオブジェクト
 }) => {
   const isRecurring = watch('is_recurring');

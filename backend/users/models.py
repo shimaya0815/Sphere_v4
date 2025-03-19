@@ -9,19 +9,32 @@ from django.dispatch import receiver
 class UserManager(BaseUserManager):
     """Manager for custom user model."""
     
-    def create_user(self, email, password=None, **extra_fields):
+    def create_user(self, username=None, email=None, password=None, **extra_fields):
         """Create, save and return a new user."""
+        # username引数が渡されても、emailフィールドが必須
         if not email:
-            raise ValueError(_('The Email field must be set'))
+            if username and '@' in username:
+                email = username  # usernameがメールアドレスの形式なら、emailとして使用
+            else:
+                raise ValueError(_('The Email field must be set'))
         
+        # usernameが設定されていなければemailをusernameとして使用
+        if not username:
+            username = email
+            
         email = self.normalize_email(email)
+        
+        # ここで重要な変更：usernameをextra_fieldsから削除
+        if 'username' in extra_fields:
+            del extra_fields['username']
+            
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         
         return user
     
-    def create_superuser(self, email, password=None, **extra_fields):
+    def create_superuser(self, username=None, email=None, password=None, **extra_fields):
         """Create and return a new superuser."""
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
@@ -32,11 +45,46 @@ class UserManager(BaseUserManager):
         if extra_fields.get('is_superuser') is not True:
             raise ValueError(_('Superuser must have is_superuser=True.'))
         
-        return self.create_user(email, password, **extra_fields)
+        # usernameがなければemail、どちらもなければエラー
+        if not username and not email:
+            raise ValueError(_('Either username or email must be set'))
+        elif not email and username:
+            # usernameからemailを推測（メールアドレス形式なら）
+            if '@' in username:
+                email = username
+            else:
+                email = f"{username}@example.com"  # ダミーのメールアドレス
+        
+        # usernameをextra_fieldsから削除して、create_userを呼び出す
+        if 'username' in extra_fields:
+            del extra_fields['username']
+            
+        return self.create_user(username, email, password, **extra_fields)
 
 
 class User(AbstractBaseUser, PermissionsMixin):
     """Custom user model that uses email instead of username."""
+    
+    # ManyToManyFieldsの関連名を上書きしてDjangoの標準Userモデルとの衝突を防ぐ
+    groups = models.ManyToManyField(
+        'auth.Group',
+        verbose_name=_('groups'),
+        blank=True,
+        help_text=_(
+            'The groups this user belongs to. A user will get all permissions '
+            'granted to each of their groups.'
+        ),
+        related_name='user_custom_set',  # 関連名を変更
+        related_query_name='user',
+    )
+    user_permissions = models.ManyToManyField(
+        'auth.Permission',
+        verbose_name=_('user permissions'),
+        blank=True,
+        help_text=_('Specific permissions for this user.'),
+        related_name='user_custom_set',  # 関連名を変更
+        related_query_name='user',
+    )
     
     email = models.EmailField(_('email address'), unique=True)
     first_name = models.CharField(_('first name'), max_length=150, blank=True)

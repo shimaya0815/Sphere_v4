@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import ReactQuill from 'react-quill';
+import React, { useState, useEffect, useRef, useMemo, forwardRef } from 'react';
+import ReactQuill, { Quill } from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { HiCodeBracket, HiLink, HiListBullet, HiPhoto } from 'react-icons/hi2';
 import { HiOutlinePencil } from 'react-icons/hi';
@@ -15,6 +15,11 @@ const CustomFormats = [
   'image'
 ];
 
+// ReactQuillをforwardRefでラップして、findDOMNodeの使用を回避
+const QuillEditor = forwardRef((props, ref) => {
+  return <ReactQuill ref={ref} {...props} />;
+});
+
 /**
  * Slackスタイルのリッチテキストエディタ
  * - リアルタイムフォーマット適用
@@ -26,6 +31,7 @@ const TaskDescriptionEditor = ({ value, onChange }) => {
   // 内部状態
   const [editorContent, setEditorContent] = useState(value || '');
   const quillRef = useRef(null);
+  const editorRef = useRef(null);
 
   // エディタ設定 (シンプルなツールバーのみを使用)
   const simpleToolbar = [
@@ -466,7 +472,7 @@ const TaskDescriptionEditor = ({ value, onChange }) => {
           }
         `}
       </style>
-      <ReactQuill
+      <QuillEditor
         ref={quillRef}
         value={editorContent}
         onChange={handleChange}

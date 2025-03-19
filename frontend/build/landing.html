@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0ea5e9" />
+    <meta
+      name="description"
+      content="Sphere - タスク管理・チャット・クライアント管理が一つにまとまった業務効率化ツール"
+    />
+    <link rel="manifest" href="/manifest.json" />
+    <title>Sphere - ビジネス管理ツール</title>
+    <!-- CSS と基本スタイル -->
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        margin: 0;
+        padding: 0;
+        background: #f8f9fa;
+      }
+      .navbar {
+        background: #0ea5e9;
+        color: white;
+        padding: 1rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      .navbar-brand {
+        font-size: 1.5rem;
+        font-weight: bold;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 1rem;
+      }
+      .card {
+        background: white;
+        border-radius: 0.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+      }
+      h1, h2, h3 {
+        margin-top: 0;
+        color: #1e3a8a;
+      }
+      .btn {
+        display: inline-block;
+        background: #0ea5e9;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.375rem;
+        text-decoration: none;
+        font-weight: 500;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn:hover {
+        background: #0284c7;
+        transform: translateY(-1px);
+      }
+      .btn-outline {
+        background: transparent;
+        color: #0ea5e9;
+        border: 1px solid #0ea5e9;
+      }
+      .btn-outline:hover {
+        background: #f0f9ff;
+      }
+      .feature {
+        display: flex;
+        margin-bottom: 1.5rem;
+        align-items: center;
+      }
+      .feature-icon {
+        width: 48px;
+        height: 48px;
+        background: #f0f9ff;
+        border-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        color: #0ea5e9;
+        font-size: 1.5rem;
+      }
+      .footer {
+        margin-top: 3rem;
+        padding: 2rem 0;
+        background: #f1f5f9;
+        text-align: center;
+        color: #64748b;
+        font-size: 0.875rem;
+      }
+      .maintenance-banner {
+        background: #fef3c7;
+        border: 1px solid #fbbf24;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        border-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+      }
+      .maintenance-icon {
+        margin-right: 1rem;
+        font-size: 1.5rem;
+        color: #b45309;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+      }
+      @media (max-width: 768px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="navbar">
+      <div class="navbar-brand">Sphere</div>
+    </div>
+    
+    <div class="container">
+      <div class="maintenance-banner">
+        <div class="maintenance-icon">⚠️</div>
+        <div>
+          <strong>メンテナンス中:</strong> 現在、Sphereアプリケーションは更新作業中です。しばらくお待ちください。
+        </div>
+      </div>
+      
+      <div class="card">
+        <h1>Sphere - ビジネス管理プラットフォーム</h1>
+        <p>タスク管理・チャット・クライアント管理が一つにまとまった業務効率化ツールです。</p>
+        
+        <div style="margin-top: 1.5rem;">
+          <a href="/control-panel.html" class="btn">管理パネル</a>
+          <a href="/test.html" class="btn btn-outline" style="margin-left: 0.75rem;">テストページ</a>
+        </div>
+      </div>
+      
+      <h2>主な機能</h2>
+      <div class="grid">
+        <div class="card">
+          <div class="feature">
+            <div class="feature-icon">📋</div>
+            <div>
+              <h3>タスク管理</h3>
+              <p>直感的なインターフェースでチームのタスクを管理。ステータス、期限、担当者を一目で確認。</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="card">
+          <div class="feature">
+            <div class="feature-icon">💬</div>
+            <div>
+              <h3>チャット</h3>
+              <p>リアルタイムメッセージングでチーム間のコミュニケーションを円滑に。</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="card">
+          <div class="feature">
+            <div class="feature-icon">👥</div>
+            <div>
+              <h3>クライアント管理</h3>
+              <p>クライアントデータを一元管理。重要な情報にいつでもアクセス可能。</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="card">
+          <div class="feature">
+            <div class="feature-icon">📚</div>
+            <div>
+              <h3>Wikiシステム</h3>
+              <p>チームの知識ベースを構築し、情報共有を効率化。</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="card">
+          <div class="feature">
+            <div class="feature-icon">⏱️</div>
+            <div>
+              <h3>時間管理</h3>
+              <p>作業時間を記録し、プロジェクトごとの生産性を分析。</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="card">
+          <div class="feature">
+            <div class="feature-icon">🔄</div>
+            <div>
+              <h3>繰り返しタスク</h3>
+              <p>定期的なタスクを自動生成し、手間を削減。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <p>© 2025 Sphere - ビジネス管理プラットフォーム</p>
+    </div>
+    
+    <script>
+      // ページ読み込み時にユーザーが保存されているか確認
+      document.addEventListener('DOMContentLoaded', function() {
+        console.log('Static page loaded - checking for auth token');
+        const token = localStorage.getItem('token');
+        const businessId = localStorage.getItem('business_id');
+        
+        if (token && businessId) {
+          console.log('User is authenticated, token found');
+          document.querySelector('.maintenance-banner').innerHTML += 
+            `<div style="margin-left: auto;">
+              <a href="#/dashboard" class="btn" style="margin-left: 0.75rem; padding: 0.5rem 1rem; font-size: 0.875rem;">
+                ダッシュボードへ
+              </a>
+            </div>`;
+        } else {
+          console.log('No authenticated user found');
+        }
+      });
+    </script>
+  </body>
+</html>

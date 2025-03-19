@@ -1,22 +1,25 @@
 import axios from 'axios';
 
 // フロントエンドの開発環境を検出して適切なベースURLを設定
-// 開発モード: setupProxy.js が転送するので空でOK
-// Docker環境: REACT_APP_API_URL を使用（コンテナ名）
-// その他: ローカルホストへのフォールバック
+// Docker環境では絶対URLを使用し、その他の環境では相対パスを使用
 const getBaseUrl = () => {
-  if (process.env.NODE_ENV === 'development') {
-    return ''; // 開発モードでは空のURLを使用（プロキシが処理）
+  // Docker環境の場合（ホスト名が'localhost'または'127.0.0.1'の場合）
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    // 同一オリジンでリクエストするため、ホストのURLをそのまま使用
+    return `${window.location.protocol}//${window.location.host}`;
   }
-  return process.env.REACT_APP_API_URL || 'http://localhost:8000';
+  // 本番環境などその他の場合
+  return window.location.origin;
 };
 
 const API_URL = getBaseUrl();
 
-// 最小限のログ出力
+// 設定の詳細ログ出力
 console.log('API Configuration:', {
   baseUrl: API_URL,
-  environment: process.env.NODE_ENV
+  fullUrl: `${API_URL}/api/`,
+  environment: process.env.NODE_ENV,
+  hostname: window.location.hostname
 });
 
 // CancelTokenとisCancel関数をクライアントに直接追加
@@ -55,7 +58,7 @@ const axiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 45000, // より長いタイムアウト：45秒（Socket.IOと一致）
+  timeout: 180000, // 3分のタイムアウト（大幅に延長）
   withCredentials: false, // CORSのクッキー送信は無効化
   
   // リクエスト制限を緩和
@@ -82,6 +85,22 @@ apiClient.interceptors.request.use(
     // 開発モードのみ詳細なログを出力
     if (process.env.NODE_ENV === 'development') {
       console.log(`🔍 API Request: ${config.method?.toUpperCase()} ${config.url}`);
+      
+      // 認証関連リクエストのボディデータをログ出力（機密情報は除く）
+      if (config.url && (config.url.includes('/auth/token/login/') || config.url.includes('/auth/users/'))) {
+        try {
+          const requestData = JSON.parse(config.data || '{}');
+          // パスワードを隠してログ出力
+          const sanitizedData = { ...requestData };
+          if (sanitizedData.password) {
+            sanitizedData.password = '********';
+          }
+          console.log('Auth request data:', sanitizedData);
+          console.log('Request headers:', config.headers);
+        } catch (e) {
+          console.log('Could not parse request data:', config.data);
+        }
+      }
     }
     
     return config;
