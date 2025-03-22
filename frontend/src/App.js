@@ -145,6 +145,12 @@ function App() {
               <TasksPage />
             </PrivateRoute>
           } />
+          <Route path="/tasks/templates" element={
+            <Navigate to="/task-templates" replace />
+          } />
+          <Route path="/tasks/templates/:templateId" element={
+            <Navigate to={location => `/task-templates/${location.pathname.split('/').pop()}`} replace />
+          } />
           <Route path="/task-templates" element={
             <PrivateRoute>
               <TaskTemplatesPage />

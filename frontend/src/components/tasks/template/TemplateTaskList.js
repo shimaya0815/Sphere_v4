@@ -135,7 +135,7 @@ const TemplateTaskList = () => {
         <h3 className="text-lg font-medium">{error}</h3>
         <p className="mt-2">
           <button 
-            onClick={() => navigate('/tasks/templates')}
+            onClick={() => navigate('/task-templates')}
             className="text-red-700 underline"
           >
             テンプレート一覧に戻る
@@ -154,7 +154,7 @@ const TemplateTaskList = () => {
         {/* ヘッダー部分 */}
         <div className="mb-6">
           <button 
-            onClick={() => navigate('/tasks/templates')}
+            onClick={() => navigate('/task-templates')}
             className="btn btn-ghost btn-sm mb-4"
           >
             <HiOutlineArrowLeft className="mr-2" /> テンプレート一覧に戻る
