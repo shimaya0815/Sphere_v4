@@ -349,11 +349,151 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
     setShowTaskTemplateModal(true);
   };
   
-  const handleTaskTemplateSaveComplete = () => {
-    // データ更新のロジックがあれば実装
-    toast.success('タスク設定を更新しました');
+  const handleTaskTemplateSaveComplete = async () => {
+    if (!clientId || !selectedTaskService) {
+      toast.error('クライアントIDまたはサービスタイプが不明です');
+      setShowTaskTemplateModal(false);
+      return;
+    }
+    
+    try {
+      // モーダル内のフォームから値を取得
+      const startDateInput = document.querySelector('input[name="start_date"]');
+      const endDateInput = document.querySelector('input[name="end_date"]');
+      
+      if (!startDateInput || !startDateInput.value) {
+        toast.error('開始日を入力してください');
+        return;
+      }
+      
+      const startDate = startDateInput.value;
+      const endDate = endDateInput ? endDateInput.value : null;
+      
+      // テンプレートタイトルを取得
+      const templateTitle = getDefaultTemplateTitle(selectedTaskService);
+      
+      // スケジュールタイプを選択
+      const scheduleType = {
+        advisory: 'monthly_start',
+        tax_return_final: 'fiscal_relative',
+        tax_return_interim: 'fiscal_relative',
+        tax_return_provisional: 'fiscal_relative',
+        bookkeeping: 'monthly_end',
+        payroll: 'monthly_end',
+        tax_withholding_standard: 'monthly_end',
+        tax_withholding_special: 'monthly_end',
+        resident_tax_standard: 'monthly_start',
+        resident_tax_special: 'monthly_start',
+        social_insurance: 'monthly_start',
+        other: 'monthly_start'
+      }[selectedTaskService] || 'monthly_start';
+      
+      // サイクルを選択
+      const recurrence = {
+        advisory: 'monthly',
+        tax_return_final: 'yearly',
+        tax_return_interim: 'quarterly',
+        tax_return_provisional: 'quarterly',
+        bookkeeping: 'monthly',
+        payroll: 'monthly',
+        tax_withholding_standard: 'monthly',
+        tax_withholding_special: 'monthly',
+        resident_tax_standard: 'monthly',
+        resident_tax_special: 'monthly',
+        social_insurance: 'monthly',
+        other: 'monthly'
+      }[selectedTaskService] || 'monthly';
+      
+      // スケジュールを作成または取得
+      const scheduleName = `${templateTitle}スケジュール`;
+      let scheduleId = null;
+      
+      try {
+        // 既存のスケジュールを確認
+        const schedules = await clientsApi.getTaskTemplateSchedules();
+        const existingSchedule = schedules.find(s => s.name === scheduleName);
+        
+        if (existingSchedule) {
+          scheduleId = existingSchedule.id;
+        } else {
+          // スケジュールを作成
+          const scheduleData = {
+            name: scheduleName,
+            schedule_type: scheduleType,
+            recurrence: recurrence
+          };
+          
+          // スケジュールタイプに応じた設定
+          if (scheduleType === 'monthly_start') {
+            scheduleData.creation_day = 1;
+            scheduleData.deadline_day = 5;
+          } else if (scheduleType === 'monthly_end') {
+            scheduleData.creation_day = 25;
+            scheduleData.deadline_day = 10;
+            scheduleData.deadline_next_month = true;
+          }
+          
+          const newSchedule = await clientsApi.createTaskTemplateSchedule(scheduleData);
+          scheduleId = newSchedule.id;
+        }
+        
+        // グローバルテンプレートを確認
+        const templates = await tasksApi.getTemplates();
+        const matchingTemplate = templates.find(t => 
+          t.title === templateTitle || 
+          t.template_name === templateTitle
+        );
+        
+        // クライアントタスクテンプレートを作成
+        const templateData = {
+          title: templateTitle,
+          description: `${templateTitle}のタスクテンプレート`,
+          schedule: scheduleId,
+          is_active: true,
+          start_date: startDate,
+          end_date: endDate || null
+        };
+        
+        // テンプレートIDが存在すれば追加
+        if (matchingTemplate && matchingTemplate.id) {
+          templateData.template_task = matchingTemplate.id;
+        }
+        
+        // クライアントタスクテンプレートを保存
+        await clientsApi.createClientTaskTemplate(clientId, templateData);
+        
+        toast.success('タスク設定を更新しました');
+      } catch (error) {
+        console.error('タスクテンプレート保存エラー:', error);
+        toast.error('タスク設定の保存に失敗しました');
+      }
+    } catch (error) {
+      console.error('処理中にエラーが発生しました:', error);
+      toast.error('タスク設定の処理中にエラーが発生しました');
+    }
+    
     // モーダルを閉じる
     setShowTaskTemplateModal(false);
+  };
+  
+  // 選択されたサービスタイプに基づいてデフォルトテンプレートを取得
+  const getDefaultTemplateTitle = (serviceType) => {
+    const templateTitles = {
+      advisory: '顧問契約タスク',
+      tax_return_final: '決算申告タスク',
+      tax_return_interim: '中間申告タスク',
+      tax_return_provisional: '予定申告タスク',
+      bookkeeping: '記帳代行業務',
+      payroll: '給与計算業務',
+      tax_withholding_standard: '源泉所得税(原則)納付',
+      tax_withholding_special: '源泉所得税(特例)納付',
+      resident_tax_standard: '住民税(原則)納付',
+      resident_tax_special: '住民税(特例)納付',
+      social_insurance: '社会保険手続き',
+      other: 'その他のタスク'
+    };
+    
+    return templateTitles[serviceType] || '';
   };
   
   if (loading) {
@@ -1081,8 +1221,14 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
       
       {/* タスクテンプレートモーダル */}
       {showTaskTemplateModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
+        <div 
+          className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center" 
+          onClick={() => setShowTaskTemplateModal(false)}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6" 
+            onClick={e => e.stopPropagation()}
+          >
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">タスク設定</h2>
               <button
@@ -1099,66 +1245,88 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
                 終了日が空欄の場合は、終了日なしで現在までのタスクとして設定されます。
               </p>
             </div>
-            <div className="space-y-4">
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text">タスクタイプ</span>
-                </label>
-                <select
-                  className="select select-bordered w-full"
-                  value={selectedTaskService || ''}
-                  onChange={(e) => setSelectedTaskService(e.target.value)}
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              handleTaskTemplateSaveComplete();
+            }}>
+              <div className="space-y-4">
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text">タスクタイプ</span>
+                  </label>
+                  <select
+                    className="select select-bordered w-full"
+                    value={selectedTaskService || ''}
+                    onChange={(e) => setSelectedTaskService(e.target.value)}
+                  >
+                    <option value="advisory">顧問契約</option>
+                    <option value="tax_return_final">決算申告</option>
+                    <option value="tax_return_interim">中間申告</option>
+                    <option value="bookkeeping">記帳代行</option>
+                    <option value="payroll">給与計算</option>
+                    <option value="tax_withholding_standard">源泉所得税(原則)</option>
+                    <option value="tax_withholding_special">源泉所得税(特例)</option>
+                    <option value="resident_tax_standard">住民税(原則)</option>
+                    <option value="resident_tax_special">住民税(特例)</option>
+                    <option value="social_insurance">社会保険</option>
+                    <option value="other">その他</option>
+                  </select>
+                </div>
+                
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text">テンプレート</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="input input-bordered w-full"
+                    value={getDefaultTemplateTitle(selectedTaskService)}
+                    readOnly
+                  />
+                  <label className="label">
+                    <span className="label-text-alt">デフォルトテンプレートが自動的に選択されます</span>
+                  </label>
+                </div>
+                
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text">開始日</span>
+                  </label>
+                  <input
+                    type="date"
+                    name="start_date"
+                    className="input input-bordered w-full"
+                    defaultValue={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+                
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text">終了日（空欄の場合は現在まで）</span>
+                  </label>
+                  <input
+                    type="date"
+                    name="end_date"
+                    className="input input-bordered w-full"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end mt-6 space-x-2">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => setShowTaskTemplateModal(false)}
                 >
-                  <option value="advisory">顧問契約</option>
-                  <option value="tax_return_final">決算申告</option>
-                  <option value="tax_return_interim">中間申告</option>
-                  <option value="bookkeeping">記帳代行</option>
-                  <option value="payroll">給与計算</option>
-                  <option value="tax_withholding_standard">源泉所得税(原則)</option>
-                  <option value="tax_withholding_special">源泉所得税(特例)</option>
-                  <option value="resident_tax_standard">住民税(原則)</option>
-                  <option value="resident_tax_special">住民税(特例)</option>
-                  <option value="social_insurance">社会保険</option>
-                </select>
+                  キャンセル
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                >
+                  保存
+                </button>
               </div>
-              
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text">開始日</span>
-                </label>
-                <input
-                  type="date"
-                  className="input input-bordered w-full"
-                  defaultValue={new Date().toISOString().split('T')[0]}
-                />
-              </div>
-              
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text">終了日（空欄の場合は現在まで）</span>
-                </label>
-                <input
-                  type="date"
-                  className="input input-bordered w-full"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end mt-6 space-x-2">
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => setShowTaskTemplateModal(false)}
-              >
-                キャンセル
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleTaskTemplateSaveComplete}
-              >
-                保存
-              </button>
-            </div>
+            </form>
           </div>
         </div>
       )}
