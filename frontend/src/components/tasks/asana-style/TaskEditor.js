@@ -96,13 +96,13 @@ const Attachments = ({ taskId }) => (
 const TaskEditor = ({ 
   isOpen = false, 
   isNewTask = false, 
-  task = null, 
+  task: taskData = null, 
   onClose = null, 
   onTaskUpdated = null 
 }) => {
   const { taskId: urlTaskId } = useParams();
   const navigate = useNavigate();
-  const initialData = task;
+  const initialData = taskData;
   const taskId = initialData?.id || urlTaskId;
   const isNew = isNewTask;
   const { 
