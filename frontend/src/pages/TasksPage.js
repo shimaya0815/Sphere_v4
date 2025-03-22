@@ -92,12 +92,12 @@ const TasksPage = () => {
     // URLをタスク一覧に戻す
     navigate('/tasks', { replace: true });
     
-    // タスクリストを更新
+    // タスクリストを更新（遅延を短くして即時性を向上）
     setTimeout(() => {
       if (taskListRef.current && typeof taskListRef.current.refreshTasks === 'function') {
         taskListRef.current.refreshTasks();
       }
-    }, 100);
+    }, 50);
   }, [navigate]);
   
   // タスクを選択して右からスライドするパネルを開く
@@ -126,17 +126,16 @@ const TasksPage = () => {
     
     if (!updatedTask) return;
     
-    // タスクリストを更新
+    // 常にタスクリストを即時更新
     if (taskListRef.current && typeof taskListRef.current.refreshTasks === 'function') {
       taskListRef.current.refreshTasks();
     }
     
-    // 新規タスクの場合はパネルを閉じるが、既存タスクの場合は更新したタスクを表示
+    // 新規タスクの場合はパネルを閉じる
     if (isNew) {
-      setTimeout(() => {
-        handleCloseSlideOver();
-      }, 200);
+      handleCloseSlideOver();
     } else {
+      // 既存タスクの場合は更新したタスクを表示
       setSelectedTask(updatedTask);
     }
   }, [handleCloseSlideOver]);

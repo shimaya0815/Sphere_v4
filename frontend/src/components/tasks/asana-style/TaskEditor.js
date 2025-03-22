@@ -138,6 +138,7 @@ const TaskEditor = ({
     const fetchMetadata = async () => {
       try {
         // 実際のAPIからデータを取得
+        console.log('TaskEditor: Fetching metadata including users');
         const [statusesData, categoriesData, clientsData, usersData, prioritiesData] = await Promise.all([
           tasksApi.getStatuses(),
           tasksApi.getCategories(),
@@ -159,7 +160,19 @@ const TaskEditor = ({
           setClients([]);
         }
         
-        setUsers(Array.isArray(usersData) ? usersData : []);
+        // ユーザーデータの処理
+        console.log('Users data received:', usersData);
+        if (Array.isArray(usersData)) {
+          console.log(`Setting ${usersData.length} users`);
+          setUsers(usersData);
+        } else if (usersData && Array.isArray(usersData.results)) {
+          console.log(`Setting ${usersData.results.length} users from results property`);
+          setUsers(usersData.results);
+        } else {
+          console.warn('Unexpected users data format:', usersData);
+          setUsers([]);
+        }
+        
         setPriorities(Array.isArray(prioritiesData) ? prioritiesData : []);
         
         // ワークスペースデータを設定（モックデータ）
@@ -337,17 +350,28 @@ const TaskEditor = ({
         });
         message = 'タスクを作成しました';
         
-        // 作成後、タスク詳細画面へ遷移
+        // 作成後、即時パネルを閉じてタスク一覧に戻る
         if (onTaskUpdated) {
-          onTaskUpdated(savedTask);
+          // 第2引数をtrueにして、新規作成であることを伝える
+          onTaskUpdated(savedTask, true);
         } else {
-          navigate(`/tasks/${savedTask.id}`);
+          // パネルを閉じる
+          if (onClose) {
+            onClose();
+          } else {
+            navigate('/tasks', { replace: true });
+          }
         }
       } else {
         // 更新の場合
         savedTask = await updateTask(task.id, processedData);
         message = 'タスクを更新しました';
         setTask(savedTask);
+        
+        // 更新後の処理
+        if (onTaskUpdated) {
+          onTaskUpdated(savedTask, false);
+        }
       }
       
       toast.success(message);
@@ -359,7 +383,7 @@ const TaskEditor = ({
     } finally {
       setIsSaving(false);
     }
-  }, [isNew, task?.id, createTask, updateTask, navigate, onTaskUpdated]);
+  }, [isNew, task?.id, createTask, updateTask, navigate, onTaskUpdated, onClose]);
   
   // 戻るボタン処理
   const handleBack = () => {
@@ -386,12 +410,22 @@ const TaskEditor = ({
   }, [isNew, task]);
   
   if (isLoading && !isNew) {
+    // 非表示の場合はローディングも表示しない
+    if (!isOpen) {
+      return null;
+    }
+    
     return (
       <div className="task-editor loading">
         <Skeleton height={50} width="80%" />
         <Skeleton count={5} height={30} />
       </div>
     );
+  }
+  
+  // 非表示の場合は何も表示しない
+  if (!isOpen) {
+    return null;
   }
   
   // フォーム送信ハンドラ
@@ -506,9 +540,18 @@ const TaskEditor = ({
                 <TaskRecurrenceSection 
                   control={formContext?.control}
                   watch={formContext?.watch}
+                  setValue={formContext?.setValue}
+                  inputClassName="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                  selectClassName="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+                  task={task}
                   handleFieldChange={(field, value) => {
                     if (task && task.id) {
                       updateTask(task.id, { [field]: value });
+                    } else {
+                      // 新規タスクの場合、一時的なデータを保存
+                      const newValue = { ...task, [field]: value };
+                      setTask(newValue);
+                      console.log(`新規タスク作成モードでフィールド ${field} を値 ${value} に更新しました`);
                     }
                   }}
                 />
