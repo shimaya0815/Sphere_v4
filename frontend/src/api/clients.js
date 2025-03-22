@@ -8,7 +8,7 @@ import apiClient from './client';
 export const getClients = async (params = {}) => {
   try {
     console.log('クライアント取得を試みます...');
-    const response = await apiClient.get('/api/clients/', { params });
+    const response = await apiClient.get('/clients/clients/', { params });
     console.log('取得したクライアント:', response.data);
     
     // ページネーション形式（results配列）かどうかをチェック
@@ -51,7 +51,7 @@ export const getClients = async (params = {}) => {
  */
 export const getClient = async (clientId) => {
   try {
-    const response = await apiClient.get(`/api/clients/${clientId}/`);
+    const response = await apiClient.get(`/clients/clients/${clientId}/`);
     return response.data;
   } catch (error) {
     console.error(`Error fetching client ${clientId}:`, error);
@@ -66,7 +66,7 @@ export const getClient = async (clientId) => {
  */
 export const getFiscalYears = async (clientId) => {
   try {
-    const response = await apiClient.get(`/api/clients/${clientId}/fiscal-years/`);
+    const response = await apiClient.get(`/clients/clients/${clientId}/fiscal-years/`);
     return response.data;
   } catch (error) {
     console.error(`Error fetching fiscal years for client ${clientId}:`, error);
@@ -159,7 +159,7 @@ export const createClient = async (clientData) => {
  */
 export const updateClient = async (clientId, clientData) => {
   try {
-    const response = await apiClient.patch(`/api/clients/${clientId}/`, clientData);
+    const response = await apiClient.patch(`/clients/clients/${clientId}/`, clientData);
     return response.data;
   } catch (error) {
     console.error(`Error updating client ${clientId}:`, error);
@@ -174,7 +174,7 @@ export const updateClient = async (clientId, clientData) => {
  */
 export const deleteClient = async (clientId) => {
   try {
-    await apiClient.delete(`/api/clients/${clientId}/`);
+    await apiClient.delete(`/clients/clients/${clientId}/`);
   } catch (error) {
     console.error(`Error deleting client ${clientId}:`, error);
     throw error;
