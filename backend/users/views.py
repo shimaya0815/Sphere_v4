@@ -130,118 +130,131 @@ class BusinessAuthTokenView(APIView):
                     )
                 }
                 
-                # 各サービス用のテンプレートを作成
-                template_configs = [
+                # 各テンプレートの作成
+                templates = [
+                    # 顧問契約タスク
                     {
-                        "title": "月次チェック",
-                        "description": "毎月実施する標準チェック項目",
+                        "name": "顧問契約タスク",
+                        "description": "顧問契約に基づく月次の会計処理状況を確認するためのタスクです。",
                         "category": default_category,
                         "schedule": schedules["monthly"],
-                        "child_tasks": [
-                            {"title": "帳簿・台帳チェック", "description": "月次の帳簿確認と台帳との整合性チェック"},
-                            {"title": "残高確認", "description": "現金・預金・売掛金等の残高確認"},
-                            {"title": "請求書確認", "description": "未払い・未収の請求書確認"}
-                        ]
+                        "recurrence_pattern": "monthly"
                     },
+                    # 決算申告タスク
                     {
-                        "title": "記帳代行",
-                        "description": "月次の記帳代行業務",
-                        "category": bookkeeping_category,
-                        "schedule": schedules["monthly"],
-                        "child_tasks": [
-                            {"title": "仕訳入力", "description": "月次の仕訳入力作業"},
-                            {"title": "経費精算", "description": "経費精算処理と確認"},
-                            {"title": "試算表作成", "description": "月次試算表の作成と確認"}
-                        ]
-                    },
-                    {
-                        "title": "税務申告書作成",
-                        "description": "確定申告業務",
+                        "name": "決算申告タスク",
+                        "description": "決算期の法人税申告書作成・提出業務を行うためのタスクです。",
                         "category": tax_category,
                         "schedule": schedules["yearly"],
-                        "child_tasks": [
-                            {"title": "決算準備", "description": "期末決算の準備作業と資料収集"},
-                            {"title": "決算書作成", "description": "確定決算書の作成"},
-                            {"title": "申告書作成", "description": "確定申告書の作成と提出"}
-                        ]
+                        "recurrence_pattern": "yearly"
                     },
+                    # 中間申告タスク
                     {
-                        "title": "源泉所得税",
-                        "description": "源泉所得税の納付手続き",
+                        "name": "中間申告タスク",
+                        "description": "中間申告書の作成・提出業務を行うためのタスクです。",
                         "category": tax_category,
-                        "schedule": schedules["monthly"],
-                        "child_tasks": [
-                            {"title": "源泉税計算", "description": "源泉所得税の計算"},
-                            {"title": "納付書作成", "description": "源泉所得税の納付書作成"},
-                            {"title": "納付", "description": "源泉所得税の納付手続き"}
-                        ]
+                        "schedule": schedules["quarterly"],
+                        "recurrence_pattern": "quarterly"
                     },
+                    # 予定申告タスク
                     {
-                        "title": "住民税対応",
-                        "description": "従業員の住民税納付手続き",
+                        "name": "予定申告タスク",
+                        "description": "予定申告書の作成・提出業務を行うためのタスクです。",
                         "category": tax_category,
-                        "schedule": schedules["monthly"],
-                        "child_tasks": [
-                            {"title": "住民税通知確認", "description": "住民税決定通知書の確認"},
-                            {"title": "給与天引き設定", "description": "給与システムへの住民税設定"},
-                            {"title": "納付手続き", "description": "住民税の納付手続き"}
-                        ]
+                        "schedule": schedules["quarterly"],
+                        "recurrence_pattern": "quarterly"
                     },
+                    # 記帳代行業務
                     {
-                        "title": "社会保険対応",
-                        "description": "社会保険関連手続き",
+                        "name": "記帳代行業務",
+                        "description": "月次の記帳代行を行うためのタスクです。",
+                        "category": bookkeeping_category,
+                        "schedule": schedules["monthly"],
+                        "recurrence_pattern": "monthly"
+                    },
+                    # 給与計算業務
+                    {
+                        "name": "給与計算業務",
+                        "description": "月次の給与計算業務を行うためのタスクです。",
                         "category": insurance_category,
                         "schedule": schedules["monthly"],
-                        "child_tasks": [
-                            {"title": "算定基礎確認", "description": "社会保険の算定基礎の確認"},
-                            {"title": "保険料計算", "description": "社会保険料の計算"},
-                            {"title": "書類提出", "description": "社会保険関連書類の提出"}
-                        ]
+                        "recurrence_pattern": "monthly"
+                    },
+                    # 源泉所得税(原則)納付
+                    {
+                        "name": "源泉所得税(原則)納付",
+                        "description": "毎月の源泉所得税（原則）の納付手続きを行うためのタスクです。",
+                        "category": tax_category,
+                        "schedule": schedules["monthly"],
+                        "recurrence_pattern": "monthly"
+                    },
+                    # 源泉所得税(特例)納付
+                    {
+                        "name": "源泉所得税(特例)納付",
+                        "description": "毎月の源泉所得税（特例）の納付手続きを行うためのタスクです。",
+                        "category": tax_category,
+                        "schedule": schedules["monthly"],
+                        "recurrence_pattern": "monthly"
+                    },
+                    # 住民税(原則)納付
+                    {
+                        "name": "住民税(原則)納付",
+                        "description": "従業員の住民税（原則）特別徴収の納付手続きを行うためのタスクです。",
+                        "category": tax_category,
+                        "schedule": schedules["monthly"],
+                        "recurrence_pattern": "monthly"
+                    },
+                    # 住民税(特例)納付
+                    {
+                        "name": "住民税(特例)納付",
+                        "description": "従業員の住民税（特例）特別徴収の納付手続きを行うためのタスクです。",
+                        "category": tax_category,
+                        "schedule": schedules["monthly"],
+                        "recurrence_pattern": "monthly"
+                    },
+                    # 社会保険手続き
+                    {
+                        "name": "社会保険手続き",
+                        "description": "社会保険関連の各種手続きを行うためのタスクです。",
+                        "category": insurance_category,
+                        "schedule": schedules["monthly"],
+                        "recurrence_pattern": "monthly"
+                    },
+                    # その他のタスク
+                    {
+                        "name": "その他のタスク",
+                        "description": "その他の定型業務に関するタスクです。",
+                        "category": default_category,
+                        "schedule": schedules["monthly"],
+                        "recurrence_pattern": "monthly"
                     }
                 ]
                 
-                # テンプレートを作成
-                for config in template_configs:
-                    # メインテンプレートを作成
-                    template = Task.objects.create(
-                        title=config["title"],
-                        description=config["description"],
-                        business=business,
-                        is_template=True,
-                        category=config["category"],
-                        priority=default_priority,
-                        status=not_started_status
-                    )
-                    
-                    # 内包タスクを作成
-                    for index, child_task in enumerate(config.get("child_tasks", [])):
-                        from tasks.models import TemplateChildTask
-                        TemplateChildTask.objects.create(
-                            parent_template=template,
-                            title=child_task["title"],
-                            description=child_task["description"],
-                            order=index,
-                            business=business,
-                            category=config["category"],
-                            priority=default_priority,
-                            status=not_started_status
-                        )
-                    
-                    # クライアント向けテンプレート設定用のデータも作成
-                    from clients.models import ClientTaskTemplate
-                    ClientTaskTemplate.objects.create(
-                        title=config["title"],
-                        description=config["description"],
-                        template_task=template,
-                        schedule=config["schedule"],
-                        is_active=True,
-                        category=config["category"],
-                        priority=default_priority
-                    )
+                # ワークスペースの確認
+                workspace = business.workspaces.first()
                 
-                print(f"Default task templates created for business: {business.name}")
+                # 一括でテンプレートを作成
+                created_templates = []
+                for template_config in templates:
+                    try:
+                        template = Task.objects.create(
+                            title=template_config["name"],
+                            description=template_config["description"],
+                            business=business,
+                            workspace=workspace,
+                            is_template=True,
+                            template_name=template_config["name"],
+                            category=template_config["category"],
+                            status=not_started_status,
+                            recurrence_pattern=template_config["recurrence_pattern"]
+                        )
+                        created_templates.append(template)
+                    except Exception as template_error:
+                        logger.error(f"Error creating template {template_config['name']}: {str(template_error)}")
+                
+                logger.info(f"Created {len(created_templates)} default templates for business: {business.name}")
             except Exception as e:
-                print(f"Error creating default templates: {e}")
+                logger.error(f"Error creating default templates: {e}")
                 import traceback
                 traceback.print_exc()
                 # エラーがあっても続行
@@ -429,65 +442,101 @@ class UserCreateView(APIView):
                             
                             # 各テンプレートの作成
                             templates = [
-                                # 月次処理チェック
+                                # 顧問契約タスク
                                 {
-                                    "name": "月次処理チェック",
-                                    "description": "毎月の会計処理状況を確認します。",
+                                    "name": "顧問契約タスク",
+                                    "description": "顧問契約に基づく月次の会計処理状況を確認するためのタスクです。",
                                     "category": default_category,
                                     "schedule": schedules["monthly_start"],
-                                    "child_tasks": [
-                                        {"title": "帳簿確認", "description": "帳簿の確認と更新", "order": 1},
-                                        {"title": "残高確認", "description": "残高の確認と更新", "order": 2},
-                                        {"title": "請求書確認", "description": "請求書の確認と発行", "order": 3}
-                                    ]
+                                    "recurrence_pattern": "monthly"
                                 },
-                                # 記帳代行作業
+                                # 決算申告タスク
                                 {
-                                    "name": "記帳代行作業",
-                                    "description": "月次の記帳代行業務を行います。",
-                                    "category": bookkeeping_category,
-                                    "schedule": schedules["monthly_start"],
-                                    "child_tasks": [
-                                        {"title": "領収書整理", "description": "領収書の整理と分類", "order": 1},
-                                        {"title": "仕訳入力", "description": "会計データの仕訳入力", "order": 2},
-                                        {"title": "月次レポート", "description": "月次レポートの作成", "order": 3}
-                                    ]
-                                },
-                                # 決算・法人税申告業務
-                                {
-                                    "name": "決算・法人税申告業務",
-                                    "description": "決算期の法人税申告書作成業務を行います。",
+                                    "name": "決算申告タスク",
+                                    "description": "決算期の法人税申告書作成・提出業務を行うためのタスクです。",
                                     "category": tax_category,
                                     "schedule": schedules["fiscal"],
-                                    "child_tasks": [
-                                        {"title": "決算整理", "description": "決算整理仕訳の作成", "order": 1},
-                                        {"title": "決算書作成", "description": "決算書の作成", "order": 2},
-                                        {"title": "申告書作成", "description": "法人税申告書の作成", "order": 3}
-                                    ]
+                                    "recurrence_pattern": "yearly"
                                 },
-                                # 源泉所得税納付業務
+                                # 中間申告タスク
                                 {
-                                    "name": "源泉所得税納付業務",
-                                    "description": "毎月の源泉所得税の納付手続きを行います。",
+                                    "name": "中間申告タスク",
+                                    "description": "中間申告書の作成・提出業務を行うためのタスクです。",
+                                    "category": tax_category,
+                                    "schedule": schedules["fiscal"],
+                                    "recurrence_pattern": "quarterly"
+                                },
+                                # 予定申告タスク
+                                {
+                                    "name": "予定申告タスク",
+                                    "description": "予定申告書の作成・提出業務を行うためのタスクです。",
+                                    "category": tax_category,
+                                    "schedule": schedules["fiscal"],
+                                    "recurrence_pattern": "quarterly"
+                                },
+                                # 記帳代行業務
+                                {
+                                    "name": "記帳代行業務",
+                                    "description": "月次の記帳代行を行うためのタスクです。",
+                                    "category": bookkeeping_category,
+                                    "schedule": schedules["monthly_start"],
+                                    "recurrence_pattern": "monthly"
+                                },
+                                # 給与計算業務
+                                {
+                                    "name": "給与計算業務",
+                                    "description": "月次の給与計算業務を行うためのタスクです。",
+                                    "category": insurance_category,
+                                    "schedule": schedules["monthly_end"],
+                                    "recurrence_pattern": "monthly"
+                                },
+                                # 源泉所得税(原則)納付
+                                {
+                                    "name": "源泉所得税(原則)納付",
+                                    "description": "毎月の源泉所得税（原則）の納付手続きを行うためのタスクです。",
                                     "category": tax_category,
                                     "schedule": schedules["monthly_end"],
-                                    "child_tasks": [
-                                        {"title": "源泉税計算", "description": "源泉所得税の計算", "order": 1},
-                                        {"title": "納付書作成", "description": "納付書の作成", "order": 2},
-                                        {"title": "納付手続き", "description": "納付手続きの実施", "order": 3}
-                                    ]
+                                    "recurrence_pattern": "monthly"
                                 },
-                                # 住民税納付業務
+                                # 源泉所得税(特例)納付
                                 {
-                                    "name": "住民税納付業務",
-                                    "description": "従業員の住民税特別徴収の納付手続きを行います。",
+                                    "name": "源泉所得税(特例)納付",
+                                    "description": "毎月の源泉所得税（特例）の納付手続きを行うためのタスクです。",
+                                    "category": tax_category,
+                                    "schedule": schedules["monthly_end"],
+                                    "recurrence_pattern": "monthly"
+                                },
+                                # 住民税(原則)納付
+                                {
+                                    "name": "住民税(原則)納付",
+                                    "description": "従業員の住民税（原則）特別徴収の納付手続きを行うためのタスクです。",
                                     "category": tax_category,
                                     "schedule": schedules["monthly_start"],
-                                    "child_tasks": [
-                                        {"title": "住民税通知確認", "description": "住民税通知書の確認", "order": 1},
-                                        {"title": "給与天引き設定", "description": "給与システムへの反映", "order": 2},
-                                        {"title": "納付手続き", "description": "納付手続きの実施", "order": 3}
-                                    ]
+                                    "recurrence_pattern": "monthly"
+                                },
+                                # 住民税(特例)納付
+                                {
+                                    "name": "住民税(特例)納付",
+                                    "description": "従業員の住民税（特例）特別徴収の納付手続きを行うためのタスクです。",
+                                    "category": tax_category,
+                                    "schedule": schedules["monthly_start"],
+                                    "recurrence_pattern": "monthly"
+                                },
+                                # 社会保険手続き
+                                {
+                                    "name": "社会保険手続き",
+                                    "description": "社会保険関連の各種手続きを行うためのタスクです。",
+                                    "category": insurance_category,
+                                    "schedule": schedules["monthly_start"],
+                                    "recurrence_pattern": "monthly"
+                                },
+                                # その他のタスク
+                                {
+                                    "name": "その他のタスク",
+                                    "description": "その他の定型業務に関するタスクです。",
+                                    "category": default_category,
+                                    "schedule": schedules["monthly_start"],
+                                    "recurrence_pattern": "monthly"
                                 }
                             ]
                             
@@ -503,24 +552,10 @@ class UserCreateView(APIView):
                                         is_template=True,
                                         template_name=template_config["name"],
                                         category=template_config["category"],
-                                        priority=default_priority,
-                                        status=not_started_status
+                                        status=not_started_status,
+                                        recurrence_pattern=template_config["recurrence_pattern"]
                                     )
                                     created_templates.append(template)
-                                    
-                                    # 内包タスクを作成
-                                    for task_data in template_config["child_tasks"]:
-                                        from tasks.models import TemplateChildTask
-                                        TemplateChildTask.objects.create(
-                                            parent_template=template,
-                                            title=task_data["title"],
-                                            description=task_data["description"],
-                                            order=task_data["order"],
-                                            business=business,
-                                            category=template_config["category"],
-                                            priority=default_priority,
-                                            status=not_started_status
-                                        )
                                 except Exception as template_error:
                                     logger.error(f"Error creating template {template_config['name']}: {str(template_error)}")
                             
