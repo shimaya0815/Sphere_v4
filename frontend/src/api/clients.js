@@ -46,15 +46,36 @@ export const getClients = async (params = {}) => {
 
 /**
  * クライアント詳細を取得
- * @param {number} clientId - クライアントID
+ * @param {number|string} clientId - クライアントID
  * @returns {Promise<object>} クライアント詳細
  */
 export const getClient = async (clientId) => {
   try {
-    const response = await apiClient.get(`/clients/clients/${clientId}/`);
+    // 数値に変換できるか確認
+    const id = !isNaN(parseInt(clientId)) ? parseInt(clientId) : clientId;
+    console.log(`クライアント詳細取得 - 元ID: ${clientId}, 処理後ID: ${id}`);
+    
+    // 非同期リクエストとして実行
+    console.log(`APIリクエスト: GET /clients/clients/${id}/`);
+    const response = await apiClient.get(`/clients/clients/${id}/`);
+    
+    console.log('クライアント詳細APIレスポンス:', response.status);
+    console.log('クライアント詳細データ:', response.data);
+    
     return response.data;
   } catch (error) {
     console.error(`Error fetching client ${clientId}:`, error);
+    
+    // エラー詳細をログに出力
+    if (error.response) {
+      console.error('エラーレスポンス:', error.response.status, error.response.data);
+    } else if (error.request) {
+      console.error('リクエストエラー:', error.request);
+    } else {
+      console.error('その他のエラー:', error.message);
+    }
+    
+    // エラーを上位へ伝搬
     throw error;
   }
 };

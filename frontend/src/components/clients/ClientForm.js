@@ -106,17 +106,47 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
   
   const fetchClient = async () => {
     try {
-      console.log('クライアント情報を取得中...ID:', clientId);
+      console.log('クライアント情報を取得中...ID:', clientId, '型:', typeof clientId);
+      
+      // APIエンドポイントのURLをログ出力
+      console.log('使用するAPIエンドポイント:', `/clients/clients/${clientId}/`);
+      
       const data = await getClient(clientId);
       console.log('取得したクライアント情報:', data);
-      setFormData(data);
+      
+      if (!data) {
+        console.error('APIからの応答がnullまたはundefinedです');
+        setError('クライアント情報の取得に失敗しました: データが空です');
+        toast.error('クライアント情報の取得に失敗しました');
+        return;
+      }
+      
+      // クライアント情報をフォームに設定
+      console.log('フォームデータを設定:', data);
+      setFormData(prevData => {
+        // 新しいデータと既存のデフォルト値をマージ
+        const mergedData = { ...prevData, ...data };
+        console.log('マージされたフォームデータ:', mergedData);
+        return mergedData;
+      });
+      
       setError(null);
       
       // Fetch related data after getting the client
       fetchRelatedData();
     } catch (error) {
       console.error('Error fetching client:', error);
-      setError('クライアント情報の取得に失敗しました');
+      
+      // より詳細なエラー情報を表示
+      if (error.response) {
+        console.error('エラーレスポンス:', error.response.status, error.response.data);
+      } else if (error.request) {
+        console.error('リクエストエラー:', error.request);
+      } else {
+        console.error('その他のエラー:', error.message);
+      }
+      
+      setError(`クライアント情報の取得に失敗しました: ${error.message || '不明なエラー'}`);
       toast.error('クライアント情報の取得に失敗しました');
     } finally {
       setLoading(false);
@@ -280,7 +310,7 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
     <form onSubmit={handleSubmit} className="space-y-8 p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">
-          {clientId ? 'クライアント情報の編集' : '新規クライアント登録'}
+          {clientId ? (formData && formData.name ? `クライアント「${formData.name}」の編集` : 'クライアント情報の編集') : '新規クライアント登録'}
         </h1>
         
         <div className="flex space-x-3">
@@ -308,6 +338,22 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
           </button>
         </div>
       </div>
+
+      {/* データのデバッグ表示 - 開発中のみ */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mb-4 p-3 border border-yellow-300 bg-yellow-50 rounded-md text-sm">
+          <p><strong>開発用デバッグ情報:</strong></p>
+          <p>clientId: {clientId || 'null'} (型: {typeof clientId})</p>
+          <p>loading: {loading ? 'true' : 'false'}</p>
+          <p>formData: {formData ? `データあり (${Object.keys(formData).length}項目)` : 'データなし'}</p>
+          {formData && (
+            <div>
+              <p>name: {formData.name || '未設定'}</p>
+              <p>client_code: {formData.client_code || '未設定'}</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* タブセクション */}
       <div className="tabs tabs-boxed mb-6">
