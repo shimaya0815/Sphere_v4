@@ -93,9 +93,18 @@ const Attachments = ({ taskId }) => (
  * - 自動保存とバッチ処理
  * - 視覚的フィードバック強化
  */
-const TaskEditor = ({ isNew = false, initialData = null, onClose = null, projectId = null }) => {
-  const { taskId } = useParams();
+const TaskEditor = ({ 
+  isOpen = false, 
+  isNewTask = false, 
+  task = null, 
+  onClose = null, 
+  onTaskUpdated = null 
+}) => {
+  const { taskId: urlTaskId } = useParams();
   const navigate = useNavigate();
+  const initialData = task;
+  const taskId = initialData?.id || urlTaskId;
+  const isNew = isNewTask;
   const { 
     getTask, 
     updateTask, 
@@ -209,13 +218,13 @@ const TaskEditor = ({ isNew = false, initialData = null, onClose = null, project
         // 新規作成の場合
         savedTask = await createTask({
           ...formData,
-          project: projectId || formData.project
+          project: initialData?.project || formData.project
         });
         message = 'タスクを作成しました';
         
         // 作成後、タスク詳細画面へ遷移
-        if (onClose) {
-          onClose(savedTask);
+        if (onTaskUpdated) {
+          onTaskUpdated(savedTask);
         } else {
           navigate(`/tasks/${savedTask.id}`);
         }
@@ -235,7 +244,7 @@ const TaskEditor = ({ isNew = false, initialData = null, onClose = null, project
     } finally {
       setIsSaving(false);
     }
-  }, [isNew, task?.id, createTask, updateTask, projectId, navigate, onClose]);
+  }, [isNew, task?.id, createTask, updateTask, initialData?.project, navigate, onTaskUpdated]);
   
   // 戻るボタン処理
   const handleBack = () => {
@@ -255,13 +264,13 @@ const TaskEditor = ({ isNew = false, initialData = null, onClose = null, project
         status: 'todo',
         priority: 'medium',
         due_date: null,
-        project: projectId || null,
+        project: initialData?.project || null,
         assignee: null,
         tags: []
       };
     }
     return task || {};
-  }, [isNew, task, projectId]);
+  }, [isNew, task, initialData]);
   
   if (isLoading && !isNew) {
     return (
@@ -281,154 +290,128 @@ const TaskEditor = ({ isNew = false, initialData = null, onClose = null, project
   };
   
   return (
-    <TaskFormProvider initialValues={initialFormValues} onSubmit={handleSubmit} ref={taskFormRef}>
-      <motion.div 
-        className="task-editor"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
+    <>
+      {/* オーバーレイ背景 */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40"
+          onClick={onClose}
+        />
+      )}
+      
+      {/* スライドパネル */}
+      <div 
+        className={`fixed inset-y-0 right-0 w-full md:w-2/3 lg:w-1/2 xl:w-2/5 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'} overflow-y-auto`}
       >
-        <div className="task-editor-header">
-          <button 
-            className="back-button" 
-            onClick={handleBack}
-            aria-label="戻る"
-          >
-            <MdArrowBack size={24} />
-          </button>
-          
-          {!isNew && task && (
-            <div className="task-meta">
-              <div className="task-id">#{task.id}</div>
-              <div className="task-created">
-                作成: {task.created_at ? formatDistanceToNow(parseISO(task.created_at), { addSuffix: true }) : ''}
-              </div>
-            </div>
-          )}
-        </div>
-        
-        <div className="task-editor-content">
-          <div className="task-main-column">
-            <div className="task-title-section">
-              {task && !isNew ? (
-                <TaskTitleEditor 
-                  initialValue={task.title} 
-                  onSave={(newTitle) => updateTask(task.id, { title: newTitle })}
-                />
-              ) : (
-                <div className="form-field">
-                  <label htmlFor="title">タイトル</label>
-                  <TaskForm.Field name="title" placeholder="タスクのタイトルを入力" required />
-                </div>
-              )}
-            </div>
-            
-            <div className="task-description-section">
-              <label>詳細</label>
-              <TaskForm.RichField 
-                name="description" 
-                placeholder="タスクの詳細を入力してください..." 
-              />
-            </div>
-            
-            {!isNew && task && (
-              <>
-                <div className="task-time-section">
-                  <h3>時間記録</h3>
-                  <TimeTracking 
-                    taskId={task.id}
-                    isRecordingTime={isRecordingTime}
-                    elapsedTime={elapsedTime}
-                    timeEntries={cachedTimeEntries}
-                    isLoading={isTimerLoading || isLoadingEntries}
-                    onToggleTimer={() => {
-                      if (isRecordingTime) {
-                        stopTimer();
-                      } else {
-                        startTimer();
-                      }
-                    }}
-                    onRefresh={fetchTimeEntries}
-                  />
-                </div>
-                
-                <div className="task-comments-section">
-                  <h3>コメント</h3>
-                  <Comments taskId={task.id} />
-                </div>
-                
-                <div className="task-attachments-section">
-                  <h3>添付ファイル</h3>
-                  <Attachments taskId={task.id} />
-                </div>
-              </>
-            )}
-          </div>
-          
-          <div className="task-sidebar">
-            <div className="sidebar-section">
-              <h3>ステータス</h3>
-              {task && !isNew ? (
-                <StatusSelector 
-                  value={task.status} 
-                  onChange={(status) => updateTask(task.id, { status })}
-                />
-              ) : (
-                <TaskForm.Field name="status" component={StatusSelector} />
-              )}
-            </div>
-            
-            <div className="sidebar-section">
-              <h3>担当者</h3>
-              <TaskForm.UserField name="assignee" />
-            </div>
-            
-            <div className="sidebar-section">
-              <h3>優先度</h3>
-              <TaskForm.PriorityField name="priority" />
-            </div>
-            
-            <div className="sidebar-section">
-              <h3>期日</h3>
-              <TaskForm.DateField name="due_date" />
-            </div>
-            
-            {(isNew || !taskId) && (
-              <div className="sidebar-section">
-                <h3>プロジェクト</h3>
-                <TaskForm.ProjectField name="project" defaultValue={projectId} />
-              </div>
-            )}
-            
-            <div className="sidebar-section">
-              <h3>タグ</h3>
-              <TaskForm.TagsField name="tags" />
-            </div>
-            
-            {isNew && (
-              <div className="form-actions">
+        <TaskFormProvider initialValues={initialFormValues} onSubmit={handleSubmit} ref={taskFormRef}>
+          <div className="task-editor h-full flex flex-col">
+            <div className="task-editor-header px-4 py-3 border-b flex items-center justify-between">
+              <button 
+                className="back-button flex items-center text-gray-600 hover:text-gray-900" 
+                onClick={handleBack}
+                aria-label="戻る"
+              >
+                <MdArrowBack size={24} />
+                <span className="ml-2">戻る</span>
+              </button>
+              
+              <div className="flex items-center space-x-2">
+                {!isNew && task && (
+                  <div className="text-sm text-gray-500">
+                    {task.updated_at && `更新: ${formatDistanceToNow(new Date(task.updated_at))}前`}
+                  </div>
+                )}
                 <button 
-                  type="submit" 
-                  className="btn btn-primary"
-                  onClick={() => formRef.current && formRef.current.dispatchEvent(
-                    new Event('submit', { cancelable: true, bubbles: true })
-                  )}
-                  disabled={isSaving}
+                  className="ml-auto rounded-full p-1 hover:bg-gray-200"
+                  onClick={onClose}
+                  aria-label="閉じる"
                 >
-                  {isSaving ? '保存中...' : 'タスクを作成'}
+                  <HiOutlineX size={20} />
                 </button>
               </div>
-            )}
+            </div>
+            
+            <div className="task-editor-content flex-1 overflow-y-auto p-4">
+              <div className="task-main-column space-y-6">
+                <TaskBasicInfoSection />
+                <TaskDescriptionSection />
+                
+                {!isNew && task && <Comments taskId={task.id} />}
+                {!isNew && task && <Attachments taskId={task.id} />}
+              </div>
+              
+              <div className="task-sidebar mt-8 space-y-6">
+                <TaskDatePrioritySection />
+                <TaskAssigneeSection />
+                <TaskMetaInfoSection />
+                
+                {isNew && (
+                  <div className="sidebar-section">
+                    <h3>プロジェクト</h3>
+                    <TaskForm.ProjectField name="project" defaultValue={initialData?.project} />
+                  </div>
+                )}
+                
+                <TaskRecurrenceSection />
+                <TaskAdditionalSettingsSection />
+              </div>
+            </div>
+            
+            <div className="task-editor-footer p-4 border-t flex justify-between items-center bg-gray-50">
+              {!isNew && task && (
+                <button
+                  type="button"
+                  className="text-red-600 hover:text-red-800 flex items-center"
+                  onClick={() => {
+                    // タスク削除機能
+                    if (window.confirm('このタスクを削除してもよろしいですか？')) {
+                      // 削除処理
+                    }
+                  }}
+                >
+                  <HiOutlineTrash className="mr-1" />
+                  削除
+                </button>
+              )}
+              
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                  onClick={onClose}
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="button"
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                  onClick={handleFormSubmit}
+                  disabled={isSaving}
+                >
+                  {isSaving ? (
+                    <span className="flex items-center">
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      保存中...
+                    </span>
+                  ) : (
+                    <span className="flex items-center">
+                      <HiCheck className="mr-1" />
+                      {isNew ? '作成' : '保存'}
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-        
-        <form 
-          ref={formRef} 
-          onSubmit={handleFormSubmit}
-          style={{ display: 'none' }}
-        />
-      </motion.div>
-    </TaskFormProvider>
+          
+          {/* ポップアップモーダル用のコンテナ */}
+          <div id="modal-container"></div>
+        </TaskFormProvider>
+      </div>
+    </>
   );
 };
 
