@@ -5,6 +5,12 @@ import apiClient from '../api/client';
 // API URLは相対パスを使用
 const API_URL = '';
 
+// デバッグ情報
+console.log('AuthContext initialized with apiClient:', {
+  hasApiClient: !!apiClient,
+  apiClientBaseURL: apiClient.defaults?.baseURL || 'undefined'
+});
+
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
@@ -83,6 +89,10 @@ export const AuthProvider = ({ children }) => {
       // 相対パスを使用
       const loginEndpoint = '/api/auth/token/login/';
       console.log('Sending login request to:', loginEndpoint);
+      console.log('apiClient configuration:', {
+        baseURL: apiClient.defaults?.baseURL || 'undefined',
+        fullURL: `${apiClient.defaults?.baseURL || ''}${loginEndpoint}`
+      });
       
       // apiClientを使用してリクエスト送信
       const response = await apiClient.post(loginEndpoint, loginData);
@@ -148,11 +158,16 @@ export const AuthProvider = ({ children }) => {
           setError(errorData || `Server error: ${err.response.status}`);
         }
       } else if (err.request) {
-        // リクエストは送信されたがレスポンスがないエラー (ネットワークエラーなど)
-        setError('Network error. Please check your internet connection.');
+        // レスポンスがないエラー（ネットワークエラーなど）
+        setError('ネットワークエラー: サーバーに接続できません。インターネット接続を確認してください。');
+        
+        // オフライン時のエラーメッセージを追加
+        if (!navigator.onLine) {
+          setError('インターネット接続がオフラインです。ネットワーク接続を確認してください。');
+        }
       } else {
-        // その他のエラー
-        setError(err.message || 'Login failed');
+        // リクエスト自体の作成に失敗
+        setError(`エラー: ${err.message || 'ログインに失敗しました'}`);
       }
       
       return false;

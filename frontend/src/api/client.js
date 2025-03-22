@@ -7,11 +7,6 @@ console.log('API Configuration:', {
   hostname: window.location.hostname
 });
 
-// CancelTokenとisCancel関数をクライアントに直接追加
-const apiClient = {};
-apiClient.CancelToken = axios.CancelToken;
-apiClient.isCancel = axios.isCancel;
-
 // Docker環境でのURLを設定
 const getBaseUrl = () => {
   // 環境変数またはwindow.ENVから設定を取得
@@ -32,20 +27,18 @@ const getBaseUrl = () => {
   return '';
 };
 
+// ベースURLを取得
+const baseURL = getBaseUrl();
+console.log('Creating API client with baseURL:', baseURL);
+
 // リクエスト、レスポンスのインターセプター設定済みの axios インスタンス
-const axiosInstance = axios.create({
-  baseURL: getBaseUrl(),
+const apiClient = axios.create({
+  baseURL: baseURL,
   timeout: 30000, // 30秒
   headers: {
     'Content-Type': 'application/json',
   },
 });
-
-console.log('API Client configured with baseURL:', getBaseUrl());
-
-// axiosインスタンスのメソッドをapiClientにコピー
-Object.setPrototypeOf(apiClient, axiosInstance);
-Object.assign(apiClient, axiosInstance);
 
 // デバッグモード（開発環境のみ）
 const DEBUG = process.env.NODE_ENV === 'development';
@@ -56,6 +49,7 @@ apiClient.interceptors.request.use(
     // リクエストのデバッグログ
     if (DEBUG) {
       console.log('API Request:', config.method?.toUpperCase(), config.url, config.params || {});
+      console.log('Full URL:', `${config.baseURL || ''}${config.url}`);
     }
     
     // 認証トークンをヘッダーに追加
