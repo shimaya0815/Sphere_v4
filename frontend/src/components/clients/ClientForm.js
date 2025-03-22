@@ -9,6 +9,7 @@ import {
 // 他のAPI関数は必要になったら適宜インポート
 import apiClient from '../../api/client';
 import tasksApi from '../../api/tasks/index';
+import clientsApi from '../../api/clients';
 import toast from 'react-hot-toast';
 import FiscalYearManagement from './FiscalYearManagement';
 import TaxRulesView from './tax/TaxRulesView';
