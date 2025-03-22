@@ -56,41 +56,86 @@ const TaskList = forwardRef((props, ref) => {
   
   // ユーザーごとのフィルター設定を保存・復元
   useEffect(() => {
-    const loadUserFilters = () => {
+    const loadUserFilters = async () => {
       if (!currentUser?.id) return;
       
-      // ローカルストレージからユーザーのフィルター設定を取得
-      const savedFilters = localStorage.getItem(`task_filters_${currentUser.id}`);
-      if (savedFilters) {
-        try {
-          const parsedFilters = JSON.parse(savedFilters);
-          console.log('保存されたフィルター設定を読み込みました:', parsedFilters);
-          setFilters(parsedFilters);
-        } catch (error) {
-          console.error('フィルター設定の読み込みでエラーが発生しました:', error);
+      try {
+        // バックエンドからユーザー設定を取得
+        const preferences = await usersApi.getUserPreferences();
+        
+        if (preferences && preferences.task_filters) {
+          // バックエンドに保存されたフィルタ設定がある場合はそれを使用
+          console.log('バックエンドから保存されたフィルター設定を読み込みました:', preferences.task_filters);
+          setFilters(preferences.task_filters);
+        } else {
+          // バックエンドに設定がない場合はローカルストレージをチェック
+          const savedFilters = localStorage.getItem(`task_filters_${currentUser.id}`);
+          if (savedFilters) {
+            try {
+              const parsedFilters = JSON.parse(savedFilters);
+              console.log('ローカルストレージからフィルター設定を読み込みました:', parsedFilters);
+              setFilters(parsedFilters);
+              
+              // ローカルストレージの設定をバックエンドにも保存
+              await usersApi.updateUserPreferences({
+                task_filters: parsedFilters
+              });
+            } catch (error) {
+              console.error('フィルター設定の読み込みでエラーが発生しました:', error);
+            }
+          } else {
+            // 保存された設定がない場合はデフォルト設定を使用
+            const defaultFilters = {
+              status: '',
+              searchTerm: '',
+              client: '',
+              assignee: currentUser.id,
+              hide_completed: true,
+            };
+            setFilters(defaultFilters);
+            
+            // デフォルト設定をバックエンドに保存
+            await usersApi.updateUserPreferences({
+              task_filters: defaultFilters
+            });
+          }
         }
-      } else {
-        // 保存された設定がない場合はデフォルト設定を使用
-        setFilters({
-          status: '',
-          searchTerm: '',
-          client: '',
-          assignee: currentUser.id,
-          hide_completed: true,
-        });
+      } catch (error) {
+        console.error('フィルター設定の取得でエラーが発生しました:', error);
+        
+        // バックエンドからの取得に失敗した場合はローカルストレージから読み込む
+        const savedFilters = localStorage.getItem(`task_filters_${currentUser.id}`);
+        if (savedFilters) {
+          try {
+            const parsedFilters = JSON.parse(savedFilters);
+            console.log('ローカルストレージからフィルター設定を読み込みました（バックエンド取得失敗時）:', parsedFilters);
+            setFilters(parsedFilters);
+          } catch (parseError) {
+            console.error('ローカルストレージのフィルター設定の解析でエラーが発生しました:', parseError);
+          }
+        }
       }
+      
+      setInitialized(true);
     };
     
     loadUserFilters();
   }, [currentUser]);
   
   // フィルター設定が変更されたときに保存
-  const saveUserFilters = useCallback(() => {
+  const saveUserFilters = useCallback(async () => {
     if (!currentUser?.id) return;
     
     try {
+      // ローカルストレージに保存
       localStorage.setItem(`task_filters_${currentUser.id}`, JSON.stringify(filters));
-      console.log('フィルター設定を保存しました:', filters);
+      console.log('フィルター設定をローカルストレージに保存しました:', filters);
+      
+      // バックエンドにも保存
+      await usersApi.updateUserPreferences({
+        task_filters: filters
+      });
+      console.log('フィルター設定をバックエンドに保存しました:', filters);
     } catch (error) {
       console.error('フィルター設定の保存でエラーが発生しました:', error);
     }
@@ -566,7 +611,7 @@ const TaskList = forwardRef((props, ref) => {
   };
   
   // フィルターリセット
-  const handleFilterReset = () => {
+  const handleFilterReset = async () => {
     // リセット時には自分が担当者のタスクのみに戻す（デフォルト状態）
     const defaultFilters = {
       status: '',
@@ -577,9 +622,18 @@ const TaskList = forwardRef((props, ref) => {
     };
     setFilters(defaultFilters);
     
-    // ローカルストレージからも削除
-    if (currentUser?.id) {
-      localStorage.removeItem(`task_filters_${currentUser.id}`);
+    try {
+      // バックエンドの設定も更新
+      await usersApi.updateUserPreferences({
+        task_filters: defaultFilters
+      });
+      
+      // ローカルストレージからも削除
+      if (currentUser?.id) {
+        localStorage.removeItem(`task_filters_${currentUser.id}`);
+      }
+    } catch (error) {
+      console.error('フィルター設定のリセットでエラーが発生しました:', error);
     }
     
     // すぐに適用

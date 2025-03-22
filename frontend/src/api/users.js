@@ -50,11 +50,52 @@ export const getProfile = async () => {
  * @returns {Promise<Array>} 作業者一覧
  */
 export const getAvailableWorkers = async (params = {}) => {
+  console.log('getAvailableWorkers: Fetching workers');
   try {
     const response = await apiClient.get('/api/users/workers/', { params });
-    return response.data;
+    console.log('getAvailableWorkers response:', response);
+    
+    // 応答形式を確認して適切な形式でデータを返す
+    if (response && response.data) {
+      if (Array.isArray(response.data)) {
+        return response.data;
+      } else if (response.data.results && Array.isArray(response.data.results)) {
+        return response.data.results;
+      } else {
+        // データが予想と異なる形式の場合は一般的なユーザーAPIを試行
+        console.log('getAvailableWorkers: Unexpected format, falling back to general users API');
+        const usersResponse = await apiClient.get('/api/users/', { params });
+        if (usersResponse && usersResponse.data) {
+          if (Array.isArray(usersResponse.data)) {
+            return usersResponse.data;
+          } else if (usersResponse.data.results && Array.isArray(usersResponse.data.results)) {
+            return usersResponse.data.results;
+          }
+        }
+        console.warn('getAvailableWorkers: Could not get users data in expected format');
+        return [];
+      }
+    }
+    console.warn('getAvailableWorkers: No data received');
+    return [];
   } catch (error) {
     console.error('Error fetching available workers:', error);
+    
+    // エラー発生時も一般的なユーザーAPIをフォールバックとして試行
+    try {
+      console.log('getAvailableWorkers: Error with specific API, falling back to general users API');
+      const usersResponse = await apiClient.get('/api/users/');
+      if (usersResponse && usersResponse.data) {
+        if (Array.isArray(usersResponse.data)) {
+          return usersResponse.data;
+        } else if (usersResponse.data.results && Array.isArray(usersResponse.data.results)) {
+          return usersResponse.data.results;
+        }
+      }
+    } catch (fallbackError) {
+      console.error('Error with fallback API request:', fallbackError);
+    }
+    
     throw error;
   }
 };
@@ -65,11 +106,52 @@ export const getAvailableWorkers = async (params = {}) => {
  * @returns {Promise<Array>} レビュアー一覧
  */
 export const getAvailableReviewers = async (params = {}) => {
+  console.log('getAvailableReviewers: Fetching reviewers');
   try {
     const response = await apiClient.get('/api/users/reviewers/', { params });
-    return response.data;
+    console.log('getAvailableReviewers response:', response);
+    
+    // 応答形式を確認して適切な形式でデータを返す
+    if (response && response.data) {
+      if (Array.isArray(response.data)) {
+        return response.data;
+      } else if (response.data.results && Array.isArray(response.data.results)) {
+        return response.data.results;
+      } else {
+        // データが予想と異なる形式の場合は一般的なユーザーAPIを試行
+        console.log('getAvailableReviewers: Unexpected format, falling back to general users API');
+        const usersResponse = await apiClient.get('/api/users/', { params });
+        if (usersResponse && usersResponse.data) {
+          if (Array.isArray(usersResponse.data)) {
+            return usersResponse.data;
+          } else if (usersResponse.data.results && Array.isArray(usersResponse.data.results)) {
+            return usersResponse.data.results;
+          }
+        }
+        console.warn('getAvailableReviewers: Could not get users data in expected format');
+        return [];
+      }
+    }
+    console.warn('getAvailableReviewers: No data received');
+    return [];
   } catch (error) {
     console.error('Error fetching available reviewers:', error);
+    
+    // エラー発生時も一般的なユーザーAPIをフォールバックとして試行
+    try {
+      console.log('getAvailableReviewers: Error with specific API, falling back to general users API');
+      const usersResponse = await apiClient.get('/api/users/');
+      if (usersResponse && usersResponse.data) {
+        if (Array.isArray(usersResponse.data)) {
+          return usersResponse.data;
+        } else if (usersResponse.data.results && Array.isArray(usersResponse.data.results)) {
+          return usersResponse.data.results;
+        }
+      }
+    } catch (fallbackError) {
+      console.error('Error with fallback API request:', fallbackError);
+    }
+    
     throw error;
   }
 };
@@ -134,6 +216,35 @@ export const deleteUser = async (userId) => {
   }
 };
 
+/**
+ * ユーザー設定を取得
+ * @returns {Promise<object>} ユーザー設定
+ */
+export const getUserPreferences = async () => {
+  try {
+    const response = await apiClient.get('/api/users/preferences/me/');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching user preferences:', error);
+    throw error;
+  }
+};
+
+/**
+ * ユーザー設定を更新
+ * @param {object} preferences 更新する設定データ
+ * @returns {Promise<object>} 更新された設定
+ */
+export const updateUserPreferences = async (preferences) => {
+  try {
+    const response = await apiClient.patch('/api/users/preferences/me/', preferences);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating user preferences:', error);
+    throw error;
+  }
+};
+
 // デフォルトエクスポート
 export default {
   getUsers,
@@ -144,5 +255,7 @@ export default {
   getBusinessUsers,
   createUser,
   updateUser,
-  deleteUser
+  deleteUser,
+  getUserPreferences,
+  updateUserPreferences
 };
