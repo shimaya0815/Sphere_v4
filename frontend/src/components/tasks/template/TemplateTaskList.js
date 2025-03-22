@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getTemplate, getTemplateTasks, deleteTemplateTask } from '../../../api/tasks';
+import { getTemplate, getTask, deleteTask } from '../../../api/tasks';
 import toast from 'react-hot-toast';
 import {
   HiOutlineArrowLeft,
@@ -14,6 +14,22 @@ import {
   HiOutlineX
 } from 'react-icons/hi';
 import TemplateTaskForm from './TemplateTaskForm';
+
+// 内包タスク一覧取得用の関数
+const getTemplateTasks = async (templateId) => {
+  try {
+    // APIエンドポイント: /api/tasks/templates/{templateId}/tasks/ を呼び出す
+    // ここでは既存のgetTemplateTasksの代わりに自前で実装
+    const response = await fetch(`/api/tasks/templates/${templateId}/tasks/`);
+    if (!response.ok) {
+      throw new Error(`Error ${response.status}: ${response.statusText}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching template tasks:', error);
+    return [];
+  }
+};
 
 const TemplateTaskList = () => {
   const { templateId } = useParams();
@@ -52,7 +68,7 @@ const TemplateTaskList = () => {
     setLoading(true);
     try {
       console.log('Fetching template child tasks with templateId:', templateId);
-      // 直接インポートした関数を使用
+      // 直接定義した関数を使用
       const data = await getTemplateTasks(templateId);
       console.log('Template child tasks:', data);
       
@@ -72,8 +88,8 @@ const TemplateTaskList = () => {
   const handleDelete = async (taskId) => {
     if (window.confirm('このテンプレートタスクを削除してもよろしいですか？')) {
       try {
-        // 直接インポートした関数を使用
-        await deleteTemplateTask(taskId);
+        // deleteTask関数を代わりに使用
+        await deleteTask(taskId);
         toast.success('テンプレートタスクを削除しました');
         fetchTemplateTasks();
       } catch (error) {

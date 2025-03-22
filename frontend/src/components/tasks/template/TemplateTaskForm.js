@@ -4,8 +4,8 @@ import toast from 'react-hot-toast';
 import { 
   getTemplate,
   getTask,
-  createTemplateTask, 
-  updateTemplateTask, 
+  createTask,
+  updateTask,
   createPriorityForValue,
   createTaskSchedule
 } from '../../../api/tasks';
@@ -203,11 +203,11 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
       let result;
       if (templateTaskId) {
         // Update existing template task
-        result = await updateTemplateTask(templateTaskId, formattedData);
+        result = await updateTask(templateTaskId, formattedData);
         toast.success('テンプレートタスクが更新されました');
       } else {
         // Create new template task
-        result = await createTemplateTask(formattedData);
+        result = await createTask(formattedData);
         toast.success('テンプレートタスクが作成されました');
       }
       
