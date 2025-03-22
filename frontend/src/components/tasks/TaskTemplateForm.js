@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import tasksApi from '../../api/tasks';
+import { 
+  getCategories, 
+  getPriorities, 
+  getStatuses, 
+  getTask, 
+  createTask, 
+  updateTask
+} from '../../api/tasks';
 import toast from 'react-hot-toast';
 import { 
   HiOutlineDocumentText,
@@ -9,6 +16,33 @@ import {
   HiOutlineClock,
   HiOutlineOfficeBuilding
 } from 'react-icons/hi';
+
+// スケジュール取得用の関数
+const getSchedules = async () => {
+  try {
+    console.log('Fetching schedules directly...');
+    const response = await fetch('/api/tasks/schedules/');
+    if (!response.ok) {
+      throw new Error(`Error ${response.status}: ${response.statusText}`);
+    }
+    const data = await response.json();
+    
+    // DRFのページネーション形式（results配列を含むオブジェクト）に対応
+    if (data && data.results && Array.isArray(data.results)) {
+      return data.results;
+    }
+    
+    // 直接配列の場合
+    if (Array.isArray(data)) {
+      return data;
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('Error fetching schedules:', error);
+    return [];
+  }
+};
 
 const TaskTemplateForm = ({ templateId = null, templateData = null, onSuccess, onCancel }) => {
   const navigate = useNavigate();
@@ -84,7 +118,7 @@ const TaskTemplateForm = ({ templateId = null, templateData = null, onSuccess, o
   const fetchTemplateData = async () => {
     try {
       console.log('Fetching template data for ID:', templateId);
-      const data = await tasksApi.getTask(templateId);
+      const data = await getTask(templateId);
       console.log('Template data received:', data);
       
       // スケジュール情報をテンプレートから取得
@@ -92,7 +126,7 @@ const TaskTemplateForm = ({ templateId = null, templateData = null, onSuccess, o
       if (data.schedule) {
         try {
           console.log('Fetching schedule data for schedule ID:', data.schedule);
-          const scheduleResponse = await tasksApi.getTemplateSchedules();
+          const scheduleResponse = await getSchedules();
           console.log('Schedule response:', scheduleResponse);
           
           const matchingSchedule = scheduleResponse.find(s => s.id === data.schedule);
@@ -154,10 +188,10 @@ const TaskTemplateForm = ({ templateId = null, templateData = null, onSuccess, o
       
       // Load categories, priorities, statuses, schedules in parallel
       const [categoriesData, prioritiesData, statusesData, schedulesData] = await Promise.all([
-        tasksApi.getCategories(),
-        tasksApi.getPriorities(),
-        tasksApi.getStatuses(),
-        tasksApi.getTemplateSchedules(),
+        getCategories(),
+        getPriorities(),
+        getStatuses(),
+        getSchedules(),
       ]);
       
       console.log('Reference data received:', { 
@@ -229,6 +263,48 @@ const TaskTemplateForm = ({ templateId = null, templateData = null, onSuccess, o
     }
   };
   
+  // スケジュールを作成または更新する関数
+  const createOrUpdateSchedule = async (scheduleId, scheduleData) => {
+    try {
+      if (scheduleId) {
+        // 既存スケジュールを更新
+        console.log('Updating schedule:', scheduleId, scheduleData);
+        const response = await fetch(`/api/tasks/schedules/${scheduleId}/`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(scheduleData),
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        return await response.json();
+      } else {
+        // 新規スケジュール作成
+        console.log('Creating new schedule:', scheduleData);
+        const response = await fetch('/api/tasks/schedules/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(scheduleData),
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        return await response.json();
+      }
+    } catch (error) {
+      console.error('Error with schedule:', error);
+      throw error;
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -245,28 +321,36 @@ const TaskTemplateForm = ({ templateId = null, templateData = null, onSuccess, o
     setSaving(true);
     
     try {
-      // スケジュール情報を保存または更新
+      // スケジュールデータの準備
       let scheduleId = formData.schedule;
-      const scheduleData = {
-        name: `${formData.template_name}のスケジュール`,
-        schedule_type: formData.schedule_type,
-        recurrence: formData.recurrence,
-        creation_day: formData.creation_day,
-        deadline_day: formData.deadline_day,
-        deadline_next_month: formData.deadline_next_month,
-        fiscal_date_reference: formData.fiscal_date_reference,
-        creation_date_offset: formData.creation_date_offset,
-        deadline_date_offset: formData.deadline_date_offset,
-        reference_date_type: formData.reference_date_type
-      };
+      let scheduleData = null;
       
-      // 既存のスケジュールを更新するか、新規作成するか
-      if (scheduleId) {
-        await tasksApi.updateTemplateSchedule(scheduleId, scheduleData);
-      } else {
-        // 新規スケジュール作成
-        const newSchedule = await tasksApi.createDefaultTemplateSchedule(scheduleData);
-        scheduleId = newSchedule.id;
+      if (formData.schedule_type !== 'none') {
+        scheduleData = {
+          name: `${formData.template_name || formData.title}のスケジュール`,
+          schedule_type: formData.schedule_type,
+          recurrence: formData.recurrence || 'monthly',
+          // 月初/月末パターン用
+          creation_day: formData.creation_day,
+          deadline_day: formData.deadline_day,
+          deadline_next_month: formData.deadline_next_month,
+          // 決算日基準用
+          fiscal_date_reference: formData.fiscal_date_reference,
+          // カスタム設定用
+          reference_date_type: formData.reference_date_type,
+          creation_date_offset: formData.creation_date_offset,
+          deadline_date_offset: formData.deadline_date_offset
+        };
+        
+        // 既存のスケジュールを更新するか、新規作成するか
+        if (scheduleId) {
+          const updatedSchedule = await createOrUpdateSchedule(scheduleId, scheduleData);
+          scheduleId = updatedSchedule.id;
+        } else {
+          // 新規スケジュール作成
+          const newSchedule = await createOrUpdateSchedule(null, scheduleData);
+          scheduleId = newSchedule.id;
+        }
       }
       
       // テンプレートタスクの保存/更新
@@ -278,11 +362,11 @@ const TaskTemplateForm = ({ templateId = null, templateData = null, onSuccess, o
       
       if (templateId) {
         // 既存テンプレート更新
-        await tasksApi.updateTask(templateId, taskData);
+        await updateTask(templateId, taskData);
         toast.success('テンプレートを更新しました');
       } else {
         // 新規テンプレート作成
-        await tasksApi.createTask(taskData);
+        await createTask(taskData);
         toast.success('新規テンプレートを作成しました');
       }
       
