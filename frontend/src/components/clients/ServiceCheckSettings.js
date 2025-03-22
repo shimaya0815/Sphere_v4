@@ -579,34 +579,76 @@ const ServiceCheckSettings = ({ clientId }) => {
         // デフォルトテンプレートの設定
         const templateMappings = [
           {
-            name: "月次処理チェック",
+            name: "顧問契約タスク",
+            service: "advisory",
             schedule: "月次スケジュール",
-            description: "毎月の会計処理状況を確認するためのタスクです。",
+            description: "顧問契約に基づく月次の会計処理状況を確認するためのタスクです。",
           },
           {
-            name: "記帳代行作業",
+            name: "決算申告タスク",
+            service: "tax_return_final",
+            schedule: "決算スケジュール",
+            description: "決算期の法人税申告書作成・提出業務を行うためのタスクです。",
+          },
+          {
+            name: "中間申告タスク",
+            service: "tax_return_interim",
+            schedule: "決算スケジュール",
+            description: "中間申告書の作成・提出業務を行うためのタスクです。",
+          },
+          {
+            name: "予定申告タスク",
+            service: "tax_return_provisional",
+            schedule: "決算スケジュール",
+            description: "予定申告書の作成・提出業務を行うためのタスクです。",
+          },
+          {
+            name: "記帳代行業務",
+            service: "bookkeeping",
             schedule: "月次スケジュール",
             description: "月次の記帳代行を行うためのタスクです。",
           },
           {
-            name: "決算・法人税申告業務",
-            schedule: "決算スケジュール",
-            description: "決算期の法人税申告書作成業務を行うためのタスクです。",
-          },
-          {
-            name: "源泉所得税納付業務",
+            name: "給与計算業務",
+            service: "payroll",
             schedule: "月末スケジュール",
-            description: "毎月の源泉所得税の納付手続きを行うためのタスクです。",
+            description: "月次の給与計算業務を行うためのタスクです。",
           },
           {
-            name: "住民税納付業務",
+            name: "源泉所得税(原則)納付",
+            service: "tax_withholding_standard",
+            schedule: "月末スケジュール",
+            description: "毎月の源泉所得税（原則）の納付手続きを行うためのタスクです。",
+          },
+          {
+            name: "源泉所得税(特例)納付",
+            service: "tax_withholding_special",
+            schedule: "月末スケジュール",
+            description: "毎月の源泉所得税（特例）の納付手続きを行うためのタスクです。",
+          },
+          {
+            name: "住民税(原則)納付",
+            service: "resident_tax_standard",
             schedule: "月次スケジュール",
-            description: "従業員の住民税特別徴収の納付手続きを行うためのタスクです。",
+            description: "従業員の住民税（原則）特別徴収の納付手続きを行うためのタスクです。",
+          },
+          {
+            name: "住民税(特例)納付",
+            service: "resident_tax_special",
+            schedule: "月次スケジュール",
+            description: "従業員の住民税（特例）特別徴収の納付手続きを行うためのタスクです。",
           },
           {
             name: "社会保険手続き",
+            service: "social_insurance",
             schedule: "月次スケジュール",
             description: "社会保険関連の各種手続きを行うためのタスクです。",
+          },
+          {
+            name: "その他のタスク",
+            service: "other",
+            schedule: "月次スケジュール",
+            description: "その他の定型業務に関するタスクです。",
           }
         ];
         
@@ -630,7 +672,54 @@ const ServiceCheckSettings = ({ clientId }) => {
               templates.find(t => t.title === mapping.name || t.template_name === mapping.name) : null;
             
             if (!template) {
-              console.log(`No matching template found for ${mapping.name}, skipping...`);
+              console.log(`No matching template found for ${mapping.name}, creating new template...`);
+              
+              // テンプレートが見つからない場合、デフォルト値を使用して作成
+              const defaultTemplate = {
+                title: mapping.name,
+                description: mapping.description,
+                service: mapping.service
+              };
+              
+              // マッチするスケジュールを検索または作成
+              const scheduleType = DEFAULT_SCHEDULE_TYPES[mapping.service] || 'monthly_start';
+              const recurrence = DEFAULT_CYCLES[mapping.service] || 'monthly';
+              
+              let scheduleId = null;
+              const existingSchedule = schedules.find(s => s.name === mapping.schedule);
+              
+              if (existingSchedule) {
+                scheduleId = existingSchedule.id;
+                console.log(`Using existing schedule for ${mapping.name}: ${existingSchedule.name}`);
+              } else {
+                // スケジュールが存在しない場合は作成
+                try {
+                  const newSchedule = await createDefaultSchedule(mapping.schedule, scheduleType, recurrence);
+                  if (newSchedule) {
+                    scheduleId = newSchedule.id;
+                    console.log(`Created new schedule for ${mapping.name}: ${newSchedule.id}`);
+                  }
+                } catch (scheduleError) {
+                  console.error(`Error creating schedule for ${mapping.name}:`, scheduleError);
+                  continue; // スケジュール作成が失敗したら次のテンプレートへ
+                }
+              }
+              
+              if (!scheduleId) {
+                console.error(`Failed to get schedule ID for ${mapping.name}`);
+                continue;
+              }
+              
+              // クライアントテンプレートを作成
+              const newTemplate = await clientsApi.createClientTaskTemplate(clientId, {
+                title: defaultTemplate.title,
+                description: defaultTemplate.description,
+                schedule: scheduleId,
+                is_active: true
+              });
+              
+              createdTemplates.push(newTemplate);
+              console.log(`Created new template for ${mapping.name}`);
               continue;
             }
             
@@ -639,7 +728,30 @@ const ServiceCheckSettings = ({ clientId }) => {
               schedules.find(s => s.name === mapping.schedule) : null;
             
             if (!schedule) {
-              console.log(`No matching schedule found for ${mapping.schedule}, skipping...`);
+              console.log(`No matching schedule found for ${mapping.schedule}, creating new schedule...`);
+              
+              // スケジュールがなければ作成
+              const scheduleType = DEFAULT_SCHEDULE_TYPES[mapping.service] || 'monthly_start';
+              const recurrence = DEFAULT_CYCLES[mapping.service] || 'monthly';
+              
+              try {
+                const newSchedule = await createDefaultSchedule(mapping.schedule, scheduleType, recurrence);
+                if (newSchedule) {
+                  // テンプレートを作成
+                  const newTemplate = await clientsApi.createClientTaskTemplate(clientId, {
+                    title: mapping.name,
+                    description: mapping.description,
+                    template_task: template.id,
+                    schedule: newSchedule.id,
+                    is_active: true
+                  });
+                  
+                  createdTemplates.push(newTemplate);
+                  console.log(`Created template for ${mapping.name} with new schedule ${newSchedule.id}`);
+                }
+              } catch (error) {
+                console.error(`Error creating schedule for ${mapping.name}:`, error);
+              }
               continue;
             }
             
