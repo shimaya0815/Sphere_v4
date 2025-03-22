@@ -1600,6 +1600,7 @@ const ServiceCheckSettings = ({ clientId }) => {
         </h3>
         <div className="flex items-center space-x-2">
           <button 
+            type="button"
             className="btn btn-sm btn-outline"
             onClick={fetchData}
             disabled={loading || saving}
@@ -1607,6 +1608,7 @@ const ServiceCheckSettings = ({ clientId }) => {
             <HiOutlineRefresh className={loading ? "animate-spin" : ""} />
           </button>
           <button 
+            type="button"
             className="btn btn-sm btn-primary"
             onClick={handleSave}
             disabled={loading || saving}
@@ -1666,6 +1668,7 @@ const ServiceCheckSettings = ({ clientId }) => {
                   </td>
                   <td className="px-4 py-3">
                     <button
+                      type="button"
                       onClick={() => handleShowTaskTemplateModal(service)}
                       className="text-gray-600 hover:text-gray-800"
                       title="テンプレート設定"
