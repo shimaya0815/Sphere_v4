@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 from .models import (
-    Task, TaskCategory, TaskStatus, TaskPriority, TaskComment, 
+    Task, TaskCategory, TaskStatus, TaskComment, 
     TaskAttachment, TaskTimer, TaskHistory, TaskNotification,
     TaskSchedule, TemplateChildTask
 )
@@ -18,12 +18,6 @@ class TaskStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = TaskStatus
         fields = '__all__'
-
-
-class TaskPrioritySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = TaskPriority
-        fields = ['id', 'business', 'priority_value']
 
 
 class TaskAttachmentSerializer(serializers.ModelSerializer):
@@ -159,7 +153,6 @@ class TaskSerializer(serializers.ModelSerializer):
     # 基本フィールド - リレーションシップからの名前を取得するリードオンリーフィールド
     category_name = serializers.ReadOnlyField(source='category.name', default=None)
     status_name = serializers.ReadOnlyField(source='status.name', default=None)
-    priority_name = serializers.ReadOnlyField(source='priority.priority_value', default=None)
     creator_name = serializers.ReadOnlyField(source='creator.get_full_name', default=None)
     assignee_name = serializers.ReadOnlyField(source='assignee.get_full_name', default=None)
     worker_name = serializers.ReadOnlyField(source='worker.get_full_name', default=None)
@@ -168,13 +161,9 @@ class TaskSerializer(serializers.ModelSerializer):
     client_name = serializers.ReadOnlyField(source='client.name', default=None)
     fiscal_period = serializers.ReadOnlyField(source='fiscal_year.fiscal_period', default=None)
     
-    # 追加フィールド - フロントエンドからの入力専用
-    priority_value = serializers.IntegerField(write_only=True, required=False, allow_null=True)
-    
     # 一貫した形式でフロントエンドに送信するための拡張フィールド
     # これにより、フロントエンドがリレーション処理を簡素化できる
     status_data = serializers.SerializerMethodField()
-    priority_data = serializers.SerializerMethodField()
     category_data = serializers.SerializerMethodField()
     client_data = serializers.SerializerMethodField()
     fiscal_year_data = serializers.SerializerMethodField()
@@ -186,7 +175,6 @@ class TaskSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'description', 'business', 'workspace', 
             'status', 'status_name', 'status_data',
-            'priority', 'priority_name', 'priority_data', 'priority_value',
             'category', 'category_name', 'category_data',
             'creator', 'creator_name', 'assignee', 'assignee_name', 
             'worker', 'worker_name', 'worker_data',
@@ -207,15 +195,6 @@ class TaskSerializer(serializers.ModelSerializer):
                 'id': obj.status.id,
                 'name': obj.status.name,
                 'color': obj.status.color
-            }
-        return None
-    
-    def get_priority_data(self, obj):
-        """優先度情報を一貫した形式で返す"""
-        if obj.priority:
-            return {
-                'id': obj.priority.id,
-                'priority_value': obj.priority.priority_value
             }
         return None
     
@@ -287,20 +266,6 @@ class TaskSerializer(serializers.ModelSerializer):
                     print(f"[ERROR] {field}の変換中にエラー: {e}")
                     validated_data[field] = None
         
-        # Priorityの処理
-        priority_value = validated_data.pop('priority_value', None)
-        if priority_value is not None:
-            try:
-                # 該当する優先度値のPriorityを取得または作成
-                priority, created = TaskPriority.objects.get_or_create(
-                    business=user.business,
-                    priority_value=priority_value
-                )
-                validated_data['priority'] = priority
-                print(f"⭐ Used priority: {priority.id}, value: {priority.priority_value}, created: {created}")
-            except Exception as e:
-                print(f"⭐ Error handling priority_value: {e}")
-        
         # If no workspace is provided, use the default workspace
         if 'workspace' not in validated_data and user.business:
             default_workspace = user.business.workspaces.first()
@@ -321,31 +286,6 @@ class TaskSerializer(serializers.ModelSerializer):
                 except (ValueError, TypeError) as e:
                     print(f"[ERROR] 更新時の{field}変換中にエラー: {e}")
                     validated_data[field] = None
-        
-        # Priorityの処理
-        priority_value = validated_data.pop('priority_value', None)
-        
-        # priority_value が None かどうかを明示的に確認
-        if 'priority_value' in validated_data or priority_value is not None:
-            try:
-                # priority_value が None の場合は priority も None に設定
-                if priority_value is None:
-                    validated_data['priority'] = None
-                    print(f"⭐ Update: Setting priority to None explicitly")
-                else:
-                    # 該当する優先度値の TaskPriority を取得または作成
-                    priority, created = TaskPriority.objects.get_or_create(
-                        business=instance.business,
-                        priority_value=priority_value
-                    )
-                    validated_data['priority'] = priority
-                    print(f"⭐ Update: Used priority: {priority.id}, value: {priority.priority_value}, created: {created}")
-            except Exception as e:
-                print(f"⭐ Error handling priority_value in update: {e}")
-        
-        # priority フィールドが明示的に None に設定されている場合を確認
-        if 'priority' in validated_data and validated_data['priority'] is None:
-            print(f"⭐ Update: Priority field explicitly set to None")
         
         return super().update(instance, validated_data)
 

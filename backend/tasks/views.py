@@ -3,13 +3,13 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
 from .models import (
-    Task, TaskCategory, TaskStatus, TaskPriority, TaskComment, 
+    Task, TaskCategory, TaskStatus, TaskComment, 
     TaskAttachment, TaskTimer, TaskHistory, TaskNotification,
     TaskSchedule, TemplateChildTask
 )
 from .serializers import (
     TaskSerializer, TaskCategorySerializer, TaskStatusSerializer, 
-    TaskPrioritySerializer, TaskCommentSerializer, TaskAttachmentSerializer, 
+    TaskCommentSerializer, TaskAttachmentSerializer, 
     TaskTimerSerializer, TaskHistorySerializer, TaskNotificationSerializer,
     TaskTemplateSerializer, TaskScheduleSerializer, TemplateChildTaskSerializer
 )
@@ -42,17 +42,6 @@ class TaskViewSet(viewsets.ModelViewSet):
             new_status_id = int(new_status_id)
             
         print(f"⭐ Old status: {old_status_id}, New status: {new_status_id}")
-            
-        # Add debugging for priority
-        old_priority = instance.priority
-        old_priority_id = old_priority.id if old_priority else None
-        new_priority_id = request.data.get('priority')
-        
-        # Convert priority ID to integer if it's a string
-        if new_priority_id and isinstance(new_priority_id, str) and new_priority_id.isdigit():
-            new_priority_id = int(new_priority_id)
-            
-        print(f"⭐ Old priority: {old_priority_id}, New priority: {new_priority_id}")
         
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
@@ -62,7 +51,6 @@ class TaskViewSet(viewsets.ModelViewSet):
             
             # Get the updated instance for returning the complete data
             updated_instance = self.get_object()
-            print(f"⭐ Updated task priority: {updated_instance.priority.id if updated_instance.priority else None}")
             print(f"⭐ Updated task status: {updated_instance.status.id if updated_instance.status else None}")
             
             # チェック: タスクが完了ステータスに変更された場合、かつcompleted_atがまだ設定されていない場合
@@ -461,80 +449,6 @@ class TaskStatusViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         serializer.save(business=self.request.user.business)
-
-
-class TaskPriorityViewSet(viewsets.ModelViewSet):
-    queryset = TaskPriority.objects.all()
-    serializer_class = TaskPrioritySerializer
-    permission_classes = [permissions.IsAuthenticated, IsSameBusiness]
-    
-    def get_queryset(self):
-        """Return priorities for the authenticated user's business."""
-        return TaskPriority.objects.filter(business=self.request.user.business)
-    
-    def perform_create(self, serializer):
-        serializer.save(business=self.request.user.business)
-        
-    @action(detail=False, methods=['post'], url_path='create-for-value')
-    def create_for_value(self, request):
-        """指定された優先度値に基づいて新規TaskPriorityレコードを作成する"""
-        priority_value = request.data.get('priority_value')
-        
-        print(f"⭐ create_for_value called with data: {request.data}")
-        print(f"⭐ priority_value (raw): {priority_value}, type: {type(priority_value)}")
-        
-        try:
-            priority_value = int(priority_value)
-            print(f"⭐ priority_value (converted): {priority_value}")
-            
-            if priority_value < 1 or priority_value > 100:
-                print(f"⭐ Invalid priority value range: {priority_value}")
-                return Response(
-                    {"error": "優先度は1から100の間で指定してください"}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        except (TypeError, ValueError) as e:
-            print(f"⭐ Error converting priority value: {e}, value was: {priority_value}")
-            return Response(
-                {"error": "有効な数値を指定してください"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-            
-        # 同じ優先度値のレコードがすでに存在するか確認
-        existing = TaskPriority.objects.filter(
-            business=request.user.business,
-            priority_value=priority_value
-        ).first()
-        
-        if existing:
-            # 既存のレコードを返す
-            print(f"⭐ Found existing priority with value {priority_value}, id: {existing.id}")
-            serializer = self.get_serializer(existing)
-            return Response(serializer.data)
-        
-        # 新しい優先度レコードを作成
-        try:
-            new_priority = TaskPriority.objects.create(
-                business=request.user.business,
-                priority_value=priority_value
-            )
-            print(f"⭐ Created new priority with value {priority_value}, id: {new_priority.id}")
-            
-            # ベリファイ - 本当に保存されたか確認
-            saved_priority = TaskPriority.objects.get(id=new_priority.id)
-            print(f"⭐ Verified saved priority: id={saved_priority.id}, value={saved_priority.priority_value}")
-            
-            serializer = self.get_serializer(new_priority)
-            response_data = serializer.data
-            print(f"⭐ Response data: {response_data}")
-            return Response(response_data, status=status.HTTP_201_CREATED)
-            
-        except Exception as e:
-            print(f"⭐ Error creating priority: {e}")
-            return Response(
-                {"error": f"優先度の作成に失敗しました: {str(e)}"}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
 
 
 class TaskCommentViewSet(viewsets.ModelViewSet):

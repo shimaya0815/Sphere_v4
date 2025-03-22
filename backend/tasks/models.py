@@ -163,26 +163,6 @@ class TaskStatus(models.Model):
             )
 
 
-class TaskPriority(models.Model):
-    """Priority for tasks."""
-    
-    business = models.ForeignKey(
-        'business.Business',
-        on_delete=models.CASCADE,
-        related_name='task_priorities'
-    )
-    priority_value = models.PositiveIntegerField(_('priority value'), default=100)  # Lower number means higher priority
-    
-    class Meta:
-        verbose_name = _('task priority')
-        verbose_name_plural = _('task priorities')
-        ordering = ['priority_value']
-        unique_together = ('business', 'priority_value')
-    
-    def __str__(self):
-        return str(self.priority_value)
-
-
 class Task(models.Model):
     """Task model."""
     
@@ -202,13 +182,6 @@ class Task(models.Model):
     )
     status = models.ForeignKey(
         TaskStatus,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='tasks'
-    )
-    priority = models.ForeignKey(
-        TaskPriority,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -496,12 +469,6 @@ class Task(models.Model):
                 business=self.business,
                 workspace=self.workspace,
                 status=default_status,
-                priority=self.priority,
-                category=self.category,
-                creator=self.creator,
-                worker=self.worker,
-                reviewer=self.reviewer,
-                approver=self.approver,
                 due_date=next_due_date,
                 start_date=next_start_date,
                 estimated_hours=self.estimated_hours,
@@ -747,7 +714,6 @@ class Task(models.Model):
             'business': self.business,
             'workspace': self.workspace,
             'category': self.category,
-            'priority': self.priority,
             'status': self.status or TaskStatus.objects.filter(business=self.business, name='未着手').first(),
             'estimated_hours': self.estimated_hours,
             'worker': self.worker,
@@ -1103,13 +1069,6 @@ class TemplateChildTask(models.Model):
         blank=True,
         related_name='template_child_tasks'
     )
-    priority = models.ForeignKey(
-        TaskPriority,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='template_child_tasks'
-    )
     status = models.ForeignKey(
         TaskStatus,
         on_delete=models.SET_NULL,
@@ -1189,7 +1148,6 @@ class TemplateChildTask(models.Model):
             business=self.business,
             workspace=parent_task.workspace,
             category=self.category,
-            priority=self.priority,
             status=self.status or TaskStatus.objects.filter(business=self.business, name='未着手').first(),
             estimated_hours=self.estimated_hours,
             worker=worker,

@@ -6,7 +6,6 @@ from . import views
 router = DefaultRouter()
 router.register(r'categories', views.TaskCategoryViewSet, basename='category')
 router.register(r'statuses', views.TaskStatusViewSet, basename='status')
-router.register(r'priorities', views.TaskPriorityViewSet, basename='priority')
 router.register(r'templates', views.TaskTemplateViewSet, basename='template')
 router.register(r'comments', views.TaskCommentViewSet, basename='comment')
 router.register(r'attachments', views.TaskAttachmentViewSet, basename='attachment')

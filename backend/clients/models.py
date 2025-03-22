@@ -203,13 +203,6 @@ class ClientTaskTemplate(models.Model):
         blank=True,
         related_name='client_templates'
     )
-    priority = models.ForeignKey(
-        'tasks.TaskPriority',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='client_templates'
-    )
     estimated_hours = models.DecimalField(
         _('見積工数'),
         max_digits=6,
@@ -282,7 +275,6 @@ class ClientTaskTemplate(models.Model):
             business=self.client.business,
             workspace=self.client.business.workspaces.first(),  # Get default workspace
             status=default_status,
-            priority=self.priority,
             category=self.category,
             worker=self.worker,
             reviewer=self.reviewer,

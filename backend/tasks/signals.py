@@ -1,7 +1,7 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from business.models import Business
-from .models import TaskCategory, TaskStatus, TaskPriority, Task
+from .models import TaskCategory, TaskStatus, Task
 
 
 @receiver(post_save, sender=Business)
