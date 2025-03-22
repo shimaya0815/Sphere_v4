@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, forwardRef } from 'react';
 import ReactQuill, { Quill } from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { HiCodeBracket, HiLink, HiListBullet, HiPhoto } from 'react-icons/hi2';
-import { HiOutlinePencil } from 'react-icons/hi';
+import { HiOutlinePencil, HiOutlineChevronRight } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 
 // Quillエディタのカスタムフォーマット定義
@@ -37,7 +37,7 @@ const TaskDescriptionEditor = ({ value, onChange }) => {
   // エディタ設定 (シンプルなツールバーのみを使用)
   const simpleToolbar = [
     ['bold', 'italic', 'code'],
-    [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+    [{ 'list': 'ordered' }, { 'list': 'bullet' }, 'blockquote'],
     ['link', 'image'],
   ];
 
@@ -124,6 +124,14 @@ const TaskDescriptionEditor = ({ value, onChange }) => {
           shortKey: true,
           handler: function(range, context) {
             this.quill.format('code', !context.format.code);
+          }
+        },
+        blockquote: {
+          key: '9',
+          shortKey: true,
+          shiftKey: true,
+          handler: function(range, context) {
+            this.quill.format('blockquote', !context.format.blockquote);
           }
         }
       }
@@ -299,180 +307,109 @@ const TaskDescriptionEditor = ({ value, onChange }) => {
   
   // ショートカットヘルプのレンダリング
   const renderShortcutHelp = () => (
-    <div className="shortcut-help">
-      <span className="shortcut"><kbd>Ctrl/Cmd</kbd> + <kbd>B</kbd>: 太字</span>
-      <span className="shortcut"><kbd>Ctrl/Cmd</kbd> + <kbd>I</kbd>: 斜体</span>
-      <span className="shortcut"><kbd>Ctrl/Cmd</kbd> + <kbd>E</kbd>: コード</span>
-      <span className="shortcut">URLを貼り付けるとリンクに自動変換</span>
-      <span className="shortcut">画像は貼り付け(<kbd>Ctrl/Cmd</kbd> + <kbd>V</kbd>)またはツールバーから追加可能</span>
+    <div className="text-xs text-gray-500 mt-2 flex flex-wrap gap-x-4 gap-y-1">
+      <span><kbd>Ctrl+B</kbd> 太字</span>
+      <span><kbd>Ctrl+I</kbd> 斜体</span>
+      <span><kbd>Ctrl+E</kbd> コード</span>
+      <span><kbd>Ctrl+Shift+9</kbd> 引用</span>
+      <span>画像はドラッグ&ドロップまたは貼り付け可能</span>
     </div>
   );
   
   return (
-    <div className="task-description-editor">
-      <style>
-        {`
-          .task-description-editor {
-            border: 1px solid #d1d5db;
-            border-radius: 0.375rem;
-            overflow: hidden;
-          }
-          
-          .task-description-editor .ql-toolbar {
-            border: none;
-            border-bottom: 1px solid #e5e7eb;
-            background-color: #f9fafb;
-            padding: 8px;
-          }
-          
-          .task-description-editor .ql-container {
-            border: none;
-            height: auto;
-            font-family: inherit;
-          }
-          
-          .task-description-editor .ql-editor {
-            min-height: 120px;
-            max-height: 300px;
-            overflow-y: auto;
-            font-size: 0.875rem;
-            font-family: inherit;
-          }
-          
-          .task-description-editor .ql-editor p {
-            margin-bottom: 0.5rem;
-          }
-          
-          .task-description-editor .ql-editor pre {
-            background: #f6f8fa;
-            border-radius: 3px;
-            padding: 0.5rem;
-            font-family: monospace;
-          }
-          
-          .task-description-editor .ql-editor code {
-            background: #f6f8fa;
-            border-radius: 3px;
-            padding: 0.125rem 0.25rem;
-            font-family: monospace;
-            font-size: 0.875em;
-          }
-          
-          .task-description-editor .ql-editor blockquote {
-            border-left: 4px solid #e5e7eb;
-            padding-left: 1rem;
-            color: #6b7280;
-          }
-          
-          .task-description-editor .ql-editor img {
-            max-width: 100%;
-            height: auto;
-            margin: 10px 0;
-            border-radius: 4px;
-          }
-          
-          .editor-footer {
-            border-top: 1px solid #e5e7eb;
-            background-color: #f9fafb;
-            padding: 8px 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
-          
-          .save-button {
-            background-color: #3b82f6;
-            color: white;
-            font-size: 0.75rem;
-            font-weight: 500;
-            padding: 0.25rem 0.75rem;
-            border-radius: 0.25rem;
-            border: none;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-          }
-          
-          .save-button:hover {
-            background-color: #2563eb;
-          }
-          
-          .save-button.saving {
-            background-color: #9ca3af;
-          }
-          
-          .editor-hint {
-            font-size: 0.75rem;
-            color: #6b7280;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-          }
-          
-          .toolbar-toggle {
-            display: flex;
-            align-items: center;
-            padding: 4px 8px;
-            border-radius: 4px;
-            background: #f3f4f6;
-            cursor: pointer;
-            margin-right: 8px;
-          }
-          
-          .toolbar-toggle:hover {
-            background: #e5e7eb;
-          }
-          
-          .format-icons {
-            display: flex;
-            gap: 4px;
-            margin-right: 8px;
-          }
-          
-          .format-btn {
-            background: none;
-            border: none;
-            padding: 2px 4px;
-            border-radius: 4px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            color: #6b7280;
-          }
-          
-          .format-btn:hover {
-            background: #f3f4f6;
-            color: #374151;
-          }
-          
-          .format-btn.active {
-            color: #2563eb;
-            background: #eff6ff;
-          }
-          
-          .shortcut-help {
-            font-size: 0.7rem;
-            color: #6b7280;
-            display: flex;
-            gap: 1rem;
-            flex-wrap: wrap;
-          }
-          
-          .shortcut kbd {
-            background-color: #f3f4f6;
-            border: 1px solid #d1d5db;
-            border-radius: 3px;
-            box-shadow: 0 1px 0 rgba(0,0,0,0.2);
-            color: #374151;
-            display: inline-block;
-            font-family: inherit;
-            font-size: 0.65rem;
-            line-height: 1;
-            padding: 0.15rem 0.25rem;
-          }
-        `}
-      </style>
+    <div ref={editorRef} className="task-description-editor">
+      <style jsx="true">{`
+        .task-description-editor {
+          border: 1px solid #d1d5db;
+          border-radius: 0.375rem;
+          overflow: hidden;
+        }
+        
+        .task-description-editor .ql-toolbar {
+          border-top-left-radius: 0.375rem;
+          border-top-right-radius: 0.375rem;
+          background-color: #f9fafb;
+          border-color: #e5e7eb;
+          border: none;
+          border-bottom: 1px solid #e5e7eb;
+          padding: 8px;
+        }
+        
+        .task-description-editor .ql-container {
+          border-bottom-left-radius: 0.375rem;
+          border-bottom-right-radius: 0.375rem;
+          border-color: #e5e7eb;
+          border: none;
+          height: auto;
+          font-family: inherit;
+        }
+        
+        .task-description-editor .ql-editor {
+          font-size: 0.875rem;
+          line-height: 1.5;
+          min-height: 150px;
+          max-height: 300px;
+          overflow-y: auto;
+          font-family: inherit;
+        }
+        
+        .task-description-editor .ql-editor p {
+          margin-bottom: 0.5rem;
+        }
+
+        .task-description-editor .ql-editor pre {
+          background: #f6f8fa;
+          border-radius: 3px;
+          padding: 0.5rem;
+          font-family: monospace;
+        }
+        
+        .task-description-editor .ql-editor code {
+          background: #f6f8fa;
+          border-radius: 3px;
+          padding: 0.125rem 0.25rem;
+          font-family: monospace;
+          font-size: 0.875em;
+        }
+        
+        .task-description-editor .ql-editor blockquote {
+          border-left: 3px solid #ccc;
+          padding-left: 0.75rem;
+          margin-left: 0;
+          margin-bottom: 0.5rem;
+          color: #666;
+        }
+        
+        .task-description-editor .ql-editor img {
+          max-width: 100%;
+          height: auto;
+          margin: 10px 0;
+          border-radius: 4px;
+        }
+      
+        .task-description-editor .ql-blockquote {
+          position: relative;
+        }
+        
+        .task-description-editor .ql-blockquote:after {
+          content: "";
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 16px;
+          height: 16px;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='1.5' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M8.25 4.5l7.5 7.5-7.5 7.5' /%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: center;
+        }
+        
+        .editor-footer {
+          border-top: 1px solid #e5e7eb;
+          background-color: #f9fafb;
+          padding: 8px 12px;
+        }
+      `}</style>
       <QuillEditor
         ref={quillRef}
         value={editorContent}
