@@ -95,7 +95,7 @@ const TaskBasicInfoSection = ({
 
       {/* カテゴリー、クライアント、決算期 */}
       <div className="grid grid-cols-3 gap-4 mt-4">
-        {/* カテゴリー */}
+        {/* カテゴリー - 非表示化
         <div>
           <label htmlFor="category" className="block text-sm font-medium text-gray-700">
             カテゴリー
@@ -108,7 +108,7 @@ const TaskBasicInfoSection = ({
                 <div className="relative">
                   <select
                     id="category"
-                    className={`${selectClassName} pl-7`} /* 左側にカラーマーカーのスペースを確保 */
+                    className={`${selectClassName} pl-7`}
                     {...field}
                     onChange={(e) => {
                       field.onChange(e);
@@ -136,6 +136,7 @@ const TaskBasicInfoSection = ({
             />
           </div>
         </div>
+        */}
         
         {/* クライアント */}
         <div>
