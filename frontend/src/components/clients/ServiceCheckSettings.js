@@ -1167,7 +1167,7 @@ const ServiceCheckSettings = ({ clientId }) => {
         schedule: scheduleId,
         is_active: serviceSettings.enabled !== false, // デフォルトで有効
         category: categoryId,
-        priority: priorityId,
+        // priority: priorityId, // このフィールドはバックエンドモデルで対応していないため削除
         template_task: globalTemplateId // グローバルテンプレートが見つかった場合は参照を設定
       };
       
@@ -1236,7 +1236,7 @@ const ServiceCheckSettings = ({ clientId }) => {
         schedule: scheduleId,
         is_active: true,
         category: selectedTemplate.category?.id,
-        priority: selectedTemplate.priority?.id,
+        // priority: selectedTemplate.priority?.id, // このフィールドはバックエンドモデルで対応していないため削除
         estimated_hours: selectedTemplate.estimated_hours
       };
       
@@ -1273,7 +1273,7 @@ const ServiceCheckSettings = ({ clientId }) => {
         description: customizedTemplate.description || sourceTemplate.description,
         is_template: true, // テンプレートフラグを設定
         category: sourceTemplate.category?.id || null,
-        priority: sourceTemplate.priority?.id || null,
+        // priority: sourceTemplate.priority?.id || null, // このフィールドはバックエンドモデルで対応していないため削除
         estimated_hours: sourceTemplate.estimated_hours || 0
       };
       
