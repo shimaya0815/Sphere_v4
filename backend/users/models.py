@@ -147,6 +147,7 @@ class UserPreferences(models.Model):
     notification_web = models.BooleanField(default=True)
     language = models.CharField(max_length=10, default='en')
     task_filters = models.JSONField(null=True, blank=True, default=dict)
+    saved_filters = models.JSONField(null=True, blank=True, default=dict)
     
     class Meta:
         verbose_name = _('user preference')

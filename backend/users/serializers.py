@@ -84,7 +84,7 @@ class UserPreferencesSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserPreferences
-        fields = ('theme', 'notification_email', 'notification_web', 'language', 'task_filters')
+        fields = ('theme', 'notification_email', 'notification_web', 'language', 'task_filters', 'saved_filters')
 
 
 class UserSerializer(BaseUserSerializer):
