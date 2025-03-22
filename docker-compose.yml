@@ -19,8 +19,8 @@ services:
           memory: 2G
     environment:
       - NODE_ENV=development
-      - REACT_APP_API_URL=http://backend:8000
-      - REACT_APP_WS_URL=http://websocket:8001
+      - REACT_APP_API_URL=http://localhost:8000
+      - REACT_APP_WS_URL=http://localhost:8001
       - SOCKET_HOST=websocket:8001
       - WDS_SOCKET_PORT=0
       - CHOKIDAR_USEPOLLING=true
@@ -53,11 +53,11 @@ services:
       - SECRET_KEY=dev_secret_key
       - DJANGO_ALLOWED_HOSTS=backend,frontend,websocket,db,localhost,127.0.0.1,host.docker.internal,testserver
       - DATABASE_URL=postgres://postgres:postgres@db:5432/sphere
+      - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://frontend:3000
     command: >
       sh -c "python manage.py wait_for_db &&
              python manage.py makemigrations &&
              python manage.py migrate --noinput &&
-             echo 'from users.models import User; User.objects.filter(email=\"admin@example.com\").exists() or User.objects.create_superuser(\"admin@example.com\", \"adminpassword\")' | python manage.py shell &&
              python manage.py runserver 0.0.0.0:8000"
     extra_hosts:
       - "host.docker.internal:host-gateway"

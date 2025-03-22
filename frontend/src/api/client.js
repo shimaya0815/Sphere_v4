@@ -4,7 +4,12 @@ import { getAuthToken, clearAuthToken } from '../utils/auth';
 // 設定の詳細ログ出力
 console.log('API Configuration:', {
   environment: process.env.NODE_ENV,
-  hostname: window.location.hostname
+  hostname: window.location.hostname,
+  windowEnv: window.ENV ? { 
+    api: window.ENV.REACT_APP_API_URL,
+    ws: window.ENV.REACT_APP_WS_URL 
+  } : 'undefined',
+  processEnv: process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL : 'undefined'
 });
 
 // CancelTokenとisCancel関数を追加
@@ -17,12 +22,20 @@ const getBaseUrl = () => {
   const envApiUrl = process.env.REACT_APP_API_URL || (window.ENV && window.ENV.REACT_APP_API_URL);
   if (envApiUrl) {
     console.log('Using environment API URL:', envApiUrl);
+    
+    // Dockerのbackendホスト名をlocalhostに置き換え（ブラウザからアクセスするため）
+    if (envApiUrl.includes('backend:')) {
+      const correctedUrl = envApiUrl.replace('backend:', 'localhost:');
+      console.log('Corrected API URL for browser access:', correctedUrl);
+      return correctedUrl;
+    }
+    
     return envApiUrl;
   }
   
-  // 常にlocalhostを使用する（開発環境用）
-  console.log('Using localhost:8000 for API requests');
-  return 'http://localhost:8000';
+  // Docker環境では相対URLを使用
+  console.log('Using relative URL for API requests in Docker environment');
+  return '';
 };
 
 // ベースURLを取得

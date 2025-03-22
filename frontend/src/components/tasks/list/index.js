@@ -339,6 +339,22 @@ const TaskList = forwardRef((props, ref) => {
     return () => clearTimeout(debounceTimer);
   }, [filters, initialized]);
 
+  /**
+   * 依存関係を固定したfetchTasksのメモ化バージョン
+   */
+  const memoizedFetchTasks = useCallback(async () => {
+    console.log('memoizedFetchTasks called - 強制的にタスクを再取得します');
+    setLoading(true);
+    try {
+      // 強制的に再取得（キャッシュを使わない）
+      await fetchTasks();
+    } catch (error) {
+      console.error('タスク再取得中にエラーが発生しました:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []); // fetchTasksを依存配列から削除して不要な再取得を防ぐ
+
   // タスク更新イベントの監視
   useEffect(() => {
     const handleTaskUpdate = (event) => {
@@ -346,17 +362,48 @@ const TaskList = forwardRef((props, ref) => {
       
       if (!event.detail || !event.detail.task) {
         console.warn("Invalid task update event with no task data");
-        fetchTasks(); // 無効なイベントの場合は全体を再取得
+        memoizedFetchTasks(); // 無効なイベントの場合は全体を再取得
         return;
       }
       
       const updatedTask = event.detail.task;
       console.log("Handling task update for task:", updatedTask);
       
+      // タイムスタンプを確認して最新のイベントであることを確認
+      const timestamp = event.detail.timestamp || Date.now();
+      const currentTime = Date.now();
+      // 10秒以上前のイベントは処理しない
+      if (currentTime - timestamp > 10000) {
+        console.warn("Ignoring outdated task update event");
+        return;
+      }
+      
       if (event.detail.isNew) {
         // 新規作成されたタスクの場合はリストに追加してソート
         console.log("Adding new task to the list", updatedTask);
-        updateTasks([updatedTask, ...tasks]);
+        
+        // 担当者フィルタリングをチェック
+        if (filters.assignee && 
+            updatedTask.assignee && 
+            updatedTask.assignee.toString() !== filters.assignee.toString()) {
+          console.log(`タスク「${updatedTask.title}」は現在のフィルタ（担当者ID: ${filters.assignee}）と一致しないため表示しません`);
+          return;
+        }
+        
+        // 既存のタスクをチェックして重複を避ける
+        const existingTask = tasks.find(t => t.id === updatedTask.id);
+        if (!existingTask) {
+          updateTasks([updatedTask, ...tasks]);
+          
+          // 重要：新規タスクが追加されたことを明示的に表示
+          toast.success(`新しいタスク「${updatedTask.title}」がリストに追加されました`, {
+            id: `task-added-list-${Date.now()}`,
+            duration: 3000
+          });
+        } else {
+          console.log('タスクは既にリストに存在します - 全体を更新します');
+          memoizedFetchTasks();
+        }
       } else {
         // 既存タスクの更新の場合は、そのタスクだけを置き換える
         console.log("Updating existing task in the list", updatedTask);
@@ -371,6 +418,15 @@ const TaskList = forwardRef((props, ref) => {
         } else {
           // 更新されたタスクがリストにない場合は追加
           console.log("Updated task not found in current list, adding to top");
+          
+          // 担当者フィルタリングをチェック
+          if (filters.assignee && 
+              updatedTask.assignee && 
+              updatedTask.assignee.toString() !== filters.assignee.toString()) {
+            console.log(`タスク「${updatedTask.title}」は現在のフィルタ（担当者ID: ${filters.assignee}）と一致しないため表示しません`);
+            return;
+          }
+          
           updateTasks([updatedTask, ...tasks]);
         }
       }
@@ -381,7 +437,7 @@ const TaskList = forwardRef((props, ref) => {
       
       if (!event.detail || !event.detail.taskId) {
         console.warn("Invalid task delete event with no task ID");
-        fetchTasks(); // 無効なイベントの場合は全体を再取得
+        memoizedFetchTasks(); // 無効なイベントの場合は全体を再取得
         return;
       }
       
@@ -393,8 +449,8 @@ const TaskList = forwardRef((props, ref) => {
     };
     
     const handleForceRefresh = () => {
-      console.log("🔔 Force refresh event received");
-      fetchTasks();
+      console.log("🔔 Force refresh event received - reloading task list");
+      memoizedFetchTasks();
     };
     
     // カスタムイベントのリスナーを追加
@@ -402,54 +458,100 @@ const TaskList = forwardRef((props, ref) => {
     window.addEventListener('task-deleted', handleTaskDeleted);
     window.addEventListener('task-update-force-refresh', handleForceRefresh);
     
+    // デバッグ用：イベントリスナーが登録されたことを確認
+    console.log("🎧 Event listeners registered for task updates and deletes");
+    
     // クリーンアップ関数
     return () => {
+      console.log("🧹 Cleaning up event listeners");
       window.removeEventListener('task-updated', handleTaskUpdate);
       window.removeEventListener('task-deleted', handleTaskDeleted);
       window.removeEventListener('task-update-force-refresh', handleForceRefresh);
     };
-  }, [tasks]);
+  }, [tasks, memoizedFetchTasks, filters.assignee]);
   
   // TasksPageから渡されるforceRefreshプロップの変更を監視
   useEffect(() => {
-    if (props.forceRefresh) {
-      console.log("Force refresh prop changed, refreshing tasks");
-      fetchTasks();
+    // 実行回数を制限するためのデバウンス処理
+    const refreshKey = 'last-list-refresh-time';
+    const lastRefreshTime = parseInt(sessionStorage.getItem(refreshKey) || '0');
+    const currentTime = Date.now();
+    
+    // 前回のリフレッシュから500ms以上経過している場合のみ実行
+    if (props.forceRefresh && currentTime - lastRefreshTime > 500) {
+      console.log("Force refresh prop changed with throttling, refreshing tasks");
+      sessionStorage.setItem(refreshKey, currentTime.toString());
+      
+      // 即時実行せず、少し遅延させる
+      const timeoutId = setTimeout(() => {
+        memoizedFetchTasks();
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
     }
-  }, [props.forceRefresh]);
+  }, [props.forceRefresh]); // memoizedFetchTasksを依存配列から削除
   
   // 親コンポーネントに公開するメソッド
   useImperativeHandle(ref, () => ({
     refreshTasks: () => {
       console.log("Refresh tasks method called");
-      fetchTasks();
+      memoizedFetchTasks();
     },
     refreshTasksWithData: (newTask, isNewTask = false) => {
       console.log("Refresh with task data", newTask, "isNew:", isNewTask);
       
       if (!newTask) {
         console.warn("No task data provided for refresh");
-        fetchTasks();
+        memoizedFetchTasks();
         return;
       }
       
       if (isNewTask) {
         console.log("Adding new task to the list");
-        updateTasks([newTask, ...tasks]);
+        
+        // 担当者フィルタリングをチェック
+        if (filters.assignee && 
+            newTask.assignee && 
+            newTask.assignee.toString() !== filters.assignee.toString()) {
+          console.log(`タスク「${newTask.title}」は現在のフィルタ（担当者ID: ${filters.assignee}）と一致しないため表示しません`);
+          return;
+        }
+        
+        // 既存のタスクをチェックして重複を避ける
+        const existingTask = tasks.find(t => t.id === newTask.id);
+        if (!existingTask) {
+          updateTasks([newTask, ...tasks]);
+        } else {
+          console.log('タスクは既にリストに存在します - 全体を更新します');
+          memoizedFetchTasks();
+        }
       } else {
-        console.log("Updating existing task");
+        console.log("Updating existing task in list");
         const taskIndex = tasks.findIndex(t => t.id === newTask.id);
         
         if (taskIndex >= 0) {
+          // タスクが見つかった場合は置き換え
+          console.log(`Task found at index ${taskIndex}, replacing with updated version`);
           const newTasks = [...tasks];
           newTasks[taskIndex] = newTask;
           updateTasks(newTasks);
         } else {
+          // タスクが見つからない場合は先頭に追加
+          console.log("Task not found in current list, adding to top");
+          
+          // 担当者フィルタリングをチェック
+          if (filters.assignee && 
+              newTask.assignee && 
+              newTask.assignee.toString() !== filters.assignee.toString()) {
+            console.log(`タスク「${newTask.title}」は現在のフィルタ（担当者ID: ${filters.assignee}）と一致しないため表示しません`);
+            return;
+          }
+          
           updateTasks([newTask, ...tasks]);
         }
       }
     }
-  }));
+  }), [tasks, memoizedFetchTasks, filters.assignee]);
   
   // ----- イベントハンドラー -----
   

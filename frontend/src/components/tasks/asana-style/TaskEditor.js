@@ -127,17 +127,22 @@ const TaskEditor = ({
   const [workspaces, setWorkspaces] = useState([]);
   const [priorities, setPriorities] = useState([]);
   
+  // タスクデータの初期化
+  const [task, setTask] = useState(initialData || null);
+  const [isLoading, setIsLoading] = useState(!initialData);
+  const [isSaving, setIsSaving] = useState(false);
+  const formRef = useRef(null);
+  
   // データの初期ロード
   useEffect(() => {
     const fetchMetadata = async () => {
       try {
         // 実際のAPIからデータを取得
-        const [statusesData, categoriesData, clientsData, usersData, workspacesData, prioritiesData] = await Promise.all([
+        const [statusesData, categoriesData, clientsData, usersData, prioritiesData] = await Promise.all([
           tasksApi.getStatuses(),
           tasksApi.getCategories(),
           clientsApi.getClients(),
           usersApi.getUsers({ active: true }),
-          tasksApi.getWorkspaces(),
           tasksApi.getPriorities()
         ]);
         
@@ -145,8 +150,12 @@ const TaskEditor = ({
         setCategories(categoriesData || []);
         setClients(clientsData || []);
         setUsers(usersData || []);
-        setWorkspaces(workspacesData || []);
         setPriorities(prioritiesData || []);
+        
+        // ワークスペースデータを設定（モックデータ）
+        setWorkspaces([
+          { id: 1, name: 'デフォルトワークスペース' }
+        ]);
         
         // クライアントが選択されている場合は決算期も取得
         if (task?.client) {
@@ -169,12 +178,6 @@ const TaskEditor = ({
     }
     return null;
   }, [isNew, taskId, initialData]);
-  
-  // タスクデータの初期化
-  const [task, setTask] = useState(initialData || null);
-  const [isLoading, setIsLoading] = useState(!initialData);
-  const [isSaving, setIsSaving] = useState(false);
-  const formRef = useRef(null);
   
   // タスクフォームのコンテキスト参照
   const taskFormRef = useRef(null);

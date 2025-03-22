@@ -32,7 +32,9 @@
     "remark-gfm": "^4.0.1",
     "socket.io-client": "^4.8.1",
     "styled-components": "^6.1.15",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "react-loading-skeleton": "^3.3.1",
+    "framer-motion": "^10.16.4"
   },
   "scripts": {
     "start": "react-scripts start",

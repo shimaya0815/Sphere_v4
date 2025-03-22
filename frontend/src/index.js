@@ -48,7 +48,7 @@ root.render(
     <BrowserRouter>
       <App />
       <Toaster 
-        position="top-right" 
+        position="top-center" 
         toastOptions={{
           className: '',
           duration: 5000,
@@ -56,19 +56,33 @@ root.render(
             background: '#fff',
             color: '#334155',
             borderRadius: '0.5rem',
-            boxShadow: '0 2px 20px rgba(0, 0, 0, 0.08)',
-            padding: '1rem',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+            padding: '1.2rem',
+            fontSize: '1rem',
+            fontWeight: '500',
+            maxWidth: '400px',
+            minWidth: '300px',
           },
           success: {
             iconTheme: {
               primary: '#36D399',
               secondary: 'white',
             },
+            style: {
+              background: '#ECFDF5',
+              border: '1px solid #A7F3D0',
+              color: '#064E3B',
+            },
           },
           error: {
             iconTheme: {
               primary: '#F87272',
               secondary: 'white',
+            },
+            style: {
+              background: '#FEF2F2',
+              border: '1px solid #FECACA',
+              color: '#7F1D1D',
             },
           },
         }}

@@ -7,21 +7,80 @@ import { Controller } from 'react-hook-form';
 const TaskAdditionalSettingsSection = ({ 
   control, 
   handleFieldChange,
-  isNewTask,
-  watch
+  clients = [],
+  fiscalYears = [],
+  watchedIsTemplate,
+  selectClassName,
+  inputClassName,
+  watch,
+  formState
 }) => {
-  const selectClassName = "mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md";
-  const inputClassName = "mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md";
-  
   // 繰り返し設定チェックボックスの状態監視
   const isRecurring = watch('is_recurring') === 'true' || watch('is_recurring') === true;
   
   // テンプレート設定チェックボックスの状態監視
-  const isTemplate = watch('is_template') === 'true' || watch('is_template') === true;
+  const isTemplate = watchedIsTemplate === 'true' || watchedIsTemplate === true;
+  
+  // クライアントの選択状態監視
+  const selectedClient = watch('client');
+  
+  // クライアントとフィスカルイヤーのデータ確認用ログ
+  console.log('TaskAdditionalSettingsSection - clients:', clients);
+  console.log('TaskAdditionalSettingsSection - clients[0]:', clients[0]);
+  console.log('TaskAdditionalSettingsSection - fiscalYears:', fiscalYears);
+  console.log('TaskAdditionalSettingsSection - selectedClient:', selectedClient);
   
   return (
     <div className="pt-4 border-t border-gray-200">
       <h3 className="text-md font-medium text-gray-700 mb-3">追加設定</h3>
+      
+      {/* クライアント選択 - 不要なので非表示にする */}
+      {/* <div className="mb-4">
+        <label htmlFor="client" className="block text-sm font-medium text-gray-700">
+          クライアント
+        </label>
+        <div className="mt-1">
+          <Controller
+            name="client"
+            control={control}
+            render={({ field }) => (
+              <select
+                id="client"
+                className={selectClassName}
+                {...field}
+                onChange={(e) => {
+                  console.log('Client selected:', e.target.value);
+                  field.onChange(e);
+                  handleFieldChange('client', e.target.value);
+                }}
+              >
+                <option value="">選択してください</option>
+                {clients && clients.length > 0 ? (
+                  clients.map((client) => {
+                    // クライアントデータの構造をログ出力
+                    console.log('Client option:', client);
+                    
+                    // クライアントの名前とIDプロパティを確認
+                    const clientId = client.id;
+                    // クライアント名が異なるプロパティ名で保存されている可能性を考慮
+                    const clientName = client.name || client.client_name || client.title || `クライアント #${client.id}`;
+                    
+                    return (
+                      <option key={clientId} value={clientId}>
+                        {clientName}
+                      </option>
+                    );
+                  })
+                ) : (
+                  <option value="" disabled>クライアントがありません</option>
+                )}
+              </select>
+            )}
+          />
+        </div>
+      </div> */}
+      
+      {/* 決算タスク設定 - 要件に従い削除 */}
       
       {/* 繰り返しタスク設定 */}
       <div className="mb-4">
@@ -30,18 +89,17 @@ const TaskAdditionalSettingsSection = ({
             <Controller
               name="is_recurring"
               control={control}
-              render={({ field: { onChange, onBlur, value, ref } }) => (
+              render={({ field }) => (
                 <input
                   id="is_recurring"
                   type="checkbox"
                   className="focus:ring-primary-500 h-4 w-4 text-primary-600 border-gray-300 rounded"
-                  checked={value === 'true' || value === true || false}
+                  checked={field.value === 'true' || field.value === true}
                   onChange={(e) => {
-                    onChange(e.target.checked);
-                    handleFieldChange('is_recurring', e.target.checked);
+                    const newValue = e.target.checked ? 'true' : 'false';
+                    field.onChange(newValue);
+                    handleFieldChange('is_recurring', newValue);
                   }}
-                  onBlur={onBlur}
-                  ref={ref}
                 />
               )}
             />
@@ -52,25 +110,22 @@ const TaskAdditionalSettingsSection = ({
           </div>
         </div>
         
-        {/* 繰り返し周期の設定（チェックがONの場合のみ表示） */}
         {isRecurring && (
           <div className="mt-3 ml-7 grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="recurring_type" className="block text-sm font-medium text-gray-700">
-                繰り返し周期
-              </label>
+              <label htmlFor="recurrence_pattern" className="block text-sm font-medium text-gray-700">繰り返しパターン</label>
               <div className="mt-1">
                 <Controller
-                  name="recurring_type"
+                  name="recurrence_pattern"
                   control={control}
                   render={({ field }) => (
                     <select
-                      id="recurring_type"
+                      id="recurrence_pattern"
                       className={selectClassName}
                       {...field}
                       onChange={(e) => {
                         field.onChange(e);
-                        handleFieldChange('recurring_type', e.target.value);
+                        handleFieldChange('recurrence_pattern', e.target.value);
                       }}
                     >
                       <option value="daily">毎日</option>
@@ -82,26 +137,21 @@ const TaskAdditionalSettingsSection = ({
                 />
               </div>
             </div>
-            
             <div>
-              <label htmlFor="recurring_interval" className="block text-sm font-medium text-gray-700">
-                間隔
-              </label>
+              <label htmlFor="recurrence_end_date" className="block text-sm font-medium text-gray-700">繰り返し終了日</label>
               <div className="mt-1">
                 <Controller
-                  name="recurring_interval"
+                  name="recurrence_end_date"
                   control={control}
                   render={({ field }) => (
                     <input
-                      type="number"
-                      id="recurring_interval"
+                      type="date"
+                      id="recurrence_end_date"
                       className={inputClassName}
-                      min="1"
-                      placeholder="1"
                       {...field}
                       onChange={(e) => {
                         field.onChange(e);
-                        handleFieldChange('recurring_interval', e.target.value);
+                        handleFieldChange('recurrence_end_date', e.target.value);
                       }}
                     />
                   )}
@@ -112,71 +162,59 @@ const TaskAdditionalSettingsSection = ({
         )}
       </div>
       
-      {/* テンプレート設定（新規作成時のみ表示） */}
-      {isNewTask && (
-        <div>
-          <div className="flex items-start">
-            <div className="flex items-center h-5">
+      {/* テンプレート設定 */}
+      <div>
+        <div className="flex items-start">
+          <div className="flex items-center h-5">
+            <Controller
+              name="is_template"
+              control={control}
+              render={({ field }) => (
+                <input
+                  id="is_template"
+                  type="checkbox"
+                  className="focus:ring-primary-500 h-4 w-4 text-primary-600 border-gray-300 rounded"
+                  checked={field.value === 'true' || field.value === true}
+                  onChange={(e) => {
+                    const newValue = e.target.checked ? 'true' : 'false';
+                    field.onChange(newValue);
+                    handleFieldChange('is_template', newValue);
+                  }}
+                />
+              )}
+            />
+          </div>
+          <div className="ml-3 text-sm">
+            <label htmlFor="is_template" className="font-medium text-gray-700">テンプレートとして保存</label>
+            <p className="text-gray-500">このタスクをテンプレートとして保存し、後で再利用できるようにします</p>
+          </div>
+        </div>
+        
+        {isTemplate && (
+          <div className="mt-3 ml-7">
+            <label htmlFor="template_name" className="block text-sm font-medium text-gray-700">テンプレート名</label>
+            <div className="mt-1">
               <Controller
-                name="is_template"
+                name="template_name"
                 control={control}
-                render={({ field: { onChange, onBlur, value, ref } }) => (
+                render={({ field }) => (
                   <input
-                    id="is_template"
-                    type="checkbox"
-                    className="focus:ring-primary-500 h-4 w-4 text-primary-600 border-gray-300 rounded"
-                    checked={value === 'true' || value === true || false}
+                    type="text"
+                    id="template_name"
+                    className={inputClassName}
+                    placeholder="テンプレート名を入力"
+                    {...field}
                     onChange={(e) => {
-                      onChange(e.target.checked);
-                      handleFieldChange('is_template', e.target.checked);
+                      field.onChange(e);
+                      handleFieldChange('template_name', e.target.value);
                     }}
-                    onBlur={onBlur}
-                    ref={ref}
                   />
                 )}
               />
             </div>
-            <div className="ml-3 text-sm">
-              <label htmlFor="is_template" className="font-medium text-gray-700">テンプレートとして保存</label>
-              <p className="text-gray-500">このタスクをテンプレートとして保存し、後で再利用できるようにします</p>
-            </div>
           </div>
-          
-          {/* テンプレート名の設定（チェックがONの場合のみ表示） */}
-          {isTemplate && (
-            <div className="mt-3 ml-7">
-              <label htmlFor="template_name" className="block text-sm font-medium text-gray-700">
-                テンプレート名
-              </label>
-              <div className="mt-1">
-                <Controller
-                  name="template_name"
-                  control={control}
-                  rules={{ required: 'テンプレート名は必須です' }}
-                  render={({ field, fieldState }) => (
-                    <div>
-                      <input
-                        type="text"
-                        id="template_name"
-                        className={inputClassName}
-                        placeholder="テンプレート名を入力"
-                        {...field}
-                        onChange={(e) => {
-                          field.onChange(e);
-                          handleFieldChange('template_name', e.target.value);
-                        }}
-                      />
-                      {fieldState.error && (
-                        <p className="mt-1 text-sm text-red-600">{fieldState.error.message}</p>
-                      )}
-                    </div>
-                  )}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

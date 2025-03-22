@@ -1,7 +1,7 @@
 ---
 description: 
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
 コードを編集したら適宜、Gitにコミット・プッシュして
 https://github.com/shimaya0815/Sphere_v4

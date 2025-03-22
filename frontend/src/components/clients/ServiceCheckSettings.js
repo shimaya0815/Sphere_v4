@@ -1097,7 +1097,7 @@ const ServiceCheckSettings = ({ clientId }) => {
       } else if (scheduleUpdatePromises.length > 0) {
         toast.success('スケジュール設定を保存しました');
       } else {
-        toast.info('変更はありませんでした');
+        toast('変更はありませんでした');
       }
       
       // 最新データを再取得

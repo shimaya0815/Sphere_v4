@@ -18,19 +18,10 @@ app = FastAPI(title="Sphere Chat WebSocket Server")
 
 # CORS設定 - Docker環境用のサービス名を優先
 specific_origins = [
-    # Docker環境用（優先）
+    # Docker環境用
     "http://frontend:3000",
     "http://backend:8000",
-    "http://websocket:8001",
-    # 直接アクセス用（フォールバック）
-    "http://localhost:3000",
-    "http://127.0.0.1:3000", 
-    "http://0.0.0.0:3000",
-    "http://localhost:8000",
-    "http://localhost",
-    "http://127.0.0.1",
-    "http://0.0.0.0",
-    "*"  # すべてのオリジンを許可（開発用）
+    "http://websocket:8001"
 ]
 
 # 環境変数から追加のオリジンを取得

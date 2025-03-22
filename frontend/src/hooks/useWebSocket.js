@@ -86,14 +86,8 @@ const useWebSocket = (url, options = {}) => {
       // WebSocketサーバーのホスト名を直接指定（Docker内部ネットワーク用）
       `${protocol}//websocket:8001/ws/${resourceType}/${channelId}/`,
       
-      // ループバックアドレスで試行（開発環境用）
-      `${protocol}//127.0.0.1:8001/ws/${resourceType}/${channelId}/`,
-      
-      // IPアドレスで直接接続
-      `${protocol}//localhost:8001/ws/${resourceType}/${channelId}/`,
-      
-      // host.docker.internalを使用 - Docker内からホストIPにアクセス
-      `${protocol}//host.docker.internal:8001/ws/${resourceType}/${channelId}/`
+      // Docker内部からの接続を優先
+      `${protocol}//websocket:8001/ws/${resourceType}/${channelId}/`
     ];
     
     // プロキシ経由の接続を優先 - より信頼性が高いため

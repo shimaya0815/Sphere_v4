@@ -11,14 +11,14 @@ const SHARED_SOCKET = {
 
 // 接続URL取得のヘルパー関数
 function getSocketServerUrl() {
-  if (process.env.NODE_ENV === 'development') {
-    return 'http://websocket:8001';
-  } else if (window.ENV && window.ENV.REACT_APP_WS_URL) {
+  // Docker環境設定を優先
+  if (window.ENV && window.ENV.REACT_APP_WS_URL) {
     return window.ENV.REACT_APP_WS_URL;
   } else if (process.env.REACT_APP_WS_URL) {
     return process.env.REACT_APP_WS_URL;
   } else {
-    return window.location.protocol + '//' + window.location.hostname + ':8001';
+    // デフォルトではDockerコンテナ名を使用
+    return 'http://websocket:8001';
   }
 }
 

@@ -1,67 +1,114 @@
 import apiClient from './client';
 
-// Authentication API service
-const authApi = {
-  // Login with email, password and business ID
-  login: async (email, password, businessId) => {
-    const response = await apiClient.post('/auth/token/login/', { 
-      email, 
-      password,
-      business_id: businessId
-    });
+/**
+ * ログイン処理
+ * @param {object} credentials ログイン情報
+ * @returns {Promise<object>} ログイン結果
+ */
+export const login = async (credentials) => {
+  try {
+    const response = await apiClient.post('/api/auth/login/', credentials);
     return response.data;
-  },
-  
-  // Register a new user
-  register: async (userData) => {
-    const response = await apiClient.post('/auth/users/', userData);
-    return response.data;
-  },
-  
-  // Get current user profile
-  getCurrentUser: async () => {
-    const response = await apiClient.get('/auth/users/me/');
-    return response.data;
-  },
-  
-  // Log out user (invalidate token)
-  logout: async () => {
-    const response = await apiClient.post('/auth/token/logout/');
-    return response.data;
-  },
-  
-  // Request password reset
-  requestPasswordReset: async (email) => {
-    const response = await apiClient.post('/auth/users/reset_password/', { email });
-    return response.data;
-  },
-  
-  // Confirm password reset
-  confirmPasswordReset: async (uid, token, newPassword) => {
-    const response = await apiClient.post('/auth/users/reset_password_confirm/', {
-      uid,
-      token,
-      new_password: newPassword,
-      re_new_password: newPassword,
-    });
-    return response.data;
-  },
-  
-  // Change password
-  changePassword: async (currentPassword, newPassword) => {
-    const response = await apiClient.post('/auth/users/set_password/', {
-      current_password: currentPassword,
-      new_password: newPassword,
-      re_new_password: newPassword,
-    });
-    return response.data;
-  },
-  
-  // Update user profile
-  updateProfile: async (userData) => {
-    const response = await apiClient.patch('/auth/users/me/', userData);
-    return response.data;
-  },
+  } catch (error) {
+    console.error('Login error:', error);
+    throw error;
+  }
 };
 
-export default authApi;
+/**
+ * ログアウト処理
+ * @returns {Promise<void>}
+ */
+export const logout = async () => {
+  try {
+    await apiClient.post('/api/auth/logout/');
+  } catch (error) {
+    console.error('Logout error:', error);
+    throw error;
+  }
+};
+
+/**
+ * ユーザープロフィール取得
+ * @returns {Promise<object>} ユーザープロフィール
+ */
+export const getProfile = async () => {
+  try {
+    const response = await apiClient.get('/api/auth/profile/');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+    throw error;
+  }
+};
+
+/**
+ * ユーザープロフィール更新
+ * @param {object} profileData 更新するプロフィールデータ
+ * @returns {Promise<object>} 更新されたプロフィール
+ */
+export const updateProfile = async (profileData) => {
+  try {
+    const response = await apiClient.patch('/api/auth/profile/', profileData);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    throw error;
+  }
+};
+
+/**
+ * パスワード変更
+ * @param {object} passwordData パスワードデータ
+ * @returns {Promise<object>} 処理結果
+ */
+export const changePassword = async (passwordData) => {
+  try {
+    const response = await apiClient.post('/api/auth/password/change/', passwordData);
+    return response.data;
+  } catch (error) {
+    console.error('Error changing password:', error);
+    throw error;
+  }
+};
+
+/**
+ * パスワードリセット要求
+ * @param {string} email メールアドレス
+ * @returns {Promise<object>} 処理結果
+ */
+export const requestPasswordReset = async (email) => {
+  try {
+    const response = await apiClient.post('/api/auth/password/reset/', { email });
+    return response.data;
+  } catch (error) {
+    console.error('Error requesting password reset:', error);
+    throw error;
+  }
+};
+
+/**
+ * パスワードリセット確認
+ * @param {object} resetData リセットデータ
+ * @returns {Promise<object>} 処理結果
+ */
+export const confirmPasswordReset = async (resetData) => {
+  try {
+    const response = await apiClient.post('/api/auth/password/reset/confirm/', resetData);
+    return response.data;
+  } catch (error) {
+    console.error('Error confirming password reset:', error);
+    throw error;
+  }
+};
+
+// デフォルトエクスポート
+export default {
+  login,
+  logout,
+  getProfile,
+  updateProfile,
+  changePassword,
+  requestPasswordReset,
+  confirmPasswordReset
+};

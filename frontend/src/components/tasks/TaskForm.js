@@ -153,6 +153,7 @@ const TaskForm = ({ task, onClose, onTaskSaved }) => {
         toast.success('タスクが作成されました');
       }
       
+      // タスクが保存された後、親コンポーネントに通知してからパネルを閉じる
       onTaskSaved(result);
       onClose();
     } catch (error) {

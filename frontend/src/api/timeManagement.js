@@ -1,374 +1,438 @@
 import apiClient from './client';
+import { cachedApiCall, dedupApiCall, clearCache, clearCacheByPrefix } from '../utils/cache';
 
-// Time Management API service
-const timeManagementApi = {
-  // Get time entries with optional filters
-  getTimeEntries: async (filters = {}) => {
-    try {
-      // Handle both formats: getTimeEntries(taskId) and getTimeEntries({filters})
-      let apiParams = filters;
-      if (typeof filters === 'number' || typeof filters === 'string') {
-        apiParams = { task_id: filters };
-      }
-      
-      const response = await apiClient.get('/api/time-management/entries/', { params: apiParams });
-      return response.data.results || response.data;
-    } catch (error) {
-      console.error('Error fetching time entries:', error);
-      // Mock data for development - respect active filter
-      const mockEntries = [
-        {
-          id: 1,
-          description: "タスク作成の設計",
-          start_time: new Date(Date.now() - 3600000).toISOString(),
-          end_time: new Date().toISOString(),
-          duration_seconds: 3600,
-          is_running: false,
-          task: { id: 1, title: "タスク管理機能実装" },
-          client: { id: 1, name: "社内プロジェクト" },
-          user: { id: 1, first_name: "テスト", last_name: "ユーザー" }
-        },
-        {
-          id: 2,
-          description: "時間記録の実装",
-          start_time: new Date(Date.now() - 7200000).toISOString(),
-          end_time: null,  // アクティブなエントリ
-          duration_seconds: null,
-          is_running: true,
-          task: { id: 2, title: "時間管理機能開発" },
-          client: { id: 1, name: "社内プロジェクト" },
-          user: { id: 1, first_name: "テスト", last_name: "ユーザー" }
-        }
-      ];
-      
-      // エラー回避のため、filtersを直接使用
-      const params = filters || {};
-      
-      // activeフィルターが指定されていればそれに従う
-      if (params.active === 'true') {
-        return mockEntries.filter(entry => entry.is_running || !entry.end_time);
-      } else if (params.active === 'false') {
-        return mockEntries.filter(entry => !entry.is_running && entry.end_time);
-      } else if (params.task_id) {
-        // タスクIDでフィルター
-        return mockEntries.filter(entry => 
-          entry.task && entry.task.id.toString() === params.task_id.toString()
-        );
-      }
-      
-      return mockEntries;
-    }
-  },
+// APIのベースパス
+const API_BASE_PATH = '/api/time-management';
+
+// キャッシュキーのプレフィックス
+const CACHE_PREFIX = 'time_management';
+
+// キャッシュの有効期間（ミリ秒）
+const CACHE_TTL = 60000; // 60秒に延長
+
+/**
+ * タスクIDと条件からキャッシュキーを生成
+ * @param {number} taskId タスクID
+ * @param {object} params その他のパラメータ
+ * @returns {string} キャッシュキー
+ */
+const generateCacheKey = (endpoint, params = {}) => {
+  const paramsString = Object.entries(params)
+    .filter(([, value]) => value !== undefined && value !== null)
+    .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+    .map(([key, value]) => `${key}=${value}`)
+    .join('&');
+    
+  return `${CACHE_PREFIX}:${endpoint}${paramsString ? `:${paramsString}` : ''}`;
+};
+
+/**
+ * アクティブなタイムエントリを取得する
+ * @param {number} taskId タスクID
+ * @returns {Promise<object>} APIレスポンス
+ */
+export const getActiveTimeEntry = (taskId) => {
+  if (!taskId) return Promise.resolve(null);
   
-  // Get active time entry for a task
-  getActiveTimeEntry: async (taskId) => {
-    try {
-      const response = await apiClient.get('/api/time-management/entries/', { 
-        params: { task_id: taskId, active: true } 
-      });
-      
-      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-        return { data: response.data[0], active: true };
-      } else if (response.data && response.data.results && Array.isArray(response.data.results) && response.data.results.length > 0) {
-        return { data: response.data.results[0], active: true };
-      }
-      
-      return { data: { active: false } };
-    } catch (error) {
-      console.error('Error fetching active time entry:', error);
-      // Return mock data for development
-      return {
-        data: {
-          id: Math.floor(Math.random() * 1000),
-          task_id: taskId,
-          description: "進行中の作業",
-          start_time: new Date(Date.now() - 1800000).toISOString(),
-          is_running: true,
-          task: { id: taskId, title: "作業中のタスク" }
-        }
-      };
-    }
-  },
+  const cacheKey = generateCacheKey('active', { task_id: taskId });
+  const callKey = `active_time_entry:${taskId}`;
   
-  // Get a specific time entry by ID
-  getTimeEntry: async (entryId) => {
-    try {
-      const response = await apiClient.get(`/api/time-management/entries/${entryId}/`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching time entry:', error);
-      return null;
-    }
-  },
-  
-  // Create a new time entry
-  createTimeEntry: async (entryData) => {
-    try {
-      const response = await apiClient.post('/api/time-management/entries/', entryData);
-      return response.data;
-    } catch (error) {
-      console.error('Error creating time entry:', error);
-      throw error;
-    }
-  },
-  
-  // Update a time entry
-  updateTimeEntry: async (entryId, entryData) => {
-    try {
-      const response = await apiClient.patch(`/api/time-management/entries/${entryId}/`, entryData);
-      return response.data;
-    } catch (error) {
-      console.error('Error updating time entry:', error);
-      // モックデータでエラーをシミュレート
-      const mockResponse = {
-        id: entryId,
-        ...entryData,
-        start_time: entryData.start_time || new Date().toISOString(),
-        end_time: entryData.end_time || null,
-        is_running: !entryData.end_time,
-        task: entryData.task_id ? { 
-          id: entryData.task_id, 
-          title: "更新されたタスク" 
-        } : null,
-        client: entryData.client_id ? { 
-          id: entryData.client_id, 
-          name: "更新されたクライアント" 
-        } : null
-      };
-      return mockResponse;
-    }
-  },
-  
-  // Delete a time entry
-  deleteTimeEntry: async (entryId) => {
-    try {
-      const response = await apiClient.delete(`/api/time-management/entries/${entryId}/`);
-      return response.data;
-    } catch (error) {
-      console.error('Error deleting time entry:', error);
-      throw error;
-    }
-  },
-  
-  // Start a time entry
-  startTimeEntry: async (entryData) => {
-    try {
-      // データの型を確認・変換して正しいリクエスト形式に合わせる
-      const requestData = {
-        task_id: entryData.task_id ? Number(entryData.task_id) : null,
-        client_id: entryData.client_id ? Number(entryData.client_id) : null,
-        fiscal_year_id: entryData.fiscal_year_id ? Number(entryData.fiscal_year_id) : null,
-        description: entryData.description || ''
-      };
-      
-      const response = await apiClient.post('/api/time-management/timer/start/', requestData);
-      return response.data;
-    } catch (error) {
-      console.error('Error starting time entry:', error);
-      
-      // 既に実行中のタイマーがある場合はそのタイマー情報を返す
-      if (error.response && 
-          error.response.status === 400 && 
-          error.response.data && 
-          error.response.data.error === "You already have an active timer" &&
-          error.response.data.time_entry) {
-        console.info('Using existing active timer', error.response.data.time_entry);
-        return error.response.data.time_entry;
-      }
-      
-      // その他のAPIエラー時はエラーを投げて、コンポーネントでハンドリングさせる
-      throw error;
-    }
-  },
-  
-  // Stop a time entry
-  stopTimeEntry: async (entryId) => {
-    try {
-      if (!entryId) {
-        console.error('Invalid entryId for stopTimeEntry:', entryId);
-        throw new Error('有効なタイマーIDが指定されていません');
-      }
-      
-      // entryIdを数値に変換
-      const numericEntryId = Number(entryId);
-      console.log(`Sending request to stop timer: ${numericEntryId}`);
-      
-      const response = await apiClient.post(`/api/time-management/timer/${numericEntryId}/stop/`);
-      console.log('Stop timer API response:', response.data);
-      return response.data;
-    } catch (error) {
-      console.error('Error stopping time entry:', error);
-      
-      // エラーレスポンスの詳細を記録
-      if (error.response) {
-        console.error('Error response status:', error.response.status);
-        console.error('Error response data:', error.response.data);
-      }
-      
-      // APIエラー時はエラーを投げて、コンポーネントでハンドリングさせる
-      throw error;
-    }
-  },
-  
-  // Get dashboard summary data
-  getDashboardSummary: async (params = {}) => {
-    try {
-      const response = await apiClient.get('/api/time-management/dashboard/', { params });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching dashboard summary:', error);
-      // Fallback to mock data
-      return {
-        today: {
-          hours: 3.5,
-          entry_count: 2
-        },
-        this_week: {
-          hours: 22,
-          entry_count: 12
-        },
-        this_month: {
-          hours: 85,
-          entry_count: 45
-        },
-        has_active_timer: false,
-        active_timer: null
-      };
-    }
-  },
-  
-  // Get breaks for a time entry
-  getBreaks: async (entryId) => {
-    try {
-      const response = await apiClient.get(`/api/time-management/entries/${entryId}/breaks/`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching breaks:', error);
-      return [];
-    }
-  },
-  
-  // Start a break
-  startBreak: async (entryId, breakData = {}) => {
-    try {
-      const response = await apiClient.post(`/api/time-management/entries/${entryId}/breaks/start/`, breakData);
-      return response.data;
-    } catch (error) {
-      console.error('Error starting break:', error);
-      // Mock data
-      return {
-        id: Math.floor(Math.random() * 1000),
-        time_entry: entryId,
-        start_time: new Date().toISOString(),
-        reason: breakData.reason || '休憩'
-      };
-    }
-  },
-  
-  // Stop a break
-  stopBreak: async (breakId) => {
-    try {
-      const response = await apiClient.post(`/api/time-management/breaks/${breakId}/stop/`);
-      return response.data;
-    } catch (error) {
-      console.error('Error stopping break:', error);
-      return { success: true };
-    }
-  },
-  
-  // Generate a time report
-  generateReport: async (reportData) => {
-    try {
-      const response = await apiClient.post('/api/time-management/reports/generate/', reportData);
-      return response.data;
-    } catch (error) {
-      console.error('Error generating report:', error);
-      // Mock data
-      return {
-        id: Math.floor(Math.random() * 1000),
-        name: reportData.name,
-        start_date: reportData.start_date,
-        end_date: reportData.end_date,
-        created_at: new Date().toISOString()
-      };
-    }
-  },
-  
-  // Export a report to CSV
-  exportReportToCsv: async (reportId) => {
-    try {
-      const response = await apiClient.get(`/api/time-management/reports/${reportId}/export/csv/`, {
-        responseType: 'blob'
-      });
-      
-      // Create download link
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `time-report-${reportId}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      
-      return true;
-    } catch (error) {
-      console.error('Error exporting report to CSV:', error);
-      return false;
-    }
-  },
-  
-  // Get chart data
-  getChartData: async (type = 'time', period = 'week') => {
-    try {
-      // ViewSetのactionとして定義されているURLパターンに変更
-      const response = await apiClient.get('/api/time-management/analytics/chart_data/', {
-        params: { type, period }
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching chart data:', error);
-      // Mock data
-      if (type === 'time') {
-        return {
-          labels: ['月', '火', '水', '木', '金', '土', '日'],
-          datasets: [
-            {
-              label: 'Total Hours',
-              data: [4.5, 6.2, 7.8, 5.5, 8.0, 2.5, 0],
-              backgroundColor: 'rgba(54, 162, 235, 0.5)',
-              borderColor: 'rgba(54, 162, 235, 1)',
-            },
-            {
-              label: 'Billable Hours',
-              data: [3.5, 5.0, 6.5, 4.5, 7.0, 1.5, 0],
-              backgroundColor: 'rgba(75, 192, 192, 0.5)',
-              borderColor: 'rgba(75, 192, 192, 1)',
+  // 重複呼び出し防止とキャッシュを組み合わせる
+  return dedupApiCall(callKey, () => {
+    return cachedApiCall(
+      cacheKey,
+      async () => {
+        try {
+          const response = await apiClient.get(`${API_BASE_PATH}/entries/`, {
+            params: {
+              task_id: taskId,
+              active: true
             }
-          ]
-        };
-      } else {
-        return {
-          labels: ['社内プロジェクト', 'クライアントA', 'クライアントB'],
-          datasets: [
-            {
-              label: 'Productivity',
-              data: [80, 65, 90],
-              backgroundColor: [
-                'rgba(255, 99, 132, 0.5)',
-                'rgba(54, 162, 235, 0.5)',
-                'rgba(255, 206, 86, 0.5)'
-              ],
-              borderColor: [
-                'rgba(255, 99, 132, 1)',
-                'rgba(54, 162, 235, 1)',
-                'rgba(255, 206, 86, 1)'
-              ],
+          });
+          
+          // 配列の最初の要素を返す
+          if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+            return response.data[0];
+          }
+          return null;
+        } catch (error) {
+          // リソース不足エラーの場合は、キャッシュの結果を優先して返す
+          if (error.message && error.message.includes('ERR_INSUFFICIENT_RESOURCES')) {
+            console.warn('Resource limitation reached, using cached data');
+            // キャッシュからデータを取得する試み
+            const cachedData = localStorage.getItem(cacheKey);
+            if (cachedData) {
+              try {
+                const parsed = JSON.parse(cachedData);
+                // キャッシュの有効期限をチェック
+                if (parsed && parsed.expires > Date.now()) {
+                  return parsed.data;
+                }
+              } catch (e) {
+                // キャッシュの解析エラーは無視
+              }
             }
-          ]
-        };
-      }
+          }
+          console.error('Error fetching active time entry:', error);
+          throw error;
+        }
+      },
+      { ttl: CACHE_TTL }
+    );
+  });
+};
+
+/**
+ * タスクのタイムエントリ一覧を取得
+ * @param {object} params クエリパラメータ
+ * @param {number} params.task_id タスクID
+ * @param {boolean} params.active アクティブなエントリのみ取得するかどうか
+ * @returns {Promise<Array>} タイムエントリ一覧
+ */
+export const getTimeEntries = async (params = {}) => {
+  const { task_id } = params;
+  const cacheKey = generateCacheKey('entries', params);
+  const callKey = `time_entries:${JSON.stringify(params)}`;
+  
+  // 重複呼び出し防止とキャッシュを組み合わせる
+  return dedupApiCall(callKey, () => {
+    return cachedApiCall(
+      cacheKey,
+      async () => {
+        try {
+          const response = await apiClient.get(`${API_BASE_PATH}/entries/`, { params });
+          return response.data || [];
+        } catch (error) {
+          // リソース不足エラーの場合は、キャッシュの結果を優先して返す
+          if (error.message && error.message.includes('ERR_INSUFFICIENT_RESOURCES')) {
+            console.warn('Resource limitation reached, using cached data');
+            // キャッシュからデータを取得する試み
+            const cachedData = localStorage.getItem(cacheKey);
+            if (cachedData) {
+              try {
+                const parsed = JSON.parse(cachedData);
+                // キャッシュの有効期限をチェック
+                if (parsed && parsed.expires > Date.now()) {
+                  return parsed.data;
+                }
+              } catch (e) {
+                // キャッシュの解析エラーは無視
+              }
+            }
+            // キャッシュがない場合は空の配列を返す
+            return [];
+          }
+          console.error('Error fetching time entries:', error);
+          throw error;
+        }
+      },
+      { ttl: CACHE_TTL }
+    );
+  });
+};
+
+/**
+ * タイムエントリを作成する
+ * @param {object} data タイムエントリデータ
+ * @returns {Promise<object>} APIレスポンス
+ */
+export const createTimeEntry = async (data) => {
+  try {
+    const response = await apiClient.post(`${API_BASE_PATH}/entries/`, data);
+    
+    // キャッシュをクリア - タスク関連のエントリーキャッシュすべて
+    if (data.task) {
+      const activeKey = generateCacheKey('active', { task_id: data.task });
+      const entriesKey = generateCacheKey('entries', { task_id: data.task });
+      
+      clearCache(activeKey);
+      clearCache(entriesKey);
     }
+    
+    return response.data;
+  } catch (error) {
+    console.error('Error creating time entry:', error);
+    throw error;
   }
 };
 
-export default timeManagementApi;
+/**
+ * タイムエントリを更新する
+ * @param {number} id タイムエントリID
+ * @param {object} data 更新データ
+ * @returns {Promise<object>} APIレスポンス
+ */
+export const updateTimeEntry = async (id, data) => {
+  if (!id) {
+    throw new Error('Time entry ID is required');
+  }
+  
+  try {
+    const response = await apiClient.put(`${API_BASE_PATH}/entries/${id}/`, data);
+    
+    // キャッシュをクリア - タスク関連のエントリーキャッシュすべて
+    if (data.task) {
+      const activeKey = generateCacheKey('active', { task_id: data.task });
+      const entriesKey = generateCacheKey('entries', { task_id: data.task });
+      
+      clearCache(activeKey);
+      clearCache(entriesKey);
+    }
+    
+    return response.data;
+  } catch (error) {
+    console.error(`Error updating time entry ${id}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * タイムエントリを削除する
+ * @param {number} id タイムエントリID
+ * @returns {Promise<object>} APIレスポンス
+ */
+export const deleteTimeEntry = async (id) => {
+  if (!id) {
+    throw new Error('Time entry ID is required');
+  }
+  
+  try {
+    const response = await apiClient.delete(`${API_BASE_PATH}/entries/${id}/`);
+    
+    // エントリに関連するすべてのキャッシュをクリア
+    // 注：削除時にはタスクIDがわからないためプレフィックス全体をクリア
+    clearCacheByPrefix(CACHE_PREFIX);
+    
+    return response.data;
+  } catch (error) {
+    console.error(`Error deleting time entry ${id}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * ダッシュボードサマリーを取得する
+ * @param {object} params クエリパラメータ
+ * @returns {Promise<object>} ダッシュボードサマリー
+ */
+export const getDashboardSummary = async (params = {}) => {
+  try {
+    // APIが実装されるまでのスタブ
+    return Promise.resolve({
+      today: {
+        total_time: 28800, // 8時間（秒）
+        active_time: 25200, // 7時間（秒）
+        break_time: 3600, // 1時間（秒）
+        active_entry: null
+      },
+      week: {
+        total_time: 144000, // 40時間（秒）
+        average_daily: 28800 // 8時間（秒）
+      },
+      month: {
+        total_time: 576000, // 160時間（秒）
+        average_daily: 28800 // 8時間（秒）
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching dashboard summary:', error);
+    throw error;
+  }
+};
+
+/**
+ * チャートデータを取得する
+ * @param {object} params クエリパラメータ
+ * @returns {Promise<object>} チャートデータ
+ */
+export const getChartData = async (params = {}) => {
+  try {
+    // APIが実装されるまでのスタブ
+    return Promise.resolve({
+      daily: [
+        { date: '2023-05-01', total: 28800 },
+        { date: '2023-05-02', total: 25200 },
+        { date: '2023-05-03', total: 30600 },
+        { date: '2023-05-04', total: 27000 },
+        { date: '2023-05-05', total: 32400 }
+      ],
+      weekly: [
+        { week: '2023-W18', total: 144000 },
+        { week: '2023-W19', total: 151200 },
+        { week: '2023-W20', total: 133200 },
+        { week: '2023-W21', total: 140400 }
+      ],
+      monthly: [
+        { month: '2023-04', total: 576000 },
+        { month: '2023-05', total: 590400 }
+      ]
+    });
+  } catch (error) {
+    console.error('Error fetching chart data:', error);
+    throw error;
+  }
+};
+
+/**
+ * 休憩一覧を取得する
+ * @param {object} params クエリパラメータ
+ * @returns {Promise<Array>} 休憩一覧
+ */
+export const getBreaks = async (params = {}) => {
+  try {
+    // APIが実装されるまでのスタブ
+    return Promise.resolve([
+      {
+        id: 1,
+        start_time: new Date(Date.now() - 3600000).toISOString(),
+        end_time: new Date(Date.now() - 3000000).toISOString(),
+        duration: 600
+      }
+    ]);
+  } catch (error) {
+    console.error('Error fetching breaks:', error);
+    throw error;
+  }
+};
+
+/**
+ * タイムエントリーを開始する
+ * @param {object} data タイムエントリーデータ
+ * @returns {Promise<object>} 作成されたタイムエントリー
+ */
+export const startTimeEntry = async (data) => {
+  try {
+    // createTimeEntryを使用
+    return createTimeEntry({
+      ...data,
+      start_time: new Date().toISOString(),
+      active: true
+    });
+  } catch (error) {
+    console.error('Error starting time entry:', error);
+    throw error;
+  }
+};
+
+/**
+ * タイムエントリーを停止する
+ * @param {number} id タイムエントリーID
+ * @returns {Promise<object>} 更新されたタイムエントリー
+ */
+export const stopTimeEntry = async (id) => {
+  try {
+    // updateTimeEntryを使用
+    return updateTimeEntry(id, {
+      end_time: new Date().toISOString(),
+      active: false
+    });
+  } catch (error) {
+    console.error('Error stopping time entry:', error);
+    throw error;
+  }
+};
+
+/**
+ * 休憩を開始する
+ * @param {object} data 休憩データ
+ * @returns {Promise<object>} 作成された休憩
+ */
+export const startBreak = async (data) => {
+  try {
+    // スタブ実装
+    return Promise.resolve({
+      id: Math.floor(Math.random() * 1000),
+      start_time: new Date().toISOString(),
+      end_time: null,
+      ...data
+    });
+  } catch (error) {
+    console.error('Error starting break:', error);
+    throw error;
+  }
+};
+
+/**
+ * 休憩を停止する
+ * @param {number} id 休憩ID
+ * @returns {Promise<object>} 更新された休憩
+ */
+export const stopBreak = async (id) => {
+  try {
+    // スタブ実装
+    return Promise.resolve({
+      id,
+      end_time: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error stopping break:', error);
+    throw error;
+  }
+};
+
+/**
+ * レポートを生成する
+ * @param {object} params レポートパラメータ
+ * @returns {Promise<object>} 生成されたレポート
+ */
+export const generateReport = async (params = {}) => {
+  try {
+    // スタブ実装
+    return Promise.resolve({
+      entries: [
+        {
+          id: 1,
+          start_time: '2023-05-01T09:00:00Z',
+          end_time: '2023-05-01T17:00:00Z',
+          duration: 28800,
+          task: {
+            id: 1,
+            title: 'タスク1'
+          }
+        }
+      ],
+      total_duration: 28800,
+      period: {
+        start: params.start_date,
+        end: params.end_date
+      }
+    });
+  } catch (error) {
+    console.error('Error generating report:', error);
+    throw error;
+  }
+};
+
+/**
+ * レポートをCSVにエクスポートする
+ * @param {object} params エクスポートパラメータ
+ * @returns {Promise<Blob>} CSVファイル
+ */
+export const exportReportToCsv = async (params = {}) => {
+  try {
+    // スタブ実装
+    const csvContent = 'id,start_time,end_time,duration,task\n1,2023-05-01T09:00:00Z,2023-05-01T17:00:00Z,28800,タスク1';
+    return Promise.resolve(new Blob([csvContent], { type: 'text/csv' }));
+  } catch (error) {
+    console.error('Error exporting report to CSV:', error);
+    throw error;
+  }
+};
+
+// APIモジュールのエクスポート更新
+export default {
+  getActiveTimeEntry,
+  getTimeEntries,
+  createTimeEntry,
+  updateTimeEntry,
+  deleteTimeEntry,
+  getDashboardSummary,
+  getChartData,
+  getBreaks,
+  startTimeEntry,
+  stopTimeEntry,
+  startBreak,
+  stopBreak,
+  generateReport,
+  exportReportToCsv
+};

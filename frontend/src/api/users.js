@@ -1,206 +1,148 @@
 import apiClient from './client';
 
 /**
- * ユーザーAPI関連の関数
+ * ユーザー一覧を取得
+ * @param {object} params クエリパラメータ
+ * @returns {Promise<Array>} ユーザー一覧
  */
-const usersApi = {
-  /**
-   * ユーザープロフィールを取得
-   * @returns {Promise<Object>} - ユーザープロフィール情報
-   */
-  getProfile: async () => {
-    try {
-      // 最初に認証済みユーザー情報を取得
-      const userResponse = await apiClient.get('/api/auth/users/me/');
-      
-      if (userResponse.data && userResponse.data.id) {
-        // 取得したユーザーIDでプロフィール詳細を取得
-        try {
-          const profileResponse = await apiClient.get(`/api/users/profile/${userResponse.data.id}/`);
-          return profileResponse;
-        } catch (profileError) {
-          console.error('Error fetching detailed profile:', profileError);
-          // ユーザー基本情報だけでもレスポンス形式に合わせて返す
-          return {
-            data: {
-              ...userResponse.data,
-              business: {
-                id: userResponse.data.business || 1,
-                name: userResponse.data.business_name || 'サンプル企業'
-              }
-            }
-          };
-        }
-      }
-      
-      throw new Error('User data not found');
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-      // デモプロフィールを返す（開発用）
-      return {
-        data: {
-          id: 1,
-          username: 'admin',
-          email: 'admin@example.com',
-          first_name: '管理者',
-          last_name: 'ユーザー',
-          business: {
-            id: 1,
-            name: 'サンプル企業'
-          }
-        }
-      };
-    }
-  },
-  
-  /**
-   * ユーザー一覧を取得
-   * @param {Object} params - クエリパラメータ
-   * @returns {Promise<Array>} - ユーザー一覧
-   */
-  getUsers: async (params = {}) => {
-    try {
-      const response = await apiClient.get('/api/users/profile/', { params });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      return [];
-    }
-  },
-
-  /**
-   * 特定のユーザーを取得
-   * @param {number} userId - ユーザーID
-   * @returns {Promise<Object>} - ユーザー情報
-   */
-  getUser: async (userId) => {
-    try {
-      const response = await apiClient.get(`/api/users/profile/${userId}/`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching user ${userId}:`, error);
-      return null;
-    }
-  },
-
-  /**
-   * ビジネスに所属するユーザーを取得
-   * @param {string} businessId - ビジネスID
-   * @param {Object} params - 追加のクエリパラメータ
-   * @returns {Promise<Array>} - ユーザー一覧
-   */
-  getBusinessUsers: async (businessId, params = {}) => {
-    try {
-      // 直接すべてのユーザーを取得する（ビジネスIDによるフィルタリングはバックエンドで自動的に行われる）
-      const response = await apiClient.get('/api/users/profile/');
-      console.log('Users from API:', response.data);
-      
-      if (Array.isArray(response.data)) {
-        return response.data;
-      } else if (response.data && Array.isArray(response.data.results)) {
-        return response.data.results;
-      } else {
-        return [];
-      }
-    } catch (error) {
-      console.error(`Error fetching users:`, error);
-      return [];
-    }
-  },
-  
-  /**
-   * 現在のユーザー情報を取得
-   * @returns {Promise<Object>} - 現在のユーザー情報
-   */
-  getCurrentUser: async () => {
-    try {
-      const response = await apiClient.get('/api/auth/users/me/');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching current user:', error);
-      return null;
-    }
-  },
-  
-  /**
-   * 利用可能な担当者（ワーカー）一覧を取得
-   * @returns {Promise<Array>} - 担当者一覧
-   */
-  getAvailableWorkers: async () => {
-    try {
-      // デモユーザーを返す（APIが正しく設定されるまでの一時的な対応）
-      const demoUsers = [
-        { id: 1, username: 'admin', email: 'admin@example.com', first_name: '管理者', last_name: 'ユーザー' },
-        { id: 2, username: 'worker1', email: 'worker1@example.com', first_name: '担当者', last_name: '1' },
-        { id: 3, username: 'worker2', email: 'worker2@example.com', first_name: '担当者', last_name: '2' },
-        { id: 4, username: 'reviewer1', email: 'reviewer1@example.com', first_name: 'レビュアー', last_name: '1' },
-      ];
-      
-      // APIを呼び出す（デモユーザーとの比較用）
-      console.log('Fetching users for worker selection');
-      try {
-        // 正しいURLパスを使用する
-        const response = await apiClient.get('/api/users/profile/');
-        console.log('Worker API response:', response.data);
-        
-        // レスポンスの形式によって適切に処理
-        if (Array.isArray(response.data) && response.data.length > 0) {
-          return response.data;
-        } else if (response.data && Array.isArray(response.data.results) && response.data.results.length > 0) {
-          return response.data.results;
-        }
-      } catch (apiError) {
-        console.warn('API Error, using demo users:', apiError);
-      }
-      
-      // APIからデータが取得できない場合はデモユーザーを返す
-      console.log('Using demo users');
-      return demoUsers;
-    } catch (error) {
-      console.error('Error fetching available workers:', error);
-      return [];
-    }
-  },
-  
-  /**
-   * 利用可能なレビュアー一覧を取得
-   * @returns {Promise<Array>} - レビュアー一覧
-   */
-  getAvailableReviewers: async () => {
-    try {
-      // デモユーザーを返す（APIが正しく設定されるまでの一時的な対応）
-      const demoUsers = [
-        { id: 1, username: 'admin', email: 'admin@example.com', first_name: '管理者', last_name: 'ユーザー' },
-        { id: 4, username: 'reviewer1', email: 'reviewer1@example.com', first_name: 'レビュアー', last_name: '1' },
-        { id: 5, username: 'reviewer2', email: 'reviewer2@example.com', first_name: 'レビュアー', last_name: '2' },
-        { id: 6, username: 'manager', email: 'manager@example.com', first_name: 'マネージャー', last_name: '' },
-      ];
-      
-      // APIを呼び出す（デモユーザーとの比較用）
-      console.log('Fetching users for reviewer selection');
-      try {
-        // 正しいエンドポイント /api/users/profile/ を使用する
-        const response = await apiClient.get('/api/users/profile/');
-        console.log('Reviewer API response:', response.data);
-        
-        // レスポンスの形式によって適切に処理
-        if (Array.isArray(response.data) && response.data.length > 0) {
-          return response.data;
-        } else if (response.data && Array.isArray(response.data.results) && response.data.results.length > 0) {
-          return response.data.results;
-        }
-      } catch (apiError) {
-        console.warn('API Error, using demo users:', apiError);
-      }
-      
-      // APIからデータが取得できない場合はデモユーザーを返す
-      console.log('Using demo users for reviewers');
-      return demoUsers;
-    } catch (error) {
-      console.error('Error fetching available reviewers:', error);
-      return [];
-    }
-  },
+export const getUsers = async (params = {}) => {
+  try {
+    const response = await apiClient.get('/api/users/', { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    throw error;
+  }
 };
 
-export default usersApi;
+/**
+ * ユーザー詳細を取得
+ * @param {number} userId ユーザーID
+ * @returns {Promise<object>} ユーザー詳細
+ */
+export const getUser = async (userId) => {
+  try {
+    const response = await apiClient.get(`/api/users/${userId}/`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching user ${userId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * 自分のプロフィール情報を取得
+ * @returns {Promise<object>} プロフィール情報
+ */
+export const getProfile = async () => {
+  try {
+    const response = await apiClient.get('/api/users/profile/');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+    throw error;
+  }
+};
+
+/**
+ * 作業可能なユーザー一覧を取得
+ * @param {object} params クエリパラメータ
+ * @returns {Promise<Array>} 作業者一覧
+ */
+export const getAvailableWorkers = async (params = {}) => {
+  try {
+    const response = await apiClient.get('/api/users/workers/', { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching available workers:', error);
+    throw error;
+  }
+};
+
+/**
+ * レビュー可能なユーザー一覧を取得
+ * @param {object} params クエリパラメータ
+ * @returns {Promise<Array>} レビュアー一覧
+ */
+export const getAvailableReviewers = async (params = {}) => {
+  try {
+    const response = await apiClient.get('/api/users/reviewers/', { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching available reviewers:', error);
+    throw error;
+  }
+};
+
+/**
+ * 事業所のユーザー一覧を取得
+ * @param {object} params クエリパラメータ
+ * @returns {Promise<Array>} 事業所ユーザー一覧
+ */
+export const getBusinessUsers = async (params = {}) => {
+  try {
+    const response = await apiClient.get('/api/users/business/', { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching business users:', error);
+    throw error;
+  }
+};
+
+/**
+ * ユーザーを作成
+ * @param {object} userData ユーザーデータ
+ * @returns {Promise<object>} 作成されたユーザー
+ */
+export const createUser = async (userData) => {
+  try {
+    const response = await apiClient.post('/api/users/', userData);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating user:', error);
+    throw error;
+  }
+};
+
+/**
+ * ユーザーを更新
+ * @param {number} userId ユーザーID
+ * @param {object} userData 更新データ
+ * @returns {Promise<object>} 更新されたユーザー
+ */
+export const updateUser = async (userId, userData) => {
+  try {
+    const response = await apiClient.patch(`/api/users/${userId}/`, userData);
+    return response.data;
+  } catch (error) {
+    console.error(`Error updating user ${userId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * ユーザーを削除
+ * @param {number} userId ユーザーID
+ * @returns {Promise<void>}
+ */
+export const deleteUser = async (userId) => {
+  try {
+    await apiClient.delete(`/api/users/${userId}/`);
+  } catch (error) {
+    console.error(`Error deleting user ${userId}:`, error);
+    throw error;
+  }
+};
+
+// デフォルトエクスポート
+export default {
+  getUsers,
+  getUser,
+  getProfile,
+  getAvailableWorkers,
+  getAvailableReviewers,
+  getBusinessUsers,
+  createUser,
+  updateUser,
+  deleteUser
+};

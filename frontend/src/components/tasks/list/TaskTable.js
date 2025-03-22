@@ -212,7 +212,6 @@ const TaskTable = ({
               </td>
               <td>
                 {task.client_data?.name || task.client_name || (task.client?.name || '')}
-                {task.is_fiscal_task && <span className="ml-1 badge badge-xs badge-accent">決算</span>}
               </td>
               <td>
                 {hasFiscalYearData(task) ? (

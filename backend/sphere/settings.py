@@ -177,15 +177,10 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # CORS設定
 # Docker環境用のCORS設定
 CORS_ALLOWED_ORIGINS = [
-    # Docker環境（優先）
+    # Docker環境
     "http://frontend:3000",
     "http://backend:8000",
-    "http://websocket:8001",
-    # ローカル開発環境（フォールバック）
-    "http://localhost:3000",
-    "http://127.0.0.1:3000", 
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
+    "http://websocket:8001"
 ]
 
 # 基本設定

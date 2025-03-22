@@ -1,0 +1,7 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+ローカル開発環境ではない。Docker開発環境で構築している。
+ローカル開発環境ではない。これは極めて重要です。

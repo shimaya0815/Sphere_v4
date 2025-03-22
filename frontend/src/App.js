@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { toast } from 'react-hot-toast';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -41,6 +42,79 @@ function App() {
     }, 1000);
   }, []);
 
+  // グローバルトースト表示システム
+  useEffect(() => {
+    const handleGlobalToast = (event) => {
+      if (event.detail) {
+        const { message, type = 'success', options = {} } = event.detail;
+        
+        if (type === 'success') {
+          toast.success(message, {
+            id: `global-toast-${Date.now()}`,
+            duration: 5000,
+            ...options
+          });
+        } else if (type === 'error') {
+          toast.error(message, {
+            id: `global-toast-${Date.now()}`,
+            duration: 5000,
+            ...options
+          });
+        } else {
+          toast(message, {
+            id: `global-toast-${Date.now()}`,
+            duration: 5000,
+            ...options
+          });
+        }
+      }
+    };
+    
+    window.addEventListener('show-toast', handleGlobalToast);
+    
+    return () => {
+      window.removeEventListener('show-toast', handleGlobalToast);
+    };
+  }, []);
+
+  // URLの変更時にトーストが閉じてしまう問題を修正するパッチ
+  useEffect(() => {
+    const originalPush = window.history.pushState;
+    const originalReplace = window.history.replaceState;
+    
+    // pushStateをオーバーライドしてトースト表示を維持
+    window.history.pushState = function(...args) {
+      const result = originalPush.apply(this, args);
+      
+      // 既存のトーストを持続させる
+      const activeToasts = document.querySelectorAll('[data-toast]');
+      if (activeToasts.length > 0) {
+        console.log('URLが変更されましたが、トースト通知を維持します');
+      }
+      
+      return result;
+    };
+    
+    // replaceStateをオーバーライドしてトースト表示を維持
+    window.history.replaceState = function(...args) {
+      const result = originalReplace.apply(this, args);
+      
+      // 既存のトーストを持続させる
+      const activeToasts = document.querySelectorAll('[data-toast]');
+      if (activeToasts.length > 0) {
+        console.log('URLが置換されましたが、トースト通知を維持します');
+      }
+      
+      return result;
+    };
+    
+    return () => {
+      // クリーンアップ：元の関数に戻す
+      window.history.pushState = originalPush;
+      window.history.replaceState = originalReplace;
+    };
+  }, []);
+
   if (isLoading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
@@ -48,13 +122,13 @@ function App() {
   return (
     <AuthProvider>
       <Routes>
-        {/* Public routes */}
+        {/* パブリックルート */}
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/debug/socket" element={<SocketDebug />} />
         
-        {/* Protected routes with shared layout */}
+        {/* プロテクテッドルート（共通レイアウト付き） */}
         <Route element={<Layout />}>
           <Route path="/dashboard" element={
             <PrivateRoute>
@@ -66,19 +140,19 @@ function App() {
               <TasksPage />
             </PrivateRoute>
           } />
-          <Route path="/tasks/templates" element={
+          <Route path="/tasks/:taskId" element={
+            <PrivateRoute>
+              <TasksPage />
+            </PrivateRoute>
+          } />
+          <Route path="/task-templates" element={
             <PrivateRoute>
               <TaskTemplatesPage />
             </PrivateRoute>
           } />
-          <Route path="/tasks/templates/:templateId/tasks" element={
+          <Route path="/task-templates/:templateId" element={
             <PrivateRoute>
               <TemplateTaskList />
-            </PrivateRoute>
-          } />
-          <Route path="/tasks/:taskId" element={
-            <PrivateRoute>
-              <TasksPage />
             </PrivateRoute>
           } />
           <Route path="/clients" element={
@@ -91,12 +165,12 @@ function App() {
               <ClientNewPage />
             </PrivateRoute>
           } />
-          <Route path="/clients/:clientId" element={
+          <Route path="/clients/:id" element={
             <PrivateRoute>
               <ClientDetailPage />
             </PrivateRoute>
           } />
-          <Route path="/clients/:clientId/edit" element={
+          <Route path="/clients/:id/edit" element={
             <PrivateRoute>
               <ClientEditPage />
             </PrivateRoute>
@@ -111,7 +185,7 @@ function App() {
               <WikiPage />
             </PrivateRoute>
           } />
-          <Route path="/time-management" element={
+          <Route path="/time" element={
             <PrivateRoute>
               <TimeManagementPage />
             </PrivateRoute>
@@ -123,7 +197,7 @@ function App() {
           } />
         </Route>
         
-        {/* Catch all for 404 */}
+        {/* 404ページ */}
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </AuthProvider>

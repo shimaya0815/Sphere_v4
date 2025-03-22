@@ -20,11 +20,20 @@ const useSimpleSocketIO = () => {
     console.log('Socket.IO接続を試行します...');
     
     try {
+      // Docker環境の設定値を取得
+      let wsUrl = 'http://websocket:8001'; // デフォルト値
+      
+      // 環境変数から優先的に取得
+      if (window.ENV && window.ENV.REACT_APP_WS_URL) {
+        wsUrl = window.ENV.REACT_APP_WS_URL;
+      } else if (process.env.REACT_APP_WS_URL) {
+        wsUrl = process.env.REACT_APP_WS_URL;
+      }
+      
       // 接続URLs (優先度順)
       const urls = [
-        'http://websocket:8001', // 直接WebSocketサーバーへ
-        window.location.protocol + '//' + window.location.hostname + ':8001', // フルURL
-        '/socket.io' // プロキシ経由
+        wsUrl, // Docker環境の設定値を最優先
+        '/socket.io' // プロキシ経由（フォールバック）
       ];
       
       // 試す接続URL (最初のURLから開始)

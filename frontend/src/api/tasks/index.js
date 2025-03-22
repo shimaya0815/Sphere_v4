@@ -8,6 +8,7 @@ import templates from './templates';
 import metadata from './metadata';
 import comments from './comments';
 import utils from './utils';
+import apiClient from '../client';
 
 // タスク操作 API
 export const {
@@ -70,9 +71,57 @@ export default {
   deleteTemplate,
   
   // メタデータ関連
-  getCategories,
-  getStatuses,
-  getPriorities,
+  getCategories: async () => {
+    try {
+      console.log('Getting categories from API');
+      const response = await apiClient.get('/api/tasks/categories/');
+      console.log('Categories API response:', response);
+      
+      // APIレスポンスデータを直接返すのではなく、データ部分だけ返す
+      if (response && response.data) {
+        return { data: response.data };
+      } else {
+        return { data: [] };
+      }
+    } catch (error) {
+      console.error('Error in getCategories:', error);
+      return { data: [] };
+    }
+  },
+  getStatuses: async () => {
+    try {
+      console.log('Getting statuses from API');
+      const response = await apiClient.get('/api/tasks/statuses/');
+      console.log('Statuses API response:', response);
+      
+      // APIレスポンスデータを直接返すのではなく、データ部分だけ返す
+      if (response && response.data) {
+        return { data: response.data };
+      } else {
+        return { data: [] };
+      }
+    } catch (error) {
+      console.error('Error in getStatuses:', error);
+      return { data: [] };
+    }
+  },
+  getPriorities: async () => {
+    try {
+      console.log('Getting priorities from API');
+      const response = await apiClient.get('/api/tasks/priorities/');
+      console.log('Priorities API response:', response);
+      
+      // APIレスポンスデータを直接返すのではなく、データ部分だけ返す
+      if (response && response.data) {
+        return { data: response.data };
+      } else {
+        return { data: [] };
+      }
+    } catch (error) {
+      console.error('Error in getPriorities:', error);
+      return { data: [] };
+    }
+  },
   createCategory,
   createStatus,
   createPriority,

@@ -1,184 +1,261 @@
-import { useState, useEffect, useRef } from 'react';
-import { timeManagementApi } from '../../../../api';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
+import { timeManagementApi } from '../../../../api';
 
 /**
- * タスクのタイマー機能を管理するカスタムフック
- * @param {number} taskId - タスクID
- * @returns {Object} タイマー関連の状態と関数
+ * タスクタイマー用カスタムフック
+ * @param {number|null} taskId タスクID
  */
 export const useTaskTimer = (taskId) => {
-  // 時間記録の状態管理
   const [isRecordingTime, setIsRecordingTime] = useState(false);
-  const [timeEntry, setTimeEntry] = useState(null);
-  const [elapsedTime, setElapsedTime] = useState(0);
   const [startTime, setStartTime] = useState(null);
-  const [timerIntervalId, setTimerIntervalId] = useState(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [timeEntry, setTimeEntry] = useState(null);
   const [cachedTimeEntries, setCachedTimeEntries] = useState([]);
-  const [isLoadingTimeEntries, setIsLoadingTimeEntries] = useState(false);
-  const [editingTimeEntry, setEditingTimeEntry] = useState(null);
-  const [timeEntryForm, setTimeEntryForm] = useState({
-    start_time: '',
-    end_time: '',
-    description: '',
-    duration_seconds: 0
-  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingEntries, setIsLoadingEntries] = useState(false);
+  
+  // タイマーインターバルの参照
+  const timerRef = useRef(null);
+  // API呼び出し制御用のフラグ
+  const isCheckingRef = useRef(false);
+  // 最後のAPIチェック時間
+  const lastCheckTimeRef = useRef(0);
+  // API呼び出し回数制限
+  const apiCallCountRef = useRef(0);
+  // API呼び出し回数リセットタイマー
+  const apiCallResetTimerRef = useRef(null);
+  // 最大API呼び出し回数
+  const MAX_API_CALLS = 20;
+  // API呼び出し回数リセット間隔（ミリ秒）
+  const API_CALL_RESET_INTERVAL = 60000; // 1分
+  
+  // 経過時間の計算
+  const calculateElapsed = useCallback(() => {
+    if (!startTime) return 0;
+    return Math.floor((Date.now() - startTime) / 1000);
+  }, [startTime]);
 
-  /**
-   * アクティブなタイマーがあるか確認
-   */
-  const checkActiveTimeEntry = async (id) => {
-    if (!id) return;
-    
-    try {
-      const response = await timeManagementApi.getActiveTimeEntry(id);
-      if (response.data && response.data.id) {
-        setTimeEntry(response.data);
-        setIsRecordingTime(true);
-        
-        // 経過時間を計算
-        const startTimeDate = new Date(response.data.start_time);
-        setStartTime(startTimeDate);
-        const now = new Date();
-        const elapsedTimeMs = now - startTimeDate;
-        setElapsedTime(Math.floor(elapsedTimeMs / 1000));
-        
-        // タイマーを開始
-        const intervalId = setInterval(() => {
-          setElapsedTime(prev => prev + 1);
-        }, 1000);
-        setTimerIntervalId(intervalId);
-      }
-    } catch (error) {
-      console.error('Error checking active time entry:', error);
-    }
-  };
-
-  /**
-   * タイマーを開始
-   */
-  const startTimer = async () => {
+  // タイムエントリの一覧取得
+  const fetchTimeEntries = useCallback(async () => {
     if (!taskId) return;
     
     try {
-      const response = await timeManagementApi.startTimeEntry({
+      // API呼び出し回数を増やす
+      apiCallCountRef.current += 1;
+      
+      // API呼び出し回数制限を超えた場合はスキップ
+      if (apiCallCountRef.current > MAX_API_CALLS) {
+        console.warn('API call limit reached. Skipping time entries fetch.');
+        return;
+      }
+      
+      setIsLoadingEntries(true);
+      const entries = await timeManagementApi.getTimeEntries({ task_id: taskId });
+      setCachedTimeEntries(entries || []);
+    } catch (error) {
+      console.error('Error fetching time entries:', error);
+      // ユーザーエクスペリエンスを向上させるためトースト通知を表示しない
+    } finally {
+      setIsLoadingEntries(false);
+    }
+  }, [taskId]);
+  
+  // タイマー開始
+  const startTimer = useCallback(async () => {
+    if (!taskId) {
+      toast.error('タスクIDが指定されていません');
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      
+      // 現在時刻を取得してタイムエントリ作成
+      const newStartTime = new Date();
+      
+      // APIでタイムエントリを作成
+      const response = await timeManagementApi.createTimeEntry({
         task: taskId,
-        description: ''
+        start_time: newStartTime.toISOString(),
+        active: true
       });
       
-      if (response.data && response.data.id) {
-        setTimeEntry(response.data);
-        setIsRecordingTime(true);
-        setStartTime(new Date(response.data.start_time));
-        setElapsedTime(0);
-        
-        // タイマーを開始
-        const intervalId = setInterval(() => {
-          setElapsedTime(prev => prev + 1);
-        }, 1000);
-        setTimerIntervalId(intervalId);
-        
-        toast.success('タイマーを開始しました');
+      setTimeEntry(response);
+      setStartTime(newStartTime);
+      setIsRecordingTime(true);
+      
+      // タイマー開始
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
       }
+      
+      timerRef.current = setInterval(() => {
+        setElapsedTime(calculateElapsed());
+      }, 1000);
+      
+      toast.success('タイマーを開始しました');
     } catch (error) {
       console.error('Error starting timer:', error);
       toast.error('タイマーの開始に失敗しました');
+    } finally {
+      setIsLoading(false);
     }
-  };
-
-  /**
-   * タイマーを停止
-   */
-  const stopTimer = async () => {
-    if (!timeEntry || !timeEntry.id) return;
+  }, [taskId, calculateElapsed]);
+  
+  // タイマー停止
+  const stopTimer = useCallback(async () => {
+    if (!taskId || !timeEntry || !timeEntry.id) {
+      toast.error('アクティブなタイマーがありません');
+      return;
+    }
     
     try {
-      await timeManagementApi.stopTimeEntry(timeEntry.id);
+      setIsLoading(true);
+      
+      // 現在時刻を取得して終了時間を設定
+      const endTime = new Date();
+      
+      // APIでタイムエントリを更新
+      await timeManagementApi.updateTimeEntry(timeEntry.id, {
+        end_time: endTime.toISOString(),
+        active: false
+      });
       
       // タイマーをクリア
-      if (timerIntervalId) {
-        clearInterval(timerIntervalId);
-        setTimerIntervalId(null);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
       }
       
       setIsRecordingTime(false);
       setTimeEntry(null);
+      setStartTime(null);
       setElapsedTime(0);
       
-      // 時間エントリを再取得
-      fetchTimeEntries();
+      // タイムエントリを再取得（直後に取得すると古いデータが返ってくる可能性があるため少し遅延）
+      setTimeout(() => {
+        fetchTimeEntries();
+      }, 500);
       
       toast.success('タイマーを停止しました');
     } catch (error) {
       console.error('Error stopping timer:', error);
       toast.error('タイマーの停止に失敗しました');
+    } finally {
+      setIsLoading(false);
     }
-  };
-
-  /**
-   * 時間エントリを取得
-   */
-  const fetchTimeEntries = async () => {
-    if (!taskId) return;
+  }, [taskId, timeEntry, fetchTimeEntries]);
+  
+  // アクティブなタイムエントリがあるかチェック
+  const checkActiveTimeEntry = useCallback(async () => {
+    if (!taskId || isCheckingRef.current) return;
     
-    setIsLoadingTimeEntries(true);
+    // 前回のチェックから30秒以内の場合はスキップ (より長い間隔に変更)
+    const now = Date.now();
+    if (now - lastCheckTimeRef.current < 30000) return;
+    
+    // API呼び出し回数制限を超えた場合はスキップ
+    if (apiCallCountRef.current > MAX_API_CALLS) {
+      console.warn('API call limit reached. Skipping active time entry check.');
+      return;
+    }
+    
+    lastCheckTimeRef.current = now;
+    isCheckingRef.current = true;
     
     try {
-      const response = await timeManagementApi.getTimeEntriesByTask(taskId);
-      if (response.data) {
-        setCachedTimeEntries(response.data);
+      // API呼び出し回数を増やす
+      apiCallCountRef.current += 1;
+      
+      const activeEntry = await timeManagementApi.getActiveTimeEntry(taskId);
+      
+      if (activeEntry) {
+        // 既に同じエントリがセットされている場合は更新しない
+        if (timeEntry && timeEntry.id === activeEntry.id) {
+          isCheckingRef.current = false;
+          return;
+        }
+        
+        setTimeEntry(activeEntry);
+        setStartTime(new Date(activeEntry.start_time));
+        setIsRecordingTime(true);
+        
+        // タイマーが動いていなければ開始
+        if (!timerRef.current) {
+          timerRef.current = setInterval(() => {
+            setElapsedTime(calculateElapsed());
+          }, 1000);
+        }
+      } else if (isRecordingTime) {
+        // アクティブなエントリがなくなった場合はタイマーをリセット
+        setIsRecordingTime(false);
+        setTimeEntry(null);
+        setStartTime(null);
+        setElapsedTime(0);
+        
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
       }
     } catch (error) {
-      console.error('Error fetching time entries:', error);
+      console.error('Error checking active time entry:', error);
+      // エラーはサイレント
     } finally {
-      setIsLoadingTimeEntries(false);
+      isCheckingRef.current = false;
     }
-  };
-
-  /**
-   * 時間エントリを削除
-   */
-  const deleteTimeEntry = async (entryId) => {
-    try {
-      await timeManagementApi.deleteTimeEntry(entryId);
-      toast.success('時間記録を削除しました');
-      
-      // リストから削除したエントリを除外
-      setCachedTimeEntries(prev => 
-        prev.filter(entry => entry.id !== entryId)
-      );
-    } catch (error) {
-      console.error('Error deleting time entry:', error);
-      toast.error('時間記録の削除に失敗しました');
-    }
-  };
-
-  /**
-   * アンマウント時にタイマーをクリア
-   */
+  }, [taskId, calculateElapsed, timeEntry, isRecordingTime]);
+  
+  // API呼び出し回数のリセット
   useEffect(() => {
+    // リセットタイマーのセットアップ
+    apiCallResetTimerRef.current = setInterval(() => {
+      apiCallCountRef.current = 0;
+    }, API_CALL_RESET_INTERVAL);
+    
     return () => {
-      if (timerIntervalId) {
-        clearInterval(timerIntervalId);
+      if (apiCallResetTimerRef.current) {
+        clearInterval(apiCallResetTimerRef.current);
       }
     };
-  }, [timerIntervalId]);
-
+  }, []);
+  
+  // コンポーネントのマウント/アンマウント時の処理
+  useEffect(() => {
+    // マウント時の初期化
+    if (taskId) {
+      checkActiveTimeEntry();
+      fetchTimeEntries();
+    }
+    
+    // クリーンアップ処理
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      
+      if (apiCallResetTimerRef.current) {
+        clearInterval(apiCallResetTimerRef.current);
+        apiCallResetTimerRef.current = null;
+      }
+    };
+  }, [taskId, checkActiveTimeEntry, fetchTimeEntries]);
+  
   return {
     isRecordingTime,
-    timeEntry,
     elapsedTime,
     startTime,
+    timeEntry,
     cachedTimeEntries,
-    isLoadingTimeEntries,
-    editingTimeEntry,
-    setEditingTimeEntry,
-    timeEntryForm,
-    setTimeEntryForm,
-    checkActiveTimeEntry,
+    isLoading,
+    isLoadingEntries,
     startTimer,
     stopTimer,
-    fetchTimeEntries,
-    deleteTimeEntry
+    checkActiveTimeEntry,
+    fetchTimeEntries
   };
-}; 
+};
+
+export default useTaskTimer; 
