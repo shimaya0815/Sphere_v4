@@ -1,4 +1,23 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useTasks } from '../../../hooks/useTasks';
+import { TaskFormProvider, useTaskFormContext } from './hooks/useTaskForm';
+import TaskForm from './TaskForm';
+import StatusSelector from './StatusSelector';
+import TimeTracking from './components/TimeTracking';
+// エラーになるコンポーネントを一時的にコメントアウト
+// import Comments from '../components/TaskComments';
+// import Attachments from '../components/Attachments';
+import { useTaskTimer } from './hooks/useTaskTimer';
+import { formatDistanceToNow, parseISO } from 'date-fns';
+import TaskTitleEditor from '../TaskTitleEditor';
+// react-loading-skeletonを一時的にモックアップ
+// import Skeleton from 'react-loading-skeleton';
+// import 'react-loading-skeleton/dist/skeleton.css';
+import { MdArrowBack } from 'react-icons/md';
+// framer-motionを一時的にモックアップ
+// import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 import { useForm, Controller } from 'react-hook-form';
 import { 
   HiOutlineX, 
@@ -7,20 +26,19 @@ import {
   HiUser, 
   HiUserGroup, 
   HiOutlineTrash, 
-  HiExclamation 
+  HiExclamation,
+  HiOutlineCalendar,
+  HiOutlineTag
 } from 'react-icons/hi';
-import toast from 'react-hot-toast';
-
+import { tasksApi } from '../../../api';
 // ユーティリティとフックのインポート
 import { formatDateForInput, getRelativeDateDisplay } from './utils';
-import { useTaskData, useTaskTimer } from './hooks';
+import { useTaskData } from './hooks';
 import { prepareFormDataForSubmission, prepareTaskDataForForm } from './utils';
-
 // 分割コンポーネントのインポート
 import CurrentAssignee from './components/CurrentAssignee';
-import TimeTracking from './components/TimeTracking';
 import DeleteTaskModal from './components/DeleteTaskModal';
-import TaskComments from '../TaskComments';
+// import TaskComments from '../TaskComments';
 
 // セクションコンポーネントのインポート
 import {
@@ -35,527 +53,382 @@ import {
   TaskRecurrenceSection
 } from './components/sections';
 
+// Skeletonコンポーネントのダミー実装
+const Skeleton = ({ height, width, count = 1 }) => {
+  const elements = [];
+  for (let i = 0; i < count; i++) {
+    elements.push(
+      <div 
+        key={i}
+        style={{ 
+          height: height || 20, 
+          width: width || '100%', 
+          backgroundColor: '#f0f0f0',
+          marginBottom: '8px',
+          borderRadius: '4px'
+        }}
+      />
+    );
+  }
+  return <>{elements}</>;
+};
+
+// motionのダミー実装
+const motion = {
+  div: ({ children, ...props }) => <div {...props}>{children}</div>
+};
+
+// 一時的なダミーコンポーネント
+const Comments = ({ taskId }) => (
+  <div>コメント機能は現在開発中です。タスクID: {taskId}</div>
+);
+
+const Attachments = ({ taskId }) => (
+  <div>添付ファイル機能は現在開発中です。タスクID: {taskId}</div>
+);
+
 /**
  * Asana風タスク編集コンポーネント
  * - 編集状態のリアルタイム監視
  * - 自動保存とバッチ処理
  * - 視覚的フィードバック強化
  */
-const TaskEditor = ({ task, isNewTask = false, onClose, onTaskUpdated, isOpen = false }) => {
-  // フォームのリセット状態を追跡するためのキー
-  const [resetKey, setResetKey] = useState(Date.now());
+const TaskEditor = ({ isNew = false, initialData = null, onClose = null, projectId = null }) => {
+  const { taskId } = useParams();
+  const navigate = useNavigate();
+  const { 
+    getTask, 
+    updateTask, 
+    createTask, 
+    isLoading: isTaskLoading,
+    tasks
+  } = useTasks();
   
-  // UI状態管理
-  const [isAssigneeExpanded, setIsAssigneeExpanded] = useState(false);
-  const [isDateExpanded, setIsDateExpanded] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  // フォームコンテキストを使用（必要な場合）
+  const formContext = useTaskFormContext();
   
-  // 共通スタイル
-  const inputClassName = "shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-2 border-gray-300 rounded-md hover:border-gray-400";
-  const selectClassName = "shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-2 border-gray-300 rounded-md hover:border-gray-400";
+  // タスクIDを決定（URL、初期データ、または新規タスク用のnull）
+  const resolvedTaskId = useMemo(() => {
+    if (!isNew) {
+      return taskId || (initialData && initialData.id) || null;
+    }
+    return null;
+  }, [isNew, taskId, initialData]);
   
-  // カスタムフックの利用
-  const taskData = useTaskData(task, isNewTask, onTaskUpdated);
-  const taskTimer = useTaskTimer(task?.id);
-
-  // フォーム管理
-  const { control, handleSubmit, reset, setValue, getValues, watch, formState } = useForm({
-    defaultValues: {
-      title: '',
-      description: '',
-      status: '',
-      category: '',
-      client: '',
-      fiscal_year: '',
-      worker: '',
-      reviewer: '',
-      due_date: '',
-      start_date: '',
-      completed_at: '',
-      priority: '',
-      priority_value: '',
-      is_fiscal_task: 'false',
-      is_recurring: 'false',
-      recurrence_pattern: '',
-      recurrence_end_date: '',
-      is_template: 'false', // 明示的にfalseを設定
-      template_name: '',
-      weekdays: ''
-    },
-  });
+  // タスクデータの初期化
+  const [task, setTask] = useState(initialData || null);
+  const [isLoading, setIsLoading] = useState(!initialData);
+  const [isSaving, setIsSaving] = useState(false);
+  const formRef = useRef(null);
   
-  // watchedの値を取得
-  const watchedClient = watch('client');
-  const watchedIsRecurring = watch('is_recurring');
-  const watchedIsTemplate = watch('is_template');
+  // タスクフォームのコンテキスト参照
+  const taskFormRef = useRef(null);
   
-  /**
-   * isOpen状態の変化を監視してリセット処理
-   */
+  // タスクが読み込まれているかチェック
+  const isTaskLoaded = useMemo(() => !isNew && task && task.id, [isNew, task]);
+  
+  // タスクタイマーを初期化
+  const {
+    isRecordingTime,
+    elapsedTime,
+    startTime,
+    timeEntry,
+    cachedTimeEntries,
+    isLoading: isTimerLoading,
+    isLoadingEntries,
+    startTimer,
+    stopTimer,
+    fetchTimeEntries
+  } = useTaskTimer(task?.id);
+  
+  // タスクのタイムエントリを初期読み込み
   useEffect(() => {
-    console.log("isOpen changed:", isOpen, "isNewTask:", isNewTask);
-    if (isOpen) {
-      // スライドオーバーが開く時
-      if (isNewTask) {
-        console.log("Resetting form for new task");
-        // 新規タスク作成時はフォームを初期化
-        reset({
-          title: '',
-          description: '',
-          status: '',
-          category: '',
-          client: '',
-          fiscal_year: '',
-          worker: '',
-          reviewer: '',
-          due_date: '',
-          start_date: '',
-          completed_at: '',
-          priority: '',
-          priority_value: '',
-          is_fiscal_task: 'false',
-          is_recurring: 'false',
-          recurrence_pattern: '',
-          recurrence_end_date: '',
-          is_template: 'false',
-          template_name: '',
-          weekdays: ''
-        });
-        // リセットキーを更新して強制的に再レンダリング
-        setResetKey(Date.now());
-        // その他の状態もリセット
-        taskData.setPendingChanges({});
-        taskData.setIsDirty(false);
-        taskData.setSaveState('idle');
-      }
+    if (task?.id && isTaskLoaded) {
+      fetchTimeEntries();
     }
-  }, [isOpen, isNewTask, reset, taskData]);
+  }, [task?.id, isTaskLoaded, fetchTimeEntries]);
   
-  /**
-   * タスクデータの初期化
-   */
-  useEffect(() => {
-    if (task && !isNewTask) {
-      const formattedTask = prepareTaskDataForForm(task);
-      
-      // 日付フィールドの変換
-      if (formattedTask.due_date) {
-        formattedTask.due_date = formatDateForInput(formattedTask.due_date);
-      }
-      if (formattedTask.start_date) {
-        formattedTask.start_date = formatDateForInput(formattedTask.start_date);
-      }
-      if (formattedTask.completed_at) {
-        formattedTask.completed_at = formatDateForInput(formattedTask.completed_at);
-      }
-      if (formattedTask.recurrence_end_date) {
-        formattedTask.recurrence_end_date = formatDateForInput(formattedTask.recurrence_end_date);
-      }
-      
-      // フォームの初期値を設定
-      reset(formattedTask);
-      
-      // 時間記録中かどうかを確認
-      taskTimer.checkActiveTimeEntry(formattedTask.id);
-      
-      // 時間エントリのリストを取得
-      taskTimer.fetchTimeEntries();
-    }
-  }, [task, isNewTask, reset, taskTimer]);
-  
-  /**
-   * 各種マスターデータの取得
-   */
-  useEffect(() => {
-    const fetchMasterData = async () => {
-      // ビジネスIDの取得
-      await taskData.fetchBusinessData();
-      
-      // 各種マスターデータを取得
-      Promise.all([
-        taskData.fetchCategories(),
-        taskData.fetchStatuses(),
-        taskData.fetchPriorities(),
-        taskData.fetchClients(),
-        taskData.fetchUsers()
-      ]);
-    };
-
-    fetchMasterData();
-  }, [taskData]);
-  
-  /**
-   * クライアントが変更された時に決算期一覧を取得
-   */
-  useEffect(() => {
-    if (watchedClient) {
-      taskData.fetchFiscalYears(watchedClient);
-      
-      // 選択されたクライアントのデータをセット
-      const selectedClient = taskData.clients.find(c => c.id.toString() === watchedClient.toString());
-      taskData.setSelectedClient(selectedClient);
-    } else {
-      taskData.setSelectedClient(null);
-    }
-  }, [watchedClient, taskData]);
-  
-  /**
-   * タスク作成処理
-   */
-  const handleCreateTask = async (formData) => {
-    // 保存用にデータを整形
-    const preparedData = prepareFormDataForSubmission(formData);
-    
-    // タスク作成APIを呼び出し
-    const newTask = await taskData.createTask(preparedData);
-    
-    // 成功したら閉じる
-    if (newTask) {
-      onClose();
-    }
-  };
-  
-  /**
-   * フィールド変更時の処理
-   */
-  const handleFieldChange = (field, value) => {
-    // フォームの値を更新
-    setValue(field, value);
-    
-    // 既存タスクの場合は自動保存
-    if (!isNewTask && task) {
-      // APIに送信するデータを準備
-      const changes = { [field]: value };
-      
-      // boolean型の場合は変換
-      if (['is_fiscal_task', 'is_recurring', 'is_template'].includes(field)) {
-        changes[field] = value === 'true';
-      }
-      
-      // 空文字列はnullに変換
-      if (value === '') {
-        changes[field] = null;
-      }
-      
-      // 変更を保存
-      taskData.updateTask(task.id, changes);
-    }
-  };
-  
-  /**
-   * タスク削除処理
-   */
-  const handleDeleteTask = async () => {
-    if (!task || !task.id || isDeleting) return;
-    
-    setIsDeleting(true);
-    
-    try {
-      await taskData.deleteTask(task.id);
-      toast.success('タスクを削除しました');
-      
-      // スライドオーバーを閉じて一覧を更新
-      onClose();
-      if (onTaskUpdated) {
-        onTaskUpdated(null, true);  // 削除フラグを立てる
-      }
-    } catch (error) {
-      console.error('Error deleting task:', error);
-      toast.error('タスクの削除に失敗しました');
-    } finally {
-      setIsDeleting(false);
-      setIsDeleteModalOpen(false);
-    }
-  };
-  
-  /**
-   * タスク完了トグル
-   */
-  const toggleTaskCompletion = async () => {
-    if (!task || !task.id) return;
-    
-    // 完了ステータスのIDを取得
-    const completedStatus = taskData.statuses.find(s => s.name === '完了');
-    
-    if (!completedStatus) {
-      toast.error('完了ステータスが見つかりません');
+  // タスクを読み込む
+  const loadTask = useCallback(async () => {
+    if (isNew) {
+      // 新規タスクの場合は空のタスクデータをセット
+      setTask({
+        title: '',
+        description: '',
+        status: 'todo',
+        priority: 'medium',
+        due_date: null,
+        assigned_to: null,
+        category: null,
+        tags: []
+      });
+      setIsLoading(false);
       return;
     }
     
-    // 現在完了状態かどうか
-    const isCurrentlyCompleted = task.status === completedStatus.id;
+    if (!resolvedTaskId) return;
     
-    // 変更するステータス
-    let newStatusId;
-    let completedAt;
-    
-    if (isCurrentlyCompleted) {
-      // 未着手ステータスに戻す
-      const notStartedStatus = taskData.statuses.find(s => s.name === '未着手');
-      newStatusId = notStartedStatus ? notStartedStatus.id : null;
-      completedAt = null;
-    } else {
-      // 完了ステータスに変更
-      newStatusId = completedStatus.id;
-      completedAt = new Date().toISOString();
+    setIsLoading(true);
+    try {
+      const fetchedTask = await getTask(resolvedTaskId);
+      if (fetchedTask) {
+        setTask(fetchedTask);
+      }
+    } catch (error) {
+      console.error('Error loading task:', error);
+      toast.error('タスクの読み込みに失敗しました');
+    } finally {
+      setIsLoading(false);
     }
-    
-    // ステータスと完了日時を更新
-    const changes = {
-      status: newStatusId,
-      completed_at: completedAt
-    };
-    
-    // 即時保存
-    await taskData.updateTask(task.id, changes, true);
+  }, [isNew, resolvedTaskId, getTask]);
+  
+  // タスクIDが変わったらタスクを読み込む
+  useEffect(() => {
+    if (isNew) {
+      loadTask();
+    } else if (resolvedTaskId) {
+      // キャッシュから簡易的に取得
+      const cachedTask = tasks.find(t => t.id === parseInt(resolvedTaskId));
+      if (cachedTask) {
+        setTask(cachedTask);
+        setIsLoading(false);
+      } else {
+        loadTask();
+      }
+    }
+  }, [resolvedTaskId, loadTask, tasks, isNew]);
+  
+  // フォーム送信処理
+  const handleSubmit = useCallback(async (formData) => {
+    setIsSaving(true);
+    try {
+      let savedTask;
+      let message;
+      
+      if (isNew) {
+        // 新規作成の場合
+        savedTask = await createTask({
+          ...formData,
+          project: projectId || formData.project
+        });
+        message = 'タスクを作成しました';
+        
+        // 作成後、タスク詳細画面へ遷移
+        if (onClose) {
+          onClose(savedTask);
+        } else {
+          navigate(`/tasks/${savedTask.id}`);
+        }
+      } else {
+        // 更新の場合
+        savedTask = await updateTask(task.id, formData);
+        message = 'タスクを更新しました';
+        setTask(savedTask);
+      }
+      
+      toast.success(message);
+      return savedTask;
+    } catch (error) {
+      console.error('Error saving task:', error);
+      toast.error('タスクの保存に失敗しました');
+      return null;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [isNew, task?.id, createTask, updateTask, projectId, navigate, onClose]);
+  
+  // 戻るボタン処理
+  const handleBack = () => {
+    if (onClose) {
+      onClose();
+    } else {
+      navigate(-1);
+    }
   };
   
-  // スライドオーバーが表示されていない場合は何も表示しない
-  if (!isOpen) return null;
-
-  // スライドオーバーのスタイリング - 右側から表示されるよう修正
+  // 新規タスク作成フォームの初期化
+  const initialFormValues = useMemo(() => {
+    if (isNew) {
+      return {
+        title: '',
+        description: '',
+        status: 'todo',
+        priority: 'medium',
+        due_date: null,
+        project: projectId || null,
+        assignee: null,
+        tags: []
+      };
+    }
+    return task || {};
+  }, [isNew, task, projectId]);
+  
+  if (isLoading && !isNew) {
+    return (
+      <div className="task-editor loading">
+        <Skeleton height={50} width="80%" />
+        <Skeleton count={5} height={30} />
+      </div>
+    );
+  }
+  
+  // フォーム送信ハンドラ
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+    if (taskFormRef.current && taskFormRef.current.handleSubmit) {
+      taskFormRef.current.handleSubmit(e);
+    }
+  };
+  
   return (
-    <div className="fixed inset-0 overflow-hidden z-50" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 overflow-hidden">
-        {/* オーバーレイ背景 */}
-        <div className="absolute inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={onClose}></div>
-        
-        {/* 右側からのスライドオーバーパネル */}
-        <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
-          <div className="pointer-events-auto relative w-screen max-w-md">
-            <div className="h-full flex flex-col bg-white shadow-xl overflow-hidden">
-              {/* ヘッダー */}
-              <TaskEditorHeader 
-                isNewTask={isNewTask}
-                onClose={onClose}
-                saveState={taskData.saveState}
-                toggleTaskCompletion={toggleTaskCompletion}
-                isCompleted={task?.status === taskData.statuses.find(s => s.name === '完了')?.id}
-              />
-              
-              {/* メインコンテンツ */}
-              <div className="flex-1 overflow-y-auto p-4">
-                {isNewTask ? (
-                  // 新規作成フォーム
-                  <form onSubmit={handleSubmit(handleCreateTask)}>
-                    <TaskBasicInfoSection 
-                      control={control}
-                      inputClassName={inputClassName}
-                      selectClassName={selectClassName}
-                      categories={taskData.categories}
-                      statuses={taskData.statuses}
-                      handleFieldChange={handleFieldChange}
-                      watch={watch}
-                      formState={formState}
-                    />
-                    
-                    <TaskAssigneeSection 
-                      control={control}
-                      users={taskData.users}
-                      isExpanded={isAssigneeExpanded}
-                      setIsExpanded={setIsAssigneeExpanded}
-                      handleFieldChange={handleFieldChange}
-                      selectClassName={selectClassName}
-                      watch={watch}
-                      formState={formState}
-                    />
-                    
-                    <TaskDatePrioritySection 
-                      control={control}
-                      priorities={taskData.priorities}
-                      isExpanded={isDateExpanded}
-                      setIsExpanded={setIsDateExpanded}
-                      handleFieldChange={handleFieldChange}
-                      inputClassName={inputClassName}
-                      selectClassName={selectClassName}
-                      watch={watch}
-                      formState={formState}
-                    />
-                    
-                    <TaskDescriptionSection
-                      control={control}
-                      handleFieldChange={handleFieldChange}
-                      inputClassName={inputClassName}
-                      watch={watch}
-                      formState={formState}
-                    />
-                    
-                    <TaskAdditionalSettingsSection
-                      control={control}
-                      handleFieldChange={handleFieldChange}
-                      clients={taskData.clients}
-                      fiscalYears={taskData.fiscalYears}
-                      watchedIsTemplate={watchedIsTemplate}
-                      selectClassName={selectClassName}
-                      inputClassName={inputClassName}
-                      watch={watch}
-                      formState={formState}
-                    />
-                    
-                    {watchedIsRecurring === 'true' && (
-                      <TaskRecurrenceSection
-                        control={control}
-                        handleFieldChange={handleFieldChange}
-                        inputClassName={inputClassName}
-                        selectClassName={selectClassName}
-                        watch={watch}
-                        formState={formState}
-                      />
-                    )}
-                    
-                    <div className="mt-8 flex justify-end">
-                      <button
-                        type="button"
-                        className="mr-3 px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                        onClick={onClose}
-                      >
-                        キャンセル
-                      </button>
-                      <button
-                        type="submit"
-                        className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                      >
-                        作成
-                      </button>
-                    </div>
-                  </form>
-                ) : (
-                  // 既存タスク編集フォーム
-                  <>
-                    <TaskBasicInfoSection 
-                      control={control}
-                      inputClassName={inputClassName}
-                      selectClassName={selectClassName}
-                      categories={taskData.categories}
-                      statuses={taskData.statuses}
-                      handleFieldChange={handleFieldChange}
-                      watch={watch}
-                      formState={formState}
-                    />
-                    
-                    <TaskAssigneeSection 
-                      control={control}
-                      users={taskData.users}
-                      isExpanded={isAssigneeExpanded}
-                      setIsExpanded={setIsAssigneeExpanded}
-                      handleFieldChange={handleFieldChange}
-                      selectClassName={selectClassName}
-                      watch={watch}
-                      formState={formState}
-                    />
-                    
-                    <TaskDatePrioritySection 
-                      control={control}
-                      priorities={taskData.priorities}
-                      isExpanded={isDateExpanded}
-                      setIsExpanded={setIsDateExpanded}
-                      handleFieldChange={handleFieldChange}
-                      inputClassName={inputClassName}
-                      selectClassName={selectClassName}
-                      watch={watch}
-                      formState={formState}
-                    />
-                    
-                    <TaskDescriptionSection
-                      control={control}
-                      handleFieldChange={handleFieldChange}
-                      inputClassName={inputClassName}
-                      watch={watch}
-                      formState={formState}
-                    />
-                    
-                    <TaskAdditionalSettingsSection
-                      control={control}
-                      handleFieldChange={handleFieldChange}
-                      clients={taskData.clients}
-                      fiscalYears={taskData.fiscalYears}
-                      watchedIsTemplate={watchedIsTemplate}
-                      selectClassName={selectClassName}
-                      inputClassName={inputClassName}
-                      watch={watch}
-                      formState={formState}
-                    />
-                    
-                    {watchedIsRecurring === 'true' && (
-                      <TaskRecurrenceSection
-                        control={control}
-                        handleFieldChange={handleFieldChange}
-                        inputClassName={inputClassName}
-                        selectClassName={selectClassName}
-                        watch={watch}
-                        formState={formState}
-                      />
-                    )}
-                    
-                    {/* 時間計測セクション */}
-                    <div className="mt-5">
-                      <TimeTracking
-                        taskId={task?.id}
-                        isRecordingTime={taskTimer.isRecordingTime}
-                        elapsedTime={taskTimer.elapsedTime}
-                        startTime={taskTimer.startTime}
-                        timeEntries={taskTimer.cachedTimeEntries}
-                        isLoadingTimeEntries={taskTimer.isLoadingTimeEntries}
-                        editingTimeEntry={taskTimer.editingTimeEntry}
-                        setEditingTimeEntry={taskTimer.setEditingTimeEntry}
-                        timeEntryForm={taskTimer.timeEntryForm}
-                        setTimeEntryForm={taskTimer.setTimeEntryForm}
-                        onStart={taskTimer.startTimer}
-                        onStop={taskTimer.stopTimer}
-                        onDelete={taskTimer.deleteTimeEntry}
-                        onRefresh={taskTimer.fetchTimeEntries}
-                      />
-                    </div>
-                    
-                    {/* コメントセクション */}
-                    <div className="mt-5">
-                      <TaskComments taskId={task?.id} />
-                    </div>
-                    
-                    {/* メタ情報 */}
-                    <TaskMetaInfoSection task={task} />
-                    
-                    {/* 削除ボタン */}
-                    <div className="mt-8 border-t pt-4">
-                      <button
-                        type="button"
-                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                        onClick={() => setIsDeleteModalOpen(true)}
-                      >
-                        <HiOutlineTrash className="-ml-0.5 mr-2 h-4 w-4" />
-                        タスクを削除
-                      </button>
-                    </div>
-                  </>
-                )}
+    <TaskFormProvider initialValues={initialFormValues} onSubmit={handleSubmit} ref={taskFormRef}>
+      <motion.div 
+        className="task-editor"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      >
+        <div className="task-editor-header">
+          <button 
+            className="back-button" 
+            onClick={handleBack}
+            aria-label="戻る"
+          >
+            <MdArrowBack size={24} />
+          </button>
+          
+          {!isNew && task && (
+            <div className="task-meta">
+              <div className="task-id">#{task.id}</div>
+              <div className="task-created">
+                作成: {task.created_at ? formatDistanceToNow(parseISO(task.created_at), { addSuffix: true }) : ''}
               </div>
-              
-              {/* フッター */}
-              {!isNewTask && (
-                <TaskEditorFooter 
-                  saveState={taskData.saveState}
-                  handleSubmit={handleSubmit}
-                  submitTask={handleCreateTask}
-                  onClose={onClose}
-                  task={task}
-                  isNewTask={isNewTask}
+            </div>
+          )}
+        </div>
+        
+        <div className="task-editor-content">
+          <div className="task-main-column">
+            <div className="task-title-section">
+              {task && !isNew ? (
+                <TaskTitleEditor 
+                  initialValue={task.title} 
+                  onSave={(newTitle) => updateTask(task.id, { title: newTitle })}
                 />
+              ) : (
+                <div className="form-field">
+                  <label htmlFor="title">タイトル</label>
+                  <TaskForm.Field name="title" placeholder="タスクのタイトルを入力" required />
+                </div>
               )}
-              
-              {/* 削除確認モーダル */}
-              <DeleteTaskModal
-                isOpen={isDeleteModalOpen}
-                onClose={() => setIsDeleteModalOpen(false)}
-                onDelete={handleDeleteTask}
-                isDeleting={isDeleting}
-                taskTitle={task?.title}
+            </div>
+            
+            <div className="task-description-section">
+              <label>詳細</label>
+              <TaskForm.RichField 
+                name="description" 
+                placeholder="タスクの詳細を入力してください..." 
               />
             </div>
+            
+            {!isNew && task && (
+              <>
+                <div className="task-time-section">
+                  <h3>時間記録</h3>
+                  <TimeTracking 
+                    taskId={task.id}
+                    isRecordingTime={isRecordingTime}
+                    elapsedTime={elapsedTime}
+                    timeEntries={cachedTimeEntries}
+                    isLoading={isTimerLoading || isLoadingEntries}
+                    onToggleTimer={() => {
+                      if (isRecordingTime) {
+                        stopTimer();
+                      } else {
+                        startTimer();
+                      }
+                    }}
+                    onRefresh={fetchTimeEntries}
+                  />
+                </div>
+                
+                <div className="task-comments-section">
+                  <h3>コメント</h3>
+                  <Comments taskId={task.id} />
+                </div>
+                
+                <div className="task-attachments-section">
+                  <h3>添付ファイル</h3>
+                  <Attachments taskId={task.id} />
+                </div>
+              </>
+            )}
+          </div>
+          
+          <div className="task-sidebar">
+            <div className="sidebar-section">
+              <h3>ステータス</h3>
+              {task && !isNew ? (
+                <StatusSelector 
+                  value={task.status} 
+                  onChange={(status) => updateTask(task.id, { status })}
+                />
+              ) : (
+                <TaskForm.Field name="status" component={StatusSelector} />
+              )}
+            </div>
+            
+            <div className="sidebar-section">
+              <h3>担当者</h3>
+              <TaskForm.UserField name="assignee" />
+            </div>
+            
+            <div className="sidebar-section">
+              <h3>優先度</h3>
+              <TaskForm.PriorityField name="priority" />
+            </div>
+            
+            <div className="sidebar-section">
+              <h3>期日</h3>
+              <TaskForm.DateField name="due_date" />
+            </div>
+            
+            {(isNew || !taskId) && (
+              <div className="sidebar-section">
+                <h3>プロジェクト</h3>
+                <TaskForm.ProjectField name="project" defaultValue={projectId} />
+              </div>
+            )}
+            
+            <div className="sidebar-section">
+              <h3>タグ</h3>
+              <TaskForm.TagsField name="tags" />
+            </div>
+            
+            {isNew && (
+              <div className="form-actions">
+                <button 
+                  type="submit" 
+                  className="btn btn-primary"
+                  onClick={() => formRef.current && formRef.current.dispatchEvent(
+                    new Event('submit', { cancelable: true, bubbles: true })
+                  )}
+                  disabled={isSaving}
+                >
+                  {isSaving ? '保存中...' : 'タスクを作成'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
-      </div>
-    </div>
+        
+        <form 
+          ref={formRef} 
+          onSubmit={handleFormSubmit}
+          style={{ display: 'none' }}
+        />
+      </motion.div>
+    </TaskFormProvider>
   );
 };
 
