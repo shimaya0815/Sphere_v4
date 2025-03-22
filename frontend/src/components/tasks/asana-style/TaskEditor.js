@@ -116,6 +116,54 @@ const TaskEditor = ({
   // フォームコンテキストを使用（必要な場合）
   const formContext = useTaskFormContext();
   
+  // データ取得用ステート
+  const [statuses, setStatuses] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [fiscalYears, setFiscalYears] = useState([]);
+  const [users, setUsers] = useState([]);
+  
+  // データの初期ロード
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      try {
+        // 実際のAPIから取得するか、仮のデータを使用
+        // 例: const statusesData = await tasksApi.getStatuses();
+        setStatuses([
+          { id: 'todo', name: '未着手', color: '#9CA3AF' },
+          { id: 'in_progress', name: '進行中', color: '#3B82F6' },
+          { id: 'review', name: 'レビュー中', color: '#8B5CF6' },
+          { id: 'done', name: '完了', color: '#10B981' }
+        ]);
+        
+        setCategories([
+          { id: 1, name: '一般' },
+          { id: 2, name: '税務顧問' },
+          { id: 3, name: '記帳代行' }
+        ]);
+        
+        setClients([
+          { id: 1, name: 'サンプル顧客1' },
+          { id: 2, name: 'サンプル顧客2' }
+        ]);
+        
+        setFiscalYears([
+          { id: 1, client: 1, year: '2023年度' },
+          { id: 2, client: 1, year: '2024年度' }
+        ]);
+        
+        setUsers([
+          { id: 1, name: 'ユーザー1' },
+          { id: 2, name: 'ユーザー2' }
+        ]);
+      } catch (error) {
+        console.error('メタデータの取得に失敗しました:', error);
+      }
+    };
+    
+    fetchMetadata();
+  }, []);
+  
   // タスクIDを決定（URL、初期データ、または新規タスク用のnull）
   const resolvedTaskId = useMemo(() => {
     if (!isNew) {
@@ -333,17 +381,60 @@ const TaskEditor = ({
             
             <div className="task-editor-content flex-1 overflow-y-auto p-4">
               <div className="task-main-column space-y-6">
-                <TaskBasicInfoSection />
-                <TaskDescriptionSection />
+                <TaskBasicInfoSection 
+                  task={task}
+                  control={formContext?.control}
+                  statuses={statuses}
+                  categories={categories}
+                  clients={clients}
+                  fiscalYears={fiscalYears}
+                  formState={formContext?.formState}
+                  handleFieldChange={(field, value) => {
+                    if (task && task.id) {
+                      updateTask(task.id, { [field]: value });
+                    }
+                  }}
+                  watch={formContext?.watch}
+                />
+                <TaskDescriptionSection 
+                  description={task?.description}
+                  control={formContext?.control}
+                  handleFieldChange={(value) => {
+                    if (task && task.id) {
+                      updateTask(task.id, { description: value });
+                    }
+                  }}
+                />
                 
                 {!isNew && task && <Comments taskId={task.id} />}
                 {!isNew && task && <Attachments taskId={task.id} />}
               </div>
               
               <div className="task-sidebar mt-8 space-y-6">
-                <TaskDatePrioritySection />
-                <TaskAssigneeSection />
-                <TaskMetaInfoSection />
+                <TaskDatePrioritySection 
+                  dueDate={task?.due_date}
+                  priority={task?.priority}
+                  control={formContext?.control}
+                  handleFieldChange={(field, value) => {
+                    if (task && task.id) {
+                      updateTask(task.id, { [field]: value });
+                    }
+                  }}
+                />
+                <TaskAssigneeSection 
+                  assignee={task?.assignee}
+                  control={formContext?.control}
+                  users={users}
+                  handleFieldChange={(value) => {
+                    if (task && task.id) {
+                      updateTask(task.id, { assignee: value });
+                    }
+                  }}
+                />
+                <TaskMetaInfoSection 
+                  createdAt={task?.created_at}
+                  updatedAt={task?.updated_at}
+                />
                 
                 {isNew && (
                   <div className="sidebar-section">
