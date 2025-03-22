@@ -12,13 +12,16 @@ const TaskRecurrenceSection = ({
   formState = {},
   task  // タスクオブジェクト
 }) => {
-  const isRecurring = watch('is_recurring');
-  const recurrencePattern = watch('recurrence_pattern');
-  const weekday = watch('weekday');
-  const weekdays = watch('weekdays');
-  const monthday = watch('monthday');
-  const business_day = watch('business_day');
-  const consider_holidays = watch('consider_holidays');
+  // watchが関数でない場合のフォールバック
+  const safeWatch = typeof watch === 'function' ? watch : () => null;
+  
+  const isRecurring = safeWatch('is_recurring');
+  const recurrencePattern = safeWatch('recurrence_pattern');
+  const weekday = safeWatch('weekday');
+  const weekdays = safeWatch('weekdays');
+  const monthday = safeWatch('monthday');
+  const business_day = safeWatch('business_day');
+  const consider_holidays = safeWatch('consider_holidays');
 
   // 選択された曜日を管理する内部状態
   const [selectedWeekdays, setSelectedWeekdays] = useState([]);
@@ -305,7 +308,7 @@ const TaskRecurrenceSection = ({
       // 日付指定の場合
       setValue('business_day', '', { shouldDirty: true });
       // 現在のmonthdayが空の場合はデフォルト値を設定
-      const currentMonthday = watch('monthday') || '1';
+      const currentMonthday = safeWatch('monthday') || '1';
       setValue('monthday', currentMonthday, { shouldDirty: true });
       
       // API送信用のデータも更新
@@ -319,7 +322,7 @@ const TaskRecurrenceSection = ({
       // 営業日指定の場合
       setValue('monthday', '', { shouldDirty: true });
       // 現在のbusiness_dayが空の場合はデフォルト値を設定
-      const currentBusinessDay = watch('business_day') || '1';
+      const currentBusinessDay = safeWatch('business_day') || '1';
       setValue('business_day', currentBusinessDay, { shouldDirty: true });
       
       // API送信用のデータも更新

@@ -12,17 +12,20 @@ const TaskAdditionalSettingsSection = ({
   watchedIsTemplate,
   selectClassName,
   inputClassName,
-  watch,
+  watch = () => null, // デフォルト値として空の関数を提供
   formState
 }) => {
+  // watchが関数でない場合のフォールバック
+  const safeWatch = typeof watch === 'function' ? watch : () => null;
+  
   // 繰り返し設定チェックボックスの状態監視
-  const isRecurring = watch('is_recurring') === 'true' || watch('is_recurring') === true;
+  const isRecurring = safeWatch('is_recurring') === 'true' || safeWatch('is_recurring') === true;
   
   // テンプレート設定チェックボックスの状態監視
   const isTemplate = watchedIsTemplate === 'true' || watchedIsTemplate === true;
   
   // クライアントの選択状態監視
-  const selectedClient = watch('client');
+  const selectedClient = safeWatch('client');
   
   // クライアントとフィスカルイヤーのデータ確認用ログ
   console.log('TaskAdditionalSettingsSection - clients:', clients);
