@@ -7,6 +7,10 @@ console.log('API Configuration:', {
   hostname: window.location.hostname
 });
 
+// CancelTokenとisCancel関数を追加
+const CancelToken = axios.CancelToken;
+const isCancel = axios.isCancel;
+
 // Docker環境でのURLを設定
 const getBaseUrl = () => {
   // 環境変数またはwindow.ENVから設定を取得
@@ -16,15 +20,9 @@ const getBaseUrl = () => {
     return envApiUrl;
   }
   
-  // ホスト名に基づいてベースURLを決定
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    console.log('Detected localhost environment, using localhost:8000');
-    return 'http://localhost:8000';
-  }
-  
-  // 相対URLを使用（同一オリジンに対するリクエスト）
-  console.log('Using relative URL for API requests');
-  return '';
+  // 常にlocalhostを使用する（開発環境用）
+  console.log('Using localhost:8000 for API requests');
+  return 'http://localhost:8000';
 };
 
 // ベースURLを取得
@@ -39,6 +37,10 @@ const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// CancelTokenとisCancelを追加
+apiClient.CancelToken = CancelToken;
+apiClient.isCancel = isCancel;
 
 // デバッグモード（開発環境のみ）
 const DEBUG = process.env.NODE_ENV === 'development';
