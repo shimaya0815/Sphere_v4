@@ -33,10 +33,19 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
       is_recurring: 'false',
       recurrence_pattern: '',
       recurrence_end_date: '',
+      weekday: '',
+      weekdays: '',
+      monthday: '',
+      business_day: '',
+      consider_holidays: 'false',
       is_template: 'false',
       template_name: '',
       start_date: '',
       completed_at: '',
+      worker: '',
+      reviewer: '',
+      approver: '',
+      workspace: '',
     }
   });
   
@@ -126,6 +135,10 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
         priority: formData.priority ? parseInt(formData.priority) : null,
         category: formData.category ? parseInt(formData.category) : null,
         client: formData.client ? parseInt(formData.client) : null,
+        worker: formData.worker ? parseInt(formData.worker) : null,
+        reviewer: formData.reviewer ? parseInt(formData.reviewer) : null,
+        approver: formData.approver ? parseInt(formData.approver) : null,
+        workspace: formData.workspace ? parseInt(formData.workspace) : null,
         // Format dates for API
         due_date: formData.due_date ? new Date(formData.due_date).toISOString() : null,
         start_date: formData.start_date ? new Date(formData.start_date).toISOString() : null,
@@ -135,8 +148,15 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
         is_fiscal_task: formData.is_fiscal_task === 'true',
         is_recurring: formData.is_recurring === 'true',
         is_template: formData.is_template === 'true',
+        consider_holidays: formData.consider_holidays === 'true',
         // Only include fiscal_year if is_fiscal_task is true
         fiscal_year: formData.is_fiscal_task === 'true' && formData.fiscal_year ? parseInt(formData.fiscal_year) : null,
+        // 繰り返し関連のフィールド
+        weekday: formData.weekday ? parseInt(formData.weekday) : null,
+        weekdays: formData.weekdays || null,
+        monthday: formData.monthday ? parseInt(formData.monthday) : null,
+        business_day: formData.business_day ? parseInt(formData.business_day) : null,
+        estimated_hours: formData.estimated_hours ? parseFloat(formData.estimated_hours) : null,
       };
       
       console.log('タスク送信データ:', formattedData);
@@ -146,26 +166,22 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
         // Create new task
         result = await tasksApi.createTask(formattedData);
         toast.success('タスクが作成されました');
+        // タスク作成後にパネルを閉じて親コンポーネントに通知
+        onTaskUpdated(result, true);
+        onClose();
       } else {
         // Update existing task
         result = await tasksApi.updateTask(task.id, formattedData);
         toast.success('タスクが更新されました');
+        // 更新後にパネルを閉じて親コンポーネントに通知
+        onTaskUpdated(result, false);
+        onClose();
       }
       
       console.log('サーバーレスポンス:', result);
       
-      // 親コンポーネントに通知
-      if (onTaskUpdated && typeof onTaskUpdated === 'function') {
-        onTaskUpdated(result);
-      }
-      
       // グローバルイベント発火
       window.dispatchEvent(new CustomEvent('task-updated'));
-      
-      // 新規作成の場合はパネルを閉じる
-      if (isNewTask) {
-        onClose();
-      }
     } catch (error) {
       console.error('Error saving task:', error);
       // Get detailed error message
@@ -283,6 +299,10 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
             template_name: '',
             start_date: '',
             completed_at: '',
+            worker: '',
+            reviewer: '',
+            approver: '',
+            workspace: '',
           };
           
           reset(defaultValues);
@@ -356,10 +376,19 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
           is_recurring: task.is_recurring ? 'true' : 'false',
           recurrence_pattern: task.recurrence_pattern || '',
           recurrence_end_date: task.recurrence_end_date ? task.recurrence_end_date.substring(0, 10) : '',
+          weekday: task.weekday !== null && task.weekday !== undefined ? task.weekday.toString() : '',
+          weekdays: task.weekdays || '',
+          monthday: task.monthday !== null && task.monthday !== undefined ? task.monthday.toString() : '',
+          business_day: task.business_day !== null && task.business_day !== undefined ? task.business_day.toString() : '',
+          consider_holidays: task.consider_holidays ? 'true' : 'false',
           is_template: task.is_template ? 'true' : 'false',
           template_name: task.template_name || '',
           start_date: task.start_date ? task.start_date.substring(0, 10) : '',
           completed_at: task.completed_at ? task.completed_at.substring(0, 10) : '',
+          worker: task.worker || '',
+          reviewer: task.reviewer || '',
+          approver: task.approver || '',
+          workspace: task.workspace || '',
         };
         
         console.log("Form values to be set:", formValues);
@@ -486,7 +515,7 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
       let formattedValue;
       
       // 数値変換フィールド
-      if (['status', 'priority', 'category', 'fiscal_year', 'client'].includes(field)) {
+      if (['status', 'priority', 'category', 'fiscal_year', 'client', 'worker', 'reviewer', 'approver', 'workspace'].includes(field)) {
         formattedValue = value && value !== '' ? parseInt(value, 10) : null;
         console.log(`Converting ${field} value '${value}' to ${formattedValue} (${typeof formattedValue})`);
       } 
@@ -495,11 +524,15 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
         formattedValue = value ? value : null; // ISO文字列はバックエンドで処理
       } 
       // 真偽値変換フィールド
-      else if (['is_fiscal_task', 'is_recurring', 'is_template'].includes(field)) {
+      else if (['is_fiscal_task', 'is_recurring', 'is_template', 'consider_holidays'].includes(field)) {
         formattedValue = value === 'true' || value === true;
       }
+      // 数値フィールド
+      else if (['weekday', 'monthday', 'business_day', 'estimated_hours'].includes(field)) {
+        formattedValue = value && value !== '' ? parseInt(value, 10) : null;
+      }
       // text/description フィールド - 明示的に処理
-      else if (['title', 'description', 'template_name'].includes(field)) {
+      else if (['title', 'description', 'template_name', 'weekdays', 'recurrence_pattern'].includes(field)) {
         formattedValue = value;
         console.log(`Text field ${field} being updated with: "${value}"`);
       }
@@ -614,6 +647,27 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                        String(updatedTask.fiscal_year.id) : 
                        String(updatedTask.fiscal_year);
         }
+      }
+      // 担当者関連フィールド
+      else if (['worker', 'reviewer', 'approver'].includes(field)) {
+        if (updatedTask[`${field}_data`]) {
+          newFormValue = String(updatedTask[`${field}_data`].id);
+        } else if (updatedTask[field]) {
+          newFormValue = typeof updatedTask[field] === 'object' ? 
+                       String(updatedTask[field].id) : 
+                       String(updatedTask[field]);
+        }
+      }
+      // 繰り返し設定関連フィールド
+      else if (['weekday', 'monthday', 'business_day'].includes(field)) {
+        newFormValue = updatedTask[field] !== null && updatedTask[field] !== undefined ? 
+                     String(updatedTask[field]) : '';
+      }
+      else if (field === 'weekdays') {
+        newFormValue = updatedTask.weekdays || '';
+      }
+      else if (['is_recurring', 'consider_holidays'].includes(field)) {
+        newFormValue = updatedTask[field] ? 'true' : 'false';
       }
       
       // フォーム値を更新
@@ -981,16 +1035,12 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                           const selectedClientData = clients.find(c => c.id === parseInt(e.target.value));
                           if (selectedClientData) {
                             setSelectedClient(selectedClientData);
-                          } else {
-                            setSelectedClient(null);
                           }
                           
-                          // 変更をAPI経由で保存（少し遅延させる）
-                          if (e.target.value) {
-                            setTimeout(() => {
-                              updateTaskField('client', e.target.value);
-                            }, 100);
-                          }
+                          // 変更をAPI経由で保存
+                          setTimeout(() => {
+                            updateTaskField('client', e.target.value);
+                          }, 100);
                         }}
                         disabled={isSubmitting}
                       >
@@ -999,6 +1049,90 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                           <option key={client.id} value={client.id}>{client.name}</option>
                         ))}
                       </select>
+                    </div>
+                    
+                    {/* 担当者情報 */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* 作業担当者 */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          作業担当者
+                        </label>
+                        <select
+                          className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                          name="worker"
+                          value={watch('worker') || ''}
+                          onChange={(e) => {
+                            console.log("Worker selected:", e.target.value);
+                            setValue('worker', e.target.value);
+                            setTimeout(() => {
+                              updateTaskField('worker', e.target.value);
+                            }, 100);
+                          }}
+                          disabled={isSubmitting}
+                        >
+                          <option value="">選択してください</option>
+                          {workers?.map(worker => (
+                            <option key={worker.id} value={worker.id}>
+                              {worker.name || worker.username || worker.email}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      {/* レビュー担当者 */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          レビュー担当者
+                        </label>
+                        <select
+                          className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                          name="reviewer"
+                          value={watch('reviewer') || ''}
+                          onChange={(e) => {
+                            console.log("Reviewer selected:", e.target.value);
+                            setValue('reviewer', e.target.value);
+                            setTimeout(() => {
+                              updateTaskField('reviewer', e.target.value);
+                            }, 100);
+                          }}
+                          disabled={isSubmitting}
+                        >
+                          <option value="">選択してください</option>
+                          {reviewers?.map(reviewer => (
+                            <option key={reviewer.id} value={reviewer.id}>
+                              {reviewer.name || reviewer.username || reviewer.email}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      {/* 承認者 */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          承認者
+                        </label>
+                        <select
+                          className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                          name="approver"
+                          value={watch('approver') || ''}
+                          onChange={(e) => {
+                            console.log("Approver selected:", e.target.value);
+                            setValue('approver', e.target.value);
+                            setTimeout(() => {
+                              updateTaskField('approver', e.target.value);
+                            }, 100);
+                          }}
+                          disabled={isSubmitting}
+                        >
+                          <option value="">選択してください</option>
+                          {workers?.map(worker => (
+                            <option key={worker.id} value={worker.id}>
+                              {worker.name || worker.username || worker.email}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                     
                     {/* タスク種別 */}
@@ -1284,31 +1418,122 @@ const TaskSlideOver = ({ isOpen, task, isNewTask = false, onClose, onTaskUpdated
                               <option value="monthly">毎月</option>
                               <option value="yearly">毎年</option>
                             </select>
-                          </div>
-                        )}
-                        
-                        {/* 繰り返し終了日 */}
-                        {watchedIsRecurring === 'true' && (
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              繰り返し終了日
-                            </label>
-                            <input
-                              type="date"
-                              className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                              name="recurrence_end_date"
-                              value={watch('recurrence_end_date') || ''}
-                              onChange={(e) => {
-                                console.log(`Recurrence end date being set to: "${e.target.value}"`);
-                                setValue('recurrence_end_date', e.target.value);
-                              }}
-                              onBlur={(e) => {
-                                const currentValue = isNewTask ? '' : (task?.recurrence_end_date?.substring(0, 10) || '');
-                                if (e.target.value !== currentValue) {
-                                  handleFieldChange('recurrence_end_date');
-                                }
-                              }}
-                            />
+                            
+                            {/* 週次繰り返しの曜日設定 */}
+                            {watch('recurrence_pattern') === 'weekly' && (
+                              <div className="mt-3">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  曜日設定
+                                </label>
+                                <select
+                                  className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                  name="weekday"
+                                  value={watch('weekday') || ''}
+                                  onChange={(e) => {
+                                    console.log("Weekday selected:", e.target.value);
+                                    setValue('weekday', e.target.value);
+                                    setTimeout(() => {
+                                      updateTaskField('weekday', e.target.value);
+                                    }, 100);
+                                  }}
+                                  disabled={isSubmitting}
+                                >
+                                  <option value="">選択してください</option>
+                                  <option value="0">月曜日</option>
+                                  <option value="1">火曜日</option>
+                                  <option value="2">水曜日</option>
+                                  <option value="3">木曜日</option>
+                                  <option value="4">金曜日</option>
+                                  <option value="5">土曜日</option>
+                                  <option value="6">日曜日</option>
+                                </select>
+                                
+                                <div className="mt-2">
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    複数曜日指定（カンマ区切り: 例 "0,2,4" = 月,水,金）
+                                  </label>
+                                  <input
+                                    type="text"
+                                    className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                    placeholder="例: 0,2,4"
+                                    name="weekdays"
+                                    value={watch('weekdays') || ''}
+                                    onChange={(e) => setValue('weekdays', e.target.value)}
+                                    onBlur={() => handleFieldChange('weekdays')}
+                                    disabled={isSubmitting}
+                                  />
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* 月次繰り返しの日付設定 */}
+                            {watch('recurrence_pattern') === 'monthly' && (
+                              <div className="mt-3">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  毎月の日付（1-31）
+                                </label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="31"
+                                  className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                  name="monthday"
+                                  value={watch('monthday') || ''}
+                                  onChange={(e) => setValue('monthday', e.target.value)}
+                                  onBlur={() => handleFieldChange('monthday')}
+                                  disabled={isSubmitting}
+                                />
+                                
+                                <div className="mt-2">
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    営業日指定（月初から何営業日目か）
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                    name="business_day"
+                                    value={watch('business_day') || ''}
+                                    onChange={(e) => setValue('business_day', e.target.value)}
+                                    onBlur={() => handleFieldChange('business_day')}
+                                    disabled={isSubmitting}
+                                  />
+                                </div>
+                                
+                                <div className="mt-2 flex items-center">
+                                  <input
+                                    type="checkbox"
+                                    id="consider_holidays"
+                                    name="consider_holidays"
+                                    checked={watch('consider_holidays') === 'true'}
+                                    onChange={(e) => {
+                                      const value = e.target.checked ? 'true' : 'false';
+                                      setValue('consider_holidays', value);
+                                      updateTaskField('consider_holidays', value);
+                                    }}
+                                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                                  />
+                                  <label htmlFor="consider_holidays" className="ml-2 block text-sm text-gray-700">
+                                    祝日を考慮する
+                                  </label>
+                                </div>
+                              </div>
+                            )}
+                            
+                            <div className="mt-3">
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                繰り返し終了日
+                              </label>
+                              <input
+                                type="date"
+                                className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                name="recurrence_end_date"
+                                value={watch('recurrence_end_date') || ''}
+                                onChange={(e) => setValue('recurrence_end_date', e.target.value)}
+                                onBlur={() => handleFieldChange('recurrence_end_date')}
+                                disabled={isSubmitting}
+                              />
+                            </div>
                           </div>
                         )}
                       </div>
