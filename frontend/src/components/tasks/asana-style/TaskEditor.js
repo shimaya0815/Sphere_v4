@@ -146,11 +146,21 @@ const TaskEditor = ({
           tasksApi.getPriorities()
         ]);
         
-        setStatuses(statusesData || []);
-        setCategories(categoriesData || []);
-        setClients(clientsData || []);
-        setUsers(usersData || []);
-        setPriorities(prioritiesData || []);
+        setStatuses(Array.isArray(statusesData) ? statusesData : []);
+        setCategories(Array.isArray(categoriesData) ? categoriesData : []);
+        
+        // clientsDataの処理 - レスポンス構造が異なる可能性を考慮
+        if (clientsData && clientsData.results && Array.isArray(clientsData.results)) {
+          setClients(clientsData.results);
+        } else if (Array.isArray(clientsData)) {
+          setClients(clientsData);
+        } else {
+          console.warn('Unexpected clients data format:', clientsData);
+          setClients([]);
+        }
+        
+        setUsers(Array.isArray(usersData) ? usersData : []);
+        setPriorities(Array.isArray(prioritiesData) ? prioritiesData : []);
         
         // ワークスペースデータを設定（モックデータ）
         setWorkspaces([
@@ -160,7 +170,7 @@ const TaskEditor = ({
         // クライアントが選択されている場合は決算期も取得
         if (task?.client) {
           const fiscalYearsData = await clientsApi.getFiscalYears(task.client);
-          setFiscalYears(fiscalYearsData || []);
+          setFiscalYears(Array.isArray(fiscalYearsData) ? fiscalYearsData : []);
         }
       } catch (error) {
         console.error('メタデータの取得に失敗しました:', error);
