@@ -215,38 +215,89 @@ export const TaskBasicInfoSection = ({ task, control, statuses = [], categories 
       
       <div>
         <label htmlFor="estimated_hours" className="block text-sm font-medium text-gray-700 mb-1">
-          見積時間（時間）
+          見積時間（HH:MM）
         </label>
         {control ? (
           <Controller
             name="estimated_hours"
             control={control}
-            render={({ field }) => (
-              <input
-                type="number"
-                id="estimated_hours"
-                step="0.5"
-                min="0"
-                className={inputClassName}
-                placeholder="例: 2.5"
-                {...field}
-                onChange={(e) => {
-                  field.onChange(e);
-                  if (handleFieldChange) {
-                    setTimeout(() => handleFieldChange('estimated_hours', e.target.value), 100);
+            render={({ field }) => {
+              // 数値からHH:MM形式に変換
+              const formatToTimeString = (value) => {
+                if (!value && value !== 0) return '';
+                
+                const totalMinutes = Math.round(parseFloat(value) * 60);
+                const hours = Math.floor(totalMinutes / 60);
+                const minutes = totalMinutes % 60;
+                
+                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+              };
+              
+              // HH:MM形式から数値（時間）に変換
+              const parseTimeString = (timeString) => {
+                if (!timeString) return '';
+                
+                const match = timeString.match(/^(\d{1,2}):(\d{1,2})$/);
+                if (match) {
+                  const hours = parseInt(match[1], 10);
+                  const minutes = parseInt(match[2], 10);
+                  
+                  if (minutes >= 0 && minutes < 60) {
+                    // 小数点以下2桁までの時間に変換（例: 1.5時間）
+                    return parseFloat((hours + minutes / 60).toFixed(2));
                   }
-                }}
-              />
-            )}
+                }
+                return field.value;  // 無効な形式の場合は元の値を保持
+              };
+              
+              // 表示用の値（HH:MM形式）
+              const displayValue = formatToTimeString(field.value);
+              
+              return (
+                <input
+                  type="text"
+                  id="estimated_hours"
+                  className={inputClassName}
+                  placeholder="例: 01:30"
+                  value={displayValue}
+                  onChange={(e) => {
+                    const inputValue = e.target.value;
+                    
+                    // 入力が HH:MM 形式に準拠しているか確認
+                    if (inputValue === '' || /^(\d{1,2}):(\d{1,2})$/.test(inputValue)) {
+                      const numericValue = parseTimeString(inputValue);
+                      field.onChange(numericValue);
+                      
+                      if (handleFieldChange) {
+                        setTimeout(() => handleFieldChange('estimated_hours', numericValue), 100);
+                      }
+                    }
+                  }}
+                  onBlur={(e) => {
+                    // フォーカスを失ったときに形式を整える
+                    const currentValue = field.value;
+                    if (currentValue || currentValue === 0) {
+                      const formattedValue = formatToTimeString(currentValue);
+                      e.target.value = formattedValue;
+                    }
+                  }}
+                />
+              );
+            }}
           />
         ) : (
           <input 
-            type="number" 
-            step="0.5"
-            min="0"
+            type="text" 
             className={inputClassName} 
-            defaultValue={task?.estimated_hours || ''} 
-            placeholder="例: 2.5"
+            defaultValue={task?.estimated_hours ? 
+              (() => {
+                const totalMinutes = Math.round(parseFloat(task.estimated_hours) * 60);
+                const hours = Math.floor(totalMinutes / 60);
+                const minutes = totalMinutes % 60;
+                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+              })() : ''
+            } 
+            placeholder="例: 01:30"
           />
         )}
       </div>
