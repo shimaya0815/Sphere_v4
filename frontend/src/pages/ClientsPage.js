@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { clientsApi } from '../api';
+import { getClients } from '../api/clients';
 import toast from 'react-hot-toast';
 import { HiOutlineRefresh } from 'react-icons/hi';
 
@@ -23,12 +23,17 @@ const ClientsPage = () => {
   const fetchClients = async () => {
     setLoading(true);
     try {
-      const data = await clientsApi.getClients({});
+      console.log('クライアント一覧を取得します...');
+      const data = await getClients({});
+      console.log('取得したクライアントデータ:', data);
+      
       // APIレスポンスの構造が変わっているため、resultsプロパティがあればそれを使用
       // ない場合はデータ自体が配列か確認し、どちらでもない場合は空配列を設定
       if (data && data.results) {
+        console.log('results配列を使用します:', data.results);
         setClients(data.results);
       } else if (Array.isArray(data)) {
+        console.log('データを直接配列として使用します:', data);
         setClients(data);
       } else {
         console.error('Unexpected API response format:', data);
