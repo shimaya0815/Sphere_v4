@@ -7,11 +7,40 @@ import apiClient from './client';
  */
 export const getClients = async (params = {}) => {
   try {
+    console.log('クライアント取得を試みます...');
     const response = await apiClient.get('/api/clients/', { params });
-    return response.data;
+    console.log('取得したクライアント:', response.data);
+    
+    // ページネーション形式（results配列）かどうかをチェック
+    if (response.data && response.data.results && Array.isArray(response.data.results)) {
+      return response.data.results;
+    }
+    
+    // 通常の配列の場合
+    if (Array.isArray(response.data)) {
+      return response.data;
+    }
+    
+    // URLリストの場合は別のエンドポイントを試す
+    if (response.data && typeof response.data === 'object' && response.data.clients) {
+      console.log('クライアントデータがURLリスト形式のため、別のエンドポイントを試します');
+      const clientsResponse = await apiClient.get(response.data.clients);
+      
+      if (clientsResponse.data && clientsResponse.data.results && Array.isArray(clientsResponse.data.results)) {
+        return clientsResponse.data.results;
+      } else if (Array.isArray(clientsResponse.data)) {
+        return clientsResponse.data;
+      }
+    }
+    
+    // その他の形式の場合は空配列を返す
+    console.warn('Unexpected client data format:', response.data);
+    return [];
   } catch (error) {
     console.error('Error fetching clients:', error);
-    throw error;
+    // バックアップとしてデフォルト値を返す
+    console.log('APIエラーが発生したため、デフォルト値を使用します');
+    return [];
   }
 };
 

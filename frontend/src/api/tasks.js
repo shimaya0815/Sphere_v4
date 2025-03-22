@@ -250,7 +250,20 @@ export const getCategories = async (params = {}) => {
     console.log('カテゴリー取得を試みます...');
     const response = await apiClient.get('/api/tasks/categories/', { params });
     console.log('取得したカテゴリー:', response.data);
-    return response.data;
+    
+    // ページネーション形式（results配列）かどうかをチェック
+    if (response.data && response.data.results && Array.isArray(response.data.results)) {
+      return response.data.results;
+    }
+    
+    // 通常の配列の場合
+    if (Array.isArray(response.data)) {
+      return response.data;
+    }
+    
+    // その他の形式の場合は空配列を返す
+    console.warn('Unexpected category data format:', response.data);
+    return [];
   } catch (error) {
     console.error('Error fetching categories:', error);
     // バックアップとしてデフォルト値を返す
@@ -276,7 +289,20 @@ export const getStatuses = async (params = {}) => {
     console.log('ステータス取得を試みます...');
     const response = await apiClient.get('/api/tasks/statuses/', { params });
     console.log('取得したステータス:', response.data);
-    return response.data;
+    
+    // ページネーション形式（results配列）かどうかをチェック
+    if (response.data && response.data.results && Array.isArray(response.data.results)) {
+      return response.data.results;
+    }
+    
+    // 通常の配列の場合
+    if (Array.isArray(response.data)) {
+      return response.data;
+    }
+    
+    // その他の形式の場合は空配列を返す
+    console.warn('Unexpected status data format:', response.data);
+    return [];
   } catch (error) {
     console.error('Error fetching statuses:', error);
     // バックアップとしてデフォルト値を返す
@@ -300,7 +326,20 @@ export const getPriorities = async (params = {}) => {
     console.log('優先度取得を試みます...');
     const response = await apiClient.get('/api/tasks/priorities/', { params });
     console.log('取得した優先度:', response.data);
-    return response.data;
+    
+    // ページネーション形式（results配列）かどうかをチェック
+    if (response.data && response.data.results && Array.isArray(response.data.results)) {
+      return response.data.results;
+    }
+    
+    // 通常の配列の場合
+    if (Array.isArray(response.data)) {
+      return response.data;
+    }
+    
+    // その他の形式の場合は空配列を返す
+    console.warn('Unexpected priority data format:', response.data);
+    return [];
   } catch (error) {
     console.error('Error fetching priorities:', error);
     // バックアップとしてデフォルト値を返す
