@@ -200,6 +200,29 @@ const TaskTemplateModal = ({
   });
   const [saving, setSaving] = useState(false);
   
+  // サービスタイプが変更された時にデフォルトテンプレートを選択
+  useEffect(() => {
+    if (serviceType && templates && templates.length > 0) {
+      // まずデフォルトのテンプレートタイトルを取得
+      const defaultTitle = DEFAULT_TEMPLATE_TITLES[serviceType] || `${SERVICE_DISPLAY_NAMES[serviceType]}`;
+      
+      // 対応するテンプレートを探す
+      const templateOptions = getFilteredTemplates();
+      const matchingTemplate = templateOptions.find(t => t.title === defaultTitle);
+      
+      if (matchingTemplate) {
+        // 該当するテンプレートが見つかった場合、そのIDを設定
+        setFormData(prev => ({
+          ...prev,
+          template_id: matchingTemplate.id
+        }));
+        console.log(`自動的にテンプレート「${defaultTitle}」を選択しました`);
+      } else {
+        console.log(`「${defaultTitle}」に該当するテンプレートが見つかりませんでした`);
+      }
+    }
+  }, [serviceType, templates]);
+  
   // サービスタイプに合うテンプレート候補を取得
   const getFilteredTemplates = () => {
     // クライアント固有のテンプレート
@@ -374,81 +397,80 @@ const TaskTemplateModal = ({
         
         {/* モーダルコンテンツ */}
         <div className="overflow-auto flex-grow p-4">
-          <form onSubmit={handleSubmit}>
-            <div className="space-y-4">
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text">テンプレート選択</span>
-                </label>
-                <select 
-                  name="template_id"
-                  value={formData.template_id}
-                  onChange={handleChange}
-                  className="select select-bordered w-full"
-                >
-                  <option value="">新規テンプレート作成</option>
-                  {templateOptions.map(template => (
-                    <option key={template.id} value={template.id}>
-                      {template.title} {template.isClient ? '(クライアント用)' : '(グローバル)'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text">開始日</span>
-                </label>
-                <input 
-                  type="date" 
-                  name="start_date"
-                  value={formData.start_date}
-                  onChange={handleChange}
-                  className="input input-bordered"
-                  required
-                />
-              </div>
-              
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text">終了日 (空欄の場合は現在まで)</span>
-                </label>
-                <input 
-                  type="date" 
-                  name="end_date"
-                  value={formData.end_date}
-                  onChange={handleChange}
-                  className="input input-bordered"
-                />
-              </div>
+          <div className="space-y-4">
+            <div className="form-control">
+              <label className="label">
+                <span className="label-text">テンプレート選択</span>
+              </label>
+              <select 
+                name="template_id"
+                value={formData.template_id}
+                onChange={handleChange}
+                className="select select-bordered w-full"
+              >
+                <option value="">新規テンプレート作成</option>
+                {templateOptions.map(template => (
+                  <option key={template.id} value={template.id}>
+                    {template.title} {template.isClient ? '(クライアント用)' : '(グローバル)'}
+                  </option>
+                ))}
+              </select>
             </div>
             
-            <div className="mt-6 flex justify-end space-x-3">
-              <button 
-                type="button"
-                onClick={onClose}
-                className="btn btn-outline"
-              >
-                キャンセル
-              </button>
-              <button 
-                type="submit"
-                className="btn btn-primary"
-                disabled={saving}
-              >
-                {saving ? (
-                  <>
-                    <span className="loading loading-spinner loading-xs mr-1"></span>
-                    保存中...
-                  </>
-                ) : (
-                  <>
-                    <HiOutlineSave className="mr-1" /> 保存
-                  </>
-                )}
-              </button>
+            <div className="form-control">
+              <label className="label">
+                <span className="label-text">開始日</span>
+              </label>
+              <input 
+                type="date" 
+                name="start_date"
+                value={formData.start_date}
+                onChange={handleChange}
+                className="input input-bordered"
+                required
+              />
             </div>
-          </form>
+            
+            <div className="form-control">
+              <label className="label">
+                <span className="label-text">終了日 (空欄の場合は現在まで)</span>
+              </label>
+              <input 
+                type="date" 
+                name="end_date"
+                value={formData.end_date}
+                onChange={handleChange}
+                className="input input-bordered"
+              />
+            </div>
+          </div>
+          
+          <div className="mt-6 flex justify-end space-x-3">
+            <button 
+              type="button"
+              onClick={onClose}
+              className="btn btn-outline"
+            >
+              キャンセル
+            </button>
+            <button 
+              type="button"
+              className="btn btn-primary"
+              disabled={saving}
+              onClick={handleSubmit}
+            >
+              {saving ? (
+                <>
+                  <span className="loading loading-spinner loading-xs mr-1"></span>
+                  保存中...
+                </>
+              ) : (
+                <>
+                  <HiOutlineSave className="mr-1" /> 保存
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -652,6 +674,10 @@ const ServiceCheckSettings = ({ clientId }) => {
           }
         ];
         
+        // スケジュール配列を確保
+        const scheduleArray = Array.isArray(schedules) ? schedules : 
+                            (schedules?.results && Array.isArray(schedules.results) ? schedules.results : []);
+        
         // 作成したテンプレートを記録
         const createdTemplates = [];
         
@@ -686,7 +712,7 @@ const ServiceCheckSettings = ({ clientId }) => {
               const recurrence = DEFAULT_CYCLES[mapping.service] || 'monthly';
               
               let scheduleId = null;
-              const existingSchedule = schedules.find(s => s.name === mapping.schedule);
+              const existingSchedule = scheduleArray.find(s => s.name === mapping.schedule);
               
               if (existingSchedule) {
                 scheduleId = existingSchedule.id;
@@ -724,8 +750,7 @@ const ServiceCheckSettings = ({ clientId }) => {
             }
             
             // マッチするスケジュールを検索
-            const schedule = Array.isArray(schedules) ?
-              schedules.find(s => s.name === mapping.schedule) : null;
+            const schedule = scheduleArray.find(s => s.name === mapping.schedule);
             
             if (!schedule) {
               console.log(`No matching schedule found for ${mapping.schedule}, creating new schedule...`);
