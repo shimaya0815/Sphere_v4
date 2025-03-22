@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { clientsApi } from '../../api';
-import tasksApi from '../../api/tasks';
+import * as tasksApi from '../../api/tasks/index';
 import { 
   HiOutlineTemplate, 
   HiOutlinePencilAlt, 
@@ -10,58 +10,147 @@ import {
   HiOutlineClock,
   HiOutlinePlay,
   HiOutlineClipboardCopy,
-  HiOutlineLibrary
+  HiOutlineLibrary,
+  HiOutlineX,
+  HiOutlineArrowLeft,
+  HiOutlineSave,
+  HiOutlineDocumentText,
+  HiOutlineCurrencyYen,
+  HiOutlineClipboard
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 
+// デフォルトスケジュールを作成する関数
+const createDefaultSchedule = async (scheduleName, scheduleType, recurrence) => {
+  try {
+    console.log(`Creating default schedule: name=${scheduleName}, type=${scheduleType}, recurrence=${recurrence}`);
+    
+    // スケジュールタイプに基づいてデフォルト値を設定
+    let creationDay = 1;
+    let deadlineDay = 5;
+    
+    if (scheduleType === 'monthly_end') {
+      creationDay = 25;
+      deadlineDay = 10;
+    } else if (scheduleType === 'fiscal_relative') {
+      creationDay = -30; // 決算日の30日前
+      deadlineDay = 0;   // 決算日当日
+    }
+    
+    // スケジュール作成APIリクエスト
+    const scheduleData = {
+      name: scheduleName,
+      schedule_type: scheduleType,
+      recurrence: recurrence,
+      creation_day: creationDay,
+      deadline_day: deadlineDay
+    };
+    
+    // APIを呼び出してスケジュールを作成
+    const newSchedule = await clientsApi.createTaskTemplateSchedule(scheduleData);
+    console.log('Created new schedule:', newSchedule);
+    return newSchedule;
+  } catch (error) {
+    console.error('Error creating default schedule:', error);
+    toast.error(`スケジュール作成に失敗しました: ${error.message || 'エラーが発生しました'}`);
+    return null;
+  }
+};
+
 // サービスカテゴリタイプのマッピング定義
 const SERVICE_CATEGORIES = {
-  monthly_check: 'monthly',
+  advisory: 'monthly',
+  tax_return_final: 'tax_return',
+  tax_return_interim: 'tax_return',
+  tax_return_provisional: 'tax_return',
   bookkeeping: 'bookkeeping',
-  tax_return: 'tax_return',
-  income_tax: 'income_tax',
-  residence_tax: 'residence_tax',
-  social_insurance: 'social_insurance'
+  payroll: 'payroll',
+  tax_withholding_standard: 'income_tax',
+  tax_withholding_special: 'income_tax',
+  resident_tax_standard: 'residence_tax',
+  resident_tax_special: 'residence_tax',
+  social_insurance: 'social_insurance',
+  other: 'other'
 };
 
 // サービス表示名のマッピング
 const SERVICE_DISPLAY_NAMES = {
-  monthly_check: '月次チェック',
+  advisory: '顧問契約',
+  tax_return_final: '決算申告',
+  tax_return_interim: '中間申告',
+  tax_return_provisional: '予定申告',
   bookkeeping: '記帳代行',
-  tax_return: '税務申告書作成',
-  income_tax: '源泉所得税',
-  residence_tax: '住民税対応',
-  social_insurance: '社会保険対応'
+  payroll: '給与計算',
+  tax_withholding_standard: '源泉所得税(原則)',
+  tax_withholding_special: '源泉所得税(特例)',
+  resident_tax_standard: '住民税(原則)',
+  resident_tax_special: '住民税(特例)',
+  social_insurance: '社会保険',
+  other: 'その他'
+};
+
+// サービスアイコンのマッピング
+const SERVICE_ICONS = {
+  advisory: <HiOutlineDocumentText className="h-5 w-5 text-blue-500" />,
+  tax_return_final: <HiOutlineDocumentText className="h-5 w-5 text-purple-500" />,
+  tax_return_interim: <HiOutlineDocumentText className="h-5 w-5 text-indigo-500" />,
+  tax_return_provisional: <HiOutlineDocumentText className="h-5 w-5 text-violet-500" />,
+  bookkeeping: <HiOutlineClipboard className="h-5 w-5 text-yellow-500" />,
+  payroll: <HiOutlineCurrencyYen className="h-5 w-5 text-green-500" />,
+  tax_withholding_standard: <HiOutlineDocumentText className="h-5 w-5 text-red-500" />,
+  tax_withholding_special: <HiOutlineDocumentText className="h-5 w-5 text-pink-500" />,
+  resident_tax_standard: <HiOutlineDocumentText className="h-5 w-5 text-orange-500" />,
+  resident_tax_special: <HiOutlineDocumentText className="h-5 w-5 text-amber-500" />,
+  social_insurance: <HiOutlineDocumentText className="h-5 w-5 text-teal-500" />,
+  other: <HiOutlineClipboardCopy className="h-5 w-5 text-gray-500" />
 };
 
 // デフォルトサイクルのマッピング
 const DEFAULT_CYCLES = {
-  monthly_check: 'monthly',
+  advisory: 'monthly',
+  tax_return_final: 'yearly',
+  tax_return_interim: 'quarterly',
+  tax_return_provisional: 'quarterly',
   bookkeeping: 'monthly',
-  tax_return: 'yearly',
-  income_tax: 'monthly',
-  residence_tax: 'yearly',
-  social_insurance: 'monthly'
+  payroll: 'monthly',
+  tax_withholding_standard: 'monthly',
+  tax_withholding_special: 'monthly',
+  resident_tax_standard: 'monthly',
+  resident_tax_special: 'monthly',
+  social_insurance: 'monthly',
+  other: 'monthly'
 };
 
 // デフォルトのスケジュールタイプ
 const DEFAULT_SCHEDULE_TYPES = {
-  monthly_check: 'monthly_start',
+  advisory: 'monthly_start',
+  tax_return_final: 'fiscal_relative',
+  tax_return_interim: 'fiscal_relative',
+  tax_return_provisional: 'fiscal_relative',
   bookkeeping: 'monthly_end',
-  tax_return: 'fiscal_relative',
-  income_tax: 'monthly_end',
-  residence_tax: 'fiscal_relative',
-  social_insurance: 'monthly_end'
+  payroll: 'monthly_end',
+  tax_withholding_standard: 'monthly_end',
+  tax_withholding_special: 'monthly_end',
+  resident_tax_standard: 'monthly_start',
+  resident_tax_special: 'monthly_start',
+  social_insurance: 'monthly_start',
+  other: 'monthly_start'
 };
 
 // デフォルトのテンプレートタイトル
 const DEFAULT_TEMPLATE_TITLES = {
-  monthly_check: '月次処理チェック',
+  advisory: '顧問契約タスク',
+  tax_return_final: '決算申告タスク',
+  tax_return_interim: '中間申告タスク',
+  tax_return_provisional: '予定申告タスク',
   bookkeeping: '記帳代行業務',
-  tax_return: '決算・法人税申告業務',
-  income_tax: '源泉所得税納付業務',
-  residence_tax: '住民税納付業務',
-  social_insurance: '社会保険手続き'
+  payroll: '給与計算業務',
+  tax_withholding_standard: '源泉所得税(原則)納付',
+  tax_withholding_special: '源泉所得税(特例)納付',
+  resident_tax_standard: '住民税(原則)納付',
+  resident_tax_special: '住民税(特例)納付',
+  social_insurance: '社会保険手続き',
+  other: 'その他のタスク'
 };
 
 // デフォルトのテンプレート説明
@@ -90,6 +179,278 @@ const RECURRENCE_TYPES = [
   { value: 'once', label: '一度のみ' }
 ];
 
+// タスクテンプレート設定用モーダルコンポーネント
+const TaskTemplateModal = ({ 
+  isOpen,
+  onClose,
+  serviceType,
+  serviceName,
+  clientId,
+  onSaveComplete,
+  templates,
+  clientTemplates,
+  schedules
+}) => {
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    template_id: '',
+    start_date: new Date().toISOString().split('T')[0],
+    is_active: true
+  });
+  const [saving, setSaving] = useState(false);
+  
+  // サービスタイプに合うテンプレート候補を取得
+  const getFilteredTemplates = () => {
+    // クライアント固有のテンプレート
+    const clientTemplateOptions = clientTemplates
+      .filter(t => t && (
+        t.title === SERVICE_DISPLAY_NAMES[serviceType] ||
+        t.title === DEFAULT_TEMPLATE_TITLES[serviceType] ||
+        (t.title && t.title.includes(SERVICE_DISPLAY_NAMES[serviceType]))
+      ))
+      .map(t => ({
+        id: t.id,
+        title: t.title,
+        isClient: true
+      }));
+    
+    // グローバルテンプレート
+    const globalTemplateOptions = templates
+      .filter(t => t && (
+        t.title === SERVICE_DISPLAY_NAMES[serviceType] ||
+        t.title === DEFAULT_TEMPLATE_TITLES[serviceType] ||
+        (t.title && t.title.includes(SERVICE_DISPLAY_NAMES[serviceType]))
+      ))
+      .map(t => ({
+        id: t.id,
+        title: t.title,
+        isClient: false
+      }));
+    
+    // 両方を結合し、重複を除去
+    const allTemplates = [...clientTemplateOptions, ...globalTemplateOptions];
+    const uniqueTemplates = allTemplates.filter((template, index, self) =>
+      index === self.findIndex(t => t.id === template.id)
+    );
+    
+    return uniqueTemplates;
+  };
+  
+  // フォーム入力ハンドラ
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+  
+  // フォーム送信ハンドラ
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    
+    try {
+      // テンプレートIDが指定されている場合
+      if (formData.template_id) {
+        // 既存のテンプレートを使用する場合
+        const existingTemplate = clientTemplates.find(t => t.id == formData.template_id);
+        
+        if (existingTemplate) {
+          // 既存テンプレートを更新
+          await clientsApi.updateClientTaskTemplate(existingTemplate.id, {
+            is_active: formData.is_active,
+            start_date: formData.start_date
+          });
+          
+          toast.success('タスクテンプレートを更新しました');
+        } else {
+          // グローバルテンプレートからクライアントテンプレートを作成
+          const templateData = {
+            title: DEFAULT_TEMPLATE_TITLES[serviceType] || `${SERVICE_DISPLAY_NAMES[serviceType]}`,
+            schedule_type: DEFAULT_SCHEDULE_TYPES[serviceType],
+            recurrence: DEFAULT_CYCLES[serviceType],
+            is_active: formData.is_active,
+            start_date: formData.start_date,
+            template_task: formData.template_id
+          };
+          
+          await clientsApi.createClientTaskTemplate(clientId, templateData);
+          toast.success('タスクテンプレートを作成しました');
+        }
+      } else {
+        // 新しいテンプレートを作成
+        const defaultScheduleType = DEFAULT_SCHEDULE_TYPES[serviceType] || 'monthly_start';
+        const defaultRecurrence = DEFAULT_CYCLES[serviceType] || 'monthly';
+        
+        // スケジュールを探すか作成
+        let scheduleId = null;
+        const scheduleName = `${SERVICE_DISPLAY_NAMES[serviceType]}スケジュール`;
+        const existingSchedule = schedules.find(s => s.name === scheduleName);
+        
+        if (existingSchedule) {
+          scheduleId = existingSchedule.id;
+        } else {
+          // スケジュールがなければ作成
+          const scheduleData = {
+            name: scheduleName,
+            schedule_type: defaultScheduleType,
+            recurrence: defaultRecurrence
+          };
+          
+          if (defaultScheduleType === 'monthly_start') {
+            scheduleData.creation_day = 1;
+            scheduleData.deadline_day = 5;
+          } else if (defaultScheduleType === 'monthly_end') {
+            scheduleData.creation_day = 25;
+            scheduleData.deadline_day = 10;
+            scheduleData.deadline_next_month = true;
+          }
+          
+          const newSchedule = await clientsApi.createTaskTemplateSchedule(scheduleData);
+          scheduleId = newSchedule.id;
+        }
+        
+        // テンプレートを作成
+        const templateData = {
+          title: DEFAULT_TEMPLATE_TITLES[serviceType] || `${SERVICE_DISPLAY_NAMES[serviceType]}`,
+          description: `${SERVICE_DISPLAY_NAMES[serviceType]}のタスクテンプレート`,
+          schedule: scheduleId,
+          is_active: formData.is_active,
+          start_date: formData.start_date
+        };
+        
+        await clientsApi.createClientTaskTemplate(clientId, templateData);
+        toast.success('タスクテンプレートを作成しました');
+      }
+      
+      // 保存完了イベント
+      if (onSaveComplete) {
+        onSaveComplete();
+      }
+      
+      // モーダルを閉じる
+      onClose();
+    } catch (error) {
+      console.error('タスクテンプレート保存エラー:', error);
+      toast.error('タスクテンプレートの保存に失敗しました');
+    } finally {
+      setSaving(false);
+    }
+  };
+  
+  if (!isOpen) return null;
+  
+  const templateOptions = getFilteredTemplates();
+  
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        {/* モーダルヘッダー */}
+        <div className="p-4 border-b flex justify-between items-center">
+          <div className="flex items-center">
+            <button 
+              className="mr-2 text-gray-500 hover:text-gray-700"
+              onClick={onClose}
+            >
+              <HiOutlineArrowLeft className="h-5 w-5" />
+            </button>
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+              {SERVICE_ICONS[serviceType]}
+              <span className="ml-2">{serviceName}のテンプレート設定</span>
+            </h2>
+          </div>
+          <button 
+            className="text-gray-500 hover:text-gray-700"
+            onClick={onClose}
+          >
+            <HiOutlineX className="h-5 w-5" />
+          </button>
+        </div>
+        
+        {/* モーダルコンテンツ */}
+        <div className="overflow-auto flex-grow p-4">
+          <form onSubmit={handleSubmit}>
+            <div className="space-y-4">
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">テンプレート選択</span>
+                </label>
+                <select 
+                  name="template_id"
+                  value={formData.template_id}
+                  onChange={handleChange}
+                  className="select select-bordered w-full"
+                >
+                  <option value="">新規テンプレート作成</option>
+                  {templateOptions.map(template => (
+                    <option key={template.id} value={template.id}>
+                      {template.title} {template.isClient ? '(クライアント用)' : '(グローバル)'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">開始日</span>
+                </label>
+                <input 
+                  type="date" 
+                  name="start_date"
+                  value={formData.start_date}
+                  onChange={handleChange}
+                  className="input input-bordered"
+                  required
+                />
+              </div>
+              
+              <div className="form-control">
+                <label className="label cursor-pointer">
+                  <span className="label-text">有効にする</span>
+                  <input 
+                    type="checkbox" 
+                    name="is_active"
+                    checked={formData.is_active}
+                    onChange={handleChange}
+                    className="checkbox checkbox-primary"
+                  />
+                </label>
+              </div>
+            </div>
+            
+            <div className="mt-6 flex justify-end space-x-3">
+              <button 
+                type="button"
+                onClick={onClose}
+                className="btn btn-outline"
+              >
+                キャンセル
+              </button>
+              <button 
+                type="submit"
+                className="btn btn-primary"
+                disabled={saving}
+              >
+                {saving ? (
+                  <>
+                    <span className="loading loading-spinner loading-xs mr-1"></span>
+                    保存中...
+                  </>
+                ) : (
+                  <>
+                    <HiOutlineSave className="mr-1" /> 保存
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ServiceCheckSettings = ({ clientId }) => {
   // サービス設定の初期状態
   const initialSettings = Object.keys(SERVICE_CATEGORIES).reduce((acc, service) => {
@@ -101,7 +462,8 @@ const ServiceCheckSettings = ({ clientId }) => {
       schedule_type: DEFAULT_SCHEDULE_TYPES[service] || 'monthly_start',
       recurrence: DEFAULT_CYCLES[service],
       creation_day: null,
-      deadline_day: null
+      deadline_day: null,
+      start_date: null // 開始日
     };
     return acc;
   }, {});
@@ -124,6 +486,10 @@ const ServiceCheckSettings = ({ clientId }) => {
   const [showCustomizeModal, setShowCustomizeModal] = useState(false);
   const [customTemplate, setCustomTemplate] = useState(null);
   
+  // タスクテンプレートモーダル用のステート
+  const [showTaskTemplateModal, setShowTaskTemplateModal] = useState(false);
+  const [selectedTaskService, setSelectedTaskService] = useState(null);
+
   // 初期データの取得 - コンポーネントのマウント時に1回だけ実行
   useEffect(() => {
     if (clientId) {
@@ -177,6 +543,18 @@ const ServiceCheckSettings = ({ clientId }) => {
     // clientTemplatesを依存配列から削除して無限ループを防ぐ
   }, [clientId]);
   
+  // タスクテンプレートモーダルを表示する関数
+  const handleShowTaskTemplateModal = (serviceType) => {
+    setSelectedTaskService(serviceType);
+    setShowTaskTemplateModal(true);
+  };
+  
+  // タスクテンプレート保存完了時の処理
+  const handleTaskTemplateSaveComplete = () => {
+    // データを再取得
+    fetchData();
+  };
+  
   // デフォルトのテンプレートを一括設定する関数
   const setupDefaultTemplates = async () => {
     if (clientId) {
@@ -186,15 +564,6 @@ const ServiceCheckSettings = ({ clientId }) => {
         ...prev,
         templates_enabled: true
       }));
-      
-      // 作業開始通知
-      toast.promise(
-        new Promise(r => setTimeout(r, 500)), // ダミープロミス
-        {
-          loading: 'デフォルトのテンプレートを設定中...',
-          id: 'default-templates'
-        }
-      );
       
       try {
         // テンプレートとスケジュールを取得
@@ -288,11 +657,7 @@ const ServiceCheckSettings = ({ clientId }) => {
         
         // 作成完了
         if (createdTemplates.length > 0) {
-          toast(`${createdTemplates.length}個のデフォルトテンプレートを設定しました`, { 
-            id: 'default-templates',
-            icon: '✅',
-            style: { background: '#EFE', color: '#080' }
-          });
+          // 成功メッセージを削除
           
           // クライアントテンプレート一覧を更新
           setClientTemplates(prevTemplates => [...prevTemplates, ...createdTemplates]);
@@ -306,12 +671,8 @@ const ServiceCheckSettings = ({ clientId }) => {
             handleSave();
           }, 1500);
         } else {
-          toast.dismiss('default-templates');
-          // toast.info が機能しない場合は toast() を使用
-          toast('すべてのテンプレートが既に設定されています', { 
-            icon: 'ℹ️',
-            duration: 3000
-          });
+          // toast.dismiss('default-templates');
+          // 「すべてのテンプレートが既に設定されています」メッセージを削除
           
           // 既にテンプレートが存在する場合も設定を保存
           console.log(`Templates already exist, saving settings for client ID ${clientId}`);
@@ -321,9 +682,8 @@ const ServiceCheckSettings = ({ clientId }) => {
         }
       } catch (error) {
         console.error('Error applying default templates:', error);
-        // toast.error が機能しない場合は toast() を使用
+        // エラーメッセージは表示したままにする
         toast('テンプレート設定中にエラーが発生しました', { 
-          id: 'default-templates',
           icon: '❌',
           style: { background: '#FEE', color: '#E00' }
         });
@@ -468,7 +828,8 @@ const ServiceCheckSettings = ({ clientId }) => {
             cycle: schedule ? getCycleFromSchedule(schedule, serviceKey) : DEFAULT_CYCLES[serviceKey],
             enabled: templateForService.is_active === undefined ? true : !!templateForService.is_active,
             template_id: templateForService.id,
-            customized: templateForService.customized || false
+            customized: templateForService.customized || false,
+            start_date: templateForService.start_date || null // 開始日を設定
           };
           
           console.log(`Set settings for ${serviceKey}:`, newSettings[serviceKey]);
@@ -498,74 +859,6 @@ const ServiceCheckSettings = ({ clientId }) => {
     if (recurrence === 'yearly' || type === 'fiscal_relative') return 'yearly';
     
     return DEFAULT_CYCLES[serviceKey] || 'monthly';
-  };
-  
-  // デフォルトのスケジュールを作成する関数
-  const createDefaultSchedule = async (name, scheduleType, recurrence) => {
-    try {
-      console.log(`Creating schedule: name=${name}, type=${scheduleType}, recurrence=${recurrence}`);
-      
-      // 既存のスケジュールをもう一度チェック（APIから最新情報を取得）
-      const schedulesResponse = await clientsApi.getTaskTemplateSchedules();
-      const updatedSchedules = Array.isArray(schedulesResponse) ? schedulesResponse : [];
-      
-      // 名前の完全一致または類似するスケジュールを探す（柔軟性を持たせる）
-      const existingSchedule = updatedSchedules.find(s => 
-        s.name === name || 
-        (s.name && name && s.name.includes(name.substring(0, 5))) ||
-        (name && s.name && name.includes(s.name.substring(0, 5)))
-      );
-      
-      if (existingSchedule) {
-        console.log(`Found existing schedule with name ${existingSchedule.name} that matches ${name}:`, existingSchedule);
-        return existingSchedule;
-      }
-      
-      const scheduleData = {
-        name: name,
-        schedule_type: scheduleType,
-        recurrence: recurrence
-      };
-      
-      // スケジュールタイプに応じてデフォルト値を設定
-      if (scheduleType === 'monthly_start') {
-        scheduleData.creation_day = 1;  // 1日作成
-        scheduleData.deadline_day = 5;  // 5日締め切り
-      } else if (scheduleType === 'monthly_end') {
-        scheduleData.creation_day = 25;  // 25日作成
-        scheduleData.deadline_day = 10;  // 翌月10日締め切り
-        scheduleData.deadline_next_month = true;
-      } else if (scheduleType === 'fiscal_relative') {
-        // 決算日基準の場合
-        scheduleData.fiscal_date_reference = 'end_date';  // 終了日基準
-        scheduleData.deadline_day = 60;  // 決算日から60日後
-      } else if (scheduleType === 'custom') {
-        scheduleData.creation_day = 1;
-        scheduleData.deadline_day = 10;
-        
-        // カスタムスケジュール用の追加設定
-        scheduleData.reference_date_type = 'execution_date';
-        scheduleData.creation_date_offset = 0;
-        scheduleData.deadline_date_offset = 10;
-      }
-      
-      console.log(`Creating schedule with data:`, scheduleData);
-      
-      const newSchedule = await clientsApi.createTaskTemplateSchedule(scheduleData);
-      console.log(`Created new schedule:`, newSchedule);
-      
-      return newSchedule;
-    } catch (error) {
-      console.error('Error creating default schedule:', error);
-      
-      // エラーの詳細をログに出力
-      if (error.response) {
-        console.error('Response data:', error.response.data);
-        console.error('Status code:', error.response.status);
-      }
-      
-      return null;
-    }
   };
   
   // フィールド変更ハンドラ
@@ -1049,7 +1342,8 @@ const ServiceCheckSettings = ({ clientId }) => {
               // ステップ2: テンプレート自体を更新
               const updateData = {
                 is_active: serviceSettings.enabled,
-                schedule: scheduleId // スケジュールIDがあれば設定
+                schedule: scheduleId, // スケジュールIDがあれば設定
+                start_date: serviceSettings.start_date || null // 開始日を設定
               };
               
               const updatePromise = clientsApi.updateClientTaskTemplate(existingTemplate.id, updateData)
@@ -1097,7 +1391,8 @@ const ServiceCheckSettings = ({ clientId }) => {
       } else if (scheduleUpdatePromises.length > 0) {
         toast.success('スケジュール設定を保存しました');
       } else {
-        toast('変更はありませんでした');
+        // 変更がない場合は何も表示しない
+        console.log('変更はありませんでした');
       }
       
       // 最新データを再取得
@@ -1285,9 +1580,23 @@ const ServiceCheckSettings = ({ clientId }) => {
       {/* テンプレートカスタマイズモーダル */}
       {renderCustomizeModal()}
       
+      {/* タスクテンプレート設定モーダル */}
+      <TaskTemplateModal
+        isOpen={showTaskTemplateModal}
+        onClose={() => setShowTaskTemplateModal(false)}
+        serviceType={selectedTaskService}
+        serviceName={selectedTaskService ? SERVICE_DISPLAY_NAMES[selectedTaskService] : ''}
+        clientId={clientId}
+        onSaveComplete={handleTaskTemplateSaveComplete}
+        templates={templates}
+        clientTemplates={clientTemplates}
+        schedules={schedules}
+      />
+      
       <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
         <h3 className="font-semibold text-gray-800 flex items-center">
           <HiOutlineTemplate className="mr-2 text-primary" />
+          タスク設定
         </h3>
         <div className="flex items-center space-x-2">
           <button 
@@ -1321,119 +1630,52 @@ const ServiceCheckSettings = ({ clientId }) => {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-4 py-2 text-left font-medium text-gray-500 text-sm border-b">項目名</th>
-              <th className="px-4 py-2 text-left font-medium text-gray-500 text-sm border-b">契約状況</th>
-              <th className="px-4 py-2 text-left font-medium text-gray-500 text-sm border-b">
-                <div className="flex items-center space-x-2">
-                  <span>テンプレートの使用</span>
-                  <div className="form-control">
-                    <label className="cursor-pointer label p-0">
-                      <input
-                        type="checkbox"
-                        className="toggle toggle-primary toggle-sm"
-                        checked={settings.templates_enabled}
-                        onChange={handleTemplatesEnabledChange}
-                      />
-                    </label>
-                  </div>
-                </div>
-              </th>
+              <th className="px-4 py-2 text-left font-medium text-gray-500 text-sm border-b">適用中のテンプレート</th>
+              <th className="px-4 py-2 text-left font-medium text-gray-500 text-sm border-b">操作</th>
             </tr>
           </thead>
           <tbody>
             {/* サービス項目をマッピングから動的に生成 */}
-            {Object.entries(SERVICE_CATEGORIES).map(([service, category]) => (
-              <tr key={service} className="border-b">
-                <td className="px-4 py-3 font-medium">{SERVICE_DISPLAY_NAMES[service]}</td>
-                <td className="px-4 py-3">
-                  <select 
-                    className="select select-bordered select-sm w-full max-w-xs"
-                    value={settings[service]?.cycle || DEFAULT_CYCLES[service]}
-                    onChange={(e) => handleServiceChange(service, 'cycle', e.target.value)}
-                    disabled={!settings.templates_enabled}
-                  >
-                    {service === 'tax_return' || service === 'residence_tax' ? (
-                      <>
-                        <option value="yearly">年次</option>
-                        <option value="quarterly">四半期</option>
-                        <option value="monthly">毎月</option>
-                      </>
+            {Object.entries(SERVICE_CATEGORIES).map(([service, category]) => {
+              // このサービスに関連付けられたテンプレートを検索
+              const templateId = settings[service]?.template_id;
+              const template = clientTemplates.find(t => t.id === templateId);
+              const isActive = settings[service]?.enabled !== false && settings.templates_enabled !== false;
+              
+              return (
+                <tr key={service} className="border-b hover:bg-gray-50">
+                  <td className="px-4 py-3 font-medium flex items-center">
+                    {SERVICE_ICONS[service]}
+                    <span className="ml-2">{SERVICE_DISPLAY_NAMES[service]}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {template ? (
+                      <div className="flex items-center">
+                        <span className={`${isActive ? 'text-green-600' : 'text-gray-400'} font-medium`}>
+                          {template.title}
+                        </span>
+                        {template.start_date && (
+                          <span className="ml-2 text-xs text-gray-500">
+                            ({template.start_date}から)
+                          </span>
+                        )}
+                      </div>
                     ) : (
-                      <>
-                        <option value="monthly">毎月</option>
-                        <option value="quarterly">四半期</option>
-                        <option value="yearly">年次</option>
-                      </>
+                      <span className="text-gray-400">未設定</span>
                     )}
-                  </select>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center space-x-4">
-                    <input
-                      type="checkbox"
-                      className="checkbox checkbox-primary"
-                      checked={settings[service]?.enabled || false}
-                      onChange={(e) => handleServiceChange(service, 'enabled', e.target.checked)}
-                      disabled={!settings.templates_enabled}
-                    />
-                    <select 
-                      className="select select-bordered select-sm w-full max-w-xs"
-                      value={settings[service]?.template_id || ''}
-                      onChange={(e) => handleServiceChange(service, 'template_id', e.target.value ? Number(e.target.value) : null)}
-                      disabled={!settings.templates_enabled || !settings[service]?.enabled}
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => handleShowTaskTemplateModal(service)}
+                      className="text-gray-600 hover:text-gray-800"
+                      title="テンプレート設定"
                     >
-                      <option value="">テンプレート選択</option>
-                      
-                      {/* クライアント固有のテンプレートがある場合はそれを優先表示 */}
-                      {Array.isArray(clientTemplates) && clientTemplates
-                        .filter(t => t && (
-                          t.title === SERVICE_DISPLAY_NAMES[service] || 
-                          t.title === DEFAULT_TEMPLATE_TITLES[service] ||
-                          (t.title && t.title.includes(SERVICE_DISPLAY_NAMES[service])) ||
-                          (service === 'social_insurance' && t.title && 
-                           (t.title.includes('社会保険') || t.title.includes('社保'))) ||
-                          (t.title && SERVICE_DISPLAY_NAMES[service] && 
-                           SERVICE_DISPLAY_NAMES[service].includes(t.title.split(' ')[0]))
-                        ))
-                        .map(template => (
-                          <option key={`client-${template.id}`} value={template.id}>
-                            {template.title}
-                          </option>
-                      ))}
-                      
-                      {/* 次にグローバルテンプレートを表示 */}
-                      {Array.isArray(templates) && templates
-                        .filter(t => t && (
-                          t.category === category || 
-                          t.title?.includes(SERVICE_DISPLAY_NAMES[service]) ||
-                          t.title === DEFAULT_TEMPLATE_TITLES[service] ||
-                          (service === 'social_insurance' && t.title && 
-                           (t.title.includes('社会保険') || t.title.includes('社保'))) ||
-                          (t.title && SERVICE_DISPLAY_NAMES[service] && 
-                           SERVICE_DISPLAY_NAMES[service].includes(t.title?.split(' ')[0]))
-                        ))
-                        .map(template => (
-                          <option key={template.id} value={template.id}>{template.title}</option>
-                      ))}
-                    </select>
-                    <button 
-                      className={`btn btn-sm ${settings[service]?.template_id ? 'btn-outline btn-primary' : 'btn-outline btn-success'}`}
-                      onClick={() => handleCustomize(service, settings[service]?.template_id)}
-                      disabled={!settings.templates_enabled || !settings[service]?.enabled}
-                    >
-                      {settings[service]?.template_id ? (
-                        <>
-                          <HiOutlinePencilAlt className="mr-1" /> カスタマイズ
-                        </>
-                      ) : (
-                        <>
-                          <HiOutlineClipboardCopy className="mr-1" /> テンプレート選択/作成
-                        </>
-                      )}
+                      <HiOutlineClipboard className="h-5 w-5" />
                     </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
