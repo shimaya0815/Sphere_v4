@@ -223,8 +223,10 @@ const TaskEditor = ({
       // ステータスはIDを使用する必要があるため、ロード済みのstatusesから取得
       const defaultStatus = statuses && statuses.length > 0 ? statuses[0].id : null;
       const defaultPriority = priorities && priorities.length > 0 ? priorities[0].id : null;
-      // デフォルトワークスペースのIDを設定
-      const defaultWorkspace = workspaces && workspaces.length > 0 ? workspaces[0].id : null;
+      // デフォルトワークスペースのIDを設定（確実に存在する場合はデフォルトワークスペースを選択）
+      const defaultWorkspace = workspaces && workspaces.length > 0 
+        ? (workspaces.find(w => w.name === 'デフォルトワークスペース')?.id || workspaces[0].id) 
+        : null;
       
       setTask({
         title: '',
@@ -278,17 +280,28 @@ const TaskEditor = ({
     if (isNew && task) {
       const defaultStatus = statuses && statuses.length > 0 ? statuses[0].id : null;
       const defaultPriority = priorities && priorities.length > 0 ? priorities[0].id : null;
-      const defaultWorkspace = workspaces && workspaces.length > 0 ? workspaces[0].id : null;
+      // デフォルトワークスペースの設定を改善
+      const defaultWorkspace = workspaces && workspaces.length > 0 
+        ? (workspaces.find(w => w.name === 'デフォルトワークスペース')?.id || workspaces[0].id) 
+        : null;
       
-      // ステータスまたはプライオリティが未設定の場合は更新
-      if ((!task.status && defaultStatus) || (!task.priority && defaultPriority) || (!task.workspace && defaultWorkspace)) {
-        setTask(prev => ({
-          ...prev,
-          status: prev.status || defaultStatus,
-          priority: prev.priority || defaultPriority,
-          workspace: prev.workspace || defaultWorkspace
-        }));
-      }
+      // ステータス、プライオリティ、またはワークスペースが未設定の場合は更新
+      setTask(prev => {
+        // 値が変更された場合のみ更新
+        if (
+          (!prev.status && defaultStatus) || 
+          (!prev.priority && defaultPriority) || 
+          (!prev.workspace && defaultWorkspace)
+        ) {
+          return {
+            ...prev,
+            status: prev.status || defaultStatus,
+            priority: prev.priority || defaultPriority,
+            workspace: prev.workspace || defaultWorkspace
+          };
+        }
+        return prev;
+      });
     }
   }, [isNew, statuses, priorities, workspaces, task]);
   

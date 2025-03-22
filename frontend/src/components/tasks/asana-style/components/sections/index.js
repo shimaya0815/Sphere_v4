@@ -169,14 +169,15 @@ export const TaskBasicInfoSection = ({ task, control, statuses = [], categories 
             control={control}
             render={({ field }) => {
               // デフォルトでデフォルトワークスペースを選択
-              if (!field.value && workspaces.length > 0) {
+              if (workspaces.length > 0) {
                 const defaultWorkspace = workspaces.find(w => w.name === 'デフォルトワークスペース') || workspaces[0];
-                setTimeout(() => {
+                if (!field.value) {
+                  // フィールド値が未設定の場合、即時デフォルト値を設定
                   field.onChange(defaultWorkspace.id);
                   if (handleFieldChange) {
                     handleFieldChange('workspace', defaultWorkspace.id);
                   }
-                }, 0);
+                }
               }
               
               return (
@@ -192,7 +193,6 @@ export const TaskBasicInfoSection = ({ task, control, statuses = [], categories 
                     }
                   }}
                 >
-                  <option value="">選択してください</option>
                   {workspaces.map(workspace => (
                     <option key={workspace.id} value={workspace.id}>
                       {workspace.name}
@@ -203,8 +203,7 @@ export const TaskBasicInfoSection = ({ task, control, statuses = [], categories 
             }}
           />
         ) : (
-          <select className={selectClassName} defaultValue={task?.workspace || ''} disabled={workspaces.length <= 1}>
-            <option value="">選択してください</option>
+          <select className={selectClassName} defaultValue={task?.workspace || (workspaces.length > 0 ? workspaces[0].id : '')} disabled={workspaces.length <= 1}>
             {workspaces.map(workspace => (
               <option key={workspace.id} value={workspace.id}>
                 {workspace.name}
