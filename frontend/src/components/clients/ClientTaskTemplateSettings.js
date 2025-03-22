@@ -16,6 +16,7 @@ import TaskTemplateScheduleForm from './TaskTemplateScheduleForm';
 
 const ClientTaskTemplateSettings = ({ clientId, client }) => {
   const [templates, setTemplates] = useState([]);
+  const [availableTemplates, setAvailableTemplates] = useState([]);
   const [schedules, setSchedules] = useState([]);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -32,13 +33,25 @@ const ClientTaskTemplateSettings = ({ clientId, client }) => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [templatesData, schedulesData] = await Promise.all([
+      const [templatesData, schedulesData, availableTemplatesData] = await Promise.all([
         clientsApi.getClientTaskTemplates(clientId),
-        clientsApi.getTaskTemplateSchedules()
+        clientsApi.getTaskTemplateSchedules(),
+        fetch('/api/tasks/templates/?limit=100').then(res => res.json())
       ]);
+      
       // 配列かどうかを確認してから設定
       setTemplates(Array.isArray(templatesData) ? templatesData : []);
       setSchedules(Array.isArray(schedulesData) ? schedulesData : []);
+      
+      // 利用可能なテンプレートを設定
+      if (availableTemplatesData && availableTemplatesData.results && Array.isArray(availableTemplatesData.results)) {
+        setAvailableTemplates(availableTemplatesData.results);
+      } else if (Array.isArray(availableTemplatesData)) {
+        setAvailableTemplates(availableTemplatesData);
+      } else {
+        setAvailableTemplates([]);
+      }
+      
       setError(null);
     } catch (error) {
       console.error('Error fetching task template data:', error);
@@ -127,12 +140,66 @@ const ClientTaskTemplateSettings = ({ clientId, client }) => {
 
   const handleGenerateTask = async (templateId) => {
     try {
-      const task = await clientsApi.generateTaskFromTemplate(templateId);
-      toast.success('タスクを生成しました');
-      return task;
+      console.log('Generating task from template:', templateId);
+      
+      // テンプレート情報を取得
+      const template = templates.find(t => t.id === templateId);
+      if (!template) {
+        toast.error('テンプレートが見つかりません');
+        return null;
+      }
+      
+      try {
+        const task = await clientsApi.generateTaskFromTemplate(templateId);
+        toast.success('タスクを生成しました');
+        return task;
+      } catch (error) {
+        console.error('Error generating task:', error);
+        
+        // 400エラーの場合はスケジュールがない場合など
+        if (error.response && error.response.status === 400) {
+          // スケジュールが設定されていない場合などは、今日の日付で強制的に作成するなどの対処
+          toast.warning('スケジュール設定なしでタスクを生成します');
+          
+          // APIから直接タスクを作成するための別のAPIを呼び出す
+          // このAPIは既存のものを利用するか、必要に応じて新しく作成する
+          try {
+            const templateDetails = await clientsApi.getClientTaskTemplate(templateId);
+            const taskData = {
+              title: templateDetails.title,
+              description: templateDetails.description || '',
+              client: client.id,
+              template_id: templateDetails.template_task,
+              due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 一週間後
+              worker: templateDetails.worker,
+              reviewer: templateDetails.reviewer,
+              is_template: false
+            };
+            
+            // タスク作成APIを呼び出す
+            const newTask = await fetch('/api/tasks/', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(taskData)
+            }).then(res => res.json());
+            
+            toast.success('タスクを手動で生成しました');
+            return newTask;
+          } catch (innerError) {
+            console.error('Error creating task manually:', innerError);
+            toast.error('タスクの手動生成に失敗しました');
+            return null;
+          }
+        } else {
+          toast.error('タスクの生成に失敗しました');
+          return null;
+        }
+      }
     } catch (error) {
-      console.error('Error generating task:', error);
-      toast.error('タスクの生成に失敗しました');
+      console.error('Error in handleGenerateTask:', error);
+      toast.error('タスク生成処理中にエラーが発生しました');
       return null;
     }
   };
@@ -152,6 +219,56 @@ const ClientTaskTemplateSettings = ({ clientId, client }) => {
         return 'カスタム設定';
       default:
         return schedule.schedule_type_display || schedule.schedule_type;
+    }
+  };
+
+  // 選択されたテンプレートをクライアントに追加する関数
+  const handleAddTemplate = async (templateId) => {
+    try {
+      const templateToAdd = availableTemplates.find(t => t.id === templateId);
+      if (!templateToAdd) {
+        toast.error('テンプレートが見つかりません');
+        return;
+      }
+      
+      // スケジュールが必要なため、一番シンプルなスケジュールをダミーで設定するか既存のものを使う
+      let scheduleId = null;
+      if (schedules.length > 0) {
+        scheduleId = schedules[0].id;
+      }
+      
+      const templateData = {
+        title: templateToAdd.title,
+        description: templateToAdd.description || '',
+        template_task: templateId,
+        is_active: true
+      };
+      
+      // スケジュールがある場合のみ設定する
+      if (scheduleId) {
+        templateData.schedule = scheduleId;
+      }
+      
+      try {
+        await clientsApi.createClientTaskTemplate(clientId, templateData);
+        toast.success('タスクテンプレートを追加しました');
+        fetchData();
+      } catch (error) {
+        console.error('Error creating template:', error);
+        
+        // エラーレスポンスの詳細を表示
+        if (error.response && error.response.data) {
+          const errors = Object.entries(error.response.data)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join(', ');
+          toast.error(`テンプレート追加エラー: ${errors}`);
+        } else {
+          toast.error('テンプレートの追加に失敗しました');
+        }
+      }
+    } catch (error) {
+      console.error('Error in handleAddTemplate:', error);
+      toast.error('テンプレートの追加処理中にエラーが発生しました');
     }
   };
 
@@ -256,11 +373,11 @@ const ClientTaskTemplateSettings = ({ clientId, client }) => {
         </div>
       </div>
       
-      {/* タスクテンプレートセクション */}
+      {/* テンプレート設定セクション */}
       <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-        <div className="p-4 bg-gradient-to-r from-blue-500 to-teal-500 text-white flex justify-between items-center">
+        <div className="p-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white flex justify-between items-center">
           <h2 className="text-xl font-semibold flex items-center">
-            <HiOutlineTemplate className="mr-2" /> クライアントタスクテンプレート
+            <HiOutlineTemplate className="mr-2" /> タスクテンプレート設定
           </h2>
           <button
             onClick={() => {
@@ -268,7 +385,6 @@ const ClientTaskTemplateSettings = ({ clientId, client }) => {
               setShowTemplateForm(true);
             }}
             className="btn btn-sm btn-ghost bg-white bg-opacity-20 text-white"
-            disabled={schedules.length === 0}
           >
             <HiOutlinePlusCircle className="mr-1" /> 新規テンプレート
           </button>
@@ -278,74 +394,118 @@ const ClientTaskTemplateSettings = ({ clientId, client }) => {
           {templates.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <HiOutlineTemplate className="mx-auto h-12 w-12 mb-4" />
-              <p>タスクテンプレートがありません。新規作成してください。</p>
-              {schedules.length === 0 && (
-                <p className="text-sm mt-2 text-amber-600">
-                  先にスケジュール設定を作成する必要があります。
-                </p>
-              )}
+              <p>登録されたテンプレートはありません。下のセクションから追加してください。</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="table w-full">
-                <thead>
-                  <tr>
-                    <th>タイトル</th>
-                    <th>スケジュール</th>
-                    <th>担当者</th>
-                    <th>ステータス</th>
-                    <th>最終生成</th>
-                    <th>アクション</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Array.isArray(templates) ? templates.map(template => (
-                    <tr key={template.id} className="hover">
-                      <td>{template.title}</td>
-                      <td>{template.schedule_name}</td>
-                      <td>
-                        <div>作業: {template.worker_name || '未設定'}</div>
-                        <div>確認: {template.reviewer_name || '未設定'}</div>
-                      </td>
-                      <td>
-                        <span className={`badge ${template.is_active ? 'badge-success' : 'badge-error'}`}>
-                          {template.is_active ? '有効' : '無効'}
-                        </span>
-                      </td>
-                      <td>{template.last_generated_at ? new Date(template.last_generated_at).toLocaleString('ja-JP') : '未生成'}</td>
-                      <td className="flex space-x-2">
-                        <button
-                          onClick={() => {
-                            setEditingTemplate(template);
-                            setShowTemplateForm(true);
-                          }}
-                          className="btn btn-sm btn-outline btn-info"
-                        >
-                          <HiOutlinePencilAlt className="mr-1" /> 編集
-                        </button>
-                        <button
-                          onClick={() => handleGenerateTask(template.id)}
-                          className="btn btn-sm btn-outline btn-success"
-                        >
-                          <HiOutlineCheck className="mr-1" /> タスク生成
-                        </button>
-                        <button
-                          onClick={() => handleDeleteTemplate(template.id)}
-                          className="btn btn-sm btn-outline btn-error"
-                        >
-                          <HiOutlineTrash className="mr-1" /> 削除
-                        </button>
-                      </td>
-                    </tr>
-                  )) : (
-                    <tr>
-                      <td colSpan="6" className="text-center py-4 text-gray-500">
-                        <p>テンプレートデータの読み込みに失敗しました。</p>
-                      </td>
-                    </tr>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Array.isArray(templates) ? templates.map(template => (
+                <div 
+                  key={template.id} 
+                  className="border rounded-lg shadow-sm hover:shadow-md transition-shadow p-4"
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-medium text-blue-700">{template.title}</h3>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => {
+                          setEditingTemplate(template);
+                          setShowTemplateForm(true);
+                        }}
+                        className="btn btn-xs btn-outline btn-info"
+                      >
+                        <HiOutlinePencilAlt className="mr-1" /> 編集
+                      </button>
+                      <button
+                        onClick={() => handleGenerateTask(template.id)}
+                        className="btn btn-xs btn-outline btn-success"
+                      >
+                        <HiOutlineCheck className="mr-1" /> タスク生成
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTemplate(template.id)}
+                        className="btn btn-xs btn-outline btn-error"
+                      >
+                        <HiOutlineTrash className="mr-1" /> 削除
+                      </button>
+                    </div>
+                  </div>
+                  <div className="text-sm text-gray-600 mb-1">
+                    {template.description || 'テンプレートの説明はありません'}
+                  </div>
+                  {template.category && (
+                    <div className="text-xs mt-2">
+                      <span 
+                        className="px-2 py-1 rounded-full" 
+                        style={{
+                          backgroundColor: template.category.color || '#3B82F6',
+                          color: 'white'
+                        }}
+                      >
+                        {template.category.name}
+                      </span>
+                    </div>
                   )}
-                </tbody>
-              </table>
+                </div>
+              )) : (
+                <div className="col-span-3 text-center py-4 text-gray-500">
+                  <p>テンプレートデータの読み込みに失敗しました。</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* 利用可能なテンプレート一覧 - 新規追加 */}
+      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+        <div className="p-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white">
+          <h2 className="text-xl font-semibold flex items-center">
+            <HiOutlineTemplate className="mr-2" /> 利用可能なテンプレート
+          </h2>
+          <p className="text-sm mt-1 text-white text-opacity-80">
+            以下のテンプレートからクライアントに適用するものを選択してください
+          </p>
+        </div>
+        
+        <div className="p-4">
+          {availableTemplates.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <p>利用可能なテンプレートがありません</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {availableTemplates.map(template => (
+                <div 
+                  key={template.id} 
+                  className="border rounded-lg shadow-sm hover:shadow-md transition-shadow p-4"
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-medium text-green-700">{template.title}</h3>
+                    <button
+                      onClick={() => handleAddTemplate(template.id)}
+                      className="btn btn-xs btn-outline btn-success"
+                    >
+                      追加
+                    </button>
+                  </div>
+                  <div className="text-sm text-gray-600 mb-1">
+                    {template.description || 'テンプレートの説明はありません'}
+                  </div>
+                  {template.category && (
+                    <div className="text-xs mt-2">
+                      <span 
+                        className="px-2 py-1 rounded-full" 
+                        style={{
+                          backgroundColor: template.category.color || '#3B82F6',
+                          color: 'white'
+                        }}
+                      >
+                        {template.category.name}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>

@@ -3,7 +3,8 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     ClientViewSet, ClientPrefecturesView, ClientIndustriesView,
     ClientFiscalYearsView, ClientTaskTemplateViewSet, ClientTaskTemplatesView,
-    ClientTaxRulesView, ContractServiceViewSet, ClientContractViewSet
+    ClientTaxRulesView, ContractServiceViewSet, ClientContractViewSet,
+    TaxRuleHistoryViewSet, TaskTemplateScheduleViewSet
 )
 
 router = DefaultRouter()
@@ -11,6 +12,8 @@ router.register(r'clients', ClientViewSet, basename='client')
 router.register(r'client-task-templates', ClientTaskTemplateViewSet, basename='client-task-template')
 router.register(r'contract-services', ContractServiceViewSet, basename='contract-service')
 router.register(r'client-contracts', ClientContractViewSet, basename='client-contract')
+router.register(r'tax-rules', TaxRuleHistoryViewSet, basename='tax-rule')
+router.register(r'schedules', TaskTemplateScheduleViewSet, basename='schedule')
 
 urlpatterns = [
     path('', include(router.urls)),

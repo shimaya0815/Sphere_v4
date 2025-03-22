@@ -5,12 +5,12 @@ import { formatISO } from 'date-fns';
 import { formatDateForInput } from '../../utils';
 
 /**
- * 日付と期限セクション
+ * 日付と期限、優先度セクション
  */
 const TaskDatePrioritySection = ({ 
   control, 
   handleFieldChange,
-  formValues,
+  formValues
 }) => {
   // 入力フィールドのスタイルクラス
   const inputClassName = "mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md";
@@ -28,6 +28,36 @@ const TaskDatePrioritySection = ({
   
   return (
     <div className="task-dates-section space-y-4">
+      {/* 優先度フィールド (数値入力) */}
+      <div>
+        <label htmlFor="priority_value" className="block text-sm font-medium text-gray-700">
+          優先度（1〜100、小さいほど優先度が高い）
+        </label>
+        <div className="mt-1">
+          <Controller
+            name="priority_value"
+            control={control}
+            defaultValue=""
+            render={({ field }) => (
+              <input
+                type="number"
+                id="priority_value"
+                min="1"
+                max="100"
+                className={inputClassName}
+                placeholder="優先度（例: 10）"
+                value={field.value || ''}
+                onChange={(e) => {
+                  const value = e.target.value ? Number(e.target.value) : '';
+                  field.onChange(value);
+                  handleFieldChange('priority_value', value === '' ? null : value);
+                }}
+              />
+            )}
+          />
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         {/* 期限日 */}
         <div>

@@ -53,6 +53,7 @@ class Client(models.Model):
     # 連絡先
     phone = models.CharField(_('電話番号'), max_length=20, blank=True)
     email = models.EmailField(_('Email'), blank=True)
+    website = models.URLField(_('Webサイト'), max_length=255, blank=True)
     
     # 会社情報
     capital = models.DecimalField(_('資本金'), max_digits=15, decimal_places=0, null=True, blank=True)

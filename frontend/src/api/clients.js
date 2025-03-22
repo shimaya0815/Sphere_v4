@@ -222,7 +222,7 @@ export const getTaskTemplates = async () => {
  */
 export const getTaskTemplateSchedules = async () => {
   try {
-    const response = await apiClient.get('/api/clients/schedules/');
+    const response = await apiClient.get('/clients/schedules/');
     return response.data;
   } catch (error) {
     console.error('Error fetching task template schedules:', error);
@@ -237,11 +237,26 @@ export const getTaskTemplateSchedules = async () => {
  */
 export const getClientTaskTemplates = async (clientId) => {
   try {
-    const response = await apiClient.get(`/api/clients/${clientId}/task-templates/`);
+    const response = await apiClient.get(`/clients/clients/${clientId}/task-templates/`);
     return response.data;
   } catch (error) {
     console.error(`Error fetching client task templates for client ${clientId}:`, error);
     return [];
+  }
+};
+
+/**
+ * クライアントタスクテンプレート詳細を取得
+ * @param {number} templateId - テンプレートID
+ * @returns {Promise<Object>} クライアントタスクテンプレート詳細
+ */
+export const getClientTaskTemplate = async (templateId) => {
+  try {
+    const response = await apiClient.get(`/api/clients/task-templates/${templateId}/`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching client task template ${templateId}:`, error);
+    throw error;
   }
 };
 
@@ -359,7 +374,7 @@ export const generateTaskFromTemplate = async (templateId) => {
  */
 export const getTaxRules = async (clientId, params = {}) => {
   try {
-    const response = await apiClient.get(`/api/clients/${clientId}/tax-rules/`, { params });
+    const response = await apiClient.get(`/clients/clients/${clientId}/tax-rules/`, { params });
     return response.data;
   } catch (error) {
     console.error(`Error fetching tax rules for client ${clientId}:`, error);
@@ -375,7 +390,7 @@ export const getTaxRules = async (clientId, params = {}) => {
  */
 export const createTaxRule = async (clientId, data) => {
   try {
-    const response = await apiClient.post(`/api/clients/${clientId}/tax-rules/`, data);
+    const response = await apiClient.post(`/clients/clients/${clientId}/tax-rules/`, data);
     return response.data;
   } catch (error) {
     console.error(`Error creating tax rule for client ${clientId}:`, error);
@@ -391,7 +406,7 @@ export const createTaxRule = async (clientId, data) => {
  */
 export const updateTaxRule = async (ruleId, data) => {
   try {
-    const response = await apiClient.patch(`/api/clients/tax-rules/${ruleId}/`, data);
+    const response = await apiClient.patch(`/clients/tax-rules/${ruleId}/`, data);
     return response.data;
   } catch (error) {
     console.error(`Error updating tax rule ${ruleId}:`, error);
@@ -402,11 +417,13 @@ export const updateTaxRule = async (ruleId, data) => {
 /**
  * 税ルールを削除
  * @param {number} ruleId - ルールID
+ * @param {number} clientId - クライアントID (オプション)
  * @returns {Promise<void>}
  */
-export const deleteTaxRule = async (ruleId) => {
+export const deleteTaxRule = async (ruleId, clientId) => {
   try {
-    await apiClient.delete(`/api/clients/tax-rules/${ruleId}/`);
+    // 正しいエンドポイントを使用
+    await apiClient.delete(`/clients/tax-rules/${ruleId}/`);
   } catch (error) {
     console.error(`Error deleting tax rule ${ruleId}:`, error);
     throw error;
@@ -455,6 +472,7 @@ export default {
   getTaskTemplates,
   getTaskTemplateSchedules,
   getClientTaskTemplates,
+  getClientTaskTemplate,
   createClientTaskTemplate,
   updateClientTaskTemplate,
   deleteClientTaskTemplate,

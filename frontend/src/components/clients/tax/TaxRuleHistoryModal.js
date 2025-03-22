@@ -246,7 +246,7 @@ const TaxRuleHistoryModal = ({
     }
     
     try {
-      await clientsApi.deleteTaxRule(ruleId);
+      await clientsApi.deleteTaxRule(ruleId, clientId);
       toast.success('税務ルールを削除しました');
       fetchRules();
       

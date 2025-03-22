@@ -78,7 +78,38 @@ export const getTask = async (taskId) => {
  */
 export const createTask = async (taskData) => {
   try {
-    const response = await apiClient.post('/api/tasks/', taskData);
+    // データの前処理
+    const processedData = { ...taskData };
+    
+    // descriptionがnullの場合は空文字列に変換
+    if (processedData.description === null || processedData.description === undefined) {
+      processedData.description = '';
+      console.log('Description was null, converted to empty string');
+    }
+    
+    // 数値形式の文字列フィールドを整数に変換
+    ['status', 'category', 'client', 'fiscal_year', 'worker', 'reviewer', 'approver'].forEach(field => {
+      if (processedData[field] && typeof processedData[field] === 'string' && /^\d+$/.test(processedData[field])) {
+        processedData[field] = parseInt(processedData[field], 10);
+        console.log(`Converting ${field} from string to integer: ${processedData[field]}`);
+      }
+    });
+    
+    // priority_valueが文字列で数値を含む場合は整数に変換
+    if (processedData.priority_value && typeof processedData.priority_value === 'string') {
+      if (processedData.priority_value.trim() === '') {
+        // 空の文字列の場合はデフォルト値を使用
+        processedData.priority_value = 50;
+      } else if (/^\d+$/.test(processedData.priority_value)) {
+        // 数値のみの文字列の場合は整数に変換
+        processedData.priority_value = parseInt(processedData.priority_value, 10);
+      }
+      console.log(`Priority value processed: ${processedData.priority_value}`);
+    }
+    
+    console.log('Processing task data before sending:', processedData);
+    
+    const response = await apiClient.post('/api/tasks/', processedData);
     return response.data;
   } catch (error) {
     console.error('Error creating task:', error);
@@ -337,17 +368,36 @@ export const getPriorities = async (params = {}) => {
       return response.data;
     }
     
-    // その他の形式の場合は空配列を返す
-    console.warn('Unexpected priority data format:', response.data);
-    return [];
+    // 数値範囲形式のレスポンス（min_value, max_valueを含む）に対応
+    if (response.data && response.data.min_value && response.data.max_value) {
+      console.log('数値範囲形式の優先度データを検出しました');
+      // 数値範囲から3つの優先度レベルを生成
+      const min = response.data.min_value;
+      const max = response.data.max_value;
+      const range = max - min;
+      
+      return [
+        { id: 1, name: '高', color: '#ef4444', priority_value: min + Math.floor(range * 0.1) },
+        { id: 2, name: '中', color: '#f59e0b', priority_value: min + Math.floor(range * 0.5) },
+        { id: 3, name: '低', color: '#9ca3af', priority_value: min + Math.floor(range * 0.9) }
+      ];
+    }
+    
+    // その他の形式の場合はデフォルト値を返す
+    console.warn('未対応の優先度データ形式:', response.data);
+    return [
+      { id: 1, name: '低', color: '#9ca3af', priority_value: 75 },
+      { id: 2, name: '中', color: '#f59e0b', priority_value: 50 },
+      { id: 3, name: '高', color: '#ef4444', priority_value: 25 }
+    ];
   } catch (error) {
     console.error('Error fetching priorities:', error);
     // バックアップとしてデフォルト値を返す
     console.log('APIエラーが発生したため、デフォルト値を使用します');
     return [
-      { id: 1, name: '低', color: '#9ca3af', priority_value: 300 },
-      { id: 2, name: '中', color: '#f59e0b', priority_value: 200 },
-      { id: 3, name: '高', color: '#ef4444', priority_value: 100 }
+      { id: 1, name: '低', color: '#9ca3af', priority_value: 75 },
+      { id: 2, name: '中', color: '#f59e0b', priority_value: 50 },
+      { id: 3, name: '高', color: '#ef4444', priority_value: 25 }
     ];
   }
 };

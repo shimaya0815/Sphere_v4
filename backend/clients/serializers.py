@@ -26,7 +26,7 @@ class ClientSerializer(serializers.ModelSerializer):
             'id', 'user', 'user_name', 'business', 'contract_status', 'contract_status_display',
             'client_code', 'name', 'corporate_individual', 'corporate_individual_display',
             'corporate_number', 'postal_code', 'prefecture', 'city', 'street_address', 'building',
-            'phone', 'email', 'capital', 'establishment_date', 'tax_eTax_ID', 'tax_eLTAX_ID',
+            'phone', 'email', 'website', 'capital', 'establishment_date', 'tax_eTax_ID', 'tax_eLTAX_ID',
             'tax_taxpayer_confirmation_number', 'tax_invoice_no', 'tax_invoice_registration_date',
             'salary_closing_day', 'salary_payment_month', 'salary_payment_day',
             'attendance_management_software', 'fiscal_year', 'fiscal_date',

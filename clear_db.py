@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from tasks.models import Task, TaskCategory, TaskStatus, TaskPriority
+from tasks.models import Task, TaskCategory, TaskStatus
 from business.models import Business, Workspace
 from rest_framework.authtoken.models import Token
 from chat.models import Channel, ChannelMembership, Message
@@ -28,9 +28,8 @@ Task.objects.all().delete()
 print('削除中: タスクカテゴリ')
 TaskCategory.objects.all().delete()
 print('削除中: タスクステータス')
-TaskStatus.objects.all().delete() 
-print('削除中: タスク優先度')
-TaskPriority.objects.all().delete()
+TaskStatus.objects.all().delete()
+# TaskPriorityモデルは削除（存在しないため）
 
 # ワークスペースの削除
 print('削除中: ワークスペース')

@@ -13,6 +13,7 @@ router.register(r'timers', views.TaskTimerViewSet, basename='timer')
 router.register(r'notifications', views.TaskNotificationViewSet, basename='notification')
 router.register(r'schedules', views.TaskScheduleViewSet, basename='schedule')
 router.register(r'template-tasks', views.TemplateChildTaskViewSet, basename='template-task')
+router.register(r'priorities', views.TaskPriorityViewSet, basename='priority')
 # メインのタスクViewSetもルーターに登録
 router.register(r'', views.TaskViewSet, basename='task')
 

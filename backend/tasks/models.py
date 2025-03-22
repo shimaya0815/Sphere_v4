@@ -182,7 +182,7 @@ class Task(models.Model):
     """Task model."""
     
     title = models.CharField(_('title'), max_length=255)
-    description = models.TextField(_('description'), blank=True)
+    description = models.TextField(_('description'), blank=True, null=True)
     business = models.ForeignKey(
         'business.Business',
         on_delete=models.CASCADE,

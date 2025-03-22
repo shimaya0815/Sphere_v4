@@ -83,7 +83,7 @@ class BusinessAuthTokenView(APIView):
             user.save()
             
             # ビジネスを作成した後、タスク関連のメタデータを作成
-            from tasks.models import TaskCategory, TaskStatus, TaskPriority, Task
+            from tasks.models import TaskCategory, TaskStatus, Task
             from clients.models import TaskTemplateSchedule, ClientTaskTemplate
             # TaskCategory.create_defaults(business)  # カテゴリー作成を無効化
             TaskStatus.create_defaults(business)
@@ -96,8 +96,8 @@ class BusinessAuthTokenView(APIView):
                 tax_category = None 
                 insurance_category = None
                 
-                # 優先度の取得
-                default_priority = TaskPriority.objects.filter(business=business).first()
+                # 優先度は使用しない
+                default_priority = None
                 
                 # ステータスの取得
                 not_started_status = TaskStatus.objects.filter(business=business, name="未着手").first()
@@ -374,7 +374,7 @@ class UserCreateView(APIView):
                         logger.info(f"Created business for user: {business.name} (ID: {business.id})")
                         
                         # タスク関連のメタデータを作成
-                        from tasks.models import TaskCategory, TaskStatus, TaskPriority
+                        from tasks.models import TaskCategory, TaskStatus
                         TaskCategory.create_defaults(business)
                         TaskStatus.create_defaults(business)
                         
@@ -386,8 +386,8 @@ class UserCreateView(APIView):
                             tax_category = None 
                             insurance_category = None
                             
-                            # 優先度の取得
-                            default_priority = TaskPriority.objects.filter(business=business).first()
+                            # 優先度は使用しない
+                            default_priority = None
                             
                             # ステータスの取得
                             not_started_status = TaskStatus.objects.filter(business=business, name="未着手").first()

@@ -174,6 +174,63 @@ class TaskViewSet(viewsets.ModelViewSet):
             data_dict['workspace'] = workspace.id
             data_dict['business'] = request.user.business.id
             
+            # ステータスの処理 - 文字列からIDへの変換
+            if 'status' in data_dict:
+                status_value = data_dict['status']
+                if status_value and isinstance(status_value, str) and not status_value.isdigit():
+                    # 文字列ステータスからIDへの変換を試みる
+                    from tasks.models import TaskStatus
+                    
+                    # フロントエンドからのコード名をマッピング
+                    status_code_map = {
+                        'todo': '未着手',
+                        'in_progress': '作業中',
+                        'review': 'レビュー中',
+                        'complete': '完了'
+                    }
+                    
+                    # マッピングにある場合は変換、なければそのまま検索
+                    status_name = status_code_map.get(status_value, status_value)
+                    
+                    # 名前の部分一致で検索
+                    status_obj = TaskStatus.objects.filter(
+                        business=request.user.business, 
+                        name__icontains=status_name
+                    ).first()
+                    
+                    if status_obj:
+                        data_dict['status'] = status_obj.id
+                        print(f"VIEW: ステータス文字列 '{status_value}' をID {status_obj.id} ({status_obj.name}) に変換しました")
+                    else:
+                        # ステータスが見つからない場合は削除して、未着手ステータスが自動設定されるようにする
+                        print(f"VIEW: ステータス '{status_value}' が見つかりません。削除してデフォルト設定に任せます")
+                        data_dict.pop('status')
+            
+            # 優先度の処理 - 文字列からの変換
+            if 'priority' in data_dict:
+                # 優先度は単なる参照用文字列なので削除して、priority_valueだけを使う
+                priority_value = data_dict.pop('priority')
+                print(f"VIEW: 優先度文字列 '{priority_value}' を削除し、priority_value のみを使用します")
+                
+                # priority_valueが未設定で、優先度文字列がある場合はデフォルト値を設定
+                if (not data_dict.get('priority_value') or data_dict.get('priority_value') == '') and priority_value:
+                    # 優先度文字列からデフォルト値を割り当て
+                    priority_map = {
+                        'high': 25,
+                        'medium': 50,
+                        'low': 75
+                    }
+                    data_dict['priority_value'] = priority_map.get(priority_value, 50)
+                    print(f"VIEW: 優先度値を '{priority_value}' から {data_dict['priority_value']} に設定しました")
+            
+            # statusがnullまたは未指定の場合に未着手ステータスを設定
+            if 'status' not in data_dict or data_dict.get('status') is None:
+                from tasks.models import TaskStatus
+                default_status = TaskStatus.objects.filter(business=request.user.business, name='未着手').first()
+                if default_status:
+                    data_dict['status'] = default_status.id
+                    print(f"VIEW: デフォルトステータス「未着手」を設定: {default_status.id}")
+            
             print("DATA DICT:", data_dict)
             
             # シリアライザでデータをバリデーション
@@ -181,7 +238,29 @@ class TaskViewSet(viewsets.ModelViewSet):
             
             if not serializer.is_valid():
                 print("VALIDATION ERRORS:", serializer.errors)
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                # エラーの詳細情報を追加
+                error_detail = {}
+                for field, errors in serializer.errors.items():
+                    error_detail[field] = [str(error) for error in errors]
+                    print(f"Field '{field}' errors: {errors}")
+                
+                # ステータスフィールドにエラーがある場合、利用可能なステータス一覧を表示
+                if 'status' in serializer.errors:
+                    from tasks.models import TaskStatus
+                    statuses = TaskStatus.objects.filter(business=request.user.business)
+                    status_info = [{'id': s.id, 'name': s.name} for s in statuses]
+                    error_detail['available_statuses'] = status_info
+                    print(f"Available statuses: {status_info}")
+                
+                return Response(
+                    {
+                        "detail": "Validation error",
+                        "errors": serializer.errors,
+                        "error_detail": error_detail,
+                        "received_data": data_dict
+                    }, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             
             # タスク作成
             task = serializer.save(business=request.user.business, creator=request.user)
@@ -196,7 +275,11 @@ class TaskViewSet(viewsets.ModelViewSet):
             print("TRACEBACK:")
             traceback.print_exc()
             return Response(
-                {"detail": f"Error creating task: {str(e)}"},
+                {
+                    "detail": f"Error creating task: {str(e)}",
+                    "error_type": str(type(e)),
+                    "request_data": dict(request.data.items()) if hasattr(request.data, 'items') else str(request.data)
+                },
                 status=status.HTTP_400_BAD_REQUEST
             )
     
@@ -671,6 +754,22 @@ class TaskTemplateViewSet(viewsets.ModelViewSet):
         child_tasks = TemplateChildTask.objects.filter(parent_template=template)
         serializer = TemplateChildTaskSerializer(child_tasks, many=True)
         return Response(serializer.data)
+
+
+class TaskPriorityViewSet(viewsets.ViewSet):
+    """タスク優先度値の範囲情報を提供するAPI"""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def list(self, request):
+        """
+        優先度の値範囲情報を返す（数値が小さいほど優先度が高い）
+        """
+        priority_info = {
+            'min_value': 1,
+            'max_value': 100,
+            'description': '数値が小さいほど優先度が高い（1〜100）'
+        }
+        return Response(priority_info)
 
 
 class TaskScheduleViewSet(viewsets.ModelViewSet):

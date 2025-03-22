@@ -86,10 +86,6 @@ const TaskTemplateForm = ({ clientId, template, schedules, onSubmit, onClose }) 
       newErrors.title = 'タイトルは必須です';
     }
     
-    if (!formData.schedule) {
-      newErrors.schedule = 'スケジュールは必須です';
-    }
-    
     if (!formData.template_task) {
       newErrors.template_task = 'テンプレートタスクは必須です';
     }
@@ -189,7 +185,7 @@ const TaskTemplateForm = ({ clientId, template, schedules, onSubmit, onClose }) 
             
             <div className="form-control mt-3">
               <label className="label">
-                <span className="label-text">スケジュール<span className="text-red-500">*</span></span>
+                <span className="label-text">スケジュール</span>
               </label>
               <select
                 name="schedule"
@@ -209,7 +205,7 @@ const TaskTemplateForm = ({ clientId, template, schedules, onSubmit, onClose }) 
               {(!Array.isArray(schedules) || schedules.length === 0) && (
                 <div className="alert alert-warning mt-2">
                   <HiOutlineExclamation className="h-5 w-5" />
-                  <span>先にスケジュール設定を作成してください</span>
+                  <span>スケジュールが設定されていない場合、タスクの自動生成は行われません</span>
                 </div>
               )}
             </div>

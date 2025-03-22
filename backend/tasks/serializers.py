@@ -250,9 +250,25 @@ class TaskSerializer(serializers.ModelSerializer):
         return None
 
     def create(self, validated_data):
+        import json
         user = self.context['request'].user
         validated_data['business'] = user.business
         validated_data['creator'] = user
+        
+        # デバッグ情報：リクエストデータ
+        print(f"[DEBUG] タスク作成リクエストデータ: {json.dumps(self.initial_data, default=str)}")
+        print(f"[DEBUG] バリデーション後のデータ: {json.dumps({k: str(v) for k, v in validated_data.items()}, default=str)}")
+        
+        # statusの処理 - 明示的にNone以外の値かつTaskStatusインスタンスでない場合も処理
+        if 'status' not in validated_data or validated_data['status'] is None:
+            from tasks.models import TaskStatus
+            print(f"[DEBUG] ステータスが未指定またはNone、デフォルト設定を試みます")
+            default_status = TaskStatus.objects.filter(business=user.business, name='未着手').first()
+            if default_status:
+                validated_data['status'] = default_status
+                print(f"[DEBUG] デフォルトステータス「未着手」を設定: {default_status.id}")
+            else:
+                print(f"[ERROR] 未着手ステータスが見つかりません。使用可能なステータス: {', '.join([s.name for s in TaskStatus.objects.filter(business=user.business)])}")
         
         # business_dayとmonthdayフィールドの型変換処理
         for field in ['business_day', 'monthday']:
@@ -271,10 +287,25 @@ class TaskSerializer(serializers.ModelSerializer):
             default_workspace = user.business.workspaces.first()
             if default_workspace:
                 validated_data['workspace'] = default_workspace
+                print(f"[DEBUG] デフォルトワークスペースを設定: {default_workspace.name}")
         
-        return super().create(validated_data)
+        try:
+            task = super().create(validated_data)
+            print(f"[DEBUG] タスク作成成功: ID={task.id}, タイトル={task.title}")
+            return task
+        except Exception as e:
+            print(f"[ERROR] タスク作成中にエラー発生: {str(e)}")
+            raise
         
     def update(self, instance, validated_data):
+        # statusがNoneに変更された場合、デフォルトで「未着手」ステータスを設定
+        if 'status' in validated_data and validated_data['status'] is None:
+            from tasks.models import TaskStatus
+            default_status = TaskStatus.objects.filter(business=instance.business, name='未着手').first()
+            if default_status:
+                validated_data['status'] = default_status
+                print(f"[DEBUG] 更新時にデフォルトステータス「未着手」を設定: {default_status.id}")
+        
         # business_dayとmonthdayフィールドの型変換処理
         for field in ['business_day', 'monthday']:
             if field in validated_data and validated_data[field] is not None:
