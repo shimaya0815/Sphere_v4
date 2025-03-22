@@ -311,10 +311,23 @@ class UserProfileViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         # Users should only see other users in the same business
-        user = self.request.user
-        if user.business:
-            return User.objects.filter(business=user.business)
-        return User.objects.filter(pk=user.pk)  # Only see themselves if no business
+        if self.request.user.is_authenticated and self.request.user.business:
+            return User.objects.filter(business=self.request.user.business)
+        return User.objects.none()
+    
+    @action(detail=False, methods=['get'])
+    def workers(self, request):
+        """作業可能なユーザー（ワーカー）一覧を取得するエンドポイント"""
+        users = self.get_queryset()
+        serializer = self.get_serializer(users, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def reviewers(self, request):
+        """レビュー可能なユーザー一覧を取得するエンドポイント"""
+        users = self.get_queryset()
+        serializer = self.get_serializer(users, many=True)
+        return Response(serializer.data)
     
     @action(detail=False, methods=['patch'])
     def me(self, request):
