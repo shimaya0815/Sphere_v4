@@ -290,7 +290,7 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
                         template_task: template.id,
                         schedule: scheduleId,
                         is_active: true,
-                        start_date: new Date().toISOString().split('T')[0]
+                        start_date: new Date().toISOString().split('T')[0]  // 今日の日付を開始日として設定
                       });
                       console.log(`Applied template: ${templateName} to client ${newClient.id}`);
                     } catch (err) {
