@@ -142,7 +142,7 @@ const TaskEditor = ({
           tasksApi.getStatuses(),
           tasksApi.getCategories(),
           clientsApi.getClients(),
-          usersApi.getUsers({ active: true }),
+          usersApi.getAvailableWorkers(),
           tasksApi.getPriorities()
         ]);
         
