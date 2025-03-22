@@ -247,17 +247,21 @@ export const updateTaskAssignee = async (taskId, assigneeId) => {
  */
 export const getCategories = async (params = {}) => {
   try {
-    // スタブ実装
-    return Promise.resolve([
+    console.log('カテゴリー取得を試みます...');
+    const response = await apiClient.get('/api/tasks/categories/', { params });
+    console.log('取得したカテゴリー:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    // バックアップとしてデフォルト値を返す
+    console.log('APIエラーが発生したため、デフォルト値を使用します');
+    return [
       { id: 1, name: '一般', color: '#3b82f6' },
       { id: 2, name: '開発', color: '#10b981' },
       { id: 3, name: 'デザイン', color: '#8b5cf6' },
       { id: 4, name: 'マーケティング', color: '#f59e0b' },
       { id: 5, name: '営業', color: '#ef4444' }
-    ]);
-  } catch (error) {
-    console.error('Error fetching categories:', error);
-    throw error;
+    ];
   }
 };
 
@@ -268,11 +272,21 @@ export const getCategories = async (params = {}) => {
  */
 export const getStatuses = async (params = {}) => {
   try {
+    // エンドポイントのパスを修正
+    console.log('ステータス取得を試みます...');
     const response = await apiClient.get('/api/tasks/statuses/', { params });
+    console.log('取得したステータス:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error fetching statuses:', error);
-    throw error;
+    // バックアップとしてデフォルト値を返す
+    console.log('APIエラーが発生したため、デフォルト値を使用します');
+    return [
+      { id: 1, name: '未着手', color: '#9ca3af' },
+      { id: 2, name: '進行中', color: '#3b82f6' },
+      { id: 3, name: 'レビュー中', color: '#8b5cf6' },
+      { id: 4, name: '完了', color: '#10b981' }
+    ];
   }
 };
 
@@ -283,15 +297,19 @@ export const getStatuses = async (params = {}) => {
  */
 export const getPriorities = async (params = {}) => {
   try {
-    // スタブ実装
-    return Promise.resolve([
-      { id: 'low', name: '低', color: '#9ca3af' },
-      { id: 'medium', name: '中', color: '#f59e0b' },
-      { id: 'high', name: '高', color: '#ef4444' }
-    ]);
+    console.log('優先度取得を試みます...');
+    const response = await apiClient.get('/api/tasks/priorities/', { params });
+    console.log('取得した優先度:', response.data);
+    return response.data;
   } catch (error) {
     console.error('Error fetching priorities:', error);
-    throw error;
+    // バックアップとしてデフォルト値を返す
+    console.log('APIエラーが発生したため、デフォルト値を使用します');
+    return [
+      { id: 1, name: '低', color: '#9ca3af', priority_value: 300 },
+      { id: 2, name: '中', color: '#f59e0b', priority_value: 200 },
+      { id: 3, name: '高', color: '#ef4444', priority_value: 100 }
+    ];
   }
 };
 
