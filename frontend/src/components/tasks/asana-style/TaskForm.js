@@ -236,6 +236,30 @@ const DateField = ({ name, ...props }) => {
 };
 
 // プロジェクトフィールドコンポーネント
+const ProjectField = ({ name, ...props }) => {
+  const { control, formState: { errors } } = useFormContext();
+  
+  return (
+    <div className="form-field project-field">
+      <Controller
+        control={control}
+        name={name}
+        render={({ field }) => (
+          <Select
+            id={name}
+            options={[
+              { value: '1', label: 'プロジェクト1' },
+              { value: '2', label: 'プロジェクト2' },
+              { value: '3', label: 'プロジェクト3' }
+            ]}
+            {...field}
+            {...props}
+            error={errors[name]?.message}
+          />
+        )}
+      />
+    </div>
+  );
 };
 
 // タグフィールドコンポーネント
@@ -317,7 +341,7 @@ TaskForm.Field = Field;
 TaskForm.RichField = RichField;
 TaskForm.UserField = UserField;
 TaskForm.DateField = DateField;
-
+TaskForm.ProjectField = ProjectField;
 TaskForm.TagsField = TagsField;
 TaskForm.CheckboxField = CheckboxField;
 TaskForm.PriorityField = PriorityField;
