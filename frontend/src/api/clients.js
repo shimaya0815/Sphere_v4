@@ -143,7 +143,7 @@ export const toggleFiscalYearLock = async (fiscalYearId) => {
  */
 export const createClient = async (clientData) => {
   try {
-    const response = await apiClient.post('/api/clients/', clientData);
+    const response = await apiClient.post('/clients/clients/', clientData);
     return response.data;
   } catch (error) {
     console.error('Error creating client:', error);
