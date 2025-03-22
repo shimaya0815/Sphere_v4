@@ -195,6 +195,7 @@ const TaskTemplateModal = ({
   const [formData, setFormData] = useState({
     template_id: '',
     start_date: new Date().toISOString().split('T')[0],
+    end_date: '',
     is_active: true
   });
   const [saving, setSaving] = useState(false);
@@ -259,8 +260,9 @@ const TaskTemplateModal = ({
         if (existingTemplate) {
           // 既存テンプレートを更新
           await clientsApi.updateClientTaskTemplate(existingTemplate.id, {
-            is_active: formData.is_active,
-            start_date: formData.start_date
+            is_active: true, // 日付設定があれば自動的に有効
+            start_date: formData.start_date,
+            end_date: formData.end_date || null
           });
           
           toast.success('タスクテンプレートを更新しました');
@@ -270,8 +272,9 @@ const TaskTemplateModal = ({
             title: DEFAULT_TEMPLATE_TITLES[serviceType] || `${SERVICE_DISPLAY_NAMES[serviceType]}`,
             schedule_type: DEFAULT_SCHEDULE_TYPES[serviceType],
             recurrence: DEFAULT_CYCLES[serviceType],
-            is_active: formData.is_active,
+            is_active: true, // 日付設定があれば自動的に有効
             start_date: formData.start_date,
+            end_date: formData.end_date || null,
             template_task: formData.template_id
           };
           
@@ -316,8 +319,9 @@ const TaskTemplateModal = ({
           title: DEFAULT_TEMPLATE_TITLES[serviceType] || `${SERVICE_DISPLAY_NAMES[serviceType]}`,
           description: `${SERVICE_DISPLAY_NAMES[serviceType]}のタスクテンプレート`,
           schedule: scheduleId,
-          is_active: formData.is_active,
-          start_date: formData.start_date
+          is_active: true, // 日付設定があれば自動的に有効
+          start_date: formData.start_date,
+          end_date: formData.end_date || null
         };
         
         await clientsApi.createClientTaskTemplate(clientId, templateData);
@@ -406,16 +410,16 @@ const TaskTemplateModal = ({
               </div>
               
               <div className="form-control">
-                <label className="label cursor-pointer">
-                  <span className="label-text">有効にする</span>
-                  <input 
-                    type="checkbox" 
-                    name="is_active"
-                    checked={formData.is_active}
-                    onChange={handleChange}
-                    className="checkbox checkbox-primary"
-                  />
+                <label className="label">
+                  <span className="label-text">終了日 (空欄の場合は現在まで)</span>
                 </label>
+                <input 
+                  type="date" 
+                  name="end_date"
+                  value={formData.end_date}
+                  onChange={handleChange}
+                  className="input input-bordered"
+                />
               </div>
             </div>
             
@@ -1658,7 +1662,7 @@ const ServiceCheckSettings = ({ clientId }) => {
                         </span>
                         {template.start_date && (
                           <span className="ml-2 text-xs text-gray-500">
-                            ({template.start_date}から)
+                            ({template.start_date} 〜 {template.end_date || '現在まで'})
                           </span>
                         )}
                       </div>

@@ -1036,7 +1036,8 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
             </div>
             <div className="p-4 bg-gray-50 rounded-lg mb-4">
               <p className="text-sm text-gray-600">
-                設定したいタスクの内容を選択し、スケジュールを設定してください。
+                設定したいタスクの内容を選択し、開始日と終了日を設定してください。<br />
+                終了日が空欄の場合は、終了日なしで現在までのタスクとして設定されます。
               </p>
             </div>
             <div className="space-y-4">
@@ -1064,34 +1065,22 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
               
               <div className="form-control">
                 <label className="label">
-                  <span className="label-text">繰り返し</span>
-                </label>
-                <select className="select select-bordered w-full">
-                  <option value="monthly">毎月</option>
-                  <option value="quarterly">四半期ごと</option>
-                  <option value="yearly">毎年</option>
-                </select>
-              </div>
-              
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text">スケジュールタイプ</span>
-                </label>
-                <select className="select select-bordered w-full">
-                  <option value="monthly_start">月初作成 (1日)・当月締め切り (5日)</option>
-                  <option value="monthly_end">月末作成 (25日)・翌月締め切り (10日)</option>
-                  <option value="fiscal_relative">決算日基準</option>
-                </select>
-              </div>
-              
-              <div className="form-control">
-                <label className="label">
                   <span className="label-text">開始日</span>
                 </label>
                 <input
                   type="date"
                   className="input input-bordered w-full"
                   defaultValue={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+              
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">終了日（空欄の場合は現在まで）</span>
+                </label>
+                <input
+                  type="date"
+                  className="input input-bordered w-full"
                 />
               </div>
             </div>
