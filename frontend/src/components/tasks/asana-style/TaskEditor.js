@@ -220,11 +220,15 @@ const TaskEditor = ({
   const loadTask = useCallback(async () => {
     if (isNew) {
       // 新規タスクの場合は空のタスクデータをセット
+      // ステータスはIDを使用する必要があるため、ロード済みのstatusesから取得
+      const defaultStatus = statuses && statuses.length > 0 ? statuses[0].id : null;
+      const defaultPriority = priorities && priorities.length > 0 ? priorities[0].id : null;
+      
       setTask({
         title: '',
         description: '',
-        status: 'todo',
-        priority: 'medium',
+        status: defaultStatus,
+        priority: defaultPriority,
         due_date: null,
         assigned_to: null,
         category: null,
@@ -248,7 +252,7 @@ const TaskEditor = ({
     } finally {
       setIsLoading(false);
     }
-  }, [isNew, resolvedTaskId, getTask]);
+  }, [isNew, resolvedTaskId, getTask, statuses, priorities]);
   
   // タスクIDが変わったらタスクを読み込む
   useEffect(() => {
@@ -265,6 +269,23 @@ const TaskEditor = ({
       }
     }
   }, [resolvedTaskId, loadTask, tasks, isNew]);
+  
+  // statuses や priorities が更新されたときに、新規タスクの場合はステータスとプライオリティを更新
+  useEffect(() => {
+    if (isNew && task) {
+      const defaultStatus = statuses && statuses.length > 0 ? statuses[0].id : null;
+      const defaultPriority = priorities && priorities.length > 0 ? priorities[0].id : null;
+      
+      // ステータスまたはプライオリティが未設定の場合は更新
+      if ((!task.status && defaultStatus) || (!task.priority && defaultPriority)) {
+        setTask(prev => ({
+          ...prev,
+          status: prev.status || defaultStatus,
+          priority: prev.priority || defaultPriority
+        }));
+      }
+    }
+  }, [isNew, statuses, priorities, task]);
   
   // フォーム送信処理
   const handleSubmit = useCallback(async (formData) => {
