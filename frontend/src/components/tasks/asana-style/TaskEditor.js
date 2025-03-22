@@ -443,8 +443,24 @@ const TaskEditor = ({
                   </div>
                 )}
                 
-                <TaskRecurrenceSection />
-                <TaskAdditionalSettingsSection />
+                <TaskRecurrenceSection 
+                  control={formContext?.control}
+                  watch={formContext?.watch}
+                  handleFieldChange={(field, value) => {
+                    if (task && task.id) {
+                      updateTask(task.id, { [field]: value });
+                    }
+                  }}
+                />
+                <TaskAdditionalSettingsSection 
+                  control={formContext?.control}
+                  watch={formContext?.watch}
+                  handleFieldChange={(field, value) => {
+                    if (task && task.id) {
+                      updateTask(task.id, { [field]: value });
+                    }
+                  }}
+                />
               </div>
             </div>
             
