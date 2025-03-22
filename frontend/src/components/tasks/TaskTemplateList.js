@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import tasksApi from '../../api/tasks';
+import tasksApi from '../../api/tasks/index';
 import toast from 'react-hot-toast';
 import TaskTemplateForm from './TaskTemplateForm';
 import {
