@@ -34,6 +34,9 @@ const TaskList = forwardRef((props, ref) => {
   const [usersList, setUsersList] = useState([]); // ユーザー一覧を保持するstate
   const [clientsList, setClientsList] = useState([]); // クライアント一覧を保持するstate
   
+  // 現在のURLパスを取得
+  const currentPath = location.pathname;
+  
   // 一括編集関連の状態
   const [bulkEditMode, setBulkEditMode] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState([]);
@@ -64,21 +67,68 @@ const TaskList = forwardRef((props, ref) => {
         const preferences = await usersApi.getUserPreferences();
         
         if (preferences && preferences.task_filters) {
-          // バックエンドに保存されたフィルタ設定がある場合はそれを使用
-          console.log('バックエンドから保存されたフィルター設定を読み込みました:', preferences.task_filters);
-          setFilters(preferences.task_filters);
+          // パスごとのフィルター設定を持っているか確認
+          if (preferences.task_filters[currentPath]) {
+            // 現在のパスのフィルタ設定を使用
+            console.log(`バックエンドから現在のパス(${currentPath})のフィルター設定を読み込みました:`, preferences.task_filters[currentPath]);
+            setFilters(preferences.task_filters[currentPath]);
+          } else {
+            // パスに対する設定がない場合はローカルストレージをチェック
+            const savedFilters = localStorage.getItem(`task_filters_${currentUser.id}_${currentPath}`);
+            if (savedFilters) {
+              try {
+                const parsedFilters = JSON.parse(savedFilters);
+                console.log(`ローカルストレージから現在のパス(${currentPath})のフィルター設定を読み込みました:`, parsedFilters);
+                setFilters(parsedFilters);
+                
+                // ローカルストレージの設定をバックエンドにも保存
+                const updatedTaskFilters = {
+                  ...preferences.task_filters,
+                  [currentPath]: parsedFilters
+                };
+                
+                await usersApi.updateUserPreferences({
+                  task_filters: updatedTaskFilters
+                });
+              } catch (error) {
+                console.error('フィルター設定の読み込みでエラーが発生しました:', error);
+              }
+            } else {
+              // 保存された設定がない場合はデフォルト設定を使用
+              const defaultFilters = {
+                status: '',
+                searchTerm: '',
+                client: '',
+                assignee: currentUser.id,
+                hide_completed: true,
+              };
+              setFilters(defaultFilters);
+              
+              // デフォルト設定をバックエンドに保存
+              const updatedTaskFilters = {
+                ...preferences.task_filters,
+                [currentPath]: defaultFilters
+              };
+              
+              await usersApi.updateUserPreferences({
+                task_filters: updatedTaskFilters
+              });
+            }
+          }
         } else {
-          // バックエンドに設定がない場合はローカルストレージをチェック
-          const savedFilters = localStorage.getItem(`task_filters_${currentUser.id}`);
+          // task_filtersがない場合は新規作成
+          const savedFilters = localStorage.getItem(`task_filters_${currentUser.id}_${currentPath}`);
           if (savedFilters) {
             try {
               const parsedFilters = JSON.parse(savedFilters);
-              console.log('ローカルストレージからフィルター設定を読み込みました:', parsedFilters);
+              console.log(`ローカルストレージから現在のパス(${currentPath})のフィルター設定を読み込みました:`, parsedFilters);
               setFilters(parsedFilters);
               
               // ローカルストレージの設定をバックエンドにも保存
               await usersApi.updateUserPreferences({
-                task_filters: parsedFilters
+                task_filters: {
+                  [currentPath]: parsedFilters
+                }
               });
             } catch (error) {
               console.error('フィルター設定の読み込みでエラーが発生しました:', error);
@@ -96,7 +146,9 @@ const TaskList = forwardRef((props, ref) => {
             
             // デフォルト設定をバックエンドに保存
             await usersApi.updateUserPreferences({
-              task_filters: defaultFilters
+              task_filters: {
+                [currentPath]: defaultFilters
+              }
             });
           }
         }
@@ -104,11 +156,11 @@ const TaskList = forwardRef((props, ref) => {
         console.error('フィルター設定の取得でエラーが発生しました:', error);
         
         // バックエンドからの取得に失敗した場合はローカルストレージから読み込む
-        const savedFilters = localStorage.getItem(`task_filters_${currentUser.id}`);
+        const savedFilters = localStorage.getItem(`task_filters_${currentUser.id}_${currentPath}`);
         if (savedFilters) {
           try {
             const parsedFilters = JSON.parse(savedFilters);
-            console.log('ローカルストレージからフィルター設定を読み込みました（バックエンド取得失敗時）:', parsedFilters);
+            console.log(`ローカルストレージから現在のパス(${currentPath})のフィルター設定を読み込みました（バックエンド取得失敗時）:`, parsedFilters);
             setFilters(parsedFilters);
           } catch (parseError) {
             console.error('ローカルストレージのフィルター設定の解析でエラーが発生しました:', parseError);
@@ -120,26 +172,35 @@ const TaskList = forwardRef((props, ref) => {
     };
     
     loadUserFilters();
-  }, [currentUser]);
+  }, [currentUser, currentPath]);
   
   // フィルター設定が変更されたときに保存
   const saveUserFilters = useCallback(async () => {
     if (!currentUser?.id) return;
     
     try {
-      // ローカルストレージに保存
-      localStorage.setItem(`task_filters_${currentUser.id}`, JSON.stringify(filters));
-      console.log('フィルター設定をローカルストレージに保存しました:', filters);
+      // ローカルストレージにパスごとに保存
+      localStorage.setItem(`task_filters_${currentUser.id}_${currentPath}`, JSON.stringify(filters));
+      console.log(`フィルター設定をローカルストレージに保存しました(パス: ${currentPath}):`, filters);
       
       // バックエンドにも保存
+      // 既存の設定を取得して、現在のパスの設定だけを更新
+      const preferences = await usersApi.getUserPreferences();
+      const currentTaskFilters = preferences.task_filters || {};
+      
+      const updatedTaskFilters = {
+        ...currentTaskFilters,
+        [currentPath]: filters
+      };
+      
       await usersApi.updateUserPreferences({
-        task_filters: filters
+        task_filters: updatedTaskFilters
       });
-      console.log('フィルター設定をバックエンドに保存しました:', filters);
+      console.log(`フィルター設定をバックエンドに保存しました(パス: ${currentPath}):`, filters);
     } catch (error) {
       console.error('フィルター設定の保存でエラーが発生しました:', error);
     }
-  }, [filters, currentUser]);
+  }, [filters, currentUser, currentPath]);
   
   // フィルター設定が変更されたときに保存
   useEffect(() => {
@@ -624,13 +685,22 @@ const TaskList = forwardRef((props, ref) => {
     
     try {
       // バックエンドの設定も更新
+      // 既存の設定を取得して、現在のパスの設定だけをリセット
+      const preferences = await usersApi.getUserPreferences();
+      const currentTaskFilters = preferences.task_filters || {};
+      
+      const updatedTaskFilters = {
+        ...currentTaskFilters,
+        [currentPath]: defaultFilters
+      };
+      
       await usersApi.updateUserPreferences({
-        task_filters: defaultFilters
+        task_filters: updatedTaskFilters
       });
       
       // ローカルストレージからも削除
       if (currentUser?.id) {
-        localStorage.removeItem(`task_filters_${currentUser.id}`);
+        localStorage.removeItem(`task_filters_${currentUser.id}_${currentPath}`);
       }
     } catch (error) {
       console.error('フィルター設定のリセットでエラーが発生しました:', error);
