@@ -54,80 +54,123 @@ const TaskDatePrioritySection = ({
   };
   
   return (
-    <div className="grid grid-cols-3 gap-4">
-      {/* 期限日 */}
-      <div>
-        <label htmlFor="due_date" className="block text-sm font-medium text-gray-700">
-          期限日
-        </label>
-        <DateField
-          name="due_date"
-          label="期限日"
-          placeholder="期限日を選択"
-        />
-      </div>
-      
-      {/* 優先度 */}
-      <div>
-        <label htmlFor="priority" className="block text-sm font-medium text-gray-700">
-          優先度（小さいほど優先度高）
-        </label>
-        <div className="mt-1">
-          <Controller
-            name="priority_value"
-            control={control}
-            defaultValue=""
-            render={({ field }) => (
-              <input
-                type="number"
-                id="priority_value"
-                className={inputClassName}
-                min="1"
-                max="100"
-                placeholder="1-100 (小さいほど優先度高)"
-                {...field}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  field.onChange(value);
-                  // 値が空になった場合も明示的に処理する
-                  handleFieldChange('priority_value', value);
-                }}
-                onBlur={(e) => {
-                  // フォーカスを失った時も空の値を明示的に処理
-                  const value = e.target.value;
-                  if (value === '') {
-                    console.log('空の優先度値を明示的に保存します');
-                    handleFieldChange('priority_value', null);
-                  }
-                }}
-              />
-            )}
+    <div className="space-y-4">
+      {/* 日付と優先度を2行×2列で配置 */}
+      <div className="grid grid-cols-2 gap-4">
+        {/* 期限日 */}
+        <div>
+          <label htmlFor="due_date" className="block text-sm font-medium text-gray-700">
+            期限日
+          </label>
+          <DateField
+            name="due_date"
+            label="期限日"
+            placeholder="期限日を選択"
+          />
+        </div>
+        
+        {/* 開始日 */}
+        <div>
+          <label htmlFor="start_date" className="block text-sm font-medium text-gray-700">
+            開始日
+          </label>
+          <DateField
+            name="start_date"
+            label="開始日"
+            placeholder="開始日を選択"
           />
         </div>
       </div>
       
-      {/* 開始日 */}
-      <div>
-        <label htmlFor="start_date" className="block text-sm font-medium text-gray-700">
-          開始日
-        </label>
-        <DateField
-          name="start_date"
-          label="開始日"
-          placeholder="開始日を選択"
-        />
+      <div className="grid grid-cols-2 gap-4">
+        {/* 完了日 */}
+        <div>
+          <label htmlFor="completed_at" className="block text-sm font-medium text-gray-700">
+            完了日
+          </label>
+          <DateField
+            name="completed_at"
+            label="完了日"
+            placeholder="完了日を選択"
+          />
+        </div>
+
+        {/* スペースを空けておく */}
+        <div></div>
       </div>
       
-      {/* 完了日 */}
-      <div>
-        <label htmlFor="completed_at" className="block text-sm font-medium text-gray-700">
-          完了日
-        </label>
-        <DateField
-          name="completed_at"
-          label="完了日"
-          placeholder="完了日を選択"
-        />
+      {/* 優先度設定を新しい行に配置 */}
+      <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100">
+        {/* 優先度 */}
+        <div>
+          <label htmlFor="priority" className="block text-sm font-medium text-gray-700">
+            優先度カテゴリ
+          </label>
+          <div className="mt-1">
+            <Controller
+              name="priority"
+              control={control}
+              defaultValue=""
+              render={({ field }) => (
+                <select
+                  id="priority"
+                  className={selectClassName}
+                  value={field.value || ''}
+                  onChange={(e) => {
+                    field.onChange(e);
+                    handleFieldChange('priority', e.target.value === '' ? null : e.target.value);
+                  }}
+                >
+                  <option value="">選択してください</option>
+                  <option value="1">最高</option>
+                  <option value="2">高</option>
+                  <option value="3">中</option>
+                  <option value="4">低</option>
+                  <option value="5">最低</option>
+                </select>
+              )}
+            />
+          </div>
+        </div>
+        
+        {/* 優先度値 */}
+        <div>
+          <label htmlFor="priority_value" className="block text-sm font-medium text-gray-700">
+            優先度値（小さいほど優先度高）
+          </label>
+          <div className="mt-1">
+            <Controller
+              name="priority_value"
+              control={control}
+              defaultValue=""
+              render={({ field }) => (
+                <input
+                  type="number"
+                  id="priority_value"
+                  className={inputClassName}
+                  min="1"
+                  max="100"
+                  placeholder="1-100 (小さいほど優先度高)"
+                  value={field.value || ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    field.onChange(value);
+                    // 値が空になった場合も明示的に処理する
+                    handleFieldChange('priority_value', value);
+                  }}
+                  onBlur={(e) => {
+                    // フォーカスを失った時も空の値を明示的に処理
+                    const value = e.target.value;
+                    if (value === '') {
+                      console.log('空の優先度値を明示的に保存します');
+                      handleFieldChange('priority_value', null);
+                    }
+                  }}
+                />
+              )}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
