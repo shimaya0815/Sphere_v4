@@ -377,27 +377,27 @@ export const getPriorities = async (params = {}) => {
       const range = max - min;
       
       return [
-        { id: 1, name: '高', color: '#ef4444', priority_value: min + Math.floor(range * 0.1) },
-        { id: 2, name: '中', color: '#f59e0b', priority_value: min + Math.floor(range * 0.5) },
-        { id: 3, name: '低', color: '#9ca3af', priority_value: min + Math.floor(range * 0.9) }
+        { id: 1, color: '#ef4444', priority_value: min + Math.floor(range * 0.1) },
+        { id: 2, color: '#f59e0b', priority_value: min + Math.floor(range * 0.5) },
+        { id: 3, color: '#9ca3af', priority_value: min + Math.floor(range * 0.9) }
       ];
     }
     
     // その他の形式の場合はデフォルト値を返す
     console.warn('未対応の優先度データ形式:', response.data);
     return [
-      { id: 1, name: '低', color: '#9ca3af', priority_value: 75 },
-      { id: 2, name: '中', color: '#f59e0b', priority_value: 50 },
-      { id: 3, name: '高', color: '#ef4444', priority_value: 25 }
+      { id: 1, color: '#9ca3af', priority_value: 75 },
+      { id: 2, color: '#f59e0b', priority_value: 50 },
+      { id: 3, color: '#ef4444', priority_value: 25 }
     ];
   } catch (error) {
     console.error('Error fetching priorities:', error);
     // バックアップとしてデフォルト値を返す
     console.log('APIエラーが発生したため、デフォルト値を使用します');
     return [
-      { id: 1, name: '低', color: '#9ca3af', priority_value: 75 },
-      { id: 2, name: '中', color: '#f59e0b', priority_value: 50 },
-      { id: 3, name: '高', color: '#ef4444', priority_value: 25 }
+      { id: 1, color: '#9ca3af', priority_value: 75 },
+      { id: 2, color: '#f59e0b', priority_value: 50 },
+      { id: 3, color: '#ef4444', priority_value: 25 }
     ];
   }
 };
@@ -452,7 +452,6 @@ export const createPriorityForValue = async (value) => {
     const priorities = await getPriorities();
     const priority = priorities.find(p => p.id === value) || {
       id: value,
-      name: value,
       color: '#9ca3af'
     };
     return priority;
