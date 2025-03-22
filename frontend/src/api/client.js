@@ -17,16 +17,19 @@ const getBaseUrl = () => {
   // 環境変数またはwindow.ENVから設定を取得
   const envApiUrl = process.env.REACT_APP_API_URL || (window.ENV && window.ENV.REACT_APP_API_URL);
   if (envApiUrl) {
+    console.log('Using environment API URL:', envApiUrl);
     return envApiUrl;
   }
   
-  // ローカル開発環境ではlocalhostを使用
-  if (window.location.hostname === 'localhost') {
+  // ホスト名に基づいてベースURLを決定
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    console.log('Detected localhost environment, using localhost:8000');
     return 'http://localhost:8000';
   }
   
-  // デフォルト値としてbackendサービスを使用
-  return 'http://backend:8000';
+  // 相対URLを使用（同一オリジンに対するリクエスト）
+  console.log('Using relative URL for API requests');
+  return '';
 };
 
 // リクエスト、レスポンスのインターセプター設定済みの axios インスタンス
