@@ -87,25 +87,54 @@ const TaskSlidePanel = ({ isOpen, isNew, task, onClose, onTaskUpdated }) => {
         usersApi.getAvailableReviewers()
       ]);
 
-      setCategories(categoriesData);
-      setStatuses(statusesData);
-      setPriorities(prioritiesData);
-      setClients(clientsData);
-      setWorkers(workersData);
-      setReviewers(reviewersData);
+      // データをセット（配列でない場合は空配列を設定）
+      setCategories(Array.isArray(categoriesData) ? categoriesData : []);
+      setStatuses(Array.isArray(statusesData) ? statusesData : []);
+      setPriorities(Array.isArray(prioritiesData) ? prioritiesData : []);
+      
+      // クライアントデータの処理
+      let processedClients = [];
+      if (Array.isArray(clientsData)) {
+        processedClients = clientsData;
+      } else if (clientsData && clientsData.results && Array.isArray(clientsData.results)) {
+        // ページネーションオブジェクトの場合
+        processedClients = clientsData.results;
+      } else if (clientsData && typeof clientsData === 'object') {
+        console.warn('クライアントデータが予期せぬ形式です：', clientsData);
+        processedClients = [];
+      } else {
+        console.warn('クライアントデータが取得できませんでした');
+        processedClients = [];
+      }
+      setClients(processedClients);
+      
+      // ユーザーデータの処理
+      setWorkers(Array.isArray(workersData) ? workersData : []);
+      setReviewers(Array.isArray(reviewersData) ? reviewersData : []);
 
       // 新規タスクの場合はデフォルト値を設定
       if (isNew) {
         // デフォルトの状態と優先度を設定
-        const defaultStatus = statusesData.find(status => status.name === '未着手')?.id || statusesData[0]?.id;
-        const defaultPriority = prioritiesData.find(priority => priority.id === 'medium')?.id || prioritiesData[0]?.id;
+        const defaultStatus = statusesData && Array.isArray(statusesData) ? 
+          (statusesData.find(status => status.name === '未着手')?.id || statusesData[0]?.id) : '';
+        const defaultPriority = prioritiesData && Array.isArray(prioritiesData) ?
+          (prioritiesData.find(priority => priority.id === 'medium')?.id || prioritiesData[0]?.id) : '';
         
         setValue('status', defaultStatus);
         setValue('priority', defaultPriority);
       }
     } catch (error) {
       console.error('Error loading form data:', error);
+      console.error('Error details:', error.response?.data);
       toast.error('データの読み込みに失敗しました');
+      
+      // エラー時は空の配列をセット
+      setCategories([]);
+      setStatuses([]);
+      setPriorities([]);
+      setClients([]);
+      setWorkers([]);
+      setReviewers([]);
     } finally {
       setIsLoading(false);
     }
@@ -120,9 +149,26 @@ const TaskSlidePanel = ({ isOpen, isNew, task, onClose, onTaskUpdated }) => {
 
     try {
       const response = await clientsApi.getFiscalYears(clientId);
-      setFiscalYears(response);
+      
+      // レスポンスの形式をチェック
+      let processedFiscalYears = [];
+      if (Array.isArray(response)) {
+        processedFiscalYears = response;
+      } else if (response && response.results && Array.isArray(response.results)) {
+        // ページネーションオブジェクトの場合
+        processedFiscalYears = response.results;
+      } else if (response && typeof response === 'object') {
+        console.warn('決算期データが予期せぬ形式です：', response);
+        processedFiscalYears = [];
+      } else {
+        console.warn('決算期データが取得できませんでした');
+        processedFiscalYears = [];
+      }
+      
+      setFiscalYears(processedFiscalYears);
     } catch (error) {
       console.error('Error loading fiscal years:', error);
+      console.error('Error details:', error.response?.data);
       setFiscalYears([]);
     }
   };
