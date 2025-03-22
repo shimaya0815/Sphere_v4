@@ -209,6 +209,55 @@ export const getTemplateSchedules = async () => {
   }
 };
 
+/**
+ * 内包タスクを作成
+ * @param {Object} taskData - タスクデータ
+ * @returns {Promise<Object>} 作成された内包タスク
+ */
+export const createTemplateTask = async (taskData) => {
+  try {
+    console.log('Creating template child task with data:', taskData);
+    const response = await apiClient.post('/api/tasks/template-tasks/', taskData);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating template child task:', error);
+    throw error;
+  }
+};
+
+/**
+ * 内包タスクを更新
+ * @param {number} taskId - 内包タスクID
+ * @param {Object} taskData - 更新データ
+ * @returns {Promise<Object>} 更新された内包タスク
+ */
+export const updateTemplateTask = async (taskId, taskData) => {
+  try {
+    console.log('Updating template child task:', taskId);
+    const response = await apiClient.patch(`/api/tasks/template-tasks/${taskId}/`, taskData);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating template child task:', error);
+    throw error;
+  }
+};
+
+/**
+ * 内包タスクを削除
+ * @param {number} taskId - 内包タスクID
+ * @returns {Promise<Object>} 削除結果
+ */
+export const deleteTemplateTask = async (taskId) => {
+  try {
+    console.log('Deleting template child task:', taskId);
+    const response = await apiClient.delete(`/api/tasks/template-tasks/${taskId}/`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting template child task:', error);
+    throw error;
+  }
+};
+
 export default {
   getTemplates,
   getTemplate,
@@ -217,5 +266,8 @@ export default {
   createFromTemplate,
   updateTemplate,
   deleteTemplate,
-  getTemplateSchedules
+  getTemplateSchedules,
+  createTemplateTask,
+  updateTemplateTask,
+  deleteTemplateTask
 }; 

@@ -30,7 +30,10 @@ export const {
   createFromTemplate,
   updateTemplate,
   deleteTemplate,
-  getTemplateSchedules
+  getTemplateSchedules,
+  createTemplateTask,
+  updateTemplateTask,
+  deleteTemplateTask
 } = templates;
 
 // メタデータ関連 API
@@ -40,7 +43,9 @@ export const {
   getPriorities,
   createCategory,
   createStatus,
-  createPriority
+  createPriority,
+  createPriorityForValue,
+  createTaskSchedule
 } = metadata;
 
 // コメント関連 API
@@ -71,6 +76,9 @@ export default {
   updateTemplate,
   deleteTemplate,
   getTemplateSchedules,
+  createTemplateTask,
+  updateTemplateTask,
+  deleteTemplateTask,
   
   // メタデータ関連
   getCategories: async () => {
@@ -154,6 +162,8 @@ export default {
   createCategory,
   createStatus,
   createPriority,
+  createPriorityForValue,
+  createTaskSchedule,
   
   // コメント関連
   getTaskComments,

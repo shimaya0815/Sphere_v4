@@ -53,7 +53,7 @@ const TemplateTaskList = () => {
     try {
       console.log('Fetching template child tasks with templateId:', templateId);
       // APIが実装されているので、実際のAPIを使用
-      const data = await tasksApi.getTemplateChildTasks(templateId);
+      const data = await tasksApi.getTemplateTasks(templateId);
       console.log('Template child tasks:', data);
       
       setTemplateTasks(Array.isArray(data) ? data : []);
@@ -72,6 +72,7 @@ const TemplateTaskList = () => {
   const handleDelete = async (taskId) => {
     if (window.confirm('このテンプレートタスクを削除してもよろしいですか？')) {
       try {
+        // 内包タスク用のAPI関数が実装されたのでそれを使用
         await tasksApi.deleteTemplateTask(taskId);
         toast.success('テンプレートタスクを削除しました');
         fetchTemplateTasks();
