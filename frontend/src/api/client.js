@@ -1,23 +1,8 @@
 import axios from 'axios';
-
-// フロントエンドの開発環境を検出して適切なベースURLを設定
-// Docker環境では絶対URLを使用し、その他の環境では相対パスを使用
-const getBaseUrl = () => {
-  // Docker環境の場合（ホスト名が'localhost'または'127.0.0.1'の場合）
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    // 同一オリジンでリクエストするため、ホストのURLをそのまま使用
-    return `${window.location.protocol}//${window.location.host}`;
-  }
-  // 本番環境などその他の場合
-  return window.location.origin;
-};
-
-const API_URL = getBaseUrl();
+import { getAuthToken, clearAuthToken } from '../utils/auth';
 
 // 設定の詳細ログ出力
 console.log('API Configuration:', {
-  baseUrl: API_URL,
-  fullUrl: `${API_URL}/api/`,
   environment: process.env.NODE_ENV,
   hostname: window.location.hostname
 });
@@ -27,139 +12,163 @@ const apiClient = {};
 apiClient.CancelToken = axios.CancelToken;
 apiClient.isCancel = axios.isCancel;
 
-// エラーレート制限を追加
-let activeRequests = 0;
-const MAX_CONCURRENT_REQUESTS = 5;
-const requestQueue = [];
-
-// リクエストスロットリング関数
-const executeQueuedRequests = () => {
-  while (requestQueue.length > 0 && activeRequests < MAX_CONCURRENT_REQUESTS) {
-    const { config, resolve, reject } = requestQueue.shift();
-    activeRequests++;
-    
-    axios(config)
-      .then(response => {
-        activeRequests--;
-        executeQueuedRequests();
-        resolve(response);
-      })
-      .catch(error => {
-        activeRequests--;
-        executeQueuedRequests();
-        reject(error);
-      });
+// Docker環境でのURLを設定
+const getBaseUrl = () => {
+  // 環境変数またはwindow.ENVから設定を取得
+  const envApiUrl = process.env.REACT_APP_API_URL || (window.ENV && window.ENV.REACT_APP_API_URL);
+  if (envApiUrl) {
+    return envApiUrl;
   }
+  
+  // ローカル開発環境ではlocalhostを使用
+  if (window.location.hostname === 'localhost') {
+    return 'http://localhost:8000';
+  }
+  
+  // デフォルト値としてbackendサービスを使用
+  return 'http://backend:8000';
 };
 
-// axiosインスタンスをapiClientに拡張
+// リクエスト、レスポンスのインターセプター設定済みの axios インスタンス
 const axiosInstance = axios.create({
-  baseURL: API_URL,
+  baseURL: getBaseUrl(),
+  timeout: 30000, // 30秒
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 180000, // 3分のタイムアウト（大幅に延長）
-  withCredentials: false, // CORSのクッキー送信は無効化
-  
-  // リクエスト制限を緩和
-  maxContentLength: 10000000, // 最大10MB
-  maxRedirects: 5,
-  maxBodyLength: 10000000,
-  retryConfig: { retries: 2 },  // 失敗時に自動リトライ
 });
+
+console.log('API Client configured with baseURL:', getBaseUrl());
 
 // axiosインスタンスのメソッドをapiClientにコピー
 Object.setPrototypeOf(apiClient, axiosInstance);
 Object.assign(apiClient, axiosInstance);
 
-// リクエストインターセプター: 認証トークン追加
+// デバッグモード（開発環境のみ）
+const DEBUG = process.env.NODE_ENV === 'development';
+
+// リクエストインターセプター
 apiClient.interceptors.request.use(
   (config) => {
-    // デモトークンを削除し、実際のトークンのみを使用
-    const token = localStorage.getItem('token');
+    // リクエストのデバッグログ
+    if (DEBUG) {
+      console.log('API Request:', config.method?.toUpperCase(), config.url, config.params || {});
+    }
     
+    // 認証トークンをヘッダーに追加
+    const token = getAuthToken();
     if (token) {
       config.headers.Authorization = `Token ${token}`;
     }
     
-    // 開発モードのみ詳細なログを出力
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`🔍 API Request: ${config.method?.toUpperCase()} ${config.url}`);
-      
-      // 認証関連リクエストのボディデータをログ出力（機密情報は除く）
-      if (config.url && (config.url.includes('/auth/token/login/') || config.url.includes('/auth/users/'))) {
-        try {
-          const requestData = JSON.parse(config.data || '{}');
-          // パスワードを隠してログ出力
-          const sanitizedData = { ...requestData };
-          if (sanitizedData.password) {
-            sanitizedData.password = '********';
-          }
-          console.log('Auth request data:', sanitizedData);
-          console.log('Request headers:', config.headers);
-        } catch (e) {
-          console.log('Could not parse request data:', config.data);
-        }
-      }
-    }
-    
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    console.error('API Request error:', error);
+    return Promise.reject(error);
+  }
 );
 
-// レスポンスインターセプター: エラー処理
+// レスポンスインターセプター
 apiClient.interceptors.response.use(
   (response) => {
-    // 開発モードのみ詳細なログを出力
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`✅ API Response: ${response.status} for ${response.config.url}`);
+    // レスポンスのデバッグログ
+    if (DEBUG) {
+      console.log('API Response:', response.status, response.config.url);
     }
     return response;
   },
   (error) => {
-    // エラー情報の詳細なログ出力
-    if (process.env.NODE_ENV === 'development') {
-      console.error(`❌ API Error: ${error.response?.status || 'Network Error'} for ${error.config?.url}`);
-      
-      // レスポンスデータの詳細なデバッグ情報
-      if (error.response && error.response.data) {
-        console.error('Error response data (raw):', JSON.stringify(error.response.data));
-        console.error('Error response type:', typeof error.response.data);
-        
-        try {
-          // エラーデータの詳細な分析
-          const errorData = error.response.data;
-          console.error('Error data keys:', Object.keys(errorData));
-          
-          // DRFがフィールドごとのエラーを返す場合
-          if (typeof errorData === 'object' && !Array.isArray(errorData)) {
-            console.log('Detailed field errors:');
-            Object.entries(errorData).forEach(([field, errors]) => {
-              console.log(`  ${field}: ${Array.isArray(errors) ? errors.join(', ') : JSON.stringify(errors)}`);
-            });
-          }
-        } catch (e) {
-          console.error('Error parsing error data:', e);
-        }
+    // エラーのデバッグログ
+    if (DEBUG) {
+      console.error('API Response error:', error);
+      if (error.response) {
+        console.error('Status:', error.response.status);
+        console.error('Data:', error.response.data);
+        console.error('Headers:', error.response.headers);
+      } else if (error.request) {
+        console.error('Request made but no response received');
+        console.error(error.request);
+      } else {
+        console.error('Error setting up request:', error.message);
       }
-      
-      // リクエストデータを表示（デバッグに役立つ）
-      if (error.config && error.config.data) {
-        try {
-          const requestData = JSON.parse(error.config.data);
-          console.log('Request data that caused the error:', requestData);
-        } catch (e) {
-          console.log('Request data (non-JSON):', error.config.data);
+    }
+    
+    // 認証エラー（401）の場合はログアウト
+    if (error.response && error.response.status === 401) {
+      // ログイン・ログアウトページへのリクエストでない場合のみログアウト処理を行う
+      const isAuthRequest = error.config.url?.includes('auth') || false;
+      if (!isAuthRequest) {
+        console.warn('Authentication error detected, logging out...');
+        clearAuthToken();
+        
+        // 現在のURLを保存してからログインページへリダイレクト
+        const currentPath = window.location.pathname;
+        if (currentPath !== '/login') {
+          sessionStorage.setItem('redirectAfterLogin', currentPath);
+          window.location.href = '/login';
         }
       }
     }
     
-    // 認証エラー処理
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+    // 400 Bad Request エラーの適切な処理
+    if (error.response && error.response.status === 400) {
+      // エラーメッセージの整形
+      let errorMessage = 'リクエストが不正です';
+      const data = error.response.data;
+      
+      if (data) {
+        if (typeof data === 'string') {
+          errorMessage = data;
+        } else if (typeof data === 'object') {
+          // フィールドエラーをまとめる
+          const messages = [];
+          
+          Object.entries(data).forEach(([field, errors]) => {
+            if (Array.isArray(errors)) {
+              messages.push(`${field}: ${errors.join(', ')}`);
+            } else if (typeof errors === 'string') {
+              messages.push(`${field}: ${errors}`);
+            }
+          });
+          
+          if (messages.length > 0) {
+            errorMessage = messages.join('\n');
+          }
+        }
+      }
+      
+      // 構造化されたエラー情報を含めて返す
+      error.formattedMessage = errorMessage;
+      error.fieldErrors = data && typeof data === 'object' ? data : null;
+    }
+    
+    // レート制限エラー（429）の処理
+    if (error.response && error.response.status === 429) {
+      console.warn('Rate limit exceeded. Please try again later.');
+      
+      // リトライ情報があれば取得
+      const retryAfter = error.response.headers['retry-after'];
+      if (retryAfter) {
+        console.info(`Retry after ${retryAfter} seconds`);
+      }
+    }
+    
+    // ネットワークエラーの特別処理
+    if (error.message === 'Network Error') {
+      console.error('Network error detected. Please check your internet connection.');
+      
+      // オフラインモードの検知
+      if (!navigator.onLine) {
+        console.warn('Browser is offline. Please reconnect to the internet.');
+        
+        // オンラインに戻ったら通知するイベントリスナー
+        window.addEventListener('online', () => {
+          console.info('Browser is back online. Refreshing data...');
+          // 必要に応じてデータをリフレッシュするイベントを発行
+          window.dispatchEvent(new CustomEvent('app:online'));
+        }, { once: true });
+      }
     }
     
     return Promise.reject(error);

@@ -107,19 +107,21 @@ const LoginPage = () => {
             </div>
             
             <div>
-              <label htmlFor="businessId" className="block text-sm font-medium text-gray-700 mb-1">ビジネスID (任意)</label>
+              <label htmlFor="businessId" className="block text-sm font-medium text-gray-700 mb-1">ビジネスID</label>
               <input
                 id="businessId"
                 type="text"
-                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm"
+                className={`appearance-none relative block w-full px-4 py-3 border ${
+                  errors.businessId ? 'border-red-300 ring-1 ring-red-300' : 'border-gray-300'
+                } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm`}
                 placeholder="your-business-id"
-                defaultValue="3"
-                {...register('businessId')}
+                {...register('businessId', { 
+                  required: 'ビジネスIDは必須です'
+                })}
               />
-              <p className="mt-1 text-xs text-gray-500">
-                デフォルト値「3」はAdmin Businessを指します。
-                または「4」は島谷さんのビジネスを指します。
-              </p>
+              {errors.businessId && (
+                <p className="mt-1 text-xs text-red-600">{errors.businessId.message}</p>
+              )}
             </div>
           </div>
 
@@ -165,12 +167,6 @@ const LoginPage = () => {
             </button>
           </div>
         </form>
-        
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">テスト用アカウント:</p>
-          <p className="text-xs text-gray-500 mt-1">メールアドレス: admin@example.com</p>
-          <p className="text-xs text-gray-500">パスワード: password123</p>
-        </div>
       </div>
     </div>
   );
