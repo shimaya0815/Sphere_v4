@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Controller } from 'react-hook-form';
 
 /**
@@ -12,13 +12,17 @@ const TaskBasicInfoSection = ({
   fiscalYears = [],
   formState = {},
   handleFieldChange,
-  watch = () => null
+  watch = () => null,
+  task
 }) => {
   const selectClassName = "mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md";
   const inputClassName = "mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md";
   
+  // watchが関数でない場合の安全対策
+  const safeWatch = typeof watch === 'function' ? watch : () => null;
+  
   // クライアントの選択状態を監視
-  const selectedClientId = watch('client');
+  const selectedClientId = safeWatch('client');
   
   // 選択されたクライアントに関連する決算期を取得
   const filteredFiscalYears = selectedClientId && fiscalYears
@@ -38,11 +42,12 @@ const TaskBasicInfoSection = ({
             <Controller
               name="status"
               control={control}
+              defaultValue={task?.status || ''}
               render={({ field }) => (
                 <select
                   id="status"
                   className={selectClassName}
-                  {...field}
+                  value={field.value || ''}
                   onChange={(e) => {
                     field.onChange(e);
                     handleFieldChange('status', e.target.value);
@@ -69,6 +74,7 @@ const TaskBasicInfoSection = ({
             <Controller
               name="title"
               control={control}
+              defaultValue={task?.title || ''}
               rules={{ required: 'タイトルは必須です' }}
               render={({ field, fieldState }) => (
                 <div>
@@ -77,7 +83,7 @@ const TaskBasicInfoSection = ({
                     id="title"
                     className={inputClassName}
                     placeholder="タスク名を入力"
-                    {...field}
+                    value={field.value || ''}
                     onChange={(e) => {
                       field.onChange(e);
                       handleFieldChange('title', e.target.value);
@@ -104,12 +110,13 @@ const TaskBasicInfoSection = ({
             <Controller
               name="category"
               control={control}
+              defaultValue={task?.category || ''}
               render={({ field }) => (
                 <div className="relative">
                   <select
                     id="category"
                     className={`${selectClassName} pl-7`} /* 左側にカラーマーカーのスペースを確保 */
-                    {...field}
+                    value={field.value || ''}
                     onChange={(e) => {
                       field.onChange(e);
                       // 「カテゴリーなし」を選択した場合は明示的にnullを送信
@@ -146,11 +153,12 @@ const TaskBasicInfoSection = ({
             <Controller
               name="client"
               control={control}
+              defaultValue={task?.client || ''}
               render={({ field }) => (
                 <select
                   id="client"
                   className={selectClassName}
-                  {...field}
+                  value={field.value || ''}
                   onChange={(e) => {
                     field.onChange(e);
                     // 「クライアントなし」を選択した場合は明示的にnullを送信
@@ -178,15 +186,15 @@ const TaskBasicInfoSection = ({
             <Controller
               name="fiscal_year"
               control={control}
+              defaultValue={task?.fiscal_year || ''}
               render={({ field }) => (
                 <select
                   id="fiscal_year"
                   className={selectClassName}
                   disabled={!selectedClientId}
-                  {...field}
+                  value={field.value || ''}
                   onChange={(e) => {
                     field.onChange(e);
-                    // 「決算期なし」を選択した場合は明示的にnullを送信
                     handleFieldChange('fiscal_year', e.target.value === '' ? null : e.target.value);
                   }}
                 >
@@ -194,7 +202,7 @@ const TaskBasicInfoSection = ({
                   {Array.isArray(filteredFiscalYears) && filteredFiscalYears.map((fiscalYear) => (
                     <option key={fiscalYear.id} value={fiscalYear.id}>
                       {fiscalYear.end_date 
-                        ? fiscalYear.end_date.substring(0, 10) // YYYY-MM-DD形式で表示
+                        ? fiscalYear.end_date.substring(0, 10) 
                         : (fiscalYear.year ? `${fiscalYear.year}-12-31` : '決算期')}
                       {(fiscalYear.fiscal_period || fiscalYear.period) ? `(第${fiscalYear.fiscal_period || fiscalYear.period}期)` : ''}
                       {fiscalYear.is_current && ' (現在)'}

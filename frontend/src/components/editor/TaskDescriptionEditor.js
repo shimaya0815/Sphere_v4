@@ -19,6 +19,7 @@ const CustomFormats = [
 const QuillEditor = forwardRef((props, ref) => {
   return <ReactQuill ref={ref} {...props} />;
 });
+QuillEditor.displayName = 'QuillEditor'; // displayNameを追加して開発ツールでの識別を容易に
 
 /**
  * Slackスタイルのリッチテキストエディタ
