@@ -214,6 +214,43 @@ const TaskBasicInfoSection = ({
           </div>
         </div>
       </div>
+      
+      {/* タグ選択フィールド */}
+      <div className="mt-4">
+        <label htmlFor="tags" className="block text-sm font-medium text-gray-700">
+          タグ
+        </label>
+        <div className="mt-1">
+          <Controller
+            name="tags"
+            control={control}
+            defaultValue={task?.tags || []}
+            render={({ field }) => (
+              <div>
+                <select
+                  id="tags"
+                  className={selectClassName}
+                  multiple
+                  value={field.value || []}
+                  onChange={(e) => {
+                    // 複数選択の値を配列として取得
+                    const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+                    field.onChange(selectedOptions);
+                    handleFieldChange('tags', selectedOptions);
+                  }}
+                >
+                  <option value="1">重要</option>
+                  <option value="2">緊急</option>
+                  <option value="3">要注意</option>
+                  <option value="4">要フォロー</option>
+                  <option value="5">簡単</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">※Ctrlキーを押しながらクリックで複数選択</p>
+              </div>
+            )}
+          />
+        </div>
+      </div>
     </>
   );
 };
