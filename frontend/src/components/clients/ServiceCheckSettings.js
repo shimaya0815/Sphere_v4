@@ -46,6 +46,11 @@ const createDefaultSchedule = async (scheduleName, scheduleType, recurrence) => 
       deadline_day: deadlineDay
     };
     
+    // fiscal_relative型の場合のみ、fiscal_date_referenceを設定
+    if (scheduleType === 'fiscal_relative') {
+      scheduleData.fiscal_date_reference = 'end_date';
+    }
+    
     // APIを呼び出してスケジュールを作成
     const newSchedule = await clientsApi.createTaskTemplateSchedule(scheduleData);
     console.log('Created new schedule:', newSchedule);

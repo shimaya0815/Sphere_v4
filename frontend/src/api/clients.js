@@ -268,7 +268,13 @@ export const getClientTaskTemplate = async (templateId) => {
  */
 export const createClientTaskTemplate = async (clientId, data) => {
   try {
-    const response = await apiClient.post(`/clients/clients/${clientId}/task-templates/`, data);
+    // クライアントIDをデータに含める
+    const requestData = {
+      ...data,
+      client: clientId
+    };
+    // 正しいエンドポイント（ViewSetが公開しているPOST可能なエンドポイント）を使用
+    const response = await apiClient.post(`/clients/client-task-templates/`, requestData);
     return response.data;
   } catch (error) {
     console.error(`Error creating client task template for client ${clientId}:`, error);

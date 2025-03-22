@@ -116,6 +116,11 @@ const TaskTemplateScheduleForm = ({ schedule, onSubmit, onClose }) => {
         deadline_day: formData.deadline_day !== '' ? parseInt(formData.deadline_day) : null
       };
       
+      // fiscal_relativeタイプ以外の場合はfiscal_date_referenceをnullに設定
+      if (formData.schedule_type !== 'fiscal_relative') {
+        submissionData.fiscal_date_reference = null;
+      }
+      
       await onSubmit(submissionData);
       onClose();
     } catch (error) {
