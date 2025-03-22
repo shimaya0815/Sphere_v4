@@ -42,6 +42,9 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
   
   // 追加のステート変数
   const [fiscalYears, setFiscalYears] = useState([]);
+  // タスクテンプレート管理用の状態
+  const [showTaskTemplateModal, setShowTaskTemplateModal] = useState(false);
+  const [selectedTaskService, setSelectedTaskService] = useState(null);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -282,6 +285,18 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
     }
   };
   
+  const handleShowTaskTemplateModal = (serviceType) => {
+    setSelectedTaskService(serviceType);
+    setShowTaskTemplateModal(true);
+  };
+  
+  const handleTaskTemplateSaveComplete = () => {
+    // データ更新のロジックがあれば実装
+    toast.success('タスク設定を更新しました');
+    // モーダルを閉じる
+    setShowTaskTemplateModal(false);
+  };
+  
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -338,22 +353,6 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
           </button>
         </div>
       </div>
-
-      {/* データのデバッグ表示 - 開発中のみ */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="mb-4 p-3 border border-yellow-300 bg-yellow-50 rounded-md text-sm">
-          <p><strong>開発用デバッグ情報:</strong></p>
-          <p>clientId: {clientId || 'null'} (型: {typeof clientId})</p>
-          <p>loading: {loading ? 'true' : 'false'}</p>
-          <p>formData: {formData ? `データあり (${Object.keys(formData).length}項目)` : 'データなし'}</p>
-          {formData && (
-            <div>
-              <p>name: {formData.name || '未設定'}</p>
-              <p>client_code: {formData.client_code || '未設定'}</p>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* タブセクション */}
       <div className="tabs tabs-boxed mb-6">
@@ -924,7 +923,24 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
       {/* タスク設定タブ */}
       {activeTab === 'task_settings' && clientId && (
         <div className="mt-6">
-          <ServiceCheckSettings clientId={clientId} />
+          <div className="bg-white rounded-lg shadow overflow-hidden mb-6">
+            <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between">
+              <h3 className="font-semibold text-gray-800 flex items-center">
+                <HiOutlineClipboardCheck className="mr-2" />
+                タスク設定
+              </h3>
+              <button 
+                type="button"
+                className="btn btn-sm btn-outline btn-primary"
+                onClick={() => handleShowTaskTemplateModal('advisory')}
+              >
+                <HiOutlinePlus className="mr-1" /> 新規登録
+              </button>
+            </div>
+            <div className="p-4">
+              <ServiceCheckSettings clientId={clientId} />
+            </div>
+          </div>
         </div>
       )}
       
@@ -1004,6 +1020,100 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
         </div>
       </div>
       
+      {/* タスクテンプレートモーダル */}
+      {showTaskTemplateModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">タスク設定</h2>
+              <button
+                type="button"
+                className="btn btn-sm btn-ghost"
+                onClick={() => setShowTaskTemplateModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-4 bg-gray-50 rounded-lg mb-4">
+              <p className="text-sm text-gray-600">
+                設定したいタスクの内容を選択し、スケジュールを設定してください。
+              </p>
+            </div>
+            <div className="space-y-4">
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">タスクタイプ</span>
+                </label>
+                <select
+                  className="select select-bordered w-full"
+                  value={selectedTaskService || ''}
+                  onChange={(e) => setSelectedTaskService(e.target.value)}
+                >
+                  <option value="advisory">顧問契約</option>
+                  <option value="tax_return_final">決算申告</option>
+                  <option value="tax_return_interim">中間申告</option>
+                  <option value="bookkeeping">記帳代行</option>
+                  <option value="payroll">給与計算</option>
+                  <option value="tax_withholding_standard">源泉所得税(原則)</option>
+                  <option value="tax_withholding_special">源泉所得税(特例)</option>
+                  <option value="resident_tax_standard">住民税(原則)</option>
+                  <option value="resident_tax_special">住民税(特例)</option>
+                  <option value="social_insurance">社会保険</option>
+                </select>
+              </div>
+              
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">繰り返し</span>
+                </label>
+                <select className="select select-bordered w-full">
+                  <option value="monthly">毎月</option>
+                  <option value="quarterly">四半期ごと</option>
+                  <option value="yearly">毎年</option>
+                </select>
+              </div>
+              
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">スケジュールタイプ</span>
+                </label>
+                <select className="select select-bordered w-full">
+                  <option value="monthly_start">月初作成 (1日)・当月締め切り (5日)</option>
+                  <option value="monthly_end">月末作成 (25日)・翌月締め切り (10日)</option>
+                  <option value="fiscal_relative">決算日基準</option>
+                </select>
+              </div>
+              
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">開始日</span>
+                </label>
+                <input
+                  type="date"
+                  className="input input-bordered w-full"
+                  defaultValue={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end mt-6 space-x-2">
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setShowTaskTemplateModal(false)}
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleTaskTemplateSaveComplete}
+              >
+                保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   );
 };
