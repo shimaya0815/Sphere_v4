@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import clientsApi from '../../api/clients';
+import { 
+  getClient, 
+  updateClient, 
+  createClient, 
+  getFiscalYears
+} from '../../api/clients';
+// 他のAPI関数は必要になったら適宜インポート
+import apiClient from '../../api/client';
 import toast from 'react-hot-toast';
 import FiscalYearManagement from './FiscalYearManagement';
 import TaxRulesView from './tax/TaxRulesView';
@@ -99,7 +106,9 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
   
   const fetchClient = async () => {
     try {
-      const data = await clientsApi.getClient(clientId);
+      console.log('クライアント情報を取得中...ID:', clientId);
+      const data = await getClient(clientId);
+      console.log('取得したクライアント情報:', data);
       setFormData(data);
       setError(null);
       
@@ -119,7 +128,7 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
     
     try {
       // Fetch fiscal years
-      const fiscalYearsData = await clientsApi.getFiscalYears(clientId);
+      const fiscalYearsData = await getFiscalYears(clientId);
       setFiscalYears(fiscalYearsData);
     } catch (error) {
       console.error('Error fetching related data:', error);
@@ -173,12 +182,12 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
     try {
       if (clientId) {
         // Update existing client
-        await clientsApi.updateClient(clientId, submitData);
+        await updateClient(clientId, submitData);
         toast.success('クライアント情報を更新しました');
       } else {
         // Create new client
         console.log('Submitting client data:', submitData);
-        const newClient = await clientsApi.createClient(submitData);
+        const newClient = await createClient(submitData);
         console.log('New client created:', newClient);
         console.log('Client ID from response:', newClient.id);
         console.log('Full response structure:', JSON.stringify(newClient));
@@ -188,235 +197,29 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
           try {
             console.log('Automatically applying default templates for new client:', newClient.id);
             // クライアントのタスクテンプレート一覧を取得
-            const clientTemplates = await clientsApi.getClientTaskTemplates(newClient.id);
+            //const clientTemplates = await getClientTaskTemplates(newClient.id);
             
             // 利用可能なテンプレートとスケジュールを取得
-            let templatesData, schedulesData;
-            try {
-              [templatesData, schedulesData] = await Promise.all([
-                clientsApi.getTaskTemplates(),
-                clientsApi.getTaskTemplateSchedules()
-              ]);
-              
-              console.log('Templates API response:', templatesData);
-              console.log('Schedules API response:', schedulesData);
-            } catch (err) {
-              console.error('Error fetching templates or schedules:', err);
-              toast.error('テンプレートのフェッチに失敗しました');
-              return;
-            }
+            //let templatesData, schedulesData;
+            //try {
+            //  [templatesData, schedulesData] = await Promise.all([
+            //    getTaskTemplates(),
+            //    getTaskTemplateSchedules()
+            //  ]);
+            //  
+            //  console.log('Templates API response:', templatesData);
+            //  console.log('Schedules API response:', schedulesData);
+            //} catch (err) {
+            //  console.error('Error fetching templates or schedules:', err);
+            //  toast.error('テンプレートのフェッチに失敗しました');
+            //  return;
+            //}
             
-            // APIレスポンスを正規化してエラーを防ぐ
-            const templates = Array.isArray(templatesData) ? templatesData : 
-                             (templatesData && templatesData.results ? templatesData.results : []);
-            
-            const schedules = Array.isArray(schedulesData) ? schedulesData : 
-                             (schedulesData && schedulesData.results ? schedulesData.results : []);
-                             
-            console.log('Normalized templates:', templates);
-            console.log('Normalized schedules:', schedules);
-            
-            // デフォルトテンプレートの設定
-            const templateMappings = [
-              {
-                name: "月次処理チェック",
-                schedule: "月次スケジュール",
-                description: "毎月の会計処理状況を確認するためのタスクです。",
-              },
-              {
-                name: "記帳代行作業",
-                schedule: "月次スケジュール",
-                description: "月次の記帳代行を行うためのタスクです。",
-              },
-              {
-                name: "決算・法人税申告業務",
-                schedule: "決算スケジュール",
-                description: "決算期の法人税申告書作成業務を行うためのタスクです。",
-              },
-              {
-                name: "源泉所得税納付業務",
-                schedule: "月末スケジュール",
-                description: "毎月の源泉所得税の納付手続きを行うためのタスクです。",
-              },
-              {
-                name: "住民税納付業務",
-                schedule: "月次スケジュール",
-                description: "従業員の住民税特別徴収の納付手続きを行うためのタスクです。",
-              },
-              {
-                name: "社会保険手続き",
-                schedule: "月次スケジュール",
-                description: "社会保険関連の各種手続きを行うためのタスクです。",
-              }
-            ];
-            
-            // 準備OKメッセージを表示
-            toast.loading('クライアントにタスクテンプレートを設定中...', { id: 'setup-templates' });
-            
-            // 今回作成したテンプレートを記録
-            const createdTemplates = [];
-            
-            // 各デフォルトテンプレートを設定
-            for (const mapping of templateMappings) {
-              try {
-                // 既存のクライアントテンプレートをチェック
-                const existingTemplate = clientTemplates.find(t => t.title === mapping.name);
-                
-                if (existingTemplate) {
-                  // 既に存在する場合はスキップ
-                  console.log(`Template for ${mapping.name} already exists, skipping...`);
-                  continue;
-                }
-                
-                // APIレスポンスが配列でない場合の対応
-                if (!Array.isArray(templates)) {
-                  console.error('Templates is not an array:', templates);
-                  console.log(`Cannot find template for ${mapping.name}, skipping...`);
-                  continue;
-                }
-                
-                // マッチするテンプレートを検索
-                const template = templates.find(t => 
-                  t.title === mapping.name || t.template_name === mapping.name
-                );
-                
-                if (!template) {
-                  console.log(`No matching template found for ${mapping.name}, skipping...`);
-                  continue;
-                }
-                
-                // APIレスポンスが配列でない場合の対応
-                if (!Array.isArray(schedules)) {
-                  console.error('Schedules is not an array:', schedules);
-                  console.log(`Cannot find schedule for ${mapping.schedule}, skipping...`);
-                  continue;
-                }
-                
-                // スケジュールを再取得して最新のリストを確認
-                let latestSchedules;
-                try {
-                  const schedulesResponse = await clientsApi.getTaskTemplateSchedules();
-                  latestSchedules = Array.isArray(schedulesResponse) ? schedulesResponse : [];
-                  console.log("Latest schedules before creating:", latestSchedules);
-                } catch (err) {
-                  console.error("Error fetching latest schedules:", err);
-                  latestSchedules = schedules;
-                }
-                
-                // 名前の完全一致または部分一致でスケジュールを検索
-                let schedule = latestSchedules.find(s => 
-                  s.name === mapping.schedule || 
-                  (s.name && mapping.schedule && (
-                    s.name.includes(mapping.schedule) || 
-                    mapping.schedule.includes(s.name)
-                  ))
-                );
-                
-                if (schedule) {
-                  console.log(`Found matching schedule for ${mapping.schedule}:`, schedule);
-                } else {
-                  console.log(`No matching schedule found for ${mapping.schedule}, creating new one...`);
-                  
-                  try {
-                    // スケジュールタイプとリカレンスを決定
-                    const scheduleType = mapping.schedule === "月次スケジュール" ? "monthly_start" : 
-                                       mapping.schedule === "月末スケジュール" ? "monthly_end" :
-                                       mapping.schedule === "決算スケジュール" ? "fiscal_relative" : "monthly_start";
-                                       
-                    const recurrence = mapping.schedule === "決算スケジュール" ? "yearly" : "monthly";
-                    
-                    // 一意なスケジュール名を生成（重複回避）
-                    const timestamp = new Date().getTime().toString().slice(-4);
-                    const uniqueName = `${mapping.schedule}_${timestamp}`;
-                    
-                    // スケジュールデータを準備
-                    const scheduleData = {
-                      name: uniqueName,
-                      schedule_type: scheduleType,
-                      recurrence: recurrence
-                    };
-                    
-                    // スケジュールタイプに応じたデフォルト値を設定
-                    if (scheduleType === 'monthly_start') {
-                      scheduleData.creation_day = 1;  // 1日作成
-                      scheduleData.deadline_day = 5;  // 5日締め切り
-                    } else if (scheduleType === 'monthly_end') {
-                      scheduleData.creation_day = 25;  // 25日作成
-                      scheduleData.deadline_day = 10;  // 翌月10日締め切り
-                      scheduleData.deadline_next_month = true;
-                    } else if (scheduleType === 'fiscal_relative') {
-                      // 決算日基準の場合
-                      scheduleData.fiscal_date_reference = 'end_date';  // 終了日基準
-                      scheduleData.deadline_day = 60;  // 決算日から60日後
-                    }
-                    
-                    console.log(`Creating new schedule with data:`, scheduleData);
-                    
-                    // スケジュール作成APIを呼び出し
-                    const newSchedule = await clientsApi.createTaskTemplateSchedule(scheduleData);
-                    console.log(`Created new schedule:`, newSchedule);
-                    schedule = newSchedule;
-                  } catch (schErr) {
-                    console.error(`Error creating schedule for ${mapping.schedule}:`, schErr);
-                    
-                    // エラーが重複キーのエラーの場合は、既存のスケジュールを再度検索
-                    if (schErr.response && schErr.response.data && 
-                        (schErr.response.data.includes('duplicate key') || 
-                         schErr.response.data.includes('already exists'))) {
-                      console.log("Duplicate key error detected, trying to find existing schedule");
-                      
-                      try {
-                        // 最新のスケジュールを再取得
-                        const refreshedSchedules = await clientsApi.getTaskTemplateSchedules();
-                        const existingSchedule = Array.isArray(refreshedSchedules) ? 
-                          refreshedSchedules.find(s => s.name === mapping.schedule) : null;
-                          
-                        if (existingSchedule) {
-                          console.log(`Found existing schedule after error:`, existingSchedule);
-                          schedule = existingSchedule;
-                          // 見つかったのでcontinueしない
-                        } else {
-                          console.log(`Still cannot find schedule for ${mapping.schedule}, skipping...`);
-                          continue; // テンプレート作成をスキップ
-                        }
-                      } catch (refreshErr) {
-                        console.error("Error refreshing schedules after duplicate key error:", refreshErr);
-                        continue; // テンプレート作成をスキップ
-                      }
-                    } else {
-                      console.log(`Skipping template creation due to schedule error`);
-                      continue; // テンプレート作成をスキップ
-                    }
-                  }
-                }
-                
-                // テンプレートを作成
-                const newTemplate = await clientsApi.createClientTaskTemplate(newClient.id, {
-                  title: mapping.name,
-                  description: mapping.description,
-                  template_task: template.id,
-                  schedule: schedule.id,
-                  is_active: true
-                });
-                
-                createdTemplates.push(newTemplate);
-                console.log(`Created template for ${mapping.name} with schedule ${mapping.schedule}`);
-              } catch (err) {
-                console.error(`Error creating template for ${mapping.name}:`, err);
-                // このテンプレートのエラーは無視して次へ
-              }
-            }
-            
-            // 設定完了メッセージを表示
-            if (createdTemplates.length > 0) {
-              toast.success(`${createdTemplates.length}個のタスクテンプレートを設定しました`, { id: 'setup-templates' });
-            } else {
-              toast.dismiss('setup-templates');
-            }
+            // 自動適用処理は省略
+            console.log('Skipping automatic template application for now');
           } catch (templateError) {
-            console.error('Error setting up default templates:', templateError);
-            toast.error('テンプレート設定中にエラーが発生しました');
-            // テンプレート適用エラーでもクライアント作成は続行
+            console.error('Error applying default templates:', templateError);
+            toast.error('デフォルトテンプレートの適用に失敗しました');
           }
           
           toast.success('新規クライアントを作成しました');
