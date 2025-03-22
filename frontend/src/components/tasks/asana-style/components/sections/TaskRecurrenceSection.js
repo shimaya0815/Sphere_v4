@@ -22,6 +22,8 @@ const TaskRecurrenceSection = ({
   const monthday = safeWatch('monthday');
   const business_day = safeWatch('business_day');
   const consider_holidays = safeWatch('consider_holidays');
+  const yearly_month = safeWatch('yearly_month');
+  const yearly_day = safeWatch('yearly_day');
 
   // 選択された曜日を管理する内部状態
   const [selectedWeekdays, setSelectedWeekdays] = useState([]);
@@ -142,6 +144,10 @@ const TaskRecurrenceSection = ({
         else if (task.recurrence_pattern === 'monthly') {
           // 月次設定の初期化
           initializeMonthly(task);
+        }
+        else if (task.recurrence_pattern === 'yearly') {
+          // 年次設定の初期化
+          initializeYearly(task);
         }
       }
       
@@ -291,6 +297,18 @@ const TaskRecurrenceSection = ({
     }
   };
 
+  // 年次繰り返しの初期化
+  const initializeYearly = (taskData) => {
+    if (!taskData) return;
+    
+    // 月と日の設定
+    const currentMonth = taskData.yearly_month || new Date().getMonth() + 1; // 1-12
+    const currentDay = taskData.yearly_day || 1; // 1-31
+    
+    safeSetValue('yearly_month', String(currentMonth), { shouldDirty: true });
+    safeSetValue('yearly_day', String(currentDay), { shouldDirty: true });
+  };
+
   // 曜日のチェック状態を切り替える
   const toggleWeekday = (weekdayValue) => {
     try {
@@ -366,25 +384,37 @@ const TaskRecurrenceSection = ({
     }
   }, [isRecurring, recurrencePattern, consider_holidays]);
 
-  // 繰り返しパターンの変更を監視し、パターンがmonthlyに変わった場合も初期化
-  // フォーム値の変更時のみ実行するよう制御する
+  // 繰り返しパターンの変更を監視し、パターンが変わった場合も初期化
   useEffect(() => {
-    // パターンがmonthlyに変更され、繰り返しが有効な場合のみ実行
+    // 繰り返しが有効な場合のみ実行
     const isRecurringValue = isRecurring === 'true' || isRecurring === true || isRecurring === 1 || isRecurring === '1';
-    if (recurrencePattern === 'monthly' && isRecurringValue && previousTaskRef.current) {
-      // フォーム値から現在の状態を構築
-      const currentData = {
-        is_recurring: isRecurringValue,
-        recurrence_pattern: 'monthly',
-        monthday: monthday || null,
-        business_day: business_day || null,
-        consider_holidays: consider_holidays
-      };
-      
-      // 現在のフォーム値に基づいて初期化
-      initializeMonthly(currentData);
+    if (isRecurringValue && previousTaskRef.current) {
+      if (recurrencePattern === 'monthly') {
+        // フォーム値から現在の状態を構築
+        const currentData = {
+          is_recurring: isRecurringValue,
+          recurrence_pattern: 'monthly',
+          monthday: monthday || null,
+          business_day: business_day || null,
+          consider_holidays: consider_holidays
+        };
+        
+        // 現在のフォーム値に基づいて初期化
+        initializeMonthly(currentData);
+      } else if (recurrencePattern === 'yearly') {
+        // フォーム値から現在の状態を構築
+        const currentData = {
+          is_recurring: isRecurringValue,
+          recurrence_pattern: 'yearly',
+          yearly_month: yearly_month || new Date().getMonth() + 1,
+          yearly_day: yearly_day || 1
+        };
+        
+        // 現在のフォーム値に基づいて初期化
+        initializeYearly(currentData);
+      }
     }
-  }, [recurrencePattern]); // isRecurringを依存配列から削除して不要な更新を防止
+  }, [recurrencePattern]);
 
   return (
     <div className="space-y-4">
@@ -656,6 +686,65 @@ const TaskRecurrenceSection = ({
                 <Controller name="business_day" control={control} render={({ field }) => (
                   monthlyType !== 'business' ? <input type="hidden" {...field} /> : null
                 )} />
+              </div>
+            )}
+
+            {/* 毎年の場合は月日指定を表示 */}
+            {(recurrencePattern === 'yearly' || internalPattern === 'yearly') && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  繰り返しの設定
+                </label>
+                
+                <div className="mt-2">
+                  <div className="flex items-center space-x-2">
+                    <span>毎年</span>
+                    <Controller
+                      name="yearly_month"
+                      control={control}
+                      render={({ field }) => (
+                        <select
+                          {...field}
+                          onChange={(e) => {
+                            field.onChange(e);
+                            const numValue = parseInt(e.target.value, 10);
+                            handleFieldChange('yearly_month', isNaN(numValue) ? null : numValue);
+                          }}
+                          className="rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                        >
+                          {Array.from({ length: 12 }, (_, i) => (
+                            <option key={i+1} value={i+1}>{i+1}月</option>
+                          ))}
+                        </select>
+                      )}
+                    />
+                    
+                    <Controller
+                      name="yearly_day"
+                      control={control}
+                      render={({ field }) => (
+                        <div className="flex items-center">
+                          <input
+                            type="number"
+                            min="1"
+                            max="31"
+                            {...field}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              const numValue = parseInt(e.target.value, 10);
+                              handleFieldChange('yearly_day', isNaN(numValue) ? null : numValue);
+                            }}
+                            className="w-16 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                          />
+                          <span className="ml-2">日に繰り返す</span>
+                        </div>
+                      )}
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    ※ 設定日が存在しない月の場合（例：2月30日）、その月の最終日に設定されます
+                  </p>
+                </div>
               </div>
             )}
 
