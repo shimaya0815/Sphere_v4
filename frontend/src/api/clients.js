@@ -252,7 +252,7 @@ export const getClientTaskTemplates = async (clientId) => {
  */
 export const getClientTaskTemplate = async (templateId) => {
   try {
-    const response = await apiClient.get(`/api/clients/task-templates/${templateId}/`);
+    const response = await apiClient.get(`/clients/client-task-templates/${templateId}/`);
     return response.data;
   } catch (error) {
     console.error(`Error fetching client task template ${templateId}:`, error);
@@ -268,7 +268,7 @@ export const getClientTaskTemplate = async (templateId) => {
  */
 export const createClientTaskTemplate = async (clientId, data) => {
   try {
-    const response = await apiClient.post(`/api/clients/${clientId}/task-templates/`, data);
+    const response = await apiClient.post(`/clients/clients/${clientId}/task-templates/`, data);
     return response.data;
   } catch (error) {
     console.error(`Error creating client task template for client ${clientId}:`, error);
@@ -284,7 +284,7 @@ export const createClientTaskTemplate = async (clientId, data) => {
  */
 export const updateClientTaskTemplate = async (templateId, data) => {
   try {
-    const response = await apiClient.patch(`/api/clients/task-templates/${templateId}/`, data);
+    const response = await apiClient.patch(`/clients/client-task-templates/${templateId}/`, data);
     return response.data;
   } catch (error) {
     console.error(`Error updating client task template ${templateId}:`, error);
@@ -299,7 +299,7 @@ export const updateClientTaskTemplate = async (templateId, data) => {
  */
 export const deleteClientTaskTemplate = async (templateId) => {
   try {
-    await apiClient.delete(`/api/clients/task-templates/${templateId}/`);
+    await apiClient.delete(`/clients/client-task-templates/${templateId}/`);
   } catch (error) {
     console.error(`Error deleting client task template ${templateId}:`, error);
     throw error;
@@ -313,7 +313,7 @@ export const deleteClientTaskTemplate = async (templateId) => {
  */
 export const createTaskTemplateSchedule = async (data) => {
   try {
-    const response = await apiClient.post('/api/clients/schedules/', data);
+    const response = await apiClient.post('/clients/schedules/', data);
     return response.data;
   } catch (error) {
     console.error('Error creating task template schedule:', error);
@@ -329,7 +329,7 @@ export const createTaskTemplateSchedule = async (data) => {
  */
 export const updateTaskTemplateSchedule = async (scheduleId, data) => {
   try {
-    const response = await apiClient.patch(`/api/clients/schedules/${scheduleId}/`, data);
+    const response = await apiClient.patch(`/clients/schedules/${scheduleId}/`, data);
     return response.data;
   } catch (error) {
     console.error(`Error updating task template schedule ${scheduleId}:`, error);
@@ -344,7 +344,7 @@ export const updateTaskTemplateSchedule = async (scheduleId, data) => {
  */
 export const deleteTaskTemplateSchedule = async (scheduleId) => {
   try {
-    await apiClient.delete(`/api/clients/schedules/${scheduleId}/`);
+    await apiClient.delete(`/clients/schedules/${scheduleId}/`);
   } catch (error) {
     console.error(`Error deleting task template schedule ${scheduleId}:`, error);
     throw error;
@@ -358,7 +358,7 @@ export const deleteTaskTemplateSchedule = async (scheduleId) => {
  */
 export const generateTaskFromTemplate = async (templateId) => {
   try {
-    const response = await apiClient.post(`/api/clients/task-templates/${templateId}/generate_task/`);
+    const response = await apiClient.post(`/clients/client-task-templates/${templateId}/generate_task/`);
     return response.data;
   } catch (error) {
     console.error(`Error generating task from template ${templateId}:`, error);

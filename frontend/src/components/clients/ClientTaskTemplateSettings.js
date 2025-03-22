@@ -177,7 +177,7 @@ const ClientTaskTemplateSettings = ({ clientId, client }) => {
             };
             
             // タスク作成APIを呼び出す
-            const newTask = await fetch('/api/tasks/', {
+            const newTask = await fetch('/tasks/tasks/', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
