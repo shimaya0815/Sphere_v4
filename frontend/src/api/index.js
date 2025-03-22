@@ -28,32 +28,6 @@ export {
   timeManagementApi
 };
 
-// clientsApiのスタブを作成して既存コードを壊さないようにする
-export const clientsApi = {
-  getClient: () => Promise.resolve({}),
-  getClients: () => Promise.resolve([]),
-  createClient: () => Promise.resolve({}),
-  updateClient: () => Promise.resolve({}),
-  deleteClient: () => Promise.resolve({}),
-  getFiscalYears: () => Promise.resolve([]),
-  createFiscalYear: () => Promise.resolve({}),
-  updateFiscalYear: () => Promise.resolve({}),
-  deleteFiscalYear: () => Promise.resolve({}),
-  getTaxRules: () => Promise.resolve([]),
-  createTaxRule: () => Promise.resolve({}),
-  updateTaxRule: () => Promise.resolve({}),
-  deleteTaxRule: () => Promise.resolve({}),
-  getServiceChecks: () => Promise.resolve([]),
-  createServiceCheck: () => Promise.resolve({}),
-  updateServiceCheck: () => Promise.resolve({}),
-  deleteServiceCheck: () => Promise.resolve({}),
-  getTemplates: () => Promise.resolve([]),
-  getTaskTemplates: () => Promise.resolve([]),
-  createTemplate: () => Promise.resolve({}),
-  updateTemplate: () => Promise.resolve({}),
-  deleteTemplate: () => Promise.resolve({})
-};
-
 // businessApiのスタブを作成
 export const businessApi = {
   getBusiness: () => Promise.resolve({}),
