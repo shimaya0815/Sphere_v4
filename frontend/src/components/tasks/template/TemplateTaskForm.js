@@ -1,7 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import { tasksApi } from '../../../api';
+import { 
+  getTemplate,
+  getTask,
+  createTemplateTask, 
+  updateTemplateTask, 
+  createPriorityForValue,
+  createTaskSchedule
+} from '../../../api/tasks';
 // 共通コンポーネントのインポート
 import useTaskFormData from '../common/useTaskFormData';
 import { FormSubmitButtons } from '../common/FormFieldGroups';
@@ -72,7 +79,7 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
     const fetchParentTemplate = async () => {
       if (parentTemplateId) {
         try {
-          const data = await tasksApi.getTemplate(parentTemplateId);
+          const data = await getTemplate(parentTemplateId);
           setParentTemplate(data);
         } catch (error) {
           console.error('Error fetching parent template:', error);
@@ -89,7 +96,7 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
     if (templateTaskId) {
       const fetchExistingTask = async () => {
         try {
-          const task = await tasksApi.getTemplateTask(templateTaskId);
+          const task = await getTask(templateTaskId);
           
           // IDを文字列に変換する関数
           const getIdAsString = (field) => {
@@ -147,7 +154,7 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
         const priorityValue = parseInt(data.priority_value, 10);
         if (!isNaN(priorityValue) && priorityValue >= 1 && priorityValue <= 100) {
           try {
-            const priorityResponse = await tasksApi.createPriorityForValue(priorityValue);
+            const priorityResponse = await createPriorityForValue(priorityValue);
             priorityId = priorityResponse.id;
             console.log(`優先度 ${priorityValue} のレコードを取得: ID=${priorityId}`);
           } catch (error) {
@@ -188,7 +195,7 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
         
         // Create or update schedule if needed
         if (scheduleData) {
-          const newSchedule = await tasksApi.createTaskSchedule(scheduleData);
+          const newSchedule = await createTaskSchedule(scheduleData);
           formattedData.schedule = newSchedule.id;
         }
       }
@@ -196,11 +203,11 @@ const TemplateTaskForm = ({ parentTemplateId, templateTaskId = null, onSuccess, 
       let result;
       if (templateTaskId) {
         // Update existing template task
-        result = await tasksApi.updateTemplateTask(templateTaskId, formattedData);
+        result = await updateTemplateTask(templateTaskId, formattedData);
         toast.success('テンプレートタスクが更新されました');
       } else {
         // Create new template task
-        result = await tasksApi.createTemplateTask(formattedData);
+        result = await createTemplateTask(formattedData);
         toast.success('テンプレートタスクが作成されました');
       }
       
