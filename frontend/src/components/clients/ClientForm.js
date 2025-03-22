@@ -8,6 +8,7 @@ import {
 } from '../../api/clients';
 // 他のAPI関数は必要になったら適宜インポート
 import apiClient from '../../api/client';
+import tasksApi from '../../api/tasks/index';
 import toast from 'react-hot-toast';
 import FiscalYearManagement from './FiscalYearManagement';
 import TaxRulesView from './tax/TaxRulesView';
@@ -233,23 +234,80 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
             //const clientTemplates = await getClientTaskTemplates(newClient.id);
             
             // 利用可能なテンプレートとスケジュールを取得
-            //let templatesData, schedulesData;
-            //try {
-            //  [templatesData, schedulesData] = await Promise.all([
-            //    getTaskTemplates(),
-            //    getTaskTemplateSchedules()
-            //  ]);
-            //  
-            //  console.log('Templates API response:', templatesData);
-            //  console.log('Schedules API response:', schedulesData);
-            //} catch (err) {
-            //  console.error('Error fetching templates or schedules:', err);
-            //  toast.error('テンプレートのフェッチに失敗しました');
-            //  return;
-            //}
+            let templatesData, schedulesData;
+            try {
+              [templatesData, schedulesData] = await Promise.all([
+                tasksApi.getTemplates(),
+                clientsApi.getTaskTemplateSchedules()
+              ]);
+              
+              console.log('Templates API response:', templatesData);
+              console.log('Schedules API response:', schedulesData);
+              
+              // テンプレートが取得できたら自動で適用
+              if (templatesData && templatesData.length > 0) {
+                const defaultTemplateNames = [
+                  '顧問契約タスク',
+                  '決算申告タスク',
+                  '中間申告タスク',
+                  '予定申告タスク',
+                  '記帳代行業務',
+                  '給与計算業務',
+                  '源泉所得税(原則)納付',
+                  '源泉所得税(特例)納付',
+                  '住民税(原則)納付',
+                  '住民税(特例)納付',
+                  '社会保険手続き',
+                  'その他のタスク'
+                ];
+                
+                // 各デフォルトテンプレートを適用
+                for (const templateName of defaultTemplateNames) {
+                  // 対応するテンプレートを検索
+                  const template = templatesData.find(t => 
+                    t.title === templateName || 
+                    t.template_name === templateName
+                  );
+                  
+                  if (template) {
+                    // スケジュールを検索または作成
+                    let scheduleId = null;
+                    let scheduleName = `${templateName}スケジュール`;
+                    
+                    // 既存のスケジュールを検索
+                    const schedule = schedulesData?.find(s => s.name === scheduleName);
+                    
+                    if (schedule) {
+                      scheduleId = schedule.id;
+                    }
+                    
+                    // テンプレートをクライアントに適用
+                    try {
+                      await clientsApi.createClientTaskTemplate(newClient.id, {
+                        title: templateName,
+                        description: template.description,
+                        template_task: template.id,
+                        schedule: scheduleId,
+                        is_active: true,
+                        start_date: new Date().toISOString().split('T')[0]
+                      });
+                      console.log(`Applied template: ${templateName} to client ${newClient.id}`);
+                    } catch (err) {
+                      console.error(`Error applying template ${templateName}:`, err);
+                    }
+                  }
+                }
+                
+                toast.success('デフォルトテンプレートを適用しました');
+              }
+            } catch (err) {
+              console.error('Error fetching templates or schedules:', err);
+              toast.error('テンプレートのフェッチに失敗しました');
+              return;
+            }
             
             // 自動適用処理は省略
-            console.log('Skipping automatic template application for now');
+            console.log('Completed default template application');
           } catch (templateError) {
             console.error('Error applying default templates:', templateError);
             toast.error('デフォルトテンプレートの適用に失敗しました');

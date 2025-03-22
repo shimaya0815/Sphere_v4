@@ -19,51 +19,99 @@ import {
 // デフォルトのテンプレート定義
 const DEFAULT_TEMPLATES = [
   {
-    title: '月次処理チェック',
-    description: '毎月の処理状況を確認し、必要な対応を行います。',
+    title: '顧問契約タスク',
+    description: '顧問契約に基づく月次の会計処理状況を確認するためのタスクです。',
     category_name: '一般',
     estimated_hours: 2,
-    template_name: 'デフォルト月次チェック',
+    template_name: '顧問契約タスク',
     recurrence_pattern: 'monthly'
+  },
+  {
+    title: '決算申告タスク',
+    description: '決算期の法人税申告書作成・提出業務を行うためのタスクです。',
+    category_name: '決算・申告',
+    estimated_hours: 8,
+    template_name: '決算申告タスク',
+    recurrence_pattern: 'yearly'
+  },
+  {
+    title: '中間申告タスク',
+    description: '中間申告書の作成・提出業務を行うためのタスクです。',
+    category_name: '決算・申告',
+    estimated_hours: 4,
+    template_name: '中間申告タスク',
+    recurrence_pattern: 'quarterly'
+  },
+  {
+    title: '予定申告タスク',
+    description: '予定申告書の作成・提出業務を行うためのタスクです。',
+    category_name: '決算・申告',
+    estimated_hours: 4,
+    template_name: '予定申告タスク',
+    recurrence_pattern: 'quarterly'
   },
   {
     title: '記帳代行業務',
-    description: '請求書・領収書などに基づき会計データを作成します。',
+    description: '月次の記帳代行を行うためのタスクです。',
     category_name: '記帳代行',
     estimated_hours: 3,
-    template_name: 'デフォルト記帳代行',
+    template_name: '記帳代行業務',
     recurrence_pattern: 'monthly'
   },
   {
-    title: '決算・法人税申告業務',
-    description: '決算期の法人税申告書を作成・提出します。',
-    category_name: '決算・申告',
-    estimated_hours: 8,
-    template_name: 'デフォルト決算・申告',
-    recurrence_pattern: 'yearly'
-  },
-  {
-    title: '源泉所得税納付業務',
-    description: '源泉所得税の計算・納付手続きを行います。',
-    category_name: '税務顧問',
-    estimated_hours: 1,
-    template_name: 'デフォルト源泉所得税',
-    recurrence_pattern: 'monthly'
-  },
-  {
-    title: '住民税納付業務',
-    description: '住民税の納付手続き・特別徴収を行います。',
-    category_name: '税務顧問',
-    estimated_hours: 1,
-    template_name: 'デフォルト住民税',
-    recurrence_pattern: 'yearly'
-  },
-  {
-    title: '社会保険対応業務',
-    description: '社会保険の手続き・計算を行います。',
+    title: '給与計算業務',
+    description: '月次の給与計算業務を行うためのタスクです。',
     category_name: '給与計算',
     estimated_hours: 2,
-    template_name: 'デフォルト社会保険',
+    template_name: '給与計算業務',
+    recurrence_pattern: 'monthly'
+  },
+  {
+    title: '源泉所得税(原則)納付',
+    description: '毎月の源泉所得税（原則）の納付手続きを行うためのタスクです。',
+    category_name: '税務顧問',
+    estimated_hours: 1,
+    template_name: '源泉所得税(原則)納付',
+    recurrence_pattern: 'monthly'
+  },
+  {
+    title: '源泉所得税(特例)納付',
+    description: '毎月の源泉所得税（特例）の納付手続きを行うためのタスクです。',
+    category_name: '税務顧問',
+    estimated_hours: 1,
+    template_name: '源泉所得税(特例)納付',
+    recurrence_pattern: 'monthly'
+  },
+  {
+    title: '住民税(原則)納付',
+    description: '従業員の住民税（原則）特別徴収の納付手続きを行うためのタスクです。',
+    category_name: '税務顧問',
+    estimated_hours: 1,
+    template_name: '住民税(原則)納付',
+    recurrence_pattern: 'monthly'
+  },
+  {
+    title: '住民税(特例)納付',
+    description: '従業員の住民税（特例）特別徴収の納付手続きを行うためのタスクです。',
+    category_name: '税務顧問',
+    estimated_hours: 1,
+    template_name: '住民税(特例)納付',
+    recurrence_pattern: 'monthly'
+  },
+  {
+    title: '社会保険手続き',
+    description: '社会保険関連の各種手続きを行うためのタスクです。',
+    category_name: '給与計算',
+    estimated_hours: 2,
+    template_name: '社会保険手続き',
+    recurrence_pattern: 'monthly'
+  },
+  {
+    title: 'その他のタスク',
+    description: 'その他の定型業務に関するタスクです。',
+    category_name: '一般',
+    estimated_hours: 1,
+    template_name: 'その他のタスク',
     recurrence_pattern: 'monthly'
   }
 ];
