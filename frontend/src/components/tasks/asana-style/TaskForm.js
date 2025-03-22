@@ -167,11 +167,17 @@ const Field = ({ name, component: Component = Input, ...props }) => {
   
   return (
     <div className="form-field">
-      <Component
-        id={name}
+      <Controller
+        control={control}
         name={name}
-        {...props}
-        error={errors[name]?.message}
+        render={({ field }) => (
+          <Component
+            id={name}
+            {...field}
+            {...props}
+            error={errors[name]?.message}
+          />
+        )}
       />
     </div>
   );
@@ -183,12 +189,18 @@ const RichField = ({ name, ...props }) => {
   
   return (
     <div className="form-field rich-field">
-      <TextArea
-        id={name}
+      <Controller
+        control={control}
         name={name}
-        rows={5}
-        {...props}
-        error={errors[name]?.message}
+        render={({ field }) => (
+          <TextArea
+            id={name}
+            rows={5}
+            {...field}
+            {...props}
+            error={errors[name]?.message}
+          />
+        )}
       />
     </div>
   );
