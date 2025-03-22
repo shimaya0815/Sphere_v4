@@ -151,8 +151,7 @@ export const useTaskForm = (taskId, onSuccess) => {
       priority: 'medium',
       due_date: null,
       assigned_to: null,
-      project: null,
-      tags: []
+      project: null
     }
   });
   
@@ -175,8 +174,7 @@ export const useTaskForm = (taskId, onSuccess) => {
         priority: data.priority || 'medium',
         due_date: data.due_date || null,
         assigned_to: data.assigned_to || null,
-        project: data.project || null,
-        tags: data.tags || []
+        project: data.project || null
       });
       
       return data;

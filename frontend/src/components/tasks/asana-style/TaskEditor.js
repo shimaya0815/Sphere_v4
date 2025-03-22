@@ -236,7 +236,6 @@ const TaskEditor = ({
         due_date: null,
         assigned_to: null,
         category: null,
-        tags: [],
         workspace: defaultWorkspace // デフォルトワークスペースを設定
       });
       setIsLoading(false);
@@ -382,8 +381,7 @@ const TaskEditor = ({
         priority: 'medium',
         due_date: null,
         project: initialData?.project || null,
-        assignee: null,
-        tags: []
+        assignee: null
       };
     }
     return task || {};
