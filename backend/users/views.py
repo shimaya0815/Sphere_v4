@@ -85,16 +85,16 @@ class BusinessAuthTokenView(APIView):
             # ビジネスを作成した後、タスク関連のメタデータを作成
             from tasks.models import TaskCategory, TaskStatus, TaskPriority, Task
             from clients.models import TaskTemplateSchedule, ClientTaskTemplate
-            TaskCategory.create_defaults(business)
+            # TaskCategory.create_defaults(business)  # カテゴリー作成を無効化
             TaskStatus.create_defaults(business)
             
             # デフォルトのタスクテンプレートを作成
             try:
                 # デフォルトカテゴリの取得
-                default_category = TaskCategory.objects.filter(business=business).first()
-                bookkeeping_category = TaskCategory.objects.filter(business=business, name="記帳代行").first() or default_category
-                tax_category = TaskCategory.objects.filter(business=business, name="決算・申告").first() or default_category
-                insurance_category = TaskCategory.objects.filter(business=business, name="給与計算").first() or default_category
+                default_category = None  # デフォルトカテゴリを使用しない
+                bookkeeping_category = None
+                tax_category = None 
+                insurance_category = None
                 
                 # 優先度の取得
                 default_priority = TaskPriority.objects.filter(business=business).first()
@@ -381,10 +381,10 @@ class UserCreateView(APIView):
                         # デフォルトのタスクテンプレートを作成
                         try:
                             # デフォルトカテゴリの取得
-                            default_category = TaskCategory.objects.filter(business=business).first()
-                            bookkeeping_category = TaskCategory.objects.filter(business=business, name="記帳代行").first() or default_category
-                            tax_category = TaskCategory.objects.filter(business=business, name="決算・申告").first() or default_category
-                            insurance_category = TaskCategory.objects.filter(business=business, name="給与計算").first() or default_category
+                            default_category = None  # デフォルトカテゴリを使用しない
+                            bookkeeping_category = None
+                            tax_category = None 
+                            insurance_category = None
                             
                             # 優先度の取得
                             default_priority = TaskPriority.objects.filter(business=business).first()

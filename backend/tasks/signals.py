@@ -10,8 +10,10 @@ def create_default_task_metadata(sender, instance, created, **kwargs):
     ビジネスが作成された時にデフォルトのタスクメタデータを作成する
     """
     if created:
-        # デフォルトのカテゴリー、ステータスを作成
-        TaskCategory.create_defaults(instance)
+        # デフォルトのカテゴリー作成を無効化
+        # TaskCategory.create_defaults(instance)
+        
+        # ステータスは必要なので引き続き作成
         TaskStatus.create_defaults(instance)
         
         # テンプレートは setup_templates コマンドで作成されるため、
