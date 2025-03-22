@@ -59,6 +59,7 @@ class TaskStatus(models.Model):
     ASSIGNEE_TYPES = (
         ('worker', _('作業者')),
         ('reviewer', _('レビュー担当者')),
+        ('approver', _('承認者')),
         ('none', _('なし')),
     )
     
@@ -111,7 +112,7 @@ class TaskStatus(models.Model):
                 'color': '#F59E0B', 
                 'order': 3, 
                 'description': '作業者の対応が完了し、レビュー待ちの状態',
-                'assignee_type': 'reviewer'
+                'assignee_type': 'worker'
             },
             {
                 'name': 'レビュー中', 
@@ -121,32 +122,46 @@ class TaskStatus(models.Model):
                 'assignee_type': 'reviewer'
             },
             {
+                'name': 'レビュー完了', 
+                'color': '#8B5CF6', 
+                'order': 5, 
+                'description': 'レビュー担当者が確認を完了し、承認待ちの状態',
+                'assignee_type': 'reviewer'
+            },
+            {
                 'name': '差戻中', 
                 'color': '#EF4444', 
-                'order': 5, 
+                'order': 6, 
                 'description': 'レビューで指摘された内容について、作業者がまだ対応を開始していない状態',
                 'assignee_type': 'worker'
             },
             {
                 'name': '差戻対応中', 
                 'color': '#FB7185', 
-                'order': 6, 
+                'order': 7, 
                 'description': '差戻された内容に対して、作業者が対応を進めている状態',
                 'assignee_type': 'worker'
             },
             {
                 'name': '差戻対応済', 
                 'color': '#FCD34D', 
-                'order': 7, 
+                'order': 8, 
                 'description': '作業者が差戻内容の対応を完了し、再レビュー待ちの状態',
-                'assignee_type': 'reviewer'
+                'assignee_type': 'worker'
             },
             {
-                'name': '完了', 
+                'name': '承認中', 
                 'color': '#10B981', 
-                'order': 8, 
-                'description': 'タスクが全ての作業とレビューを終えて完全に終了した状態',
-                'assignee_type': 'none'
+                'order': 9, 
+                'description': '承認者による最終確認を行っている状態',
+                'assignee_type': 'approver'
+            },
+            {
+                'name': '承認完了（クローズ）', 
+                'color': '#059669', 
+                'order': 10, 
+                'description': 'タスクが全ての作業、レビュー、承認を完了して完全に終了した状態',
+                'assignee_type': 'approver'
             },
         ]
         
@@ -366,7 +381,7 @@ class Task(models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        return self.title
+        return self.name
     
     def save(self, *args, **kwargs):
         """Override save method to handle status changes and assignee updates."""
@@ -422,6 +437,8 @@ class Task(models.Model):
             self.assignee = self.worker
         elif self.status.assignee_type == 'reviewer' and self.reviewer:
             self.assignee = self.reviewer
+        elif self.status.assignee_type == 'approver' and self.approver:
+            self.assignee = self.approver
         elif self.status.assignee_type == 'none':
             self.assignee = None
     

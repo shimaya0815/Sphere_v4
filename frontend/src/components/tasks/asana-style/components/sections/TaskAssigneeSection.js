@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Controller } from 'react-hook-form';
 import { HiUser, HiUserGroup } from 'react-icons/hi';
 import CurrentAssignee from '../CurrentAssignee';
@@ -20,6 +20,42 @@ const TaskAssigneeSection = ({
   // 現在の担当者
   const currentWorker = watch('worker');
   const currentReviewer = watch('reviewer');
+  const currentApprover = watch('approver');
+  
+  // ユーザーリストのデバッグ
+  useEffect(() => {
+    console.log('TaskAssigneeSection: users prop received:', users);
+    console.log('TaskAssigneeSection: users array length:', Array.isArray(users) ? users.length : 'not an array');
+  }, [users]);
+  
+  // ユーザーが存在しない場合のフォールバック
+  const normalizedUsers = Array.isArray(users) && users.length > 0 
+    ? users 
+    : [{ id: 1, first_name: 'サンプル', last_name: 'ユーザー' }];
+
+  // ユーザーのフルネームを取得する関数
+  const getUserFullName = (user) => {
+    if (!user) return '';
+    
+    // 優先順位：
+    // 1. first_name + last_name
+    // 2. full_name プロパティ
+    // 3. name プロパティ
+    // 4. username
+    // 5. email
+    // 6. 'ユーザー ' + id
+    
+    if (user.first_name || user.last_name) {
+      return `${user.first_name || ''} ${user.last_name || ''}`.trim();
+    }
+    
+    if (user.full_name) return user.full_name;
+    if (user.name) return user.name;
+    if (user.username) return user.username;
+    if (user.email) return user.email;
+    
+    return `ユーザー ${user.id}`;
+  };
   
   return (
     <div>
@@ -32,15 +68,24 @@ const TaskAssigneeSection = ({
             <CurrentAssignee 
               label="作業者"
               assigneeId={task.worker}
-              users={users}
+              users={normalizedUsers}
               icon={<HiUser className="h-5 w-5 text-gray-400" />}
             />
             
             <CurrentAssignee 
               label="レビュアー"
               assigneeId={task.reviewer}
-              users={users}
+              users={normalizedUsers}
               icon={<HiUserGroup className="h-5 w-5 text-gray-400" />}
+            />
+            
+            <CurrentAssignee 
+              label="承認者"
+              assigneeId={task.approver}
+              users={normalizedUsers}
+              icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>}
             />
           </div>
         )}
@@ -69,9 +114,9 @@ const TaskAssigneeSection = ({
                     }}
                   >
                     <option value="">担当者なし</option>
-                    {Array.isArray(users) && users.map((user) => (
+                    {normalizedUsers.map((user) => (
                       <option key={user.id} value={user.id}>
-                        {user.first_name} {user.last_name}
+                        {getUserFullName(user)}
                       </option>
                     ))}
                   </select>
@@ -102,9 +147,9 @@ const TaskAssigneeSection = ({
                     }}
                   >
                     <option value="">担当者なし</option>
-                    {Array.isArray(users) && users.map((user) => (
+                    {normalizedUsers.map((user) => (
                       <option key={user.id} value={user.id}>
-                        {user.first_name} {user.last_name}
+                        {getUserFullName(user)}
                       </option>
                     ))}
                   </select>
@@ -138,9 +183,9 @@ const TaskAssigneeSection = ({
                   }}
                 >
                   <option value="">担当者なし</option>
-                  {Array.isArray(users) && users.map((user) => (
+                  {normalizedUsers.map((user) => (
                     <option key={user.id} value={user.id}>
-                      {user.first_name} {user.last_name}
+                      {getUserFullName(user)}
                     </option>
                   ))}
                 </select>
