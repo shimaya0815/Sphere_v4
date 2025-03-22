@@ -333,8 +333,7 @@ const TaskEditor = ({
       if (isNew) {
         // 新規作成の場合
         savedTask = await createTask({
-          ...processedData,
-          project: initialData?.project || processedData.project
+          ...processedData
         });
         message = 'タスクを作成しました';
         
@@ -360,7 +359,7 @@ const TaskEditor = ({
     } finally {
       setIsSaving(false);
     }
-  }, [isNew, task?.id, createTask, updateTask, initialData?.project, navigate, onTaskUpdated]);
+  }, [isNew, task?.id, createTask, updateTask, navigate, onTaskUpdated]);
   
   // 戻るボタン処理
   const handleBack = () => {
@@ -380,12 +379,11 @@ const TaskEditor = ({
         status: 'todo',
         priority: 'medium',
         due_date: null,
-        project: initialData?.project || null,
         assignee: null
       };
     }
     return task || {};
-  }, [isNew, task, initialData]);
+  }, [isNew, task]);
   
   if (isLoading && !isNew) {
     return (
@@ -504,13 +502,6 @@ const TaskEditor = ({
                   createdAt={task?.created_at}
                   updatedAt={task?.updated_at}
                 />
-                
-                {isNew && (
-                  <div className="sidebar-section">
-                    <h3>プロジェクト</h3>
-                    <TaskForm.ProjectField name="project" defaultValue={initialData?.project} />
-                  </div>
-                )}
                 
                 <TaskRecurrenceSection 
                   control={formContext?.control}

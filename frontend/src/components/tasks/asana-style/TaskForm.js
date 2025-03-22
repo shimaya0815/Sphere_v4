@@ -97,21 +97,6 @@ const UserSelector = forwardRef(({ value, onChange, error, ...props }, ref) => (
 ));
 UserSelector.displayName = 'UserSelector';
 
-const ProjectSelector = forwardRef(({ value, onChange, error, ...props }, ref) => (
-  <select
-    ref={ref}
-    value={value || ''}
-    onChange={onChange}
-    className={`form-select ${error ? 'has-error' : ''}`}
-    {...props}
-  >
-    <option value="">プロジェクトを選択</option>
-    <option value="1">プロジェクト 1</option>
-    <option value="2">プロジェクト 2</option>
-  </select>
-));
-ProjectSelector.displayName = 'ProjectSelector';
-
 const TagSelector = forwardRef(({ value = [], onChange, error, ...props }, ref) => (
   <select
     ref={ref}
@@ -251,25 +236,6 @@ const DateField = ({ name, ...props }) => {
 };
 
 // プロジェクトフィールドコンポーネント
-const ProjectField = ({ name, ...props }) => {
-  const { control, formState: { errors } } = useFormContext();
-  
-  return (
-    <div className="form-field project-field">
-      <Controller
-        control={control}
-        name={name}
-        render={({ field }) => (
-          <ProjectSelector
-            id={name}
-            {...field}
-            {...props}
-            error={errors[name]?.message}
-          />
-        )}
-      />
-    </div>
-  );
 };
 
 // タグフィールドコンポーネント
@@ -351,7 +317,7 @@ TaskForm.Field = Field;
 TaskForm.RichField = RichField;
 TaskForm.UserField = UserField;
 TaskForm.DateField = DateField;
-TaskForm.ProjectField = ProjectField;
+
 TaskForm.TagsField = TagsField;
 TaskForm.CheckboxField = CheckboxField;
 TaskForm.PriorityField = PriorityField;

@@ -150,8 +150,7 @@ export const useTaskForm = (taskId, onSuccess) => {
       status: 'todo',
       priority: 'medium',
       due_date: null,
-      assigned_to: null,
-      project: null
+      assigned_to: null
     }
   });
   
@@ -173,8 +172,7 @@ export const useTaskForm = (taskId, onSuccess) => {
         status: data.status || 'todo',
         priority: data.priority || 'medium',
         due_date: data.due_date || null,
-        assigned_to: data.assigned_to || null,
-        project: data.project || null
+        assigned_to: data.assigned_to || null
       });
       
       return data;
