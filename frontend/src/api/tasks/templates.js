@@ -178,6 +178,37 @@ export const deleteTemplate = async (templateId) => {
   }
 };
 
+/**
+ * テンプレートスケジュール一覧を取得
+ * @returns {Promise<Array>} スケジュール一覧
+ */
+export const getTemplateSchedules = async () => {
+  try {
+    console.log('Fetching template schedules from API...');
+    const response = await apiClient.get('/api/tasks/schedules/');
+    console.log('Template schedules response:', response.data);
+    
+    // DRFのページネーション形式（results配列を含むオブジェクト）に対応
+    if (response.data && response.data.results && Array.isArray(response.data.results)) {
+      console.log('Found results array in response:', response.data.results);
+      return response.data.results;
+    }
+    
+    // 直接配列の場合
+    if (Array.isArray(response.data)) {
+      return response.data;
+    }
+    
+    // 空配列を返す
+    console.warn('API response is not in expected format, returning empty array');
+    return [];
+  } catch (error) {
+    console.error('Error fetching template schedules:', error);
+    console.error('Error details:', error.response?.data || error.message);
+    return [];
+  }
+};
+
 export default {
   getTemplates,
   getTemplate,
@@ -185,5 +216,6 @@ export default {
   createTemplate,
   createFromTemplate,
   updateTemplate,
-  deleteTemplate
+  deleteTemplate,
+  getTemplateSchedules
 }; 

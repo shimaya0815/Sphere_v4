@@ -29,7 +29,8 @@ export const {
   createTemplate,
   createFromTemplate,
   updateTemplate,
-  deleteTemplate
+  deleteTemplate,
+  getTemplateSchedules
 } = templates;
 
 // メタデータ関連 API
@@ -69,6 +70,7 @@ export default {
   createFromTemplate,
   updateTemplate,
   deleteTemplate,
+  getTemplateSchedules,
   
   // メタデータ関連
   getCategories: async () => {
@@ -77,15 +79,24 @@ export default {
       const response = await apiClient.get('/api/tasks/categories/');
       console.log('Categories API response:', response);
       
-      // APIレスポンスデータを直接返すのではなく、データ部分だけ返す
+      // APIレスポンスデータを直接返す
       if (response && response.data) {
+        // response.dataが配列の場合はそのまま返す
+        if (Array.isArray(response.data)) {
+          return response.data;
+        }
+        // DRFページネーション形式の場合、results配列を返す
+        if (response.data.results && Array.isArray(response.data.results)) {
+          return response.data.results;
+        }
+        // そのほかの場合は、dataプロパティに包んで返す
         return { data: response.data };
       } else {
-        return { data: [] };
+        return [];
       }
     } catch (error) {
       console.error('Error in getCategories:', error);
-      return { data: [] };
+      return [];
     }
   },
   getStatuses: async () => {
@@ -94,15 +105,24 @@ export default {
       const response = await apiClient.get('/api/tasks/statuses/');
       console.log('Statuses API response:', response);
       
-      // APIレスポンスデータを直接返すのではなく、データ部分だけ返す
+      // APIレスポンスデータを直接返す
       if (response && response.data) {
+        // response.dataが配列の場合はそのまま返す
+        if (Array.isArray(response.data)) {
+          return response.data;
+        }
+        // DRFページネーション形式の場合、results配列を返す
+        if (response.data.results && Array.isArray(response.data.results)) {
+          return response.data.results;
+        }
+        // そのほかの場合は、dataプロパティに包んで返す
         return { data: response.data };
       } else {
-        return { data: [] };
+        return [];
       }
     } catch (error) {
       console.error('Error in getStatuses:', error);
-      return { data: [] };
+      return [];
     }
   },
   getPriorities: async () => {
@@ -111,15 +131,24 @@ export default {
       const response = await apiClient.get('/api/tasks/priorities/');
       console.log('Priorities API response:', response);
       
-      // APIレスポンスデータを直接返すのではなく、データ部分だけ返す
+      // APIレスポンスデータを直接返す
       if (response && response.data) {
+        // response.dataが配列の場合はそのまま返す
+        if (Array.isArray(response.data)) {
+          return response.data;
+        }
+        // DRFページネーション形式の場合、results配列を返す
+        if (response.data.results && Array.isArray(response.data.results)) {
+          return response.data.results;
+        }
+        // そのほかの場合は、dataプロパティに包んで返す
         return { data: response.data };
       } else {
-        return { data: [] };
+        return [];
       }
     } catch (error) {
       console.error('Error in getPriorities:', error);
-      return { data: [] };
+      return [];
     }
   },
   createCategory,

@@ -112,7 +112,7 @@ const TaskTemplateList = () => {
   const handleDelete = async (id) => {
     if (window.confirm('このテンプレートを削除してもよろしいですか？')) {
       try {
-        await tasksApi.deleteTask(id);
+        await tasksApi.deleteTemplate(id);
         toast.success('テンプレートを削除しました');
         fetchTemplates();
       } catch (error) {
@@ -184,15 +184,21 @@ const TaskTemplateList = () => {
       // 配列化 - DRFのページネーション対応
       const categories = Array.isArray(categoriesResponse) ? categoriesResponse : 
                         (categoriesResponse?.results && Array.isArray(categoriesResponse.results) ? 
-                         categoriesResponse.results : []);
+                         categoriesResponse.results : 
+                         (categoriesResponse?.data && Array.isArray(categoriesResponse.data) ? 
+                          categoriesResponse.data : []));
       
       const priorities = Array.isArray(prioritiesResponse) ? prioritiesResponse : 
                         (prioritiesResponse?.results && Array.isArray(prioritiesResponse.results) ? 
-                         prioritiesResponse.results : []);
+                         prioritiesResponse.results : 
+                         (prioritiesResponse?.data && Array.isArray(prioritiesResponse.data) ? 
+                          prioritiesResponse.data : []));
       
       const statuses = Array.isArray(statusesResponse) ? statusesResponse : 
                        (statusesResponse?.results && Array.isArray(statusesResponse.results) ? 
-                        statusesResponse.results : []);
+                        statusesResponse.results : 
+                        (statusesResponse?.data && Array.isArray(statusesResponse.data) ? 
+                         statusesResponse.data : []));
       
       console.log('Processed data:', { 
         categories, 
@@ -200,50 +206,47 @@ const TaskTemplateList = () => {
         statuses 
       });
       
-      // データが取得できない場合、デフォルト値を設定
+      // データが取得できない場合でも進める
       if (categories.length === 0) {
-        console.log('No categories found, adding defaults');
-        categories.push({ id: 1, name: '一般', color: '#3B82F6' });
-        categories.push({ id: 2, name: '記帳代行', color: '#F59E0B' });
-        categories.push({ id: 3, name: '決算・申告', color: '#8B5CF6' });
+        console.log('No categories found, but continuing');
       }
       
       if (priorities.length === 0) {
-        console.log('No priorities found, adding defaults');
-        priorities.push({ id: 1, name: '中', priority_value: 50, color: '#F59E0B' });
+        console.log('No priorities found, but continuing');
       }
       
       if (statuses.length === 0) {
-        console.log('No statuses found, adding defaults');
-        statuses.push({ id: 1, name: '未着手', color: '#9CA3AF' });
+        console.log('No statuses found, but continuing');
+      } else {
+        console.log('Found statuses: ', statuses.map(s => `${s.id}:${s.name}`).join(', '));
       }
       
       let createdCount = 0;
+      
+      // 未着手ステータスを検索
+      const defaultStatus = statuses.find(s => s.name === '未着手');
+      console.log('Found default status:', defaultStatus);
+      
+      // 中程度の優先度を検索
+      const middlePriority = priorities.find(p => p.name === '中' || p.priority_value === 50);
+      console.log('Found priority:', middlePriority);
       
       // 各デフォルトテンプレートを作成
       for (const template of DEFAULT_TEMPLATES) {
         try {
           console.log(`Processing template: ${template.template_name}`);
           
-          // カテゴリを検索
+          // カテゴリを検索 - 名前で検索
           const category = categories.find(c => c.name === template.category_name);
-          console.log('Found category:', category);
-          
-          // 中程度の優先度を検索
-          const middlePriority = priorities.find(p => p.name === '中' || p.priority_value === 50);
-          console.log('Found priority:', middlePriority);
-          
-          // デフォルトの未着手ステータスを検索
-          const defaultStatus = statuses.find(s => s.name === '未着手');
-          console.log('Found status:', defaultStatus);
+          console.log('Found category by name:', category);
           
           // テンプレート作成データを準備
           const templateData = {
             title: template.title,
             description: template.description,
-            category: category?.id,
-            priority: middlePriority?.id,
-            status: defaultStatus?.id,
+            category: category?.id, // 見つからない場合はnull
+            priority: middlePriority?.id, // 見つからない場合はnull（APIがpriority_valueを処理）
+            status: defaultStatus?.id, // 見つからない場合はnull（APIがデフォルト値を設定）
             is_template: true,
             template_name: template.template_name,
             recurrence_pattern: template.recurrence_pattern,
@@ -440,7 +443,7 @@ const TaskTemplateList = () => {
                       </button>
                       <button
                         className="btn btn-xs btn-secondary"
-                        onClick={() => navigate(`/tasks/templates/${template.id}/tasks`)}
+                        onClick={() => navigate(`/task-templates/${template.id}`)}
                         title="内包タスク一覧"
                       >
                         <HiOutlineTemplate size={16} />
