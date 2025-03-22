@@ -269,8 +269,9 @@ export const getClientTaskTemplate = async (templateId) => {
 export const createClientTaskTemplate = async (clientId, data) => {
   try {
     // クライアントIDをデータに含める
+    const { priority, ...cleanedData } = data; // priorityフィールドを除外
     const requestData = {
-      ...data,
+      ...cleanedData,
       client: clientId
     };
     // 正しいエンドポイント（ViewSetが公開しているPOST可能なエンドポイント）を使用
@@ -290,7 +291,9 @@ export const createClientTaskTemplate = async (clientId, data) => {
  */
 export const updateClientTaskTemplate = async (templateId, data) => {
   try {
-    const response = await apiClient.patch(`/clients/client-task-templates/${templateId}/`, data);
+    // priorityフィールドを除外
+    const { priority, ...cleanedData } = data;
+    const response = await apiClient.patch(`/clients/client-task-templates/${templateId}/`, cleanedData);
     return response.data;
   } catch (error) {
     console.error(`Error updating client task template ${templateId}:`, error);
