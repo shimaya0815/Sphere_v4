@@ -223,6 +223,8 @@ const TaskEditor = ({
       // ステータスはIDを使用する必要があるため、ロード済みのstatusesから取得
       const defaultStatus = statuses && statuses.length > 0 ? statuses[0].id : null;
       const defaultPriority = priorities && priorities.length > 0 ? priorities[0].id : null;
+      // デフォルトワークスペースのIDを設定
+      const defaultWorkspace = workspaces && workspaces.length > 0 ? workspaces[0].id : null;
       
       setTask({
         title: '',
@@ -232,7 +234,8 @@ const TaskEditor = ({
         due_date: null,
         assigned_to: null,
         category: null,
-        tags: []
+        tags: [],
+        workspace: defaultWorkspace // デフォルトワークスペースを設定
       });
       setIsLoading(false);
       return;
@@ -252,7 +255,7 @@ const TaskEditor = ({
     } finally {
       setIsLoading(false);
     }
-  }, [isNew, resolvedTaskId, getTask, statuses, priorities]);
+  }, [isNew, resolvedTaskId, getTask, statuses, priorities, workspaces]);
   
   // タスクIDが変わったらタスクを読み込む
   useEffect(() => {
@@ -275,17 +278,19 @@ const TaskEditor = ({
     if (isNew && task) {
       const defaultStatus = statuses && statuses.length > 0 ? statuses[0].id : null;
       const defaultPriority = priorities && priorities.length > 0 ? priorities[0].id : null;
+      const defaultWorkspace = workspaces && workspaces.length > 0 ? workspaces[0].id : null;
       
       // ステータスまたはプライオリティが未設定の場合は更新
-      if ((!task.status && defaultStatus) || (!task.priority && defaultPriority)) {
+      if ((!task.status && defaultStatus) || (!task.priority && defaultPriority) || (!task.workspace && defaultWorkspace)) {
         setTask(prev => ({
           ...prev,
           status: prev.status || defaultStatus,
-          priority: prev.priority || defaultPriority
+          priority: prev.priority || defaultPriority,
+          workspace: prev.workspace || defaultWorkspace
         }));
       }
     }
-  }, [isNew, statuses, priorities, task]);
+  }, [isNew, statuses, priorities, workspaces, task]);
   
   // フォーム送信処理
   const handleSubmit = useCallback(async (formData) => {

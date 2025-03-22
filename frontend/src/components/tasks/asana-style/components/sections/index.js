@@ -167,29 +167,43 @@ export const TaskBasicInfoSection = ({ task, control, statuses = [], categories 
           <Controller
             name="workspace"
             control={control}
-            render={({ field }) => (
-              <select
-                id="workspace"
-                className={selectClassName}
-                {...field}
-                onChange={(e) => {
-                  field.onChange(e);
+            render={({ field }) => {
+              // デフォルトでデフォルトワークスペースを選択
+              if (!field.value && workspaces.length > 0) {
+                const defaultWorkspace = workspaces.find(w => w.name === 'デフォルトワークスペース') || workspaces[0];
+                setTimeout(() => {
+                  field.onChange(defaultWorkspace.id);
                   if (handleFieldChange) {
-                    setTimeout(() => handleFieldChange('workspace', e.target.value), 100);
+                    handleFieldChange('workspace', defaultWorkspace.id);
                   }
-                }}
-              >
-                <option value="">選択してください</option>
-                {workspaces.map(workspace => (
-                  <option key={workspace.id} value={workspace.id}>
-                    {workspace.name}
-                  </option>
-                ))}
-              </select>
-            )}
+                }, 0);
+              }
+              
+              return (
+                <select
+                  id="workspace"
+                  className={selectClassName}
+                  {...field}
+                  disabled={workspaces.length <= 1} // ワークスペースが1つしかない場合は無効化
+                  onChange={(e) => {
+                    field.onChange(e);
+                    if (handleFieldChange) {
+                      setTimeout(() => handleFieldChange('workspace', e.target.value), 100);
+                    }
+                  }}
+                >
+                  <option value="">選択してください</option>
+                  {workspaces.map(workspace => (
+                    <option key={workspace.id} value={workspace.id}>
+                      {workspace.name}
+                    </option>
+                  ))}
+                </select>
+              );
+            }}
           />
         ) : (
-          <select className={selectClassName} defaultValue={task?.workspace || ''}>
+          <select className={selectClassName} defaultValue={task?.workspace || ''} disabled={workspaces.length <= 1}>
             <option value="">選択してください</option>
             {workspaces.map(workspace => (
               <option key={workspace.id} value={workspace.id}>
