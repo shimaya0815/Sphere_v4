@@ -268,13 +268,8 @@ export const getCategories = async (params = {}) => {
  */
 export const getStatuses = async (params = {}) => {
   try {
-    // スタブ実装
-    return Promise.resolve([
-      { id: 'todo', name: '未着手', color: '#9ca3af' },
-      { id: 'in_progress', name: '進行中', color: '#3b82f6' },
-      { id: 'review', name: 'レビュー中', color: '#8b5cf6' },
-      { id: 'done', name: '完了', color: '#10b981' }
-    ]);
+    const response = await apiClient.get('/api/tasks/statuses/', { params });
+    return response.data;
   } catch (error) {
     console.error('Error fetching statuses:', error);
     throw error;
