@@ -185,7 +185,7 @@ function App() {
               <WikiPage />
             </PrivateRoute>
           } />
-          <Route path="/time" element={
+          <Route path="/time-management" element={
             <PrivateRoute>
               <TimeManagementPage />
             </PrivateRoute>
