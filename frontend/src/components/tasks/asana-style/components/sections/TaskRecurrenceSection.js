@@ -30,6 +30,8 @@ const TaskRecurrenceSection = ({
   // 内部状態でUI表示を制御（React Hook Formの状態と連動）
   const [internalIsRecurring, setInternalIsRecurring] = useState(false);
   const [internalPattern, setInternalPattern] = useState('daily');
+  // 祝日考慮の内部状態
+  const [internalConsiderHolidays, setInternalConsiderHolidays] = useState(true);
   
   // 初期化フラグ
   const initializedRef = useRef(false);
@@ -145,11 +147,14 @@ const TaskRecurrenceSection = ({
       
       // 祝日考慮設定
       if (task.consider_holidays !== undefined) {
-        safeSetValue('consider_holidays', task.consider_holidays, { shouldDirty: true });
+        const holidaysValue = task.consider_holidays === true || task.consider_holidays === 'true' || task.consider_holidays === 1 || task.consider_holidays === '1';
+        safeSetValue('consider_holidays', holidaysValue, { shouldDirty: true });
+        setInternalConsiderHolidays(holidaysValue);
       } else {
         // デフォルトは営業日指定の場合のみtrue
         const isBusinessDayType = task.business_day !== undefined && task.business_day !== null && task.business_day > 0;
         safeSetValue('consider_holidays', isBusinessDayType, { shouldDirty: true });
+        setInternalConsiderHolidays(isBusinessDayType);
       }
       
       // 終了日がある場合は設定
@@ -161,6 +166,7 @@ const TaskRecurrenceSection = ({
       setInternalIsRecurring(false);
       // 祝日考慮はデフォルトでfalse
       safeSetValue('consider_holidays', false, { shouldDirty: true });
+      setInternalConsiderHolidays(false);
     }
     
     // 現在のタスクを記憶
@@ -257,6 +263,7 @@ const TaskRecurrenceSection = ({
       // 祝日考慮設定
       const shouldConsiderHolidays = taskData.consider_holidays !== false;
       safeSetValue('consider_holidays', shouldConsiderHolidays, { shouldDirty: true });
+      setInternalConsiderHolidays(shouldConsiderHolidays);
     } 
     else if (taskData.monthday !== undefined && taskData.monthday !== null && taskData.monthday > 0) {
       // 日付指定
@@ -264,6 +271,7 @@ const TaskRecurrenceSection = ({
       safeSetValue('monthday', String(taskData.monthday), { shouldDirty: true });
       safeSetValue('business_day', null, { shouldDirty: true });
       safeSetValue('consider_holidays', false, { shouldDirty: true });
+      setInternalConsiderHolidays(false);
     }
     else {
       // どちらも設定されていない場合はデフォルト値
@@ -273,10 +281,12 @@ const TaskRecurrenceSection = ({
         safeSetValue('monthday', '1', { shouldDirty: true });
         safeSetValue('business_day', null, { shouldDirty: true });
         safeSetValue('consider_holidays', false, { shouldDirty: true });
+        setInternalConsiderHolidays(false);
       } else {
         safeSetValue('business_day', '1', { shouldDirty: true });
         safeSetValue('monthday', null, { shouldDirty: true });
         safeSetValue('consider_holidays', true, { shouldDirty: true });
+        setInternalConsiderHolidays(true);
       }
     }
   };
@@ -319,6 +329,7 @@ const TaskRecurrenceSection = ({
       
       // 祝日考慮はデフォルトでfalse
       safeSetValue('consider_holidays', false, { shouldDirty: true });
+      setInternalConsiderHolidays(false);
     } else if (type === 'business') {
       // 日指定をクリア
       safeSetValue('monthday', null, { shouldDirty: true });
@@ -331,6 +342,7 @@ const TaskRecurrenceSection = ({
       
       // 祝日考慮はデフォルトでtrue
       safeSetValue('consider_holidays', true, { shouldDirty: true });
+      setInternalConsiderHolidays(true);
     }
   };
 
@@ -346,7 +358,13 @@ const TaskRecurrenceSection = ({
     if (recurrencePattern && recurrencePattern !== internalPattern) {
       setInternalPattern(recurrencePattern);
     }
-  }, [isRecurring, recurrencePattern]);
+
+    // consider_holidaysフィールドの変更を内部状態に反映
+    const holidaysValue = consider_holidays === 'true' || consider_holidays === true || consider_holidays === 1 || consider_holidays === '1';
+    if (holidaysValue !== internalConsiderHolidays) {
+      setInternalConsiderHolidays(holidaysValue);
+    }
+  }, [isRecurring, recurrencePattern, consider_holidays]);
 
   // 繰り返しパターンの変更を監視し、パターンがmonthlyに変わった場合も初期化
   // フォーム値の変更時のみ実行するよう制御する
@@ -606,10 +624,16 @@ const TaskRecurrenceSection = ({
                           <input
                             type="checkbox"
                             id="consider-holidays"
-                            checked={field.value}
+                            checked={field.value === 'true' || field.value === true || field.value === 1 || field.value === '1' || internalConsiderHolidays}
                             onChange={(e) => {
-                              field.onChange(e.target.checked);
-                              handleFieldChange('consider_holidays', e.target.checked);
+                              try {
+                                const value = e.target.checked;
+                                field.onChange(value);
+                                safeSetValue('consider_holidays', value, { shouldDirty: true });
+                                setInternalConsiderHolidays(value);
+                              } catch (error) {
+                                console.error('祝日考慮設定変更時にエラーが発生しました:', error);
+                              }
                             }}
                             className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                           />
