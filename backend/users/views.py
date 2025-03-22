@@ -289,25 +289,6 @@ class UserProfileViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
-
-
-class UserPreferencesViewSet(viewsets.ModelViewSet):
-    """ViewSet for user preferences."""
-    
-    queryset = UserPreferences.objects.all()
-    serializer_class = UserPreferencesSerializer
-    permission_classes = [IsAuthenticated]
-    
-    def get_queryset(self):
-        return UserPreferences.objects.filter(user=self.request.user)
-    
-    
-class UserProfileViewSet(viewsets.ModelViewSet):
-    """ViewSet for user profiles."""
-    
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
         # Users should only see other users in the same business
