@@ -312,11 +312,30 @@ const TaskEditor = ({
       let savedTask;
       let message;
       
+      // データの前処理（バックエンドが期待する形式に変換）
+      const processedData = { ...formData };
+      
+      // 数値型フィールドの変換
+      if (processedData.status && typeof processedData.status === 'string') {
+        processedData.status = parseInt(processedData.status, 10) || processedData.status;
+      }
+      
+      if (processedData.priority && typeof processedData.priority === 'string') {
+        processedData.priority = parseInt(processedData.priority, 10) || processedData.priority;
+      }
+      
+      // 空文字をnullに変換
+      Object.keys(processedData).forEach(key => {
+        if (processedData[key] === '') {
+          processedData[key] = null;
+        }
+      });
+      
       if (isNew) {
         // 新規作成の場合
         savedTask = await createTask({
-          ...formData,
-          project: initialData?.project || formData.project
+          ...processedData,
+          project: initialData?.project || processedData.project
         });
         message = 'タスクを作成しました';
         
@@ -328,7 +347,7 @@ const TaskEditor = ({
         }
       } else {
         // 更新の場合
-        savedTask = await updateTask(task.id, formData);
+        savedTask = await updateTask(task.id, processedData);
         message = 'タスクを更新しました';
         setTask(savedTask);
       }
