@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import TaskList from '../components/tasks/list/index';
-import TaskSlidePanel from '../components/tasks/slidepanel/TaskSlidePanel';
+import TaskEditor from '../components/tasks/asana-style/TaskEditor';
 import { tasksApi } from '../api';
 import { toast } from 'react-hot-toast';
 
@@ -149,9 +149,9 @@ const TasksPage = () => {
         onNewTask={handleNewTask} 
       />
       
-      <TaskSlidePanel
+      <TaskEditor
         isOpen={slideOverOpen}
-        isNew={isNewTask}
+        isNewTask={isNewTask}
         task={selectedTask}
         onClose={handleCloseSlideOver}
         onTaskUpdated={handleTaskUpdated}
