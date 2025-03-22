@@ -31,6 +31,8 @@ import {
   HiOutlineTag
 } from 'react-icons/hi';
 import { tasksApi } from '../../../api';
+import { clientsApi } from '../../../api';
+import { usersApi } from '../../../api';
 // ユーティリティとフックのインポート
 import { formatDateForInput, getRelativeDateDisplay } from './utils';
 import { useTaskData } from './hooks';
@@ -122,47 +124,43 @@ const TaskEditor = ({
   const [clients, setClients] = useState([]);
   const [fiscalYears, setFiscalYears] = useState([]);
   const [users, setUsers] = useState([]);
+  const [workspaces, setWorkspaces] = useState([]);
+  const [priorities, setPriorities] = useState([]);
   
   // データの初期ロード
   useEffect(() => {
     const fetchMetadata = async () => {
       try {
-        // 実際のAPIから取得するか、仮のデータを使用
-        // 例: const statusesData = await tasksApi.getStatuses();
-        setStatuses([
-          { id: 'todo', name: '未着手', color: '#9CA3AF' },
-          { id: 'in_progress', name: '進行中', color: '#3B82F6' },
-          { id: 'review', name: 'レビュー中', color: '#8B5CF6' },
-          { id: 'done', name: '完了', color: '#10B981' }
+        // 実際のAPIからデータを取得
+        const [statusesData, categoriesData, clientsData, usersData, workspacesData, prioritiesData] = await Promise.all([
+          tasksApi.getStatuses(),
+          tasksApi.getCategories(),
+          clientsApi.getClients(),
+          usersApi.getUsers({ active: true }),
+          tasksApi.getWorkspaces(),
+          tasksApi.getPriorities()
         ]);
         
-        setCategories([
-          { id: 1, name: '一般' },
-          { id: 2, name: '税務顧問' },
-          { id: 3, name: '記帳代行' }
-        ]);
+        setStatuses(statusesData || []);
+        setCategories(categoriesData || []);
+        setClients(clientsData || []);
+        setUsers(usersData || []);
+        setWorkspaces(workspacesData || []);
+        setPriorities(prioritiesData || []);
         
-        setClients([
-          { id: 1, name: 'サンプル顧客1' },
-          { id: 2, name: 'サンプル顧客2' }
-        ]);
-        
-        setFiscalYears([
-          { id: 1, client: 1, year: '2023年度' },
-          { id: 2, client: 1, year: '2024年度' }
-        ]);
-        
-        setUsers([
-          { id: 1, name: 'ユーザー1' },
-          { id: 2, name: 'ユーザー2' }
-        ]);
+        // クライアントが選択されている場合は決算期も取得
+        if (task?.client) {
+          const fiscalYearsData = await clientsApi.getFiscalYears(task.client);
+          setFiscalYears(fiscalYearsData || []);
+        }
       } catch (error) {
         console.error('メタデータの取得に失敗しました:', error);
+        toast.error('データの読み込みに失敗しました');
       }
     };
     
     fetchMetadata();
-  }, []);
+  }, [task?.client]);
   
   // タスクIDを決定（URL、初期データ、または新規タスク用のnull）
   const resolvedTaskId = useMemo(() => {
@@ -388,6 +386,7 @@ const TaskEditor = ({
                   categories={categories}
                   clients={clients}
                   fiscalYears={fiscalYears}
+                  workspaces={workspaces}
                   formState={formContext?.formState}
                   handleFieldChange={(field, value) => {
                     if (task && task.id) {
@@ -414,6 +413,7 @@ const TaskEditor = ({
                 <TaskDatePrioritySection 
                   dueDate={task?.due_date}
                   priority={task?.priority}
+                  priorities={priorities}
                   control={formContext?.control}
                   handleFieldChange={(field, value) => {
                     if (task && task.id) {

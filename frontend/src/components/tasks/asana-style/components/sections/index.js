@@ -463,7 +463,7 @@ export const TaskAssigneeSection = ({ assignee, control, users = [], handleField
   </div>
 );
 
-export const TaskDatePrioritySection = ({ dueDate, priority, control, handleFieldChange }) => (
+export const TaskDatePrioritySection = ({ dueDate, priority, priorities = [], control, handleFieldChange }) => (
   <div className="task-section mb-6 bg-white p-4 rounded-lg shadow-sm">
     <h3 className="text-lg font-medium text-gray-900 mb-3">期限・日程</h3>
     
@@ -521,17 +521,39 @@ export const TaskDatePrioritySection = ({ dueDate, priority, control, handleFiel
                   }
                 }}
               >
-                <option value="low">低</option>
-                <option value="medium">中</option>
-                <option value="high">高</option>
+                <option value="">選択してください</option>
+                {priorities.length > 0 ? (
+                  priorities.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.priority_value ? `${p.priority_value}` : '未設定'}
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="low">低</option>
+                    <option value="medium">中</option>
+                    <option value="high">高</option>
+                  </>
+                )}
               </select>
             )}
           />
         ) : (
-          <select className={selectClassName} defaultValue={priority || 'medium'}>
-            <option value="low">低</option>
-            <option value="medium">中</option>
-            <option value="high">高</option>
+          <select className={selectClassName} defaultValue={priority || ''}>
+            <option value="">選択してください</option>
+            {priorities.length > 0 ? (
+              priorities.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.priority_value ? `${p.priority_value}` : '未設定'}
+                </option>
+              ))
+            ) : (
+              <>
+                <option value="low">低</option>
+                <option value="medium">中</option>
+                <option value="high">高</option>
+              </>
+            )}
           </select>
         )}
       </div>
