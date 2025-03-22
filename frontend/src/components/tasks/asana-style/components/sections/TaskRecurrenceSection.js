@@ -55,44 +55,61 @@ const TaskRecurrenceSection = ({
     { value: 6, label: '日曜日' }
   ];
 
-  // コンポーネントマウント時に初期値を設定
+  // コンポーネントマウント時に一度だけ初期値を設定
   useEffect(() => {
-    // is_recurringの初期値を設定（新規タスク作成時用）
-    if (setValue && !isRecurring) {
-      console.log('繰り返し設定の初期値を設定します: false');
-      setValue('is_recurring', false);
-      handleFieldChange('is_recurring', false);
+    // 初期化済みでない場合のみ処理を実行
+    if (!initializedRef.current) {
+      try {
+        // is_recurringの初期値を設定（新規タスク作成時用）
+        if (typeof setValue === 'function') {
+          setValue('is_recurring', false);
+        } else if (typeof handleFieldChange === 'function') {
+          // setValueが使えない場合はhandleFieldChangeを使用
+          handleFieldChange('is_recurring', false);
+        }
+      } catch (error) {
+        console.error('初期化時にエラーが発生しました:', error);
+      }
+      
+      // 内部状態を初期化
+      setInternalIsRecurring(false);
+      
+      // 初期化済みフラグを設定
+      initializedRef.current = true;
     }
   }, []);
 
   // 安全にsetValueを使用するためのヘルパー関数
   const safeSetValue = (name, value, options = {}) => {
-    if (typeof setValue === 'function') {
-      setValue(name, value, options);
-    } else {
-      console.log(`setValue関数が利用できません。値を設定できません: ${name}=${value}`);
-      // handleFieldChangeを使用して値を更新することを試みる
-      handleFieldChange(name, value);
+    try {
+      // setValueが関数の場合のみ実行
+      if (typeof setValue === 'function') {
+        setValue(name, value, options);
+        return true;
+      }
+    } catch (error) {
+      console.error(`setValue実行中にエラーが発生しました: ${name}=${value}`, error);
     }
-  };
 
-  // コンポーネントマウント時に初期値を設定
-  useEffect(() => {
-    // is_recurringの初期値を設定（新規タスク作成時用）
-    if (!isRecurring) {
-      console.log('繰り返し設定の初期値を設定します: false');
-      safeSetValue('is_recurring', false);
-      handleFieldChange('is_recurring', false);
+    // setValueが関数でない場合やエラーの場合はhandleFieldChangeで代替
+    try {
+      if (typeof handleFieldChange === 'function') {
+        handleFieldChange(name, value);
+        return true;
+      }
+    } catch (error) {
+      console.error(`handleFieldChange実行中にエラーが発生しました: ${name}=${value}`, error);
     }
-  }, []);
+    
+    // どちらの方法でも更新できなかった場合
+    console.warn(`値を設定できませんでした: ${name}=${value}`);
+    return false;
+  };
 
   // タスクデータが変更されたとき、または初期化が必要なときに実行
   useEffect(() => {
-    debugCounterRef.current++;
-    const debugId = debugCounterRef.current;
-    
-    if (!task) {
-      console.log(`[${debugId}] タスクデータがありません`);
+    // タスクがない場合はスキップ
+    if (!task || !task.id) {
       return;
     }
     
@@ -100,11 +117,13 @@ const TaskRecurrenceSection = ({
     const previousTaskId = previousTaskRef.current?.id;
     const currentTaskId = task.id;
     
-    console.log(`[${debugId}] タスク初期化処理: ${previousTaskId} -> ${currentTaskId}, is_template:${task.is_template}`);
+    // IDが同じ場合は処理をスキップ（再レンダリング防止）
+    if (previousTaskId === currentTaskId) {
+      return;
+    }
     
     // データの初期化
     if (task?.is_recurring === true) {
-      console.log(`[${debugId}] 繰り返しタスクを検出しました: パターン=${task.recurrence_pattern}`);
       safeSetValue('is_recurring', true, { shouldDirty: true });
       setInternalIsRecurring(true);
       
@@ -116,11 +135,11 @@ const TaskRecurrenceSection = ({
         // パターンに応じた詳細設定
         if (task.recurrence_pattern === 'weekly') {
           // 週次設定の初期化
-          initializeWeekly(task, debugId);
+          initializeWeekly(task);
         } 
         else if (task.recurrence_pattern === 'monthly') {
           // 月次設定の初期化
-          initializeMonthly(task, debugId);
+          initializeMonthly(task);
         }
       }
       
@@ -138,8 +157,8 @@ const TaskRecurrenceSection = ({
         safeSetValue('recurrence_end_date', task.recurrence_end_date, { shouldDirty: true });
       }
     } else {
-      console.log(`[${debugId}] 非繰り返しタスクです`);
-      safeSetValue('is_recurring', 'false', { shouldDirty: true });
+      safeSetValue('is_recurring', false, { shouldDirty: true });
+      setInternalIsRecurring(false);
       // 祝日考慮はデフォルトでfalse
       safeSetValue('consider_holidays', false, { shouldDirty: true });
     }
@@ -150,59 +169,48 @@ const TaskRecurrenceSection = ({
 
   // 曜日選択の状態が変わったときにフォーム値を更新
   useEffect(() => {
-    if (initializedRef.current && selectedWeekdays.length >= 0) {
-      const newWeekdaysValue = selectedWeekdays.length > 0 ? selectedWeekdays.join(',') : '';
-      
-      console.log('選択された曜日が変更されました。フォーム値を更新:', {
-        selectedWeekdays,
-        currentFormValue: weekdays,
-        newFormValue: newWeekdaysValue
-      });
-      
-      // フォーム値を更新（現在と異なる場合のみ）
-      if (weekdays !== newWeekdaysValue) {
-        setValue('weekdays', newWeekdaysValue, { shouldDirty: true });
-        handleFieldChange('weekdays', newWeekdaysValue);
+    try {
+      if (initializedRef.current && selectedWeekdays.length >= 0) {
+        const newWeekdaysValue = selectedWeekdays.length > 0 ? selectedWeekdays.join(',') : '';
+        
+        // フォーム値を更新（現在と異なる場合のみ）
+        if (weekdays !== newWeekdaysValue) {
+          if (typeof setValue === 'function') {
+            setValue('weekdays', newWeekdaysValue, { shouldDirty: true });
+          }
+          if (typeof handleFieldChange === 'function') {
+            handleFieldChange('weekdays', newWeekdaysValue);
+          }
+        }
       }
+    } catch (error) {
+      console.error('曜日設定更新時にエラーが発生しました:', error);
     }
   }, [selectedWeekdays]);
 
   // 初期化関数 - タスクデータから選択状態を設定
-  const initializeFromTaskData = (taskData, debugId) => {
+  const initializeFromTaskData = (taskData) => {
     if (!taskData) return;
-    
-    console.log(`[${debugId}] タスクデータから初期化開始:`, {
-      id: taskData.id,
-      is_recurring: taskData.is_recurring,
-      recurrence_pattern: taskData.recurrence_pattern,
-      weekday: taskData.weekday,
-      weekdays: taskData.weekdays,
-      monthday: taskData.monthday,
-      business_day: taskData.business_day
-    });
     
     // 繰り返しパターンごとの初期化処理
     if (taskData.recurrence_pattern === 'weekly') {
-      initializeWeekly(taskData, debugId);
+      initializeWeekly(taskData);
     } else if (taskData.recurrence_pattern === 'monthly') {
-      initializeMonthly(taskData, debugId);
+      initializeMonthly(taskData);
     }
   };
   
   // 週次繰り返しの初期化
-  const initializeWeekly = (taskData, debugId) => {
+  const initializeWeekly = (taskData) => {
     // 繰り返しが有効で、週次パターンの場合のみ曜日選択を初期化
     const isRecurringTask = taskData.is_recurring === true || taskData.is_recurring === 'true';
     const isWeeklyPattern = taskData.recurrence_pattern === 'weekly';
     
     if (isRecurringTask && isWeeklyPattern) {
-      console.log(`[${debugId}] 週次繰り返しタスクを検出、曜日の初期化を行います`);
-      
       let weekdaysToSelect = [];
       
       // 複数曜日指定を優先
       if (taskData.weekdays) {
-        console.log(`[${debugId}] 複数曜日設定を検出:`, taskData.weekdays);
         try {
           // 文字列を配列に変換
           weekdaysToSelect = taskData.weekdays.split(',')
@@ -211,10 +219,7 @@ const TaskRecurrenceSection = ({
               return isNaN(parsed) ? null : parsed;
             })
             .filter(day => day !== null && day >= 0 && day <= 6);
-          
-          console.log(`[${debugId}] 解析された曜日配列:`, weekdaysToSelect);
         } catch (err) {
-          console.error(`[${debugId}] 複数曜日の解析エラー:`, err);
           weekdaysToSelect = [];
         }
       } 
@@ -222,7 +227,6 @@ const TaskRecurrenceSection = ({
       else if (taskData.weekday !== undefined && taskData.weekday !== null) {
         const weekdayValue = parseInt(taskData.weekday, 10);
         if (!isNaN(weekdayValue) && weekdayValue >= 0 && weekdayValue <= 6) {
-          console.log(`[${debugId}] 単一曜日設定を検出:`, weekdayValue);
           weekdaysToSelect = [weekdayValue];
         }
       }
@@ -237,124 +241,96 @@ const TaskRecurrenceSection = ({
   };
   
   // 月次繰り返しの初期化
-  const initializeMonthly = (taskData, debugId) => {
+  const initializeMonthly = (taskData) => {
     if (!taskData) return;
     
-    console.log(`[${debugId}] 月次設定の初期化を実行します:`, {
-      monthday: taskData.monthday,
-      business_day: taskData.business_day,
-      consider_holidays: taskData.consider_holidays
-    });
-    
     // すでに選択されている月次タイプがある場合はそれを続行
-    if (monthlyType) {
-      console.log(`[${debugId}] 既存の月次タイプを検出: ${monthlyType}`);
-      
-      // 既存のタイプに基づいてフォームを設定
-      if (monthlyType === 'day') {
-        console.log(`[${debugId}] 日付タイプが選択されているため、日付設定を優先します`);
-        safeSetValue('monthday', taskData.monthday?.toString() || '1', { shouldDirty: true });
-        safeSetValue('business_day', '', { shouldDirty: true });
-        handleFieldChange('monthday', parseInt(taskData.monthday?.toString() || '1', 10));
-        handleFieldChange('business_day', null);
-        // 祝日考慮は無効化
-        safeSetValue('consider_holidays', false, { shouldDirty: true });
-        handleFieldChange('consider_holidays', false);
-        return;
-      } else if (monthlyType === 'business') {
-        console.log(`[${debugId}] 営業日タイプが選択されているため、営業日設定を優先します`);
-        safeSetValue('business_day', taskData.business_day?.toString() || '1', { shouldDirty: true });
-        safeSetValue('monthday', '', { shouldDirty: true });
-        handleFieldChange('business_day', parseInt(taskData.business_day?.toString() || '1', 10));
-        handleFieldChange('monthday', null);
-        // 祝日考慮設定を設定
-        const considerHolidays = taskData.consider_holidays !== undefined ? taskData.consider_holidays : true;
-        safeSetValue('consider_holidays', considerHolidays, { shouldDirty: true });
-        handleFieldChange('consider_holidays', considerHolidays);
-        return;
-      }
-      // デフォルトはdayタイプを優先
-    }
+    const currentMonthType = monthlyType || 'day';
     
     // タスクに設定されている値に基づいて初期化
-    if (taskData.monthday !== undefined && taskData.monthday !== null && taskData.monthday > 0) {
-      console.log(`[${debugId}] 月次日付指定を検出:`, taskData.monthday);
-      setMonthlyType('day');
-      safeSetValue('monthday', taskData.monthday.toString(), { shouldDirty: true });
-      // 営業日を空に設定
-      safeSetValue('business_day', '', { shouldDirty: true });
-      // 祝日考慮は無効化
-      safeSetValue('consider_holidays', false, { shouldDirty: true });
-      // APIに送信するデータも更新
-      handleFieldChange('monthday', parseInt(taskData.monthday.toString(), 10));
-      handleFieldChange('business_day', null);
-      handleFieldChange('consider_holidays', false);
-    } 
-    else if (taskData.business_day !== undefined && taskData.business_day !== null && taskData.business_day > 0) {
-      console.log(`[${debugId}] 月次営業日指定を検出:`, taskData.business_day);
+    if (taskData.business_day !== undefined && taskData.business_day !== null && taskData.business_day > 0) {
+      // 営業日指定が優先
       setMonthlyType('business');
-      safeSetValue('business_day', taskData.business_day.toString(), { shouldDirty: true });
-      // 日付指定を空に設定
-      safeSetValue('monthday', '', { shouldDirty: true });
-      // 祝日考慮設定を設定
-      const considerHolidays = taskData.consider_holidays !== undefined ? taskData.consider_holidays : true;
-      safeSetValue('consider_holidays', considerHolidays, { shouldDirty: true });
-      // APIに送信するデータも更新
-      handleFieldChange('business_day', parseInt(taskData.business_day.toString(), 10));
-      handleFieldChange('monthday', null);
-      handleFieldChange('consider_holidays', considerHolidays);
+      safeSetValue('business_day', String(taskData.business_day), { shouldDirty: true });
+      safeSetValue('monthday', null, { shouldDirty: true });
+      
+      // 祝日考慮設定
+      const shouldConsiderHolidays = taskData.consider_holidays !== false;
+      safeSetValue('consider_holidays', shouldConsiderHolidays, { shouldDirty: true });
+    } 
+    else if (taskData.monthday !== undefined && taskData.monthday !== null && taskData.monthday > 0) {
+      // 日付指定
+      setMonthlyType('day');
+      safeSetValue('monthday', String(taskData.monthday), { shouldDirty: true });
+      safeSetValue('business_day', null, { shouldDirty: true });
+      safeSetValue('consider_holidays', false, { shouldDirty: true });
     }
     else {
       // どちらも設定されていない場合はデフォルト値
-      console.log(`[${debugId}] 月次設定が未設定、デフォルト値を使用します`);
-      setMonthlyType('day');
-      safeSetValue('monthday', '1', { shouldDirty: true });
-      safeSetValue('business_day', '', { shouldDirty: true });
-      safeSetValue('consider_holidays', false, { shouldDirty: true });
-      handleFieldChange('monthday', 1);
-      handleFieldChange('business_day', null);
-      handleFieldChange('consider_holidays', false);
+      setMonthlyType(currentMonthType);
+      
+      if (currentMonthType === 'day') {
+        safeSetValue('monthday', '1', { shouldDirty: true });
+        safeSetValue('business_day', null, { shouldDirty: true });
+        safeSetValue('consider_holidays', false, { shouldDirty: true });
+      } else {
+        safeSetValue('business_day', '1', { shouldDirty: true });
+        safeSetValue('monthday', null, { shouldDirty: true });
+        safeSetValue('consider_holidays', true, { shouldDirty: true });
+      }
     }
   };
 
   // 曜日のチェック状態を切り替える
   const toggleWeekday = (weekdayValue) => {
-    console.log('曜日切り替え:', weekdayValue, '現在の選択:', selectedWeekdays);
-    
-    let newSelectedWeekdays;
-    
-    if (selectedWeekdays.includes(weekdayValue)) {
-      // 選択済みの場合は削除
-      newSelectedWeekdays = selectedWeekdays.filter(day => day !== weekdayValue);
-    } else {
-      // 未選択の場合は追加して昇順ソート
-      newSelectedWeekdays = [...selectedWeekdays, weekdayValue].sort((a, b) => a - b);
+    try {
+      let newSelectedWeekdays;
+      
+      if (selectedWeekdays.includes(weekdayValue)) {
+        // 選択済みの場合は削除
+        newSelectedWeekdays = selectedWeekdays.filter(day => day !== weekdayValue);
+      } else {
+        // 未選択の場合は追加して昇順ソート
+        newSelectedWeekdays = [...selectedWeekdays, weekdayValue].sort((a, b) => a - b);
+      }
+      
+      setSelectedWeekdays(newSelectedWeekdays);
+    } catch (error) {
+      console.error('曜日切り替え時にエラーが発生しました:', error);
     }
-    
-    console.log('新しい選択曜日:', newSelectedWeekdays);
-    setSelectedWeekdays(newSelectedWeekdays);
   };
   
   // 月次パターンタイプの切り替え
   const handleMonthlyTypeChange = (type) => {
-    console.log(`月次タイプを変更: ${monthlyType} → ${type}`);
+    if (type === monthlyType) return; // 同じ値なら何もしない
+    
     setMonthlyType(type);
     
     // タイプに応じたフィールドをクリア
     if (type === 'day') {
       // 営業日指定をクリア
       safeSetValue('business_day', null, { shouldDirty: true });
-      handleFieldChange('business_day', null);
+      
+      // 日付指定のデフォルト値を設定
+      const currentMonthday = safeWatch('monthday');
+      if (!currentMonthday) {
+        safeSetValue('monthday', '1', { shouldDirty: true });
+      }
+      
       // 祝日考慮はデフォルトでfalse
       safeSetValue('consider_holidays', false, { shouldDirty: true });
-      handleFieldChange('consider_holidays', false);
     } else if (type === 'business') {
       // 日指定をクリア
       safeSetValue('monthday', null, { shouldDirty: true });
-      handleFieldChange('monthday', null);
+      
+      // 営業日指定のデフォルト値を設定
+      const currentBusinessDay = safeWatch('business_day');
+      if (!currentBusinessDay) {
+        safeSetValue('business_day', '1', { shouldDirty: true });
+      }
+      
       // 祝日考慮はデフォルトでtrue
       safeSetValue('consider_holidays', true, { shouldDirty: true });
-      handleFieldChange('consider_holidays', true);
     }
   };
 
@@ -363,53 +339,34 @@ const TaskRecurrenceSection = ({
     // isRecurringフィールドの変更を内部状態に反映
     const isRecurringValue = isRecurring === 'true' || isRecurring === true || isRecurring === 1 || isRecurring === '1';
     if (isRecurringValue !== internalIsRecurring) {
-      console.log('フォーム状態が変更されました、内部状態を同期します:', isRecurring, '→', isRecurringValue);
       setInternalIsRecurring(isRecurringValue);
     }
     
     // recurrencePatternフィールドの変更を内部状態に反映
     if (recurrencePattern && recurrencePattern !== internalPattern) {
-      console.log('パターン状態が変更されました、内部状態を同期します:', recurrencePattern);
       setInternalPattern(recurrencePattern);
     }
   }, [isRecurring, recurrencePattern]);
 
-  // タスクデータの変更を監視し、毎月の繰り返し設定を初期化
+  // 繰り返しパターンの変更を監視し、パターンがmonthlyに変わった場合も初期化
+  // フォーム値の変更時のみ実行するよう制御する
   useEffect(() => {
-    if (task) {
-      // デバッグID生成
-      const debugId = `taskInit-${debugCounterRef.current++}`;
-      console.log(`[${debugId}] タスクデータ変更を検出、月次設定を初期化します:`, {
-        task_id: task.id,
-        is_recurring: task.is_recurring,
-        recurrence_pattern: task.recurrence_pattern,
-        monthday: task.monthday,
-        business_day: task.business_day
-      });
-      
-      // タスクデータに基づいて月次設定を初期化
-      initializeMonthly(task, debugId);
-    }
-  }, [task, setValue]);
-  
-  // タスクと繰り返しパターンの変更を監視し、パターンがmonthlyに変わった場合も初期化
-  useEffect(() => {
-    if (recurrencePattern === 'monthly' && isRecurring === true) {
-      const debugId = `patternChange-${debugCounterRef.current++}`;
-      console.log(`[${debugId}] 月次パターンへの変更を検出、初期化します`);
-      
+    // パターンがmonthlyに変更され、繰り返しが有効な場合のみ実行
+    const isRecurringValue = isRecurring === 'true' || isRecurring === true || isRecurring === 1 || isRecurring === '1';
+    if (recurrencePattern === 'monthly' && isRecurringValue && previousTaskRef.current) {
       // フォーム値から現在の状態を構築
       const currentData = {
-        is_recurring: isRecurring,
-        recurrence_pattern: recurrencePattern,
+        is_recurring: isRecurringValue,
+        recurrence_pattern: 'monthly',
         monthday: monthday || null,
-        business_day: business_day || null
+        business_day: business_day || null,
+        consider_holidays: consider_holidays
       };
       
       // 現在のフォーム値に基づいて初期化
-      initializeMonthly(currentData, debugId);
+      initializeMonthly(currentData);
     }
-  }, [recurrencePattern, isRecurring]);
+  }, [recurrencePattern]); // isRecurringを依存配列から削除して不要な更新を防止
 
   return (
     <div className="space-y-4">
@@ -433,19 +390,19 @@ const TaskRecurrenceSection = ({
                   id="is_recurring"
                   checked={field.value === 'true' || field.value === true || field.value === 1 || field.value === '1' || internalIsRecurring}
                   onChange={(e) => {
-                    const value = e.target.checked;
-                    console.log('繰り返し設定チェックボックス変更:', value);
-                    field.onChange(value);
-                    safeSetValue('is_recurring', value, { shouldDirty: true });
-                    setInternalIsRecurring(value);
-                    handleFieldChange('is_recurring', value);
-                    
-                    // 初期パターン設定
-                    if (value && !recurrencePattern) {
-                      console.log('デフォルト繰り返しパターンを設定します: daily');
-                      safeSetValue('recurrence_pattern', 'daily', { shouldDirty: true });
-                      setInternalPattern('daily');
-                      handleFieldChange('recurrence_pattern', 'daily');
+                    try {
+                      const value = e.target.checked;
+                      field.onChange(value);
+                      safeSetValue('is_recurring', value, { shouldDirty: true });
+                      setInternalIsRecurring(value);
+                      
+                      // 初期パターン設定
+                      if (value && !recurrencePattern) {
+                        safeSetValue('recurrence_pattern', 'daily', { shouldDirty: true });
+                        setInternalPattern('daily');
+                      }
+                    } catch (error) {
+                      console.error('チェックボックス変更時にエラーが発生しました:', error);
                     }
                   }}
                   className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
@@ -458,8 +415,6 @@ const TaskRecurrenceSection = ({
           />
         </div>
 
-        {console.log('繰り返し設定状態:', isRecurring, 'タイプ:', typeof isRecurring, '内部状態:', internalIsRecurring)}
-        
         {/* 繰り返しが有効な場合の詳細設定 */}
         {(isRecurring === 'true' || isRecurring === true || isRecurring === 1 || isRecurring === '1' || internalIsRecurring) && (
           <div className="pl-6 space-y-4 border-l-2 border-gray-200 ml-1">
@@ -530,7 +485,7 @@ const TaskRecurrenceSection = ({
                   )}
                 />
                 
-                {/* デバッグ用表示 */}
+                {/* 選択状態の表示 */}
                 <p className="mt-1 text-sm text-gray-500">
                   {selectedWeekdays.length > 0
                     ? `選択した曜日: ${selectedWeekdays.map(day => weekdayOptions.find(opt => opt.value === day)?.label).join(', ')}`
