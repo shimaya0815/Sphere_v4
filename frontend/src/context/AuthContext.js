@@ -86,16 +86,14 @@ export const AuthProvider = ({ children }) => {
       // デバッグ情報を追加
       console.log('Login data being sent:', JSON.stringify(loginData, null, 2));
       
-      // 相対パスを使用
-      const loginEndpoint = '/api/auth/token/login/';
-      console.log('Sending login request to:', loginEndpoint);
-      console.log('apiClient configuration:', {
-        baseURL: apiClient.defaults?.baseURL || 'undefined',
-        fullURL: `${apiClient.defaults?.baseURL || ''}${loginEndpoint}`
-      });
+      // 直接axiosを使用してlocalhostに接続
+      const loginEndpoint = 'http://localhost:8000/api/auth/token/login/';
+      console.log('Sending login request directly to:', loginEndpoint);
       
-      // apiClientを使用してリクエスト送信
-      const response = await apiClient.post(loginEndpoint, loginData);
+      // 直接axiosを使用してリクエスト送信
+      const response = await axios.post(loginEndpoint, loginData, {
+        headers: { 'Content-Type': 'application/json' }
+      });
       
       console.log('Login response:', response);
       
