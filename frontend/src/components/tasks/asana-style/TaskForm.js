@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, forwardRef } from 'react';
 import PropTypes from 'prop-types';
 import { HiOutlineCalendar, HiOutlineUser, HiOutlineTag } from 'react-icons/hi';
 import toast from 'react-hot-toast';
@@ -12,18 +12,21 @@ import StatusSelector from './StatusSelector';
 import PrioritySelector from './PrioritySelector';
 
 // 欠けているUIコンポーネントの簡易実装
-const Input = ({ value, onChange, placeholder, error, ...props }) => (
+const Input = forwardRef(({ value, onChange, placeholder, error, ...props }, ref) => (
   <input
+    ref={ref}
     value={value || ''}
     onChange={onChange}
     placeholder={placeholder}
     className={`form-input ${error ? 'has-error' : ''}`}
     {...props}
   />
-);
+));
+Input.displayName = 'Input';
 
-const TextArea = ({ value, onChange, placeholder, error, rows = 3, ...props }) => (
+const TextArea = forwardRef(({ value, onChange, placeholder, error, rows = 3, ...props }, ref) => (
   <textarea
+    ref={ref}
     value={value || ''}
     onChange={onChange}
     placeholder={placeholder}
@@ -31,10 +34,12 @@ const TextArea = ({ value, onChange, placeholder, error, rows = 3, ...props }) =
     rows={rows}
     {...props}
   />
-);
+));
+TextArea.displayName = 'TextArea';
 
-const Select = ({ value, onChange, options = [], placeholder, error, ...props }) => (
+const Select = forwardRef(({ value, onChange, options = [], placeholder, error, ...props }, ref) => (
   <select
+    ref={ref}
     value={value || ''}
     onChange={onChange}
     className={`form-select ${error ? 'has-error' : ''}`}
@@ -47,21 +52,25 @@ const Select = ({ value, onChange, options = [], placeholder, error, ...props })
       </option>
     ))}
   </select>
-);
+));
+Select.displayName = 'Select';
 
-const DatePicker = ({ value, onChange, error, ...props }) => (
+const DatePicker = forwardRef(({ value, onChange, error, ...props }, ref) => (
   <input
+    ref={ref}
     type="date"
     value={value || ''}
     onChange={onChange}
     className={`form-datepicker ${error ? 'has-error' : ''}`}
     {...props}
   />
-);
+));
+DatePicker.displayName = 'DatePicker';
 
-const Checkbox = ({ checked, onChange, label, error, ...props }) => (
+const Checkbox = forwardRef(({ checked, onChange, label, error, ...props }, ref) => (
   <div className={`form-checkbox ${error ? 'has-error' : ''}`}>
     <input
+      ref={ref}
       type="checkbox"
       checked={checked || false}
       onChange={onChange}
@@ -69,11 +78,13 @@ const Checkbox = ({ checked, onChange, label, error, ...props }) => (
     />
     {label && <span>{label}</span>}
   </div>
-);
+));
+Checkbox.displayName = 'Checkbox';
 
 // セレクターコンポーネントの簡易実装
-const UserSelector = ({ value, onChange, error, ...props }) => (
+const UserSelector = forwardRef(({ value, onChange, error, ...props }, ref) => (
   <select
+    ref={ref}
     value={value || ''}
     onChange={onChange}
     className={`form-select ${error ? 'has-error' : ''}`}
@@ -83,10 +94,12 @@ const UserSelector = ({ value, onChange, error, ...props }) => (
     <option value="1">ユーザー 1</option>
     <option value="2">ユーザー 2</option>
   </select>
-);
+));
+UserSelector.displayName = 'UserSelector';
 
-const ProjectSelector = ({ value, onChange, error, ...props }) => (
+const ProjectSelector = forwardRef(({ value, onChange, error, ...props }, ref) => (
   <select
+    ref={ref}
     value={value || ''}
     onChange={onChange}
     className={`form-select ${error ? 'has-error' : ''}`}
@@ -96,10 +109,12 @@ const ProjectSelector = ({ value, onChange, error, ...props }) => (
     <option value="1">プロジェクト 1</option>
     <option value="2">プロジェクト 2</option>
   </select>
-);
+));
+ProjectSelector.displayName = 'ProjectSelector';
 
-const TagSelector = ({ value = [], onChange, error, ...props }) => (
+const TagSelector = forwardRef(({ value = [], onChange, error, ...props }, ref) => (
   <select
+    ref={ref}
     multiple
     value={value}
     onChange={(e) => {
@@ -119,16 +134,19 @@ const TagSelector = ({ value = [], onChange, error, ...props }) => (
     <option value="2">タグ 2</option>
     <option value="3">タグ 3</option>
   </select>
-);
+));
+TagSelector.displayName = 'TagSelector';
 
-const RichTextEditor = ({ value, onChange, ...props }) => (
+const RichTextEditor = forwardRef(({ value, onChange, ...props }, ref) => (
   <TextArea
+    ref={ref}
     value={value}
     onChange={onChange}
     rows={5}
     {...props}
   />
-);
+));
+RichTextEditor.displayName = 'RichTextEditor';
 
 /**
  * タスクフォームコンポーネント
@@ -299,17 +317,17 @@ const PriorityField = ({ name, ...props }) => {
         control={control}
         name={name}
         render={({ field }) => (
-          <select
+          <Select
             id={name}
-            className="form-select"
             {...field}
             {...props}
+            options={[
+              { value: 'low', label: '低' },
+              { value: 'medium', label: '中' },
+              { value: 'high', label: '高' }
+            ]}
             error={errors[name]?.message}
-          >
-            <option value="low">低</option>
-            <option value="medium">中</option>
-            <option value="high">高</option>
-          </select>
+          />
         )}
       />
     </div>
