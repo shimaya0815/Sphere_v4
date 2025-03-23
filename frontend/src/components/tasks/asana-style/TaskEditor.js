@@ -28,7 +28,8 @@ import {
   HiOutlineTrash, 
   HiExclamation,
   HiOutlineCalendar,
-  HiOutlineTag
+  HiOutlineTag,
+  HiOutlineRefresh
 } from 'react-icons/hi';
 import { tasksApi } from '../../../api';
 import { clientsApi } from '../../../api';
@@ -409,6 +410,43 @@ const TaskEditor = ({
     return task || {};
   }, [isNew, task]);
   
+  // タスクを完了としてマークし、次回インスタンスを生成する
+  const handleMarkCompleteAndGenerateNext = async () => {
+    if (!task || !task.id) return;
+    
+    try {
+      setIsSaving(true);
+      toast.loading('タスクを完了にして次回インスタンスを生成中...');
+      
+      // タスクを完了状態にする
+      await tasksApi.markTaskComplete(task.id);
+      
+      // 次の繰り返しインスタンスを生成
+      const nextTask = await tasksApi.createNextRecurringTask(task.id);
+      
+      toast.dismiss();
+      toast.success('タスクを完了にし、次回インスタンスを生成しました');
+      
+      // タスクの更新通知
+      if (onTaskUpdated) {
+        onTaskUpdated(task, false);
+      }
+      
+      // パネルを閉じてタスク一覧に戻る
+      if (onClose) {
+        onClose();
+      } else {
+        navigate('/tasks', { replace: true });
+      }
+    } catch (error) {
+      console.error('タスク完了と次回インスタンス生成エラー:', error);
+      toast.dismiss();
+      toast.error('処理に失敗しました: ' + (error.response?.data?.detail || error.message));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
   if (isLoading && !isNew) {
     // 非表示の場合はローディングも表示しない
     if (!isOpen) {
@@ -574,19 +612,33 @@ const TaskEditor = ({
             
             <div className="task-editor-footer p-4 border-t flex justify-between items-center bg-gray-50">
               {!isNew && task && (
-                <button
-                  type="button"
-                  className="text-red-600 hover:text-red-800 flex items-center"
-                  onClick={() => {
-                    // タスク削除機能
-                    if (window.confirm('このタスクを削除してもよろしいですか？')) {
-                      // 削除処理
-                    }
-                  }}
-                >
-                  <HiOutlineTrash className="mr-1" />
-                  削除
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    className="text-red-600 hover:text-red-800 flex items-center"
+                    onClick={() => {
+                      // タスク削除機能
+                      if (window.confirm('このタスクを削除してもよろしいですか？')) {
+                        // 削除処理
+                      }
+                    }}
+                  >
+                    <HiOutlineTrash className="mr-1" />
+                    削除
+                  </button>
+                  
+                  {task.is_recurring && (
+                    <button
+                      type="button"
+                      className="ml-4 text-green-600 hover:text-green-800 flex items-center"
+                      onClick={handleMarkCompleteAndGenerateNext}
+                      disabled={isSaving}
+                    >
+                      <HiOutlineRefresh className="mr-1" />
+                      完了して次を生成
+                    </button>
+                  )}
+                </div>
               )}
               
               <div className="flex items-center space-x-2">

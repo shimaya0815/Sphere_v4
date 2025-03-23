@@ -529,6 +529,36 @@ export const createTemplateTask = async (taskData) => {
   }
 };
 
+/**
+ * タスクを完了済みとしてマークする
+ * @param {number} taskId タスクID
+ * @returns {Promise<object>} 更新されたタスク
+ */
+export const markTaskComplete = async (taskId) => {
+  try {
+    const response = await apiClient.post(`/api/tasks/${taskId}/mark_complete/`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error marking task ${taskId} as complete:`, error);
+    throw error;
+  }
+};
+
+/**
+ * 繰り返しタスクの次のインスタンスを生成する
+ * @param {number} taskId タスクID
+ * @returns {Promise<object>} 生成された次のタスクインスタンス
+ */
+export const createNextRecurringTask = async (taskId) => {
+  try {
+    const response = await apiClient.post(`/api/tasks/${taskId}/create-next-recurring/`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error creating next recurring task for ${taskId}:`, error);
+    throw error;
+  }
+};
+
 export default {
   getTasks,
   getTask,
@@ -552,5 +582,7 @@ export default {
   createPriorityForValue,
   createTaskSchedule,
   updateTemplateTask,
-  createTemplateTask
+  createTemplateTask,
+  markTaskComplete,
+  createNextRecurringTask
 };
