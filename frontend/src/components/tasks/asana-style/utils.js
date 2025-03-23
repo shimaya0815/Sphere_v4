@@ -8,6 +8,9 @@ export const prepareFormDataForSubmission = (formData) => {
   // descriptionフィールドの処理（nullや未定義の場合は空文字列に）
   preparedData.description = preparedData.description || '';
   
+  // template_nameの処理 - nullや未定義の場合は空文字列に設定
+  preparedData.template_name = preparedData.template_name || '';
+  
   // boolean型の変換
   ['is_fiscal_task', 'is_recurring', 'is_template'].forEach(field => {
     if (preparedData[field] !== undefined) {
@@ -24,8 +27,8 @@ export const prepareFormDataForSubmission = (formData) => {
   
   // 一般的な空文字列フィールドの処理
   Object.keys(preparedData).forEach(key => {
-    // descriptionは空文字列を許可
-    if (key !== 'description' && preparedData[key] === '') {
+    // descriptionとtemplate_nameは空文字列を許可
+    if (key !== 'description' && key !== 'template_name' && preparedData[key] === '') {
       preparedData[key] = null;
     }
   });
