@@ -9,7 +9,8 @@ export const prepareFormDataForSubmission = (formData) => {
   preparedData.description = preparedData.description || '';
   
   // template_nameの処理 - nullや未定義の場合は空文字列に設定
-  preparedData.template_name = preparedData.template_name || '';
+  // 常に空文字列として送信する（空白の場合も含む）
+  preparedData.template_name = '';
   
   // boolean型の変換
   ['is_fiscal_task', 'is_recurring', 'is_template'].forEach(field => {
@@ -49,6 +50,9 @@ export const prepareTaskDataForForm = (taskData) => {
       formData[field] = formData[field] ? 'true' : 'false';
     }
   });
+  
+  // template_nameが未定義または空の場合、空文字列を設定
+  formData.template_name = formData.template_name || '';
   
   return formData;
 };

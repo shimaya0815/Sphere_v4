@@ -125,7 +125,13 @@ export const createTask = async (taskData) => {
  */
 export const updateTask = async (taskId, taskData) => {
   try {
-    const response = await apiClient.patch(`/api/tasks/${taskId}/`, taskData);
+    // template_nameフィールドを削除（バックエンドでの検証エラーを回避）
+    const updatedData = { ...taskData };
+    if ('template_name' in updatedData) {
+      delete updatedData.template_name;
+    }
+    
+    const response = await apiClient.patch(`/api/tasks/${taskId}/`, updatedData);
     return response.data;
   } catch (error) {
     console.error(`Error updating task ${taskId}:`, error);
