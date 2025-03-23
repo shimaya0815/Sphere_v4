@@ -526,12 +526,14 @@ const TaskEditor = ({
                   }}
                 />
                 <TaskAssigneeSection 
-                  assignee={task?.assignee}
-                  control={formContext?.control}
+                  task={task}
                   users={users}
-                  handleFieldChange={(value) => {
+                  control={formContext?.control}
+                  formState={formContext?.formState}
+                  watch={formContext?.watch}
+                  handleFieldChange={(field, value) => {
                     if (task && task.id) {
-                      updateTask(task.id, { assignee: value });
+                      updateTask(task.id, { [field]: value });
                     }
                   }}
                 />

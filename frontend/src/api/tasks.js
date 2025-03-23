@@ -130,6 +130,10 @@ export const updateTask = async (taskId, taskData) => {
     if ('template_name' in updatedData) {
       delete updatedData.template_name;
     }
+    // assigneeフィールドを削除（バックエンドでの検証エラーを回避）
+    if ('assignee' in updatedData) {
+      delete updatedData.assignee;
+    }
     
     const response = await apiClient.patch(`/api/tasks/${taskId}/`, updatedData);
     return response.data;
