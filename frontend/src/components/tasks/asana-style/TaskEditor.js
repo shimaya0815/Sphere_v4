@@ -506,8 +506,9 @@ const TaskEditor = ({
                   }}
                 />
                 
-                {!isNew && task && <Comments taskId={task.id} />}
-                {!isNew && task && <Attachments taskId={task.id} />}
+                {/* 一時的にコメントアウト - AuthProvider問題の解決まで */}
+                {/* !isNew && task && <Comments taskId={task.id} /> */}
+                {/* !isNew && task && <Attachments taskId={task.id} /> */}
               </div>
               
               <div className="task-sidebar mt-8 space-y-6">
