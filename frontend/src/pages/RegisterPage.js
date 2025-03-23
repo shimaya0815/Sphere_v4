@@ -4,8 +4,8 @@ import { useForm } from 'react-hook-form';
 import { useAuth } from '../context/AuthContext';
 
 const RegisterPage = () => {
-  const { register, handleSubmit, watch, formState: { errors } } = useForm();
-  const { register: registerUser, error, login } = useAuth();
+  const { register: registerForm, handleSubmit, watch, formState: { errors } } = useForm();
+  const { register: registerUser, error } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const password = watch('password', '');
@@ -26,25 +26,12 @@ const RegisterPage = () => {
       const success = await registerUser(userData);
       
       if (success) {
-        // 登録成功メッセージ
-        console.log("Registration successful, attempting auto-login...");
-        
-        // ビジネスIDは自動生成されるので特定のIDを渡す必要はない
-        const loginSuccess = await login(data.email, data.password);
-        if (loginSuccess) {
-          console.log("Auto-login successful, redirecting to dashboard");
-          navigate('/dashboard');
-        } else {
-          console.log("Auto-login failed, redirecting to login page");
-          // 自動ログインに失敗した場合はログインページへ
-          navigate('/login', { 
-            state: { 
-              message: "アカウント登録が完了しました。ログインしてください。",
-              email: data.email 
-            } 
-          });
-        }
+        // 登録成功
+        console.log("Registration successful, redirecting to dashboard");
+        navigate('/dashboard');
       }
+    } catch (error) {
+      console.error("Registration error:", error);
     } finally {
       setIsLoading(false);
     }
@@ -89,7 +76,7 @@ const RegisterPage = () => {
                   errors.firstName ? 'border-red-300 ring-1 ring-red-300' : 'border-gray-300'
                 } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm`}
                 placeholder="例：太郎"
-                {...register('firstName', { 
+                {...registerForm('firstName', { 
                   required: '名を入力してください',
                 })}
               />
@@ -107,7 +94,7 @@ const RegisterPage = () => {
                   errors.lastName ? 'border-red-300 ring-1 ring-red-300' : 'border-gray-300'
                 } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm`}
                 placeholder="例：山田"
-                {...register('lastName', { 
+                {...registerForm('lastName', { 
                   required: '姓を入力してください',
                 })}
               />
@@ -126,7 +113,7 @@ const RegisterPage = () => {
                   errors.email ? 'border-red-300 ring-1 ring-red-300' : 'border-gray-300'
                 } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm`}
                 placeholder="your.email@example.com"
-                {...register('email', { 
+                {...registerForm('email', { 
                   required: 'メールアドレスは必須です',
                   pattern: {
                     value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
@@ -149,7 +136,7 @@ const RegisterPage = () => {
                   errors.password ? 'border-red-300 ring-1 ring-red-300' : 'border-gray-300'
                 } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm`}
                 placeholder="••••••••"
-                {...register('password', { 
+                {...registerForm('password', { 
                   required: 'パスワードは必須です',
                   minLength: {
                     value: 8,
@@ -172,7 +159,7 @@ const RegisterPage = () => {
                   errors.confirmPassword ? 'border-red-300 ring-1 ring-red-300' : 'border-gray-300'
                 } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors sm:text-sm`}
                 placeholder="••••••••"
-                {...register('confirmPassword', { 
+                {...registerForm('confirmPassword', { 
                   required: 'パスワード確認は必須です',
                   validate: value => value === password || 'パスワードが一致しません'
                 })}
@@ -190,7 +177,7 @@ const RegisterPage = () => {
                 name="agree-terms"
                 type="checkbox"
                 className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                {...register('agreeTerms', { 
+                {...registerForm('agreeTerms', { 
                   required: '利用規約に同意してください'
                 })}
               />

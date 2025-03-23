@@ -194,7 +194,15 @@ export const AuthProvider = ({ children }) => {
       
       console.log('Registration response:', response);
       
-      return true;
+      // 登録成功後に自動ログイン
+      try {
+        await login(userData.email, userData.password);
+        return true;
+      } catch (loginErr) {
+        console.error('Auto-login after registration failed:', loginErr);
+        // ログインに失敗しても登録自体は成功扱い
+        return true;
+      }
     } catch (err) {
       console.error('Registration error:', err);
       
