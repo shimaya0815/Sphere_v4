@@ -527,22 +527,6 @@ const ServiceCheckSettings = ({ clientId }) => {
       console.log('ServiceCheckSettings initialized with client ID:', clientId);
       setLoading(true);
       
-      // クライアント情報を取得
-      clientsApi.getClient(clientId)
-        .then(data => {
-          setClientInfo(data);
-          console.log('Client info fetched:', data);
-        })
-        .catch(err => {
-          console.error('Error fetching client info:', err);
-        });
-      
-      // テンプレートを自動で有効化
-      setSettings(prevSettings => ({
-        ...prevSettings,
-        templates_enabled: true
-      }));
-      
       // 初期データ取得
       fetchData().then(() => {
         console.log('Initial data fetch completed, settings loaded');
@@ -571,7 +555,6 @@ const ServiceCheckSettings = ({ clientId }) => {
         });
       });
     }
-    // clientTemplatesを依存配列から削除して無限ループを防ぐ
   }, [clientId]);
   
   // タスクテンプレートモーダルを表示する関数
@@ -880,7 +863,7 @@ const ServiceCheckSettings = ({ clientId }) => {
       
       // グローバルテンプレートを取得
       try {
-        const globalTemplatesData = await tasksApi.getTemplates();
+        const globalTemplatesData = await tasksApi.getTemplates(100, true);
         // APIが配列でない場合は空配列として扱う
         if (Array.isArray(globalTemplatesData)) {
           globalTemplatesArray = globalTemplatesData;

@@ -238,12 +238,13 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
             let templatesData, schedulesData;
             try {
               [templatesData, schedulesData] = await Promise.all([
-                tasksApi.getTemplates(),
+                tasksApi.getTemplates(100, true),
                 clientsApi.getTaskTemplateSchedules()
               ]);
               
               console.log('Templates API response:', templatesData);
               console.log('Schedules API response:', schedulesData);
+              console.log('Template names found:', templatesData.map(t => t.title || t.template_name));
               
               // テンプレートが取得できたら自動で適用
               if (templatesData && templatesData.length > 0) {
@@ -264,38 +265,90 @@ const ClientForm = ({ clientId = null, initialData = null }) => {
                 
                 // 各デフォルトテンプレートを適用
                 for (const templateName of defaultTemplateNames) {
-                  // 対応するテンプレートを検索
-                  const template = templatesData.find(t => 
+                  // テンプレート検索時のデバッグ情報を表示
+                  console.log(`Searching for template: "${templateName}"`);
+                  console.log('Available templates (titles):', templatesData.map(t => ({ id: t.id, title: t.title, template_name: t.template_name })));
+                  
+                  // 対応するテンプレートを検索 - 完全一致のみ
+                  let template = templatesData.find(t => 
                     t.title === templateName || 
                     t.template_name === templateName
                   );
                   
-                  if (template) {
-                    // スケジュールを検索または作成
-                    let scheduleId = null;
-                    let scheduleName = `${templateName}スケジュール`;
+                  // テンプレート検索結果のデバッグログ
+                  console.log(`Template search result for "${templateName}":`, template ? `Found (ID: ${template.id})` : 'Not found - Will try partial match next');
+                  
+                  // 完全一致しない場合、部分一致を試みる
+                  if (!template) {
+                    console.log(`Trying partial match for "${templateName}"...`);
+                    // テンプレート名の一部が含まれるものを検索
+                    for (const t of templatesData) {
+                      if ((t.title && t.title.includes(templateName)) || 
+                          (t.template_name && t.template_name.includes(templateName))) {
+                        template = t;
+                        console.log(`Found partial match for "${templateName}": "${template.title}" (ID: ${template.id})`);
+                        break;
+                      }
+                    }
+                  }
+                  
+                  // 特定のテンプレートが見つからない場合の対応
+                  if (!template) {
+                    console.warn(`Template "${templateName}" not found in available templates by exact match`);
                     
-                    // 既存のスケジュールを検索
-                    const schedule = schedulesData?.find(s => s.name === scheduleName);
+                    // 部分一致で検索する
+                    console.log(`Trying to find template for "${templateName}" using partial match...`);
                     
-                    if (schedule) {
-                      scheduleId = schedule.id;
+                    // テンプレート名から検索キーワードを抽出
+                    const keywords = templateName.split(/\s+|（|）|\(|\)/);
+                    console.log(`Keywords for "${templateName}":`, keywords);
+                    
+                    // 各キーワードで部分一致検索
+                    for (const keyword of keywords) {
+                      if (keyword.length < 2) continue; // 短すぎるキーワードはスキップ
+                      
+                      template = templatesData.find(t => 
+                        (t.title && t.title.includes(keyword)) || 
+                        (t.template_name && t.template_name.includes(keyword))
+                      );
+                      
+                      if (template) {
+                        console.log(`Found template for "${templateName}" using keyword "${keyword}":`, template);
+                        break;
+                      }
                     }
                     
-                    // テンプレートをクライアントに適用
-                    try {
-                      await clientsApi.createClientTaskTemplate(newClient.id, {
-                        title: templateName,
-                        description: template.description,
-                        template_task: template.id,
-                        schedule: scheduleId,
-                        is_active: true,
-                        start_date: new Date().toISOString().split('T')[0]  // 今日の日付を開始日として設定
-                      });
-                      console.log(`Applied template: ${templateName} to client ${newClient.id}`);
-                    } catch (err) {
-                      console.error(`Error applying template ${templateName}:`, err);
+                    // それでも見つからない場合
+                    if (!template) {
+                      console.warn(`No matching template found for "${templateName}" even with partial match`);
+                      continue;
                     }
+                  }
+                  
+                  // スケジュールを検索または作成
+                  let scheduleId = null;
+                  let scheduleName = `${templateName}スケジュール`;
+                  
+                  // 既存のスケジュールを検索
+                  const schedule = schedulesData?.find(s => s.name === scheduleName);
+                  
+                  if (schedule) {
+                    scheduleId = schedule.id;
+                  }
+                  
+                  // テンプレートをクライアントに適用
+                  try {
+                    await clientsApi.createClientTaskTemplate(newClient.id, {
+                      title: templateName,
+                      description: template.description,
+                      template_task: template.id,
+                      schedule: scheduleId,
+                      is_active: true,
+                      start_date: new Date().toISOString().split('T')[0]  // 今日の日付を開始日として設定
+                    });
+                    console.log(`Applied template: ${templateName} to client ${newClient.id}`);
+                  } catch (err) {
+                    console.error(`Error applying template ${templateName}:`, err);
                   }
                 }
                 

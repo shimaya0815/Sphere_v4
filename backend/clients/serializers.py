@@ -141,14 +141,13 @@ class ClientTaskTemplateSerializer(serializers.ModelSerializer):
     worker_name = serializers.SerializerMethodField()
     reviewer_name = serializers.SerializerMethodField()
     category_name = serializers.CharField(source='category.name', read_only=True)
-    priority_value = serializers.IntegerField(source='priority.priority_value', read_only=True)
     client_name = serializers.CharField(source='client.name', read_only=True)
     
     class Meta:
         model = ClientTaskTemplate
         fields = [
             'id', 'client', 'client_name', 'title', 'description', 'schedule', 'schedule_name',
-            'template_task', 'category', 'category_name', 'priority', 'priority_value',
+            'template_task', 'category', 'category_name',
             'estimated_hours', 'worker', 'worker_name', 'reviewer', 'reviewer_name',
             'is_active', 'order', 'created_at', 'updated_at', 'last_generated_at'
         ]

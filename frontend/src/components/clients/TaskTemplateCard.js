@@ -97,12 +97,6 @@ const TaskTemplateCard = ({ template, onEdit, onDelete, onCreateTask }) => {
                 <td className="py-2 text-sm">{template.category_name}</td>
               </tr>
             )}
-            {template.priority_value && (
-              <tr>
-                <td className="py-2 text-sm font-medium text-gray-500">優先度</td>
-                <td className="py-2 text-sm">{template.priority_value}</td>
-              </tr>
-            )}
             {template.estimated_hours && (
               <tr>
                 <td className="py-2 text-sm font-medium text-gray-500">見積工数</td>

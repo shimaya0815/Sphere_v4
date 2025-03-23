@@ -6,8 +6,8 @@ import TaskForm from './TaskForm';
 import StatusSelector from './StatusSelector';
 import TimeTracking from './components/TimeTracking';
 // エラーになるコンポーネントを一時的にコメントアウト
-// import Comments from '../components/TaskComments';
-// import Attachments from '../components/Attachments';
+import Comments from '../components/TaskComments';
+import Attachments from '../components/Attachments';
 import { useTaskTimer } from './hooks/useTaskTimer';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import TaskTitleEditor from '../TaskTitleEditor';
@@ -81,13 +81,13 @@ const motion = {
 };
 
 // 一時的なダミーコンポーネント
-const Comments = ({ taskId }) => (
-  <div>コメント機能は現在開発中です。タスクID: {taskId}</div>
-);
+// const Comments = ({ taskId }) => (
+//   <div>コメント機能は現在開発中です。タスクID: {taskId}</div>
+// );
 
-const Attachments = ({ taskId }) => (
-  <div>添付ファイル機能は現在開発中です。タスクID: {taskId}</div>
-);
+// const Attachments = ({ taskId }) => (
+//   <div>添付ファイル機能は現在開発中です。タスクID: {taskId}</div>
+// );
 
 /**
  * Asana風タスク編集コンポーネント

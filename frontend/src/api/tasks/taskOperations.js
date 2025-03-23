@@ -114,10 +114,22 @@ export const createTask = async (taskData) => {
       
       if (!cleanedData.business) {
         console.error('business IDが未設定です。必須フィールドです。');
+        // ローカルストレージまたはユーザープロファイルからビジネスIDを取得
+        const businessId = localStorage.getItem('businessId') || window.__SPHERE_USER_PROFILE?.businessId;
+        if (businessId) {
+          cleanedData.business = businessId;
+          console.log('ビジネスIDをローカルストレージ/ユーザープロファイルから設定:', businessId);
+        }
       }
       
       if (!cleanedData.workspace) {
         console.error('workspace IDが未設定です。必須フィールドです。');
+        // ローカルストレージからワークスペースIDを取得
+        const workspaceId = localStorage.getItem('workspaceId');
+        if (workspaceId) {
+          cleanedData.workspace = workspaceId;
+          console.log('ワークスペースIDをローカルストレージから設定:', workspaceId);
+        }
       }
     }
     

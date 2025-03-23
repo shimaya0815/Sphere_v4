@@ -10,7 +10,6 @@ const TaskTemplateForm = ({ clientId, template, schedules, onSubmit, onClose }) 
     schedule: '',
     template_task: '',
     category: '',
-    priority: '',
     estimated_hours: '',
     worker: '',
     reviewer: '',
@@ -20,7 +19,6 @@ const TaskTemplateForm = ({ clientId, template, schedules, onSubmit, onClose }) 
   
   const [templateTasks, setTemplateTasks] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [priorities, setPriorities] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
@@ -38,7 +36,6 @@ const TaskTemplateForm = ({ clientId, template, schedules, onSubmit, onClose }) 
         schedule: template.schedule || '',
         template_task: template.template_task || '',
         category: template.category || '',
-        priority: template.priority || '',
         estimated_hours: template.estimated_hours || '',
         worker: template.worker || '',
         reviewer: template.reviewer || '',
@@ -52,16 +49,14 @@ const TaskTemplateForm = ({ clientId, template, schedules, onSubmit, onClose }) 
     setLoading(true);
     try {
       // 並列にデータを取得
-      const [templatesRes, categoriesRes, prioritiesRes, usersRes] = await Promise.all([
+      const [templatesRes, categoriesRes, usersRes] = await Promise.all([
         clientsApi.getTaskTemplates(),
         fetch('/api/tasks/categories/').then(res => res.json()),
-        fetch('/api/tasks/priorities/').then(res => res.json()),
         fetch('/api/users/').then(res => res.json()),
       ]);
       
       setTemplateTasks(templatesRes);
       setCategories(categoriesRes);
-      setPriorities(prioritiesRes);
       setUsers(usersRes);
     } catch (error) {
       console.error('Error fetching form data:', error);
@@ -249,25 +244,6 @@ const TaskTemplateForm = ({ clientId, template, schedules, onSubmit, onClose }) 
                   {Array.isArray(categories) && categories.map(category => (
                     <option key={category.id} value={category.id}>
                       {category.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text">優先度</span>
-                </label>
-                <select
-                  name="priority"
-                  value={formData.priority}
-                  onChange={handleChange}
-                  className="select select-bordered w-full"
-                >
-                  <option value="">優先度を選択</option>
-                  {Array.isArray(priorities) && priorities.map(priority => (
-                    <option key={priority.id} value={priority.id}>
-                      {priority.priority_value} - {priority.name}
                     </option>
                   ))}
                 </select>

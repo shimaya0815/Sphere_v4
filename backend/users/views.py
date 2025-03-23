@@ -584,6 +584,17 @@ class UserCreateView(APIView):
                                 description="Default workspace created automatically"
                             )
                             logger.info(f"Created workspace for business: {workspace.name} (ID: {workspace.id})")
+                        
+                        # setup_templatesコマンドを実行してテンプレートを作成
+                        try:
+                            from django.core.management import call_command
+                            logger.info(f"Running setup_templates command for business {business.id}")
+                            call_command('setup_templates', business_id=business.id)
+                            logger.info(f"Successfully ran setup_templates command for business {business.id}")
+                        except Exception as setup_error:
+                            logger.error(f"Error running setup_templates command: {str(setup_error)}")
+                            # エラーがあっても続行
+                            pass
                     except Exception as e:
                         logger.error(f"Error creating business or workspace: {str(e)}")
                         # エラーが発生した場合は、SQL直接実行を試みる

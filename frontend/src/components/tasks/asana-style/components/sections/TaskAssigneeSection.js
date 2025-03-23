@@ -102,11 +102,13 @@ const TaskAssigneeSection = ({
               <Controller
                 name="worker"
                 control={control}
+                defaultValue=""
                 render={({ field }) => (
                   <select
                     id="worker"
                     className={selectClassName}
                     {...field}
+                    value={field.value || ""}
                     onChange={(e) => {
                       field.onChange(e);
                       // 「担当者なし」を選択した場合は明示的にnullを送信
@@ -135,11 +137,13 @@ const TaskAssigneeSection = ({
               <Controller
                 name="reviewer"
                 control={control}
+                defaultValue=""
                 render={({ field }) => (
                   <select
                     id="reviewer"
                     className={selectClassName}
                     {...field}
+                    value={field.value || ""}
                     onChange={(e) => {
                       field.onChange(e);
                       // 「担当者なし」を選択した場合は明示的にnullを送信
@@ -171,11 +175,13 @@ const TaskAssigneeSection = ({
             <Controller
               name="approver"
               control={control}
+              defaultValue=""
               render={({ field }) => (
                 <select
                   id="approver"
                   className={selectClassName}
                   {...field}
+                  value={field.value || ""}
                   onChange={(e) => {
                     field.onChange(e);
                     // 「担当者なし」を選択した場合は明示的にnullを送信

@@ -223,7 +223,20 @@ export const getTaskTemplates = async () => {
 export const getTaskTemplateSchedules = async () => {
   try {
     const response = await apiClient.get('/clients/schedules/');
-    return response.data;
+    console.log('TaskTemplateSchedules API response:', response.data);
+    
+    // DRFのページネーション形式（results配列を含むオブジェクト）に対応
+    if (response.data && response.data.results && Array.isArray(response.data.results)) {
+      return response.data.results;
+    }
+    
+    // 直接配列の場合
+    if (Array.isArray(response.data)) {
+      return response.data;
+    }
+    
+    console.warn('API response is not in expected format, returning empty array');
+    return [];
   } catch (error) {
     console.error('Error fetching task template schedules:', error);
     return [];
@@ -274,11 +287,31 @@ export const createClientTaskTemplate = async (clientId, data) => {
       ...cleanedData,
       client: clientId
     };
+    
+    console.log(`Sending client task template request:`, requestData);
+    
     // 正しいエンドポイント（ViewSetが公開しているPOST可能なエンドポイント）を使用
     const response = await apiClient.post(`/clients/client-task-templates/`, requestData);
+    console.log(`Client task template created successfully:`, response.data);
     return response.data;
   } catch (error) {
     console.error(`Error creating client task template for client ${clientId}:`, error);
+    
+    // エラーの詳細情報をログに出力
+    if (error.response) {
+      // サーバーからのレスポンスがある場合
+      console.error('API Response error:', error);
+      console.error('Status:', error.response.status);
+      console.error('Data:', error.response.data);
+      console.error('Headers:', error.response.headers);
+    } else if (error.request) {
+      // リクエストは送信されたがレスポンスがない場合
+      console.error('Request was made but no response received:', error.request);
+    } else {
+      // リクエスト作成時にエラーが発生した場合
+      console.error('Error during request setup:', error.message);
+    }
+    
     throw error;
   }
 };

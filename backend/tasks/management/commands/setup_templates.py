@@ -35,8 +35,8 @@ def create_template_for_business(business):
     # 標準テンプレート構成を作成
     template_configs = [
         {
-            "name": "月次処理チェック",
-            "description": "毎月の会計処理状況を確認します。",
+            "name": "顧問契約タスク",
+            "description": "顧問契約に基づく月次の会計処理状況を確認します。",
             "category": default_category,
             "tasks": [
                 {
@@ -72,7 +72,7 @@ def create_template_for_business(business):
             ]
         },
         {
-            "name": "記帳代行作業",
+            "name": "記帳代行業務",
             "description": "月次の記帳代行を行います。",
             "category": bookkeeping_category,
             "tasks": [
@@ -115,7 +115,7 @@ def create_template_for_business(business):
             ]
         },
         {
-            "name": "決算・法人税申告業務",
+            "name": "決算申告タスク",
             "description": "決算期の法人税申告書作成業務を行います。",
             "category": tax_category,
             "tasks": [
@@ -170,8 +170,107 @@ def create_template_for_business(business):
             ]
         },
         {
-            "name": "源泉所得税納付業務",
-            "description": "毎月の源泉所得税の納付手続きを行います。",
+            "name": "中間申告タスク",
+            "description": "中間申告書の作成・提出業務を行います。",
+            "category": tax_category,
+            "tasks": [
+                {
+                    "title": "中間申告対象の確認",
+                    "description": "中間申告の対象となるか確認します。",
+                    "estimated_hours": 0.5,
+                    "order": 1
+                },
+                {
+                    "title": "中間申告書の作成",
+                    "description": "中間申告書を作成します。",
+                    "estimated_hours": 2.0,
+                    "order": 2
+                },
+                {
+                    "title": "クライアントへの説明",
+                    "description": "中間申告内容をクライアントに説明します。",
+                    "estimated_hours": 1.0,
+                    "order": 3
+                },
+                {
+                    "title": "電子申告の実施",
+                    "description": "e-Taxで電子申告を行います。",
+                    "estimated_hours": 0.5,
+                    "order": 4
+                }
+            ]
+        },
+        {
+            "name": "予定申告タスク",
+            "description": "予定申告書の作成・提出業務を行います。",
+            "category": tax_category,
+            "tasks": [
+                {
+                    "title": "予定申告対象の確認",
+                    "description": "予定申告の対象となるか確認します。",
+                    "estimated_hours": 0.5,
+                    "order": 1
+                },
+                {
+                    "title": "予定申告書の作成",
+                    "description": "予定申告書を作成します。",
+                    "estimated_hours": 2.0,
+                    "order": 2
+                },
+                {
+                    "title": "クライアントへの説明",
+                    "description": "予定申告内容をクライアントに説明します。",
+                    "estimated_hours": 1.0,
+                    "order": 3
+                },
+                {
+                    "title": "電子申告の実施",
+                    "description": "e-Taxで電子申告を行います。",
+                    "estimated_hours": 0.5,
+                    "order": 4
+                }
+            ]
+        },
+        {
+            "name": "給与計算業務",
+            "description": "月次の給与計算業務を行います。",
+            "category": tax_category,
+            "tasks": [
+                {
+                    "title": "勤怠データの受領",
+                    "description": "当月の勤怠データを受領します。",
+                    "estimated_hours": 0.5,
+                    "order": 1
+                },
+                {
+                    "title": "給与計算",
+                    "description": "勤怠データに基づいて給与計算を行います。",
+                    "estimated_hours": 2.0,
+                    "order": 2
+                },
+                {
+                    "title": "控除額の計算",
+                    "description": "社会保険料や所得税などの控除額を計算します。",
+                    "estimated_hours": 1.0,
+                    "order": 3
+                },
+                {
+                    "title": "給与明細の作成",
+                    "description": "給与明細を作成します。",
+                    "estimated_hours": 1.0,
+                    "order": 4
+                },
+                {
+                    "title": "振込データの作成",
+                    "description": "銀行振込用のデータを作成します。",
+                    "estimated_hours": 0.5,
+                    "order": 5
+                }
+            ]
+        },
+        {
+            "name": "源泉所得税(原則)納付",
+            "description": "毎月の源泉所得税（原則）の納付手続きを行います。",
             "category": tax_category,
             "tasks": [
                 {
@@ -201,8 +300,39 @@ def create_template_for_business(business):
             ]
         },
         {
-            "name": "住民税納付業務",
-            "description": "従業員の住民税特別徴収の納付手続きを行います。",
+            "name": "源泉所得税(特例)納付",
+            "description": "半年ごとの源泉所得税（特例）の納付手続きを行います。",
+            "category": tax_category,
+            "tasks": [
+                {
+                    "title": "半年分の給与支払い額の確認",
+                    "description": "半年分の給与支払い総額を確認します。",
+                    "estimated_hours": 0.5,
+                    "order": 1
+                },
+                {
+                    "title": "源泉所得税額の計算",
+                    "description": "源泉所得税額を計算します。",
+                    "estimated_hours": 1.0,
+                    "order": 2
+                },
+                {
+                    "title": "納付書の作成",
+                    "description": "源泉所得税の納付書を作成します。",
+                    "estimated_hours": 0.5,
+                    "order": 3
+                },
+                {
+                    "title": "納付手続きの実施",
+                    "description": "源泉所得税を納付します。",
+                    "estimated_hours": 0.5,
+                    "order": 4
+                }
+            ]
+        },
+        {
+            "name": "住民税(原則)納付",
+            "description": "従業員の住民税（原則）特別徴収の納付手続きを行います。",
             "category": tax_category,
             "tasks": [
                 {
@@ -238,6 +368,37 @@ def create_template_for_business(business):
             ]
         },
         {
+            "name": "住民税(特例)納付",
+            "description": "従業員の住民税（特例）特別徴収の納付手続きを行います。",
+            "category": tax_category,
+            "tasks": [
+                {
+                    "title": "住民税通知書の確認",
+                    "description": "市区町村からの特別徴収税額通知書を確認します。",
+                    "estimated_hours": 0.5,
+                    "order": 1
+                },
+                {
+                    "title": "従業員ごとの住民税額の確認",
+                    "description": "従業員ごとの住民税額を確認します。",
+                    "estimated_hours": 1.0,
+                    "order": 2
+                },
+                {
+                    "title": "納付書の作成",
+                    "description": "住民税の納付書を作成します。",
+                    "estimated_hours": 0.5,
+                    "order": 3
+                },
+                {
+                    "title": "納付手続きの実施",
+                    "description": "住民税を納付します。",
+                    "estimated_hours": 0.5,
+                    "order": 4
+                }
+            ]
+        },
+        {
             "name": "社会保険手続き",
             "description": "社会保険関連の各種手続きを行います。",
             "category": tax_category,
@@ -265,6 +426,19 @@ def create_template_for_business(business):
                     "description": "毎年7月に提出する算定基礎届を作成します。",
                     "estimated_hours": 2.0,
                     "order": 4
+                }
+            ]
+        },
+        {
+            "name": "その他のタスク",
+            "description": "その他の定型業務に関するタスクです。",
+            "category": default_category,
+            "tasks": [
+                {
+                    "title": "定型業務",
+                    "description": "その他の定型業務を行います。",
+                    "estimated_hours": 1.0,
+                    "order": 1
                 }
             ]
         }
@@ -300,14 +474,20 @@ def create_template_for_business(business):
                 schedule = existing_schedule
             else:
                 # 新規スケジュール作成
-                # テンプレート名と一致するスケジュール設定
+                # スケジュール設定を取得（見つからない場合はデフォルト値を使用）
                 schedule_settings = {
-                    "月次処理チェック": {"type": "monthly_start", "recurrence": "monthly"},
-                    "記帳代行作業": {"type": "monthly_start", "recurrence": "monthly"},
-                    "決算・法人税申告業務": {"type": "fiscal_relative", "recurrence": "yearly"},
-                    "源泉所得税納付業務": {"type": "monthly_end", "recurrence": "monthly"},
-                    "住民税納付業務": {"type": "monthly_start", "recurrence": "monthly"},
-                    "社会保険手続き": {"type": "monthly_start", "recurrence": "monthly"}
+                    "顧問契約タスク": {"type": "monthly_start", "recurrence": "monthly"},
+                    "記帳代行業務": {"type": "monthly_start", "recurrence": "monthly"},
+                    "決算申告タスク": {"type": "fiscal_relative", "recurrence": "yearly"},
+                    "中間申告タスク": {"type": "fiscal_relative", "recurrence": "quarterly"},
+                    "予定申告タスク": {"type": "fiscal_relative", "recurrence": "quarterly"},
+                    "給与計算業務": {"type": "monthly_start", "recurrence": "monthly"},
+                    "源泉所得税(原則)納付": {"type": "monthly_end", "recurrence": "monthly"},
+                    "源泉所得税(特例)納付": {"type": "monthly_end", "recurrence": "quarterly"},
+                    "住民税(原則)納付": {"type": "monthly_start", "recurrence": "monthly"},
+                    "住民税(特例)納付": {"type": "monthly_start", "recurrence": "monthly"},
+                    "社会保険手続き": {"type": "monthly_start", "recurrence": "monthly"},
+                    "その他のタスク": {"type": "monthly_start", "recurrence": "monthly"}
                 }
                 
                 # 設定を取得（見つからない場合はデフォルト値を使用）
