@@ -367,6 +367,30 @@ const TaskEditor = ({
         // 更新の場合
         savedTask = await updateTask(task.id, processedData);
         message = 'タスクを更新しました';
+        
+        // タスクが完了状態になったかチェック
+        const taskHasBeenCompleted = 
+          // 完了ステータスに変更された場合
+          (savedTask.status && 
+           statuses.some(s => s.id === savedTask.status && s.name === '完了')) &&
+          // 元のタスクが繰り返し設定を持っている場合
+          savedTask.is_recurring && 
+          savedTask.recurrence_pattern;
+        
+        if (taskHasBeenCompleted) {
+          try {
+            // 次の繰り返しタスクを生成
+            const nextTask = await tasksApi.createNextRecurringTask(savedTask.id);
+            
+            if (nextTask) {
+              message += '。次の繰り返しタスクが生成されました';
+            }
+          } catch (error) {
+            console.error('次の繰り返しタスク生成中にエラーが発生しました:', error);
+            // エラーは表示せず、通常の保存メッセージのみ表示
+          }
+        }
+        
         setTask(savedTask);
         
         // 更新後の処理
@@ -376,6 +400,16 @@ const TaskEditor = ({
       }
       
       toast.success(message);
+      
+      // タスクが完了状態になった場合は自動的にパネルを閉じる
+      if (!isNew && savedTask.status && statuses.some(s => s.id === savedTask.status && s.name === '完了')) {
+        if (onClose) {
+          onClose();
+        } else {
+          navigate('/tasks', { replace: true });
+        }
+      }
+      
       return savedTask;
     } catch (error) {
       console.error('Error saving task:', error);
@@ -384,7 +418,7 @@ const TaskEditor = ({
     } finally {
       setIsSaving(false);
     }
-  }, [isNew, task?.id, createTask, updateTask, navigate, onTaskUpdated, onClose]);
+  }, [isNew, task?.id, statuses, createTask, updateTask, navigate, onTaskUpdated, onClose]);
   
   // 戻るボタン処理
   const handleBack = () => {
@@ -626,18 +660,6 @@ const TaskEditor = ({
                     <HiOutlineTrash className="mr-1" />
                     削除
                   </button>
-                  
-                  {task.is_recurring && (
-                    <button
-                      type="button"
-                      className="ml-4 text-green-600 hover:text-green-800 flex items-center"
-                      onClick={handleMarkCompleteAndGenerateNext}
-                      disabled={isSaving}
-                    >
-                      <HiOutlineRefresh className="mr-1" />
-                      完了して次を生成
-                    </button>
-                  )}
                 </div>
               )}
               
