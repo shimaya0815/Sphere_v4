@@ -267,6 +267,9 @@ const TaskTemplateList = () => {
       setLoading(true);
       toast.loading('デフォルトテンプレートを作成中...', { id: 'default-templates' });
       
+      // 作成/更新したテンプレートのカウンター初期化
+      let createdCount = 0;
+      
       // テンプレート一覧の取得と確認
       const currentTemplatesResponse = await tasksApi.getTemplates(1000); // 全テンプレートを取得
       let currentTemplates = [];
@@ -321,6 +324,9 @@ const TaskTemplateList = () => {
       const requiredCategories = ['一般', '決算・申告', '記帳代行', '税務顧問', '給与計算'];
       const categoryMap = {};
       
+      // テンプレート名ごとの処理状況を記録する配列
+      const processedTemplates = [];
+      
       // 既存カテゴリをマッピング
       for (const categoryName of requiredCategories) {
         // 正確なカテゴリ名で検索
@@ -361,8 +367,6 @@ const TaskTemplateList = () => {
         console.log('Found statuses: ', statuses.map(s => `${s.id}:${s.name}`).join(', '));
       }
       
-      let createdCount = 0;
-      
       // 未着手ステータスを検索
       const defaultStatus = statuses.find(s => s.name === '未着手');
       console.log('Found default status:', defaultStatus);
@@ -377,7 +381,7 @@ const TaskTemplateList = () => {
       // すべてのテンプレートを処理
       for (const template of DEFAULT_TEMPLATES) {
         try {
-          console.log(`Processing template: ${template.template_name}`);
+          console.log(`========== Processing template: ${template.template_name} ==========`);
           
           // ビジネスIDとワークスペースIDを確保（ローカルストレージからまたはフォールバック値）
           let businessId = localStorage.getItem('businessId') || undefined;
@@ -473,7 +477,8 @@ const TaskTemplateList = () => {
             is_template: true,
             template_name: template.template_name,
             recurrence_pattern: template.recurrence_pattern,
-            estimated_hours: template.estimated_hours,
+            // 数値として一貫性を保つために変換
+            estimated_hours: parseFloat(template.estimated_hours) || null,
             // ビジネスIDとワークスペースIDをここで設定
             business: businessId,
             workspace: workspaceId,
@@ -482,11 +487,14 @@ const TaskTemplateList = () => {
           console.log('Template data prepared:', templateData);
           
           // 既存のテンプレートと重複がないか確認 - より柔軟なチェック
-          const existingTemplate = (currentTemplates || []).find(t => 
+          const existsCheck = (currentTemplates || []).filter(t => 
             (t.template_name && t.template_name.toLowerCase() === template.template_name.toLowerCase()) || 
             (t.title && t.title.toLowerCase() === template.title.toLowerCase())
           );
           
+          console.log(`テンプレート「${template.template_name}」の存在チェック結果:`, existsCheck);
+          
+          const existingTemplate = existsCheck.length > 0 ? existsCheck[0] : null;
           const exists = !!existingTemplate;
           
           console.log(`Template exists check (${template.template_name}): ${exists}`, existingTemplate);
@@ -498,35 +506,65 @@ const TaskTemplateList = () => {
             const createdTemplate = await tasksApi.createTask(templateData);
             console.log('Template created successfully:', createdTemplate);
             createdCount++;
+            processedTemplates.push({
+              name: template.template_name,
+              action: 'created',
+              id: createdTemplate.id
+            });
           } else {
             // 既存のテンプレートを更新 - ただし変更がある場合のみ
             console.log(`Checking existing template: ${template.title} (ID: ${existingTemplate.id})`);
             
             // 値を厳密に比較する関数
             const compareSafeEquals = (a, b) => {
-              if (a === b) return true; // 同一参照または同一プリミティブ値
-              if (a == null || b == null) return a == b; // 両方nullかundefinedなら等しい、片方だけならfalse
+              // 両方null/undefinedなら等しい
+              if (a == null && b == null) return true;
               
-              // 型変換して文字列比較
-              return String(a).trim() === String(b).trim();
+              // 片方だけnull/undefinedなら異なる
+              if (a == null || b == null) return false;
+              
+              // 型が異なる場合、文字列に変換して比較
+              const strA = String(a).trim();
+              const strB = String(b).trim();
+              
+              // 数値の場合は数値として比較する（小数点による違いを無視）
+              if (!isNaN(parseFloat(a)) && !isNaN(parseFloat(b))) {
+                return parseFloat(a) === parseFloat(b);
+              }
+              
+              // 文字列として比較
+              return strA === strB;
             };
             
             // 実際に更新が必要なフィールドだけを判定
             const titleMatches = compareSafeEquals(template.title, existingTemplate.title);
             const descMatches = compareSafeEquals(template.description, existingTemplate.description);
             
-            // estimated_hours は数値として比較
-            const hoursA = parseFloat(template.estimated_hours) || 0;
-            const hoursB = parseFloat(existingTemplate.estimated_hours) || 0;
-            const hoursMatch = hoursA === hoursB;
+            // estimated_hours の比較はcompareSafeEqualsを使用
+            const hoursMatch = compareSafeEquals(template.estimated_hours, existingTemplate.estimated_hours);
             
             const patternMatches = compareSafeEquals(template.recurrence_pattern, existingTemplate.recurrence_pattern);
-            const categoryMatches = !category?.id || category.id === existingTemplate.category?.id;
+            
+            // カテゴリの比較ロジック改善
+            let categoryMatches = false;
+            
+            // 両方nullならマッチ
+            if (category?.id == null && existingTemplate.category?.id == null) {
+              categoryMatches = true;
+            } 
+            // 片方だけnullの場合は不一致
+            else if (category?.id == null || existingTemplate.category?.id == null) {
+              categoryMatches = false;
+            }
+            // 両方存在する場合は値を比較
+            else {
+              categoryMatches = category.id === existingTemplate.category.id;
+            }
             
             console.log('比較結果:', {
               title: {template: template.title, existing: existingTemplate.title, matches: titleMatches},
               desc: {template: template.description, existing: existingTemplate.description, matches: descMatches},
-              hours: {template: hoursA, existing: hoursB, raw: {template: template.estimated_hours, existing: existingTemplate.estimated_hours}, matches: hoursMatch},
+              hours: {template: template.estimated_hours, existing: existingTemplate.estimated_hours, matches: hoursMatch},
               pattern: {template: template.recurrence_pattern, existing: existingTemplate.recurrence_pattern, matches: patternMatches},
               category: {template: category?.id, existing: existingTemplate.category?.id, matches: categoryMatches}
             });
@@ -560,12 +598,29 @@ const TaskTemplateList = () => {
                 });
                 console.log('Template updated successfully:', updatedTemplate);
                 createdCount++;
+                processedTemplates.push({
+                  name: template.template_name,
+                  action: 'updated',
+                  id: existingTemplate.id,
+                  changes: {
+                    title: !titleMatches,
+                    desc: !descMatches,
+                    hours: !hoursMatch,
+                    pattern: !patternMatches,
+                    category: !categoryMatches
+                  }
+                });
               } catch (updateErr) {
                 console.error(`Error updating template ${template.title}:`, updateErr);
                 console.error('Update error details:', updateErr.response?.data || updateErr.message);
               }
             } else {
               console.log(`Skipping update for ${template.title} - 変更なし`);
+              processedTemplates.push({
+                name: template.template_name,
+                action: 'skipped',
+                id: existingTemplate.id
+              });
             }
           }
         } catch (err) {
@@ -576,10 +631,18 @@ const TaskTemplateList = () => {
         }
       }
       
+      // 処理結果のサマリーを出力
+      console.log('==== テンプレート処理サマリー ====');
+      console.log('合計処理件数:', DEFAULT_TEMPLATES.length);
+      console.log('作成または更新件数:', createdCount);
+      console.log('各テンプレートの処理結果:', processedTemplates);
+      
       // 成功メッセージを表示
       if (createdCount > 0) {
+        console.log(`デフォルトテンプレート処理完了: ${createdCount}個のテンプレートを作成または更新しました`);
         toast.success(`${createdCount}個のデフォルトテンプレートを作成または更新しました`, { id: 'default-templates' });
       } else {
+        console.log('デフォルトテンプレート処理完了: 更新は必要ありませんでした');
         toast.success('すべてのデフォルトテンプレートは既に存在しており、更新の必要はありませんでした', { id: 'default-templates' });
       }
       
