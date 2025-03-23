@@ -31,9 +31,8 @@ const TaskDescriptionSection = ({ control, handleFieldChange }) => {
                 // フィールド値のみ更新（内部状態）
                 field.onChange(processedContent);
                 
-                // 親コンポーネントには通知しない - 明示的に保存ボタンを押すまで変更を反映しない
-                // handleFieldChangeの第3引数をtrueにして自動保存を無効化
-                handleFieldChange('description', processedContent, true);
+                // 親コンポーネントに通知しない
+                // 空オブジェクトを渡してAPI呼び出しを抑制
               }}
             />
           )}

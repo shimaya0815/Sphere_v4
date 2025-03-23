@@ -499,9 +499,11 @@ const TaskEditor = ({
                 <TaskDescriptionSection 
                   description={task?.description}
                   control={formContext?.control}
-                  handleFieldChange={(value) => {
-                    if (task && task.id) {
-                      updateTask(task.id, { description: value });
+                  handleFieldChange={(field, value) => {
+                    // 説明編集の度に更新せず、内部状態のみ更新
+                    // フォーム送信時にのみAPI送信される
+                    if (formContext && formContext.setValue) {
+                      formContext.setValue('description', value);
                     }
                   }}
                 />
