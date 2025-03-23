@@ -67,9 +67,23 @@ const TaskRecurrenceSection = ({
         // is_recurringの初期値を設定（新規タスク作成時用）
         if (typeof setValue === 'function') {
           setValue('is_recurring', false);
+          
+          // デフォルト値の設定
+          setValue('recurrence_pattern', 'daily');
+          setValue('yearly_month', 1);
+          setValue('yearly_day', 1);
+          setValue('monthday', 1);
+          setValue('business_day', 1);
+          setValue('consider_holidays', true);
         } else if (typeof handleFieldChange === 'function') {
           // setValueが使えない場合はhandleFieldChangeを使用
           handleFieldChange('is_recurring', false);
+          handleFieldChange('recurrence_pattern', 'daily');
+          handleFieldChange('yearly_month', 1);
+          handleFieldChange('yearly_day', 1);
+          handleFieldChange('monthday', 1);
+          handleFieldChange('business_day', 1);
+          handleFieldChange('consider_holidays', true);
         }
       } catch (error) {
         console.error('初期化時にエラーが発生しました:', error);
@@ -593,6 +607,7 @@ const TaskRecurrenceSection = ({
                             min="1"
                             max="31"
                             {...field}
+                            value={field.value || ""}
                             onChange={(e) => {
                               field.onChange(e);
                               // 整数値として送信
@@ -625,6 +640,7 @@ const TaskRecurrenceSection = ({
                             min="1"
                             max="23"
                             {...field}
+                            value={field.value || ""}
                             onChange={(e) => {
                               field.onChange(e);
                               // 整数値として送信
@@ -729,6 +745,7 @@ const TaskRecurrenceSection = ({
                             min="1"
                             max="31"
                             {...field}
+                            value={field.value || ""}
                             onChange={(e) => {
                               field.onChange(e);
                               const numValue = parseInt(e.target.value, 10);
