@@ -133,39 +133,13 @@ const TaskTemplateList = () => {
   const fetchTemplates = async () => {
     setLoading(true);
     try {
-      // テンプレート一覧を取得
+      // テンプレート一覧を取得 - 全ページを取得する
       console.log('Getting templates...');
-      const data = await tasksApi.getTemplates();
-      console.log('Templates fetched for display:', data);
+      const allTemplates = await tasksApi.getTemplates(100, true);
+      console.log(`Templates fetched for display: ${allTemplates.length} templates`);
       
       // データがあるか確認
-      let allTemplates = [];
-      
-      // ページネーションがある場合の処理
-      if (data && data.results && data.count) {
-        // ページネーションされたレスポンス
-        console.log(`Found paginated templates: ${data.results.length} of ${data.count}`);
-        allTemplates = [...data.results];
-        
-        // 最初のページ以降のデータを取得
-        if (data.count > data.results.length && data.next) {
-          try {
-            // すべてのテンプレートを取得するためにlimitを増やす
-            const allData = await tasksApi.getTemplates(data.count);
-            if (allData && allData.results) {
-              allTemplates = [...allData.results];
-              console.log(`Retrieved all ${allTemplates.length} templates`);
-            }
-          } catch (err) {
-            console.error('Error fetching all templates:', err);
-          }
-        }
-      } else if (Array.isArray(data)) {
-        // 配列形式の場合はそのまま使用
-        allTemplates = data;
-      }
-      
-      if (allTemplates.length > 0) {
+      if (allTemplates && allTemplates.length > 0) {
         console.log(`Setting ${allTemplates.length} templates`);
         
         // DEFAULT_TEMPLATESの順番を維持するよう並び替え
@@ -270,20 +244,26 @@ const TaskTemplateList = () => {
       // 作成/更新したテンプレートのカウンター初期化
       let createdCount = 0;
       
-      // テンプレート一覧の取得と確認
-      const currentTemplatesResponse = await tasksApi.getTemplates(1000); // 全テンプレートを取得
-      let currentTemplates = [];
+      // テンプレート一覧の取得と確認 - 全ページ取得
+      console.log('Fetching all existing templates...');
+      const currentTemplates = await tasksApi.getTemplates(1000, true);
+      console.log(`Found ${currentTemplates.length} existing templates`);
       
-      if (currentTemplatesResponse.results && Array.isArray(currentTemplatesResponse.results)) {
-        currentTemplates = currentTemplatesResponse.results;
-      } else if (Array.isArray(currentTemplatesResponse)) {
-        currentTemplates = currentTemplatesResponse;
-      }
+      // テンプレート名に基づくマッピングを作成して検索を高速化
+      const templateMap = {};
+      currentTemplates.forEach(template => {
+        // テンプレート名とタイトルの両方をキーとして登録
+        if (template.template_name) {
+          templateMap[template.template_name.toLowerCase()] = template;
+        }
+        if (template.title) {
+          templateMap[template.title.toLowerCase()] = template;
+        }
+      });
       
-      console.log('現在のテンプレート一覧:', currentTemplates);
       console.log('「中間申告タスク」と「予定申告タスク」の存在確認:',
-        currentTemplates?.some(t => t.title === '中間申告タスク' || t.template_name === '中間申告タスク'),
-        currentTemplates?.some(t => t.title === '予定申告タスク' || t.template_name === '予定申告タスク')
+        !!templateMap['中間申告タスク'.toLowerCase()],
+        !!templateMap['予定申告タスク'.toLowerCase()]
       );
       
       // カテゴリとステータスを取得
@@ -486,18 +466,15 @@ const TaskTemplateList = () => {
           
           console.log('Template data prepared:', templateData);
           
-          // 既存のテンプレートと重複がないか確認 - より柔軟なチェック
-          const existsCheck = (currentTemplates || []).filter(t => 
-            (t.template_name && t.template_name.toLowerCase() === template.template_name.toLowerCase()) || 
-            (t.title && t.title.toLowerCase() === template.title.toLowerCase())
-          );
+          // 既存のテンプレートと重複がないか確認 - より高速なマップベースのチェック
+          const existingTemplate = 
+            templateMap[template.template_name.toLowerCase()] || 
+            templateMap[template.title.toLowerCase()];
           
-          console.log(`テンプレート「${template.template_name}」の存在チェック結果:`, existsCheck);
-          
-          const existingTemplate = existsCheck.length > 0 ? existsCheck[0] : null;
           const exists = !!existingTemplate;
           
-          console.log(`Template exists check (${template.template_name}): ${exists}`, existingTemplate);
+          console.log(`Template exists check (${template.template_name}): ${exists}`, existingTemplate ? 
+            `ID: ${existingTemplate.id}, Title: ${existingTemplate.title}` : 'Not found');
           
           // 新規作成または更新
           if (!exists) {
@@ -646,8 +623,10 @@ const TaskTemplateList = () => {
         toast.success('すべてのデフォルトテンプレートは既に存在しており、更新の必要はありませんでした', { id: 'default-templates' });
       }
       
-      // テンプレート一覧を再取得（大きなlimitで）
+      // テンプレート一覧を再取得
+      console.log('テンプレート一覧の再取得を開始します...');
       await fetchTemplates();
+      console.log(`テンプレート再取得完了 - ${templates.length}件のテンプレートを表示します`);
     } catch (error) {
       console.error('Error creating default templates:', error);
       toast.error('デフォルトテンプレートの作成に失敗しました', { id: 'default-templates' });

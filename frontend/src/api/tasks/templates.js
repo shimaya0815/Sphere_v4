@@ -4,19 +4,59 @@ import { createTask } from './taskOperations';
 /**
  * テンプレート一覧を取得
  * @param {number} limit - 取得する最大件数（デフォルト100）
+ * @param {boolean} getAllPages - ページネーションされている場合に全ページを取得するか
  * @returns {Promise<Array>} テンプレート一覧
  */
-export const getTemplates = async (limit = 100) => {
+export const getTemplates = async (limit = 100, getAllPages = false) => {
   try {
     console.log(`Fetching templates from API with limit=${limit}...`);
     const response = await apiClient.get(`/api/tasks/templates/?limit=${limit}`);
     console.log('Templates response:', response.data);
     
-    // レスポンス全体を返す（ページネーション情報も含む）
-    if (response.data && typeof response.data === 'object' && response.data.results) {
+    // ページネーションがあり、全ページ取得フラグがある場合
+    if (getAllPages && response.data && response.data.results && response.data.count > response.data.results.length) {
+      console.log(`Detected pagination - fetching all ${response.data.count} templates...`);
+      
+      // 取得した最初のページの結果
+      let allResults = [...response.data.results];
+      
+      // 残りのページを取得
+      let nextPageUrl = response.data.next;
+      
+      while (nextPageUrl) {
+        try {
+          // 相対URLから絶対URLに変換
+          const absoluteUrl = nextPageUrl.replace(/^.*\/api\//, '/api/');
+          console.log(`Fetching next page: ${absoluteUrl}`);
+          
+          const nextPageResponse = await apiClient.get(absoluteUrl);
+          
+          if (nextPageResponse.data && Array.isArray(nextPageResponse.data.results)) {
+            // 結果を追加
+            allResults = [...allResults, ...nextPageResponse.data.results];
+            console.log(`Fetched ${nextPageResponse.data.results.length} more templates, total: ${allResults.length}`);
+            
+            // 次のページがあれば更新
+            nextPageUrl = nextPageResponse.data.next;
+          } else {
+            nextPageUrl = null;
+          }
+        } catch (err) {
+          console.error('Error fetching additional pages:', err);
+          nextPageUrl = null;
+        }
+      }
+      
+      // 全ページのデータを返す
+      console.log(`All pages fetched. Total templates: ${allResults.length}`);
+      return allResults;
+    }
+    
+    // ページネーション情報を含む全体を返す
+    if (response.data && response.data.results) {
       console.log('Found results array in response:', response.data.results);
-      // ページネーション情報を含む全体を返す
-      return response.data;
+      // 単一ページのみ要求された場合は結果配列のみを返す
+      return response.data.results;
     }
     
     // 直接配列の場合
