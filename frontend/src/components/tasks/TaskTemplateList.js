@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import tasksApi from '../../api/tasks/index';
+import { authApi } from '../../api';
+import * as usersApi from '../../api/users';
 import toast from 'react-hot-toast';
 import TaskTemplateForm from './TaskTemplateForm';
 import {
@@ -40,7 +42,7 @@ const DEFAULT_TEMPLATES = [
     category_name: '決算・申告',
     estimated_hours: 4,
     template_name: '中間申告タスク',
-    recurrence_pattern: 'quarterly'
+    recurrence_pattern: 'monthly'
   },
   {
     title: '予定申告タスク',
@@ -48,7 +50,7 @@ const DEFAULT_TEMPLATES = [
     category_name: '決算・申告',
     estimated_hours: 4,
     template_name: '予定申告タスク',
-    recurrence_pattern: 'quarterly'
+    recurrence_pattern: 'monthly'
   },
   {
     title: '記帳代行業務',
@@ -137,9 +139,57 @@ const TaskTemplateList = () => {
       console.log('Templates fetched for display:', data);
       
       // データがあるか確認
-      if (data && data.length > 0) {
-        console.log(`Setting ${data.length} templates`);
-        setTemplates(data);
+      let allTemplates = [];
+      
+      // ページネーションがある場合の処理
+      if (data && data.results && data.count) {
+        // ページネーションされたレスポンス
+        console.log(`Found paginated templates: ${data.results.length} of ${data.count}`);
+        allTemplates = [...data.results];
+        
+        // 最初のページ以降のデータを取得
+        if (data.count > data.results.length && data.next) {
+          try {
+            // すべてのテンプレートを取得するためにlimitを増やす
+            const allData = await tasksApi.getTemplates(data.count);
+            if (allData && allData.results) {
+              allTemplates = [...allData.results];
+              console.log(`Retrieved all ${allTemplates.length} templates`);
+            }
+          } catch (err) {
+            console.error('Error fetching all templates:', err);
+          }
+        }
+      } else if (Array.isArray(data)) {
+        // 配列形式の場合はそのまま使用
+        allTemplates = data;
+      }
+      
+      if (allTemplates.length > 0) {
+        console.log(`Setting ${allTemplates.length} templates`);
+        
+        // DEFAULT_TEMPLATESの順番を維持するよう並び替え
+        const sortedTemplates = [...allTemplates];
+        sortedTemplates.sort((a, b) => {
+          // 各テンプレートのDEFAULT_TEMPLATES内での位置を取得
+          const templateNames = DEFAULT_TEMPLATES.map(t => t.template_name);
+          const aIndex = templateNames.indexOf(a.template_name || a.title);
+          const bIndex = templateNames.indexOf(b.template_name || b.title);
+          
+          // DEFAULT_TEMPLATESに含まれるテンプレートを優先し、その中でも定義順に並べる
+          if (aIndex >= 0 && bIndex >= 0) {
+            return aIndex - bIndex; // 両方が定義済みならDEFAULT_TEMPLATESでの順序通りに
+          } else if (aIndex >= 0) {
+            return -1; // aだけが定義済みならaを前に
+          } else if (bIndex >= 0) {
+            return 1; // bだけが定義済みならbを前に
+          }
+          
+          // どちらもDEFAULT_TEMPLATESに含まれない場合は、名前でソート
+          return (a.template_name || a.title).localeCompare(b.template_name || b.title);
+        });
+        
+        setTemplates(sortedTemplates);
       } else {
         console.warn('No templates returned from API');
         setTemplates([]);
@@ -217,17 +267,29 @@ const TaskTemplateList = () => {
       setLoading(true);
       toast.loading('デフォルトテンプレートを作成中...', { id: 'default-templates' });
       
+      // テンプレート一覧の取得と確認
+      const currentTemplatesResponse = await tasksApi.getTemplates(1000); // 全テンプレートを取得
+      let currentTemplates = [];
+      
+      if (currentTemplatesResponse.results && Array.isArray(currentTemplatesResponse.results)) {
+        currentTemplates = currentTemplatesResponse.results;
+      } else if (Array.isArray(currentTemplatesResponse)) {
+        currentTemplates = currentTemplatesResponse;
+      }
+      
+      console.log('現在のテンプレート一覧:', currentTemplates);
+      console.log('「中間申告タスク」と「予定申告タスク」の存在確認:',
+        currentTemplates?.some(t => t.title === '中間申告タスク' || t.template_name === '中間申告タスク'),
+        currentTemplates?.some(t => t.title === '予定申告タスク' || t.template_name === '予定申告タスク')
+      );
+      
       // カテゴリとステータスを取得
       console.log('Fetching categories, priorities, and statuses...');
       const categoriesResponse = await tasksApi.getCategories();
       const prioritiesResponse = await tasksApi.getPriorities();
       const statusesResponse = await tasksApi.getStatuses();
       
-      console.log('Raw response data:', { 
-        categories: categoriesResponse, 
-        priorities: prioritiesResponse, 
-        statuses: statusesResponse 
-      });
+      console.log('Raw categories response:', categoriesResponse);
       
       // 配列化 - DRFのページネーション対応
       const categories = Array.isArray(categoriesResponse) ? categoriesResponse : 
@@ -248,11 +310,41 @@ const TaskTemplateList = () => {
                         (statusesResponse?.data && Array.isArray(statusesResponse.data) ? 
                          statusesResponse.data : []));
       
-      console.log('Processed data:', { 
-        categories, 
-        priorities, 
-        statuses 
-      });
+      console.log('全カテゴリ一覧:', categories.map(c => `${c.id}: ${c.name}`));
+      console.log('標準カテゴリ検索:',
+        categories.find(c => c.name === '決算・申告'),
+        categories.find(c => c.name === '税務顧問'),
+        categories.find(c => c.name === '一般')
+      );
+      
+      // まずカテゴリを確認して、必要なら作成
+      const requiredCategories = ['一般', '決算・申告', '記帳代行', '税務顧問', '給与計算'];
+      const categoryMap = {};
+      
+      // 既存カテゴリをマッピング
+      for (const categoryName of requiredCategories) {
+        // 正確なカテゴリ名で検索
+        let category = categories.find(c => c.name === categoryName);
+        
+        // 部分一致でも検索
+        if (!category) {
+          category = categories.find(c => 
+            c.name && c.name.includes(categoryName) || 
+            (categoryName && categoryName.includes(c.name))
+          );
+        }
+        
+        if (category) {
+          categoryMap[categoryName] = category;
+          console.log(`カテゴリ「${categoryName}」は既に存在します:`, category);
+        } else {
+          console.log(`カテゴリ「${categoryName}」が見つかりません。代替カテゴリを使用します。`);
+          // デフォルトカテゴリを使用
+          categoryMap[categoryName] = categories[0];
+        }
+      }
+      
+      console.log('カテゴリマッピング結果:', categoryMap);
       
       // データが取得できない場合でも進める
       if (categories.length === 0) {
@@ -279,48 +371,205 @@ const TaskTemplateList = () => {
       const middlePriority = priorities.find(p => p.name === '中' || p.priority_value === 50);
       console.log('Found priority:', middlePriority);
       
-      // 各デフォルトテンプレートを作成
+      // DEFAULT_TEMPLATESの順番通りに処理
+      console.log('処理するテンプレート:', DEFAULT_TEMPLATES.map(t => t.template_name));
+      
+      // すべてのテンプレートを処理
       for (const template of DEFAULT_TEMPLATES) {
         try {
           console.log(`Processing template: ${template.template_name}`);
           
-          // カテゴリを検索 - 名前で検索
-          const category = categories.find(c => c.name === template.category_name);
-          console.log('Found category by name:', category);
+          // ビジネスIDとワークスペースIDを確保（ローカルストレージからまたはフォールバック値）
+          let businessId = localStorage.getItem('businessId') || undefined;
+          let workspaceId = localStorage.getItem('workspaceId') || undefined;
+          
+          console.log(`Using business ID: ${businessId}, workspace ID: ${workspaceId}`);
+          
+          if (!businessId || !workspaceId) {
+            console.warn('ビジネスIDまたはワークスペースIDが取得できません。');
+            // API経由でユーザー情報を取得して現在のワークスペースIDを取得
+            try {
+              // authApi.getProfileではなくusersApi.getProfileを使用（正しいエンドポイントへアクセス）
+              const userProfile = await usersApi.getProfile();
+              console.log('Got user profile:', userProfile);
+              
+              if (userProfile) {
+                // ビジネスIDがなければ設定
+                if (!businessId && userProfile.business && userProfile.business.id) {
+                  businessId = userProfile.business.id;
+                  localStorage.setItem('businessId', businessId);
+                  console.log(`ビジネスIDをユーザープロフィールから設定: ${businessId}`);
+                }
+                
+                // ワークスペースIDがなければ設定
+                if (!workspaceId) {
+                  if (userProfile.current_workspace && userProfile.current_workspace.id) {
+                    workspaceId = userProfile.current_workspace.id;
+                    localStorage.setItem('workspaceId', workspaceId);
+                    console.log(`ワークスペースIDをcurrent_workspaceから設定: ${workspaceId}`);
+                  } else if (userProfile.workspaces && userProfile.workspaces.length > 0) {
+                    workspaceId = userProfile.workspaces[0].id;
+                    localStorage.setItem('workspaceId', workspaceId);
+                    console.log(`ワークスペースIDをworkspaces[0]から設定: ${workspaceId}`);
+                  }
+                }
+                
+                // IDが取得できたか再確認
+                if (!businessId || !workspaceId) {
+                  // 直接ステータスを使用（API取得に失敗した場合のフォールバック）
+                  if (!businessId) {
+                    businessId = 1; // フォールバック値
+                    localStorage.setItem('businessId', businessId);
+                    console.log(`ビジネスIDをフォールバック値から設定: ${businessId}`);
+                  }
+                  
+                  if (!workspaceId) {
+                    workspaceId = 1; // フォールバック値
+                    localStorage.setItem('workspaceId', workspaceId);
+                    console.log(`ワークスペースIDをフォールバック値から設定: ${workspaceId}`);
+                  }
+                }
+              } else {
+                // プロファイル取得失敗時のフォールバック
+                businessId = 1;
+                workspaceId = 1;
+                localStorage.setItem('businessId', businessId);
+                localStorage.setItem('workspaceId', workspaceId);
+                console.log(`ユーザー情報取得失敗。フォールバック値を使用: businessId=${businessId}, workspaceId=${workspaceId}`);
+              }
+            } catch (err) {
+              console.error('ユーザー情報取得エラー:', err);
+              // エラー時のフォールバック
+              businessId = 1;
+              workspaceId = 1;
+              localStorage.setItem('businessId', businessId);
+              localStorage.setItem('workspaceId', workspaceId);
+              console.log(`ユーザー情報取得エラー。フォールバック値を使用: businessId=${businessId}, workspaceId=${workspaceId}`);
+            }
+          }
+          
+          // カテゴリを検索 - まず名前で検索し、なければ最初のカテゴリを使用
+          let category = categoryMap[template.category_name];
+          
+          // 完全一致しない場合は部分一致でも検索
+          if (!category) {
+            category = categoryMap[template.category_name.split(' ')[0]];
+          }
+          
+          // それでも見つからない場合は最初のカテゴリを使用
+          if (!category && Object.values(categoryMap).length > 0) {
+            category = Object.values(categoryMap)[0];
+          }
+          
+          console.log(`Category for ${template.template_name}:`, category);
           
           // テンプレート作成データを準備
           const templateData = {
             title: template.title,
             description: template.description,
-            category: category?.id, // 見つからない場合はnull
-            priority: middlePriority?.id, // 見つからない場合はnull（APIがpriority_valueを処理）
-            status: defaultStatus?.id, // 見つからない場合はnull（APIがデフォルト値を設定）
+            category: category?.id || null, // nullを明示的に設定
+            priority: middlePriority?.id || null, // nullを明示的に設定
+            status: defaultStatus?.id || 27, // デフォルト値として27を使用（未着手ステータスID）
             is_template: true,
             template_name: template.template_name,
             recurrence_pattern: template.recurrence_pattern,
             estimated_hours: template.estimated_hours,
+            // ビジネスIDとワークスペースIDをここで設定
+            business: businessId,
+            workspace: workspaceId,
           };
           
           console.log('Template data prepared:', templateData);
           
-          // 既存のテンプレートと重複がないか確認
-          const exists = (templates || []).some(t => 
-            (t.template_name === template.template_name) || 
-            (t.title === template.title)
+          // 既存のテンプレートと重複がないか確認 - より柔軟なチェック
+          const existingTemplate = (currentTemplates || []).find(t => 
+            (t.template_name && t.template_name.toLowerCase() === template.template_name.toLowerCase()) || 
+            (t.title && t.title.toLowerCase() === template.title.toLowerCase())
           );
           
-          console.log(`Template exists check: ${exists}`);
+          const exists = !!existingTemplate;
           
+          console.log(`Template exists check (${template.template_name}): ${exists}`, existingTemplate);
+          
+          // 新規作成または更新
           if (!exists) {
-            console.log('Creating template via API...');
+            // 新規作成
+            console.log(`Creating new template via API: ${template.title}`);
             const createdTemplate = await tasksApi.createTask(templateData);
             console.log('Template created successfully:', createdTemplate);
             createdCount++;
           } else {
-            console.log('Skipping template creation as it already exists');
+            // 既存のテンプレートを更新 - ただし変更がある場合のみ
+            console.log(`Checking existing template: ${template.title} (ID: ${existingTemplate.id})`);
+            
+            // 値を厳密に比較する関数
+            const compareSafeEquals = (a, b) => {
+              if (a === b) return true; // 同一参照または同一プリミティブ値
+              if (a == null || b == null) return a == b; // 両方nullかundefinedなら等しい、片方だけならfalse
+              
+              // 型変換して文字列比較
+              return String(a).trim() === String(b).trim();
+            };
+            
+            // 実際に更新が必要なフィールドだけを判定
+            const titleMatches = compareSafeEquals(template.title, existingTemplate.title);
+            const descMatches = compareSafeEquals(template.description, existingTemplate.description);
+            
+            // estimated_hours は数値として比較
+            const hoursA = parseFloat(template.estimated_hours) || 0;
+            const hoursB = parseFloat(existingTemplate.estimated_hours) || 0;
+            const hoursMatch = hoursA === hoursB;
+            
+            const patternMatches = compareSafeEquals(template.recurrence_pattern, existingTemplate.recurrence_pattern);
+            const categoryMatches = !category?.id || category.id === existingTemplate.category?.id;
+            
+            console.log('比較結果:', {
+              title: {template: template.title, existing: existingTemplate.title, matches: titleMatches},
+              desc: {template: template.description, existing: existingTemplate.description, matches: descMatches},
+              hours: {template: hoursA, existing: hoursB, raw: {template: template.estimated_hours, existing: existingTemplate.estimated_hours}, matches: hoursMatch},
+              pattern: {template: template.recurrence_pattern, existing: existingTemplate.recurrence_pattern, matches: patternMatches},
+              category: {template: category?.id, existing: existingTemplate.category?.id, matches: categoryMatches}
+            });
+            
+            const needsUpdate = !titleMatches || !descMatches || !hoursMatch || !patternMatches || !categoryMatches;
+            
+            // 更新が必要な理由を詳細にログ出力
+            if (needsUpdate) {
+              console.log(`更新が必要な理由:`, {
+                titleDiff: !titleMatches ? 
+                  {current: existingTemplate.title, new: template.title} : null,
+                descDiff: !descMatches ? 
+                  {current: existingTemplate.description, new: template.description} : null,
+                hoursDiff: !hoursMatch ? 
+                  {current: existingTemplate.estimated_hours, new: template.estimated_hours, 
+                   currentType: typeof existingTemplate.estimated_hours, newType: typeof template.estimated_hours} : null,
+                patternDiff: !patternMatches ? 
+                  {current: existingTemplate.recurrence_pattern, new: template.recurrence_pattern} : null,
+                categoryDiff: !categoryMatches ? 
+                  {current: existingTemplate.category?.id, new: category?.id} : null
+              });
+            }
+            
+            if (needsUpdate) {
+              try {
+                console.log(`Updating existing template: ${template.title} - データが異なるため更新します`);
+                const updatedTemplate = await tasksApi.updateTask(existingTemplate.id, {
+                  ...templateData,
+                  // 既存IDを保持
+                  id: existingTemplate.id
+                });
+                console.log('Template updated successfully:', updatedTemplate);
+                createdCount++;
+              } catch (updateErr) {
+                console.error(`Error updating template ${template.title}:`, updateErr);
+                console.error('Update error details:', updateErr.response?.data || updateErr.message);
+              }
+            } else {
+              console.log(`Skipping update for ${template.title} - 変更なし`);
+            }
           }
         } catch (err) {
-          console.error(`Error creating template ${template.title}:`, err);
+          console.error(`Error processing template ${template.title}:`, err);
           console.error('Error details:', err.response?.data || err.message);
           // 1つのテンプレート作成に失敗しても他は続ける
           continue;
@@ -329,13 +578,13 @@ const TaskTemplateList = () => {
       
       // 成功メッセージを表示
       if (createdCount > 0) {
-        toast.success(`${createdCount}個のデフォルトテンプレートを作成しました`, { id: 'default-templates' });
+        toast.success(`${createdCount}個のデフォルトテンプレートを作成または更新しました`, { id: 'default-templates' });
       } else {
-        toast.success('すべてのデフォルトテンプレートは既に存在しています', { id: 'default-templates' });
+        toast.success('すべてのデフォルトテンプレートは既に存在しており、更新の必要はありませんでした', { id: 'default-templates' });
       }
       
-      // テンプレート一覧を再取得
-      fetchTemplates();
+      // テンプレート一覧を再取得（大きなlimitで）
+      await fetchTemplates();
     } catch (error) {
       console.error('Error creating default templates:', error);
       toast.error('デフォルトテンプレートの作成に失敗しました', { id: 'default-templates' });

@@ -3,18 +3,20 @@ import { createTask } from './taskOperations';
 
 /**
  * テンプレート一覧を取得
+ * @param {number} limit - 取得する最大件数（デフォルト100）
  * @returns {Promise<Array>} テンプレート一覧
  */
-export const getTemplates = async () => {
+export const getTemplates = async (limit = 100) => {
   try {
-    console.log('Fetching templates from API...');
-    const response = await apiClient.get('/api/tasks/templates/?limit=100');
+    console.log(`Fetching templates from API with limit=${limit}...`);
+    const response = await apiClient.get(`/api/tasks/templates/?limit=${limit}`);
     console.log('Templates response:', response.data);
     
-    // DRFのページネーション形式（results配列を含むオブジェクト）に対応
-    if (response.data && response.data.results && Array.isArray(response.data.results)) {
+    // レスポンス全体を返す（ページネーション情報も含む）
+    if (response.data && typeof response.data === 'object' && response.data.results) {
       console.log('Found results array in response:', response.data.results);
-      return response.data.results;
+      // ページネーション情報を含む全体を返す
+      return response.data;
     }
     
     // 直接配列の場合
