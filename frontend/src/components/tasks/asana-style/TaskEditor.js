@@ -6,8 +6,8 @@ import TaskForm from './TaskForm';
 import StatusSelector from './StatusSelector';
 import TimeTracking from './components/TimeTracking';
 // エラーになるコンポーネントを一時的にコメントアウト
-import Comments from '../components/TaskComments';
-import Attachments from '../components/Attachments';
+import Comments from '../../tasks/TaskComments';
+import Attachments from '../../tasks/Attachments';
 import { useTaskTimer } from './hooks/useTaskTimer';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import TaskTitleEditor from '../TaskTitleEditor';
