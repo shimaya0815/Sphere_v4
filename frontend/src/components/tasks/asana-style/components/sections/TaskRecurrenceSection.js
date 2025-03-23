@@ -59,32 +59,34 @@ const TaskRecurrenceSection = ({
     { value: 6, label: '日曜日' }
   ];
 
+  // フォームの初期値を追加でセットする関数
+  const initializeFormValues = () => {
+    // 現在の日付から月と日を取得
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1; // 1-12
+    const currentDay = now.getDate(); // 1-31
+    
+    // 初期値設定
+    if (typeof setValue === 'function') {
+      // 日付関連のデフォルト値
+      setValue('yearly_month', currentMonth);
+      setValue('yearly_day', currentDay);
+      setValue('monthday', currentDay);
+      setValue('business_day', 1);
+      setValue('recurrence_pattern', 'daily');
+      setValue('is_recurring', false);
+      setValue('consider_holidays', true);
+      setValue('weekdays', '');
+    }
+  };
+
   // コンポーネントマウント時に一度だけ初期値を設定
   useEffect(() => {
     // 初期化済みでない場合のみ処理を実行
     if (!initializedRef.current) {
       try {
-        // is_recurringの初期値を設定（新規タスク作成時用）
-        if (typeof setValue === 'function') {
-          setValue('is_recurring', false);
-          
-          // デフォルト値の設定
-          setValue('recurrence_pattern', 'daily');
-          setValue('yearly_month', 1);
-          setValue('yearly_day', 1);
-          setValue('monthday', 1);
-          setValue('business_day', 1);
-          setValue('consider_holidays', true);
-        } else if (typeof handleFieldChange === 'function') {
-          // setValueが使えない場合はhandleFieldChangeを使用
-          handleFieldChange('is_recurring', false);
-          handleFieldChange('recurrence_pattern', 'daily');
-          handleFieldChange('yearly_month', 1);
-          handleFieldChange('yearly_day', 1);
-          handleFieldChange('monthday', 1);
-          handleFieldChange('business_day', 1);
-          handleFieldChange('consider_holidays', true);
-        }
+        // フォームの初期値を設定
+        initializeFormValues();
       } catch (error) {
         console.error('初期化時にエラーが発生しました:', error);
       }
@@ -491,7 +493,7 @@ const TaskRecurrenceSection = ({
                 render={({ field }) => (
                   <select
                     id="recurrence_pattern"
-                    value={field.value || internalPattern}
+                    value={field.value || "daily"}
                     {...field}
                     onChange={(e) => {
                       field.onChange(e);
@@ -542,6 +544,7 @@ const TaskRecurrenceSection = ({
                     <input
                       type="hidden"
                       {...field}
+                      value={field.value || ""}
                       id="weekdays-hidden-input"
                     />
                   )}
@@ -697,10 +700,10 @@ const TaskRecurrenceSection = ({
                 
                 {/* hidden inputs */}
                 <Controller name="monthday" control={control} render={({ field }) => (
-                  monthlyType !== 'day' ? <input type="hidden" {...field} /> : null
+                  monthlyType !== 'day' ? <input type="hidden" {...field} value={field.value || ""} /> : null
                 )} />
                 <Controller name="business_day" control={control} render={({ field }) => (
-                  monthlyType !== 'business' ? <input type="hidden" {...field} /> : null
+                  monthlyType !== 'business' ? <input type="hidden" {...field} value={field.value || ""} /> : null
                 )} />
               </div>
             )}
@@ -721,6 +724,7 @@ const TaskRecurrenceSection = ({
                       render={({ field }) => (
                         <select
                           {...field}
+                          value={field.value || "1"}
                           onChange={(e) => {
                             field.onChange(e);
                             const numValue = parseInt(e.target.value, 10);
@@ -778,6 +782,7 @@ const TaskRecurrenceSection = ({
                     type="date"
                     id="recurrence_end_date"
                     {...field}
+                    value={field.value || ""}
                     onChange={(e) => {
                       field.onChange(e);
                       handleFieldChange('recurrence_end_date', e.target.value);
