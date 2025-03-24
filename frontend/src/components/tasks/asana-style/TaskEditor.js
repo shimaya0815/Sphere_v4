@@ -325,6 +325,16 @@ const TaskEditor = ({
       let savedTask;
       let message;
       
+      // 完了ステータスの確認（スコープの問題を解決するために関数の先頭に移動）
+      const completedStatusIds = statuses
+        .filter(s => 
+          // 承認完了（クローズ）のみを厳密に検出
+          s.name === '承認完了（クローズ）' || 
+          // 厳密に完全一致するステータス名のみをチェック
+          s.name === 'クローズ'
+        )
+        .map(s => s.id);
+      
       // データの前処理（バックエンドが期待する形式に変換）
       const processedData = { ...formData };
       
@@ -386,15 +396,6 @@ const TaskEditor = ({
         console.log("すべてのステータス:", statuses.map(s => ({id: s.id, name: s.name})));
         
         // 完了ステータスの確認
-        const completedStatusIds = statuses
-          .filter(s => 
-            // 承認完了（クローズ）のみを厳密に検出
-            s.name === '承認完了（クローズ）' || 
-            // 厳密に完全一致するステータス名のみをチェック
-            s.name === 'クローズ'
-          )
-          .map(s => s.id);
-        
         console.log("完了と判定するステータスID:", completedStatusIds);
         console.log("完了と判定するステータス名:", statuses
           .filter(s => completedStatusIds.includes(s.id))
