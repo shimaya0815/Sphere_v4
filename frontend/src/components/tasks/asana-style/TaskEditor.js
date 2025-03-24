@@ -383,11 +383,21 @@ const TaskEditor = ({
             const nextTask = await tasksApi.createNextRecurringTask(savedTask.id);
             
             if (nextTask) {
-              message += '。次の繰り返しタスクが生成されました';
+              // 明確なメッセージに更新
+              message = '承認完了しました。次回の繰り返しタスクを作成しました';
+              
+              // ログに出力して確認
+              console.log('次の繰り返しタスクが作成されました:', nextTask);
+              console.log('新しいタスクのステータス:', nextTask.status);
+              
+              // 次のタスクのステータスを確認（バックエンドで自動的に未着手になるはず）
+              const nextTaskStatus = statuses.find(s => s.id === nextTask.status);
+              console.log('次のタスクのステータス名:', nextTaskStatus?.name);
             }
           } catch (error) {
             console.error('次の繰り返しタスク生成中にエラーが発生しました:', error);
-            // エラーは表示せず、通常の保存メッセージのみ表示
+            // エラーは表示せず、承認完了メッセージのみ表示
+            message = '承認完了しました';
           }
         }
         
