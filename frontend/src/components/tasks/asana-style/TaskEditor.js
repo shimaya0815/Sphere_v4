@@ -388,14 +388,10 @@ const TaskEditor = ({
         // 完了ステータスの確認
         const completedStatusIds = statuses
           .filter(s => 
-            s.name === '完了' || 
-            s.name.includes('完了') || 
-            s.name === '承認完了' || 
-            s.name === '承認完了（クローズ）' ||
-            s.name.includes('承認') ||
-            s.name === 'クローズ' ||
-            s.name.includes('クローズ') ||
-            s.name.includes('終了')
+            // 承認完了（クローズ）のみを厳密に検出
+            s.name === '承認完了（クローズ）' || 
+            // 厳密に完全一致するステータス名のみをチェック
+            s.name === 'クローズ'
           )
           .map(s => s.id);
         
