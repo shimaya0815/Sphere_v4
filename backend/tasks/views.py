@@ -328,7 +328,9 @@ class TaskViewSet(viewsets.ModelViewSet):
             task.save(user=request.user)
             
             # タスク完了ステータスに変更された場合、completed_atを設定
-            if new_status.name == '完了' and not task.completed_at:
+            if (new_status.name == '完了' or 
+                new_status.name == '承認完了（クローズ）' or 
+                new_status.name == 'クローズ') and not task.completed_at:
                 task.completed_at = timezone.now()
                 task.save(user=request.user)
                 print(f"[DEBUG] Task {task.id} marked as completed via status change - set completed_at to {task.completed_at}")
@@ -343,8 +345,6 @@ class TaskViewSet(viewsets.ModelViewSet):
                         print(f"[DEBUG] 次のタスクインスタンスを生成できませんでした")
                 else:
                     print(f"[DEBUG] Task {task.id} is not recurring or has no pattern - recurring: {task.is_recurring}, pattern: {task.recurrence_pattern}")
-            else:
-                print(f"[DEBUG] Task {task.id} status changed but not marked as completed - status name: {new_status.name}, completed_at: {task.completed_at}")
             
             # 通知作成（ステータス変更）
             TaskNotification.objects.create(
