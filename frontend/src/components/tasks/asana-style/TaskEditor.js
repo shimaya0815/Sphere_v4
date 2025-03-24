@@ -416,6 +416,15 @@ const TaskEditor = ({
         if (taskHasBeenCompleted) {
           try {
             console.log("次の繰り返しタスク生成を試みます...");
+            // タスクが完了状態の場合、念のためmarkCompleteを呼び出してcompleted_atを設定
+            try {
+              console.log("タスクを完了状態に設定します...");
+              await tasksApi.markTaskComplete(savedTask.id);
+            } catch (markCompleteError) {
+              console.error('タスクを完了状態に設定中にエラーが発生しました:', markCompleteError);
+              // エラーは無視して次の処理に進む
+            }
+            
             // 次の繰り返しタスクを生成
             const nextTask = await tasksApi.createNextRecurringTask(savedTask.id);
             
