@@ -126,9 +126,17 @@ const TasksPage = () => {
     
     if (!updatedTask) return;
     
-    // 常にタスクリストを即時更新
-    if (taskListRef.current && typeof taskListRef.current.refreshTasks === 'function') {
-      taskListRef.current.refreshTasks();
+    // リストを更新する方法を変更: 全再取得ではなく対象タスクのみ更新
+    if (taskListRef.current) {
+      if (typeof taskListRef.current.refreshTasksWithData === 'function') {
+        // 特定のタスクだけを更新するメソッドを使用
+        taskListRef.current.refreshTasksWithData(updatedTask, isNew);
+        console.log('タスクリストの特定タスクのみを更新しました:', updatedTask.id);
+      } else if (typeof taskListRef.current.refreshTasks === 'function') {
+        // フォールバック: 従来の全件取得メソッド
+        taskListRef.current.refreshTasks();
+        console.log('タスクリストを全件更新しました（レガシーメソッド）');
+      }
     }
     
     // 新規タスクの場合はパネルを閉じる
