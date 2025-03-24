@@ -420,6 +420,29 @@ const TaskEditor = ({
             try {
               console.log("タスクを完了状態に設定します...");
               await tasksApi.markTaskComplete(savedTask.id);
+              
+              // markTaskComplete後にタスクを再取得して完了状態を確認
+              console.log("タスクの最新情報を取得します...");
+              const refreshedTask = await tasksApi.getTask(savedTask.id);
+              console.log("最新のタスク情報:", refreshedTask);
+              console.log("completed_at設定状況:", refreshedTask.completed_at);
+              
+              // completed_atが設定されていない場合は少し待ってから再度取得を試みる
+              if (!refreshedTask.completed_at) {
+                console.log("completed_atが設定されていないため、少し待ってから再取得します...");
+                await new Promise(resolve => setTimeout(resolve, 500));
+                const retryTask = await tasksApi.getTask(savedTask.id);
+                console.log("再取得したタスク情報:", retryTask);
+                console.log("再取得後のcompleted_at設定状況:", retryTask.completed_at);
+                
+                // それでもcompleted_atが設定されていない場合は手動で更新を試みる
+                if (!retryTask.completed_at) {
+                  console.log("手動でcompleted_atを設定します...");
+                  await tasksApi.updateTask(savedTask.id, {
+                    completed_at: new Date().toISOString()
+                  });
+                }
+              }
             } catch (markCompleteError) {
               console.error('タスクを完了状態に設定中にエラーが発生しました:', markCompleteError);
               // エラーは無視して次の処理に進む
