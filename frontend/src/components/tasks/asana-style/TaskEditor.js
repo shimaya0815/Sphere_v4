@@ -419,49 +419,40 @@ const TaskEditor = ({
             // タスクが完了状態の場合、念のためmarkCompleteを呼び出してcompleted_atを設定
             try {
               console.log("タスクを完了状態に設定します...");
-              await tasksApi.markTaskComplete(savedTask.id);
+              const completedTask = await tasksApi.markTaskComplete(savedTask.id);
               
-              // markTaskComplete後にタスクを再取得して完了状態を確認
-              console.log("タスクの最新情報を取得します...");
-              const refreshedTask = await tasksApi.getTask(savedTask.id);
-              console.log("最新のタスク情報:", refreshedTask);
-              console.log("completed_at設定状況:", refreshedTask.completed_at);
+              // markTaskCompleteの結果を確認
+              console.log("タスクの完了処理結果:", completedTask);
               
-              // completed_atが設定されていない場合は少し待ってから再度取得を試みる
-              if (!refreshedTask.completed_at) {
-                console.log("completed_atが設定されていないため、少し待ってから再取得します...");
-                await new Promise(resolve => setTimeout(resolve, 500));
-                const retryTask = await tasksApi.getTask(savedTask.id);
-                console.log("再取得したタスク情報:", retryTask);
-                console.log("再取得後のcompleted_at設定状況:", retryTask.completed_at);
+              // markTaskComplete APIはすでに次の繰り返しタスクを生成するため、
+              // 次の繰り返しタスクが生成されているかを確認
+              if (completedTask && completedTask.next_task_created) {
+                console.log("markTaskComplete APIで次のタスクが生成されました");
+                message = '承認完了しました。次回の繰り返しタスクを作成しました';
+                return; // 次のタスク生成処理をスキップ
+              }
+              
+              // バックエンドが次のタスクを生成していない場合は手動で生成を試みる
+              console.log("バックエンドで次のタスクが生成されていないため、手動で生成を試みます");
+              
+              // 次の繰り返しタスクを生成
+              const nextTask = await tasksApi.createNextRecurringTask(savedTask.id);
+              
+              if (nextTask) {
+                // 明確なメッセージに更新
+                message = '承認完了しました。次回の繰り返しタスクを作成しました';
                 
-                // それでもcompleted_atが設定されていない場合は手動で更新を試みる
-                if (!retryTask.completed_at) {
-                  console.log("手動でcompleted_atを設定します...");
-                  await tasksApi.updateTask(savedTask.id, {
-                    completed_at: new Date().toISOString()
-                  });
-                }
+                // ログに出力して確認
+                console.log('次の繰り返しタスクが作成されました:', nextTask);
+                console.log('新しいタスクのステータス:', nextTask.status);
+                
+                // 次のタスクのステータスを確認（バックエンドで自動的に未着手になるはず）
+                const nextTaskStatus = statuses.find(s => s.id === nextTask.status);
+                console.log('次のタスクのステータス名:', nextTaskStatus?.name);
               }
             } catch (markCompleteError) {
               console.error('タスクを完了状態に設定中にエラーが発生しました:', markCompleteError);
               // エラーは無視して次の処理に進む
-            }
-            
-            // 次の繰り返しタスクを生成
-            const nextTask = await tasksApi.createNextRecurringTask(savedTask.id);
-            
-            if (nextTask) {
-              // 明確なメッセージに更新
-              message = '承認完了しました。次回の繰り返しタスクを作成しました';
-              
-              // ログに出力して確認
-              console.log('次の繰り返しタスクが作成されました:', nextTask);
-              console.log('新しいタスクのステータス:', nextTask.status);
-              
-              // 次のタスクのステータスを確認（バックエンドで自動的に未着手になるはず）
-              const nextTaskStatus = statuses.find(s => s.id === nextTask.status);
-              console.log('次のタスクのステータス名:', nextTaskStatus?.name);
             }
           } catch (error) {
             console.error('次の繰り返しタスク生成中にエラーが発生しました:', error);

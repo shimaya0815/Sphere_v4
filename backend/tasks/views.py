@@ -292,19 +292,25 @@ class TaskViewSet(viewsets.ModelViewSet):
         task.mark_complete(user=request.user)
         print(f"[DEBUG] After mark_complete - completed_at now set to: {task.completed_at}")
         
+        # レスポンスデータの初期化
+        response_data = self.get_serializer(task).data
+        response_data['next_task_created'] = False
+        
         # 繰り返しタスクの場合、次のタスクインスタンスを生成
         if task.is_recurring and task.recurrence_pattern:
             print(f"[DEBUG] Task {task.id} is recurring with pattern {task.recurrence_pattern}, monthday={task.monthday}")
             next_task = task.generate_next_instance()
             if next_task:
                 print(f"[DEBUG] 繰り返しタスクの次のインスタンスを生成しました: ID={next_task.id}, due_date={next_task.due_date}")
+                # 次のタスクが生成されたことをレスポンスに含める
+                response_data['next_task_created'] = True
+                response_data['next_task_id'] = next_task.id
             else:
                 print(f"[DEBUG] 次のタスクインスタンスを生成できませんでした")
         else:
             print(f"[DEBUG] Task {task.id} is not recurring or has no pattern - recurring: {task.is_recurring}, pattern: {task.recurrence_pattern}")
         
-        serializer = self.get_serializer(task)
-        return Response(serializer.data)
+        return Response(response_data)
         
     @action(detail=True, methods=['post'], url_path='change-status')
     def change_status(self, request, pk=None):
@@ -335,17 +341,62 @@ class TaskViewSet(viewsets.ModelViewSet):
                 task.save(user=request.user)
                 print(f"[DEBUG] Task {task.id} marked as completed via status change - set completed_at to {task.completed_at}")
                 
+                # レスポンスデータの初期化
+                response_data = self.get_serializer(task).data
+                response_data['next_task_created'] = False
+                
                 # 繰り返しタスクの場合、次のタスクインスタンスを生成
                 if task.is_recurring and task.recurrence_pattern:
                     print(f"[DEBUG] Task {task.id} is recurring with pattern {task.recurrence_pattern}, monthday={task.monthday}")
                     next_task = task.generate_next_instance()
                     if next_task:
                         print(f"[DEBUG] 繰り返しタスクの次のインスタンスを生成しました: ID={next_task.id}, due_date={next_task.due_date}")
+                        # 次のタスクが生成されたことをレスポンスに含める
+                        response_data['next_task_created'] = True
+                        response_data['next_task_id'] = next_task.id
                     else:
                         print(f"[DEBUG] 次のタスクインスタンスを生成できませんでした")
                 else:
                     print(f"[DEBUG] Task {task.id} is not recurring or has no pattern - recurring: {task.is_recurring}, pattern: {task.recurrence_pattern}")
+                
+                # 通知作成（ステータス変更）
+                TaskNotification.objects.create(
+                    user=task.assignee if task.assignee else task.creator,
+                    task=task,
+                    notification_type='status_change',
+                    content=f'タスク「{task.title}」のステータスが「{old_status.name if old_status else "未設定"}」から「{new_status.name}」に変更されました。'
+                )
+                
+                # WebSocketでステータス変更を通知
+                try:
+                    import requests
+                    import json
+                    
+                    # FastAPIサーバーのエンドポイント
+                    websocket_url = "http://websocket:8001/api/notify_task_status"
+                    
+                    # 通知データを作成
+                    notification_data = {
+                        "type": "status_change",
+                        "task_id": task.id,
+                        "task_title": task.title,
+                        "old_status": old_status.name if old_status else "未設定",
+                        "new_status": new_status.name,
+                        "user_name": request.user.get_full_name() or request.user.username
+                    }
+                    
+                    # FastAPIサーバーに通知を送信
+                    requests.post(
+                        websocket_url,
+                        json=notification_data,
+                        timeout=2
+                    )
+                except Exception as e:
+                    print(f"WebSocket通知の送信に失敗しました: {str(e)}")
+                
+                return Response(response_data)
             
+            # 完了ステータス以外への変更の場合
             # 通知作成（ステータス変更）
             TaskNotification.objects.create(
                 user=task.assignee if task.assignee else task.creator,
