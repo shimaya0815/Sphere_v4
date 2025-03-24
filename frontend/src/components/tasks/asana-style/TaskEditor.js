@@ -391,6 +391,7 @@ const TaskEditor = ({
             s.name === '完了' || 
             s.name.includes('完了') || 
             s.name === '承認完了' || 
+            s.name === '承認完了（クローズ）' ||
             s.name.includes('承認') ||
             s.name === 'クローズ' ||
             s.name.includes('クローズ') ||
@@ -399,6 +400,10 @@ const TaskEditor = ({
           .map(s => s.id);
         
         console.log("完了と判定するステータスID:", completedStatusIds);
+        console.log("完了と判定するステータス名:", statuses
+          .filter(s => completedStatusIds.includes(s.id))
+          .map(s => s.name));
+        console.log("現在のステータス名:", statuses.find(s => s.id === savedTask.status)?.name);
         console.log("繰り返し設定:", savedTask.is_recurring, savedTask.recurrence_pattern);
         
         // タスクが完了状態になったかチェック（より緩やかな条件でチェック）
