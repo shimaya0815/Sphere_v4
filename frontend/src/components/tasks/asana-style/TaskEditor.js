@@ -337,12 +337,22 @@ const TaskEditor = ({
         processedData.priority = parseInt(processedData.priority, 10) || processedData.priority;
       }
       
+      // boolean型フィールドの変換
+      ['is_recurring', 'is_template', 'is_fiscal_task'].forEach(field => {
+        if (processedData[field] !== undefined) {
+          processedData[field] = processedData[field] === 'true' || processedData[field] === true;
+        }
+      });
+      
       // 空文字をnullに変換
       Object.keys(processedData).forEach(key => {
         if (processedData[key] === '') {
           processedData[key] = null;
         }
       });
+      
+      console.log("送信するデータ:", processedData);
+      console.log("繰り返し設定:", processedData.is_recurring, processedData.recurrence_pattern);
       
       if (isNew) {
         // 新規作成の場合
@@ -368,17 +378,42 @@ const TaskEditor = ({
         savedTask = await updateTask(task.id, processedData);
         message = 'タスクを更新しました';
         
-        // タスクが完了状態になったかチェック
+        // ステータスのデバッグ出力
+        console.log("保存後のタスク:", savedTask);
+        console.log("保存後のステータスID:", savedTask.status);
+        
+        // すべてのステータスを出力して確認
+        console.log("すべてのステータス:", statuses.map(s => ({id: s.id, name: s.name})));
+        
+        // 完了ステータスの確認
+        const completedStatusIds = statuses
+          .filter(s => 
+            s.name === '完了' || 
+            s.name.includes('完了') || 
+            s.name === '承認完了' || 
+            s.name.includes('承認') ||
+            s.name === 'クローズ' ||
+            s.name.includes('クローズ') ||
+            s.name.includes('終了')
+          )
+          .map(s => s.id);
+        
+        console.log("完了と判定するステータスID:", completedStatusIds);
+        console.log("繰り返し設定:", savedTask.is_recurring, savedTask.recurrence_pattern);
+        
+        // タスクが完了状態になったかチェック（より緩やかな条件でチェック）
         const taskHasBeenCompleted = 
-          // 完了ステータスに変更された場合
-          (savedTask.status && 
-           statuses.some(s => s.id === savedTask.status && s.name === '完了')) &&
+          // 承認完了または完了ステータスに変更された場合
+          (savedTask.status && completedStatusIds.includes(savedTask.status)) &&
           // 元のタスクが繰り返し設定を持っている場合
           savedTask.is_recurring && 
           savedTask.recurrence_pattern;
         
+        console.log("完了状態と判定:", taskHasBeenCompleted);
+        
         if (taskHasBeenCompleted) {
           try {
+            console.log("次の繰り返しタスク生成を試みます...");
             // 次の繰り返しタスクを生成
             const nextTask = await tasksApi.createNextRecurringTask(savedTask.id);
             
@@ -396,6 +431,7 @@ const TaskEditor = ({
             }
           } catch (error) {
             console.error('次の繰り返しタスク生成中にエラーが発生しました:', error);
+            console.error('エラーの詳細:', error.response?.data);
             // エラーは表示せず、承認完了メッセージのみ表示
             message = '承認完了しました';
           }
@@ -412,7 +448,7 @@ const TaskEditor = ({
       toast.success(message);
       
       // タスクが完了状態になった場合は自動的にパネルを閉じる
-      if (!isNew && savedTask.status && statuses.some(s => s.id === savedTask.status && s.name === '完了')) {
+      if (!isNew && savedTask.status && completedStatusIds.includes(savedTask.status)) {
         if (onClose) {
           onClose();
         } else {
