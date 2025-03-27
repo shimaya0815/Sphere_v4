@@ -508,66 +508,7 @@ class TaskViewSet(viewsets.ModelViewSet):
                 'message': f'エラーが発生しました: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
-    @action(detail=True, methods=['post'], url_path='archive')
-    def archive_task(self, request, pk=None):
-        """タスクをアーカイブする"""
-        task = self.get_object()
-        
-        try:
-            # アーカイブフラグを設定
-            task.is_archived = True
-            task.archived_at = timezone.now()
-            task.save(update_fields=['is_archived', 'archived_at'])
-            
-            return Response({
-                'success': True,
-                'message': 'タスクをアーカイブしました'
-            })
-        except Exception as e:
-            return Response({
-                'success': False,
-                'message': f'アーカイブ処理でエラーが発生しました: {str(e)}'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-    @action(detail=True, methods=['post'], url_path='unarchive')
-    def unarchive_task(self, request, pk=None):
-        """タスクのアーカイブを解除する"""
-        task = self.get_object()
-        
-        try:
-            # アーカイブフラグを解除
-            task.is_archived = False
-            task.archived_at = None
-            task.save(update_fields=['is_archived', 'archived_at'])
-            
-            return Response({
-                'success': True,
-                'message': 'タスクのアーカイブを解除しました'
-            })
-        except Exception as e:
-            return Response({
-                'success': False,
-                'message': f'アーカイブ解除処理でエラーが発生しました: {str(e)}'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-    @action(detail=False, methods=['get'], url_path='archived')
-    def get_archived_tasks(self, request):
-        """アーカイブされたタスクの一覧を取得"""
-        # 通常のクエリセットから派生して、アーカイブされたタスクのみをフィルタリング
-        queryset = self.get_queryset().filter(is_archived=True)
-        
-        # 他のフィルタリングやページングを適用
-        queryset = self.filter_queryset(queryset)
-        page = self.paginate_queryset(queryset)
-        
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-    
-    @action(detail=True, methods=['get'], url_path='calculate-next-dates')
+    @action(detail=True, methods=['post'], url_path='calculate-next-dates')
     def calculate_next_dates(self, request, pk=None):
         """
         タスクの次回の日付を計算するエンドポイント

@@ -12,9 +12,7 @@ import {
   HiOutlineUserCircle,
   HiOutlineEye,
   HiOutlineOfficeBuilding,
-  HiOutlineDocumentDuplicate,
-  HiOutlineArchive,
-  HiOutlineReply
+  HiOutlineDocumentDuplicate
 } from 'react-icons/hi';
 // import { format } from 'date-fns';
 // import { ja } from 'date-fns/locale';
@@ -81,54 +79,6 @@ const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
     } catch (error) {
       console.error('Error marking task as complete:', error);
       toast.error('タスクの完了操作中にエラーが発生しました');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleArchiveTask = async () => {
-    if (loading) return;
-    
-    setLoading(true);
-    try {
-      await tasksApi.archiveTask(task.id);
-      toast.success('タスクをアーカイブしました');
-      
-      // メニューを閉じる
-      setIsMenuOpen(false);
-      
-      // タスクリストを強制的に更新するイベントを発火
-      window.dispatchEvent(new CustomEvent('task-update-force-refresh'));
-      
-      // 親コンポーネントの更新関数を呼び出し
-      onTaskUpdated && onTaskUpdated();
-    } catch (error) {
-      console.error('Error archiving task:', error);
-      toast.error('タスクのアーカイブ中にエラーが発生しました');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleUnarchiveTask = async () => {
-    if (loading) return;
-    
-    setLoading(true);
-    try {
-      await tasksApi.unarchiveTask(task.id);
-      toast.success('タスクのアーカイブを解除しました');
-      
-      // メニューを閉じる
-      setIsMenuOpen(false);
-      
-      // タスクリストを強制的に更新するイベントを発火
-      window.dispatchEvent(new CustomEvent('task-update-force-refresh'));
-      
-      // 親コンポーネントの更新関数を呼び出し
-      onTaskUpdated && onTaskUpdated();
-    } catch (error) {
-      console.error('Error unarchiving task:', error);
-      toast.error('タスクのアーカイブ解除中にエラーが発生しました');
     } finally {
       setLoading(false);
     }
@@ -291,8 +241,7 @@ const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
     <div 
       className={`bg-white rounded-lg shadow-card overflow-hidden transition-all hover:shadow-card-hover cursor-pointer ${
         task.completed_at ? 'border-l-4 border-green-500' : 
-        isOverdue() ? 'border-l-4 border-red-500' : 
-        task.is_archived ? 'border-l-4 border-gray-500 opacity-75' : ''
+        isOverdue() ? 'border-l-4 border-red-500' : ''
       }`}
       onClick={() => onEdit(task)} // カード全体をクリック可能に
     >
@@ -334,25 +283,6 @@ const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
                   <HiOutlinePencil className="mr-2" />
                   編集
                 </button>
-                
-                {/* アーカイブ/アーカイブ解除ボタン */}
-                {!task.is_archived ? (
-                  <button
-                    onClick={handleArchiveTask}
-                    className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center text-gray-700"
-                  >
-                    <HiOutlineArchive className="mr-2" />
-                    アーカイブ
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleUnarchiveTask}
-                    className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center text-gray-700"
-                  >
-                    <HiOutlineReply className="mr-2" />
-                    アーカイブ解除
-                  </button>
-                )}
                 
                 {/* 完了マークボタン */}
                 {!task.completed_at && (
