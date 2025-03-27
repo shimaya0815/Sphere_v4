@@ -1083,7 +1083,7 @@ const TaskList = forwardRef((props, ref) => {
                   </button>
                   
                   {/* ページ番号ボタン（最大5ページまでを表示） */}
-                  {Array.from({ length: Math.min(5, Math.ceil(totalItems / pageSize)) }, (_, i) => {
+                  {(() => {
                     // 現在のページを中心に表示するための計算
                     const totalPages = Math.ceil(totalItems / pageSize);
                     let pageNumbers = [];
@@ -1108,7 +1108,7 @@ const TaskList = forwardRef((props, ref) => {
                         {pageNum}
                       </button>
                     ));
-                  })}
+                  })()}
                   
                   {/* 次へボタン */}
                   <button
