@@ -18,7 +18,10 @@ export const {
   updateTask,
   deleteTask,
   changeStatus,
-  markComplete
+  markComplete,
+  archiveTask,
+  unarchiveTask,
+  getArchivedTasks
 } = taskOperations;
 
 // テンプレート関連 API
@@ -66,6 +69,9 @@ export default {
   deleteTask,
   changeStatus,
   markComplete,
+  archiveTask,
+  unarchiveTask,
+  getArchivedTasks,
   
   // テンプレート関連
   getTemplates,

@@ -245,6 +245,69 @@ export const deleteTask = async (taskId) => {
 };
 
 /**
+ * タスクをアーカイブする
+ * @param {number} taskId - タスクID
+ * @returns {Promise<Object>} アーカイブ結果
+ */
+export const archiveTask = async (taskId) => {
+  try {
+    console.log(`Archiving task with ID: ${taskId}`);
+    const response = await apiClient.post(`/api/tasks/${taskId}/archive/`);
+    console.log('Archive response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error(`Error archiving task ${taskId}:`, error);
+    if (error.response) {
+      console.error('Error response data:', error.response.data);
+      console.error('Error status:', error.response.status);
+    }
+    throw error;
+  }
+};
+
+/**
+ * タスクのアーカイブを解除する
+ * @param {number} taskId - タスクID
+ * @returns {Promise<Object>} アーカイブ解除結果
+ */
+export const unarchiveTask = async (taskId) => {
+  try {
+    console.log(`Unarchiving task with ID: ${taskId}`);
+    const response = await apiClient.post(`/api/tasks/${taskId}/unarchive/`);
+    console.log('Unarchive response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error(`Error unarchiving task ${taskId}:`, error);
+    if (error.response) {
+      console.error('Error response data:', error.response.data);
+      console.error('Error status:', error.response.status);
+    }
+    throw error;
+  }
+};
+
+/**
+ * アーカイブされたタスク一覧を取得
+ * @param {Object} filters - フィルター条件
+ * @returns {Promise<Array>} アーカイブされたタスク一覧
+ */
+export const getArchivedTasks = async (filters = {}) => {
+  try {
+    console.log('Fetching archived tasks with filters:', filters);
+    const response = await apiClient.get('/api/tasks/archived/', { params: filters });
+    console.log('Archived tasks response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching archived tasks:', error);
+    if (error.response) {
+      console.error('Error response data:', error.response.data);
+      console.error('Error status:', error.response.status);
+    }
+    throw error;
+  }
+};
+
+/**
  * タスクステータス変更
  * @param {number} taskId - タスクID
  * @param {Object} statusData - ステータスデータ
@@ -280,5 +343,8 @@ export default {
   updateTask,
   deleteTask,
   changeStatus,
-  markComplete
+  markComplete,
+  archiveTask,
+  unarchiveTask,
+  getArchivedTasks
 }; 
