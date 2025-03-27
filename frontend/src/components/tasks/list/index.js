@@ -6,7 +6,9 @@ import {
   HiOutlineFilter, 
   HiOutlineDocumentText,
   HiOutlineExclamationCircle, 
-  HiCheck 
+  HiCheck,
+  HiChevronLeft,
+  HiChevronRight
 } from 'react-icons/hi';
 import { useAuth } from '../../../context/AuthContext';
 import { tasksApi } from '../../../api';
@@ -56,6 +58,12 @@ const TaskList = forwardRef((props, ref) => {
     assignee: currentUser?.id || '',
     hide_completed: true,  // デフォルトで完了タスクを非表示
   });
+  
+  // ページネーション関連の状態
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10); // デフォルトは10件表示
+  const [totalItems, setTotalItems] = useState(0);
+  const [paginatedTasks, setPaginatedTasks] = useState([]);
   
   // ユーザーごとのフィルター設定を保存・復元
   useEffect(() => {
@@ -848,9 +856,56 @@ const TaskList = forwardRef((props, ref) => {
     setBulkEditData(prev => ({ ...prev, [field]: value }));
   };
   
+  // タスクデータのページネーション処理
+  useEffect(() => {
+    if (tasks.length > 0) {
+      const totalItems = tasks.length;
+      setTotalItems(totalItems);
+      
+      // 現在のページが範囲外になった場合は、ページを調整
+      const totalPages = Math.ceil(totalItems / pageSize);
+      if (currentPage > totalPages) {
+        setCurrentPage(Math.max(1, totalPages));
+      }
+      
+      // 現在のページのタスクのみを取得
+      const startIndex = (currentPage - 1) * pageSize;
+      const endIndex = Math.min(startIndex + pageSize, totalItems);
+      const tasksForCurrentPage = tasks.slice(startIndex, endIndex);
+      
+      setPaginatedTasks(tasksForCurrentPage);
+      console.log(`現在のページ: ${currentPage}, 表示件数: ${pageSize}, 全${totalItems}件中${startIndex + 1}〜${endIndex}件を表示`);
+    } else {
+      setPaginatedTasks([]);
+      setTotalItems(0);
+    }
+  }, [tasks, currentPage, pageSize]);
+  
+  // ページサイズが変更されたとき、ページを1に戻す
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [pageSize]);
+  
+  // ページネーションのハンドラー
+  const handlePageChange = (newPage) => {
+    // ページ範囲内のチェック
+    const totalPages = Math.ceil(totalItems / pageSize);
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+      // ページ上部にスクロール
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+  
+  // ページサイズ変更ハンドラー
+  const handlePageSizeChange = (event) => {
+    const newSize = parseInt(event.target.value, 10);
+    setPageSize(newSize);
+  };
+  
   // ----- レンダリング -----
   return (
-    <div className="mb-6 space-y-6">
+    <div className="bg-gray-50 shadow-card rounded-lg overflow-hidden">
       {/* ツールバー */}
       <div className="flex flex-wrap justify-between items-center gap-2">
         <h1 className="text-2xl font-semibold text-gray-900">タスク一覧</h1>
@@ -943,16 +998,132 @@ const TaskList = forwardRef((props, ref) => {
           <p className="mt-2 text-gray-500">タスクを読み込み中...</p>
         </div>
       ) : tasks.length > 0 ? (
-        <TaskTable 
-          tasks={tasks}
-          sortConfig={sortConfig}
-          onSortChange={handleSortChange}
-          bulkEditMode={bulkEditMode}
-          selectedTasks={selectedTasks}
-          onSelectTask={toggleTaskSelection}
-          onSelectAll={toggleSelectAll}
-          onTaskSelect={handleTaskSelect}
-        />
+        <>
+          {/* ページサイズ選択とページネーション情報 */}
+          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+            <div className="flex-1 flex items-center">
+              <div>
+                <p className="text-sm text-gray-700">
+                  <span className="font-medium">{totalItems}</span>
+                  件中 
+                  <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span>
+                  から
+                  <span className="font-medium">{Math.min(currentPage * pageSize, totalItems)}</span>
+                  件を表示
+                </p>
+              </div>
+              <div className="ml-4">
+                <label htmlFor="pageSize" className="text-sm text-gray-700 mr-2">表示件数:</label>
+                <select
+                  id="pageSize"
+                  value={pageSize}
+                  onChange={handlePageSizeChange}
+                  className="border-gray-300 rounded-md text-sm focus:ring-primary-500 focus:border-primary-500"
+                >
+                  <option value={5}>5件</option>
+                  <option value={10}>10件</option>
+                  <option value={20}>20件</option>
+                  <option value={50}>50件</option>
+                  <option value={100}>100件</option>
+                </select>
+              </div>
+            </div>
+          </div>
+      
+          {/* タスクテーブル - tasks -> paginatedTasksに変更 */}
+          <TaskTable 
+            tasks={paginatedTasks}
+            sortConfig={sortConfig}
+            onSortChange={handleSortChange}
+            bulkEditMode={bulkEditMode}
+            selectedTasks={selectedTasks}
+            onSelectTask={toggleTaskSelection}
+            onSelectAll={toggleSelectAll}
+            onTaskSelect={handleTaskSelect}
+          />
+          
+          {/* ページネーションコントロール */}
+          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+            <div className="flex-1 flex justify-between sm:hidden">
+              {/* モバイル用ページネーション */}
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
+              >
+                前へ
+              </button>
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage >= Math.ceil(totalItems / pageSize)}
+                className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white ${currentPage >= Math.ceil(totalItems / pageSize) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
+              >
+                次へ
+              </button>
+            </div>
+            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  ページ
+                  <span className="font-medium mx-1">{currentPage}</span>
+                  /
+                  <span className="font-medium mx-1">{Math.ceil(totalItems / pageSize)}</span>
+                </p>
+              </div>
+              <div>
+                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                  {/* 前へボタン */}
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
+                  >
+                    <span className="sr-only">前へ</span>
+                    <HiChevronLeft className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                  
+                  {/* ページ番号ボタン（最大5ページまでを表示） */}
+                  {Array.from({ length: Math.min(5, Math.ceil(totalItems / pageSize)) }, (_, i) => {
+                    // 現在のページを中心に表示するための計算
+                    const totalPages = Math.ceil(totalItems / pageSize);
+                    let pageNumbers = [];
+                    
+                    if (totalPages <= 5) {
+                      // 全5ページ以下なら全て表示
+                      pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1);
+                    } else {
+                      // 5ページ以上の場合、現在のページを中心に表示
+                      const startPage = Math.max(1, currentPage - 2);
+                      const endPage = Math.min(totalPages, startPage + 4);
+                      
+                      pageNumbers = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
+                    }
+                    
+                    return pageNumbers.map(pageNum => (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`relative inline-flex items-center px-4 py-2 border ${pageNum === currentPage ? 'border-primary-500 bg-primary-50 text-primary-600' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'} text-sm font-medium`}
+                      >
+                        {pageNum}
+                      </button>
+                    ));
+                  })}
+                  
+                  {/* 次へボタン */}
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage >= Math.ceil(totalItems / pageSize)}
+                    className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 ${currentPage >= Math.ceil(totalItems / pageSize) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
+                  >
+                    <span className="sr-only">次へ</span>
+                    <HiChevronRight className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                </nav>
+              </div>
+            </div>
+          </div>
+        </>
       ) : (
         <div className="bg-white shadow-card rounded-lg p-8 text-center">
           <HiOutlineDocumentText className="mx-auto h-12 w-12 text-gray-400" />
