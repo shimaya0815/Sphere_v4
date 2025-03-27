@@ -820,25 +820,45 @@ const TaskList = forwardRef((props, ref) => {
     if (!selectedTask) return;
     
     setLoading(true);
+    
     try {
-      await tasksApi.deleteTask(selectedTask.id);
+      const taskId = selectedTask.id;
+      const taskTitle = selectedTask.title;
       
-      toast.success('タスクを削除しました');
+      // 先にUIを更新して良いレスポンス時間を確保
       setDeleteModalOpen(false);
+      
+      // UIからタスクを先に削除することで、表示の即時性を確保
+      updateTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
+      
+      // 削除イベントを発火（タイムスタンプを含めて）
+      const deleteEvent = new CustomEvent('task-deleted', {
+        detail: {
+          taskId: taskId,
+          timestamp: new Date().getTime()
+        }
+      });
+      
+      // APIリクエスト前に数ミリ秒待つことでUIの更新を先に完了させる
+      await new Promise(resolve => setTimeout(resolve, 10));
+      
+      // バックエンドでの削除処理
+      await tasksApi.deleteTask(taskId);
+      
+      // APIコールが完了したらイベントをディスパッチ
+      window.dispatchEvent(deleteEvent);
+      
+      // 選択状態をクリア
       setSelectedTask(null);
       
-      // タスク削除後のリスト更新
-      updateTasks(tasks.filter(task => task.id !== selectedTask.id));
-      
-      // 削除イベントを発火
-      window.dispatchEvent(new CustomEvent('task-deleted', {
-        detail: {
-          taskId: selectedTask.id
-        }
-      }));
+      // 削除成功のメッセージ
+      toast.success(`「${taskTitle}」を削除しました`);
     } catch (error) {
       console.error('Error deleting task:', error);
       toast.error('タスクの削除に失敗しました');
+      
+      // エラーが発生した場合、最新のタスクリストを再取得
+      memoizedFetchTasks();
     } finally {
       setLoading(false);
     }

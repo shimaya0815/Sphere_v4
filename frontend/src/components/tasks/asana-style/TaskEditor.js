@@ -721,10 +721,34 @@ const TaskEditor = ({
                   <button
                     type="button"
                     className="text-red-600 hover:text-red-800 flex items-center"
-                    onClick={() => {
+                    onClick={async () => {
                       // タスク削除機能
                       if (window.confirm('このタスクを削除してもよろしいですか？')) {
-                        // 削除処理
+                        try {
+                          setIsSaving(true);
+                          await tasksApi.deleteTask(task.id);
+                          toast.success('タスクを削除しました');
+                          
+                          // 削除イベントを発火
+                          window.dispatchEvent(new CustomEvent('task-deleted', {
+                            detail: {
+                              taskId: task.id,
+                              timestamp: new Date().getTime()
+                            }
+                          }));
+                          
+                          // パネルを閉じてタスク一覧に戻る
+                          if (onClose) {
+                            onClose();
+                          } else {
+                            navigate('/tasks', { replace: true });
+                          }
+                        } catch (error) {
+                          console.error('タスク削除エラー:', error);
+                          toast.error('タスクの削除に失敗しました');
+                        } finally {
+                          setIsSaving(false);
+                        }
                       }
                     }}
                   >
