@@ -270,6 +270,10 @@ class Task(models.Model):
         blank=True
     )
     
+    # アーカイブ状態を表すフィールド
+    is_archived = models.BooleanField(_('is archived'), default=False, help_text=_('タスクがアーカイブされているかどうか'))
+    archived_at = models.DateTimeField(_('archived at'), null=True, blank=True)
+    
     # Optional link to a client
     client = models.ForeignKey(
         'clients.Client',

@@ -94,6 +94,12 @@ class TaskViewSet(viewsets.ModelViewSet):
         # Filter by is_template (only show non-templates by default)
         queryset = queryset.filter(is_template=False)
         
+        # デフォルトで非アーカイブタスクのみを表示
+        # 明示的にアーカイブタスクを要求されない限り
+        show_archived = self.request.query_params.get('show_archived', '').lower() == 'true'
+        if not show_archived and not self.request.path.endswith('/archived/'):
+            queryset = queryset.filter(is_archived=False)
+        
         # Apply filters from query parameters
         status = self.request.query_params.get('status', None)
         priority = self.request.query_params.get('priority', None)
@@ -480,55 +486,86 @@ class TaskViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'], url_path='create-next-recurring')
     def create_next_recurring(self, request, pk=None):
-        """
-        完了したタスクの次の繰り返しインスタンスを生成するエンドポイント
-        """
+        """次の繰り返しタスクを手動生成"""
         task = self.get_object()
-        print(f"[DEBUG] create_next_recurring called for task {task.id} ({task.title})")
-        print(f"[DEBUG] Task details: is_recurring={task.is_recurring}, recurrence_pattern={task.recurrence_pattern}, completed_at={task.completed_at}")
-        print(f"[DEBUG] Monthly settings: monthday={task.monthday}, business_day={task.business_day}")
-        print(f"[DEBUG] Monthly details: monthday_type={type(task.monthday)}, business_day_type={type(task.business_day)}")
         
-        if task.recurrence_pattern == 'monthly':
-            if task.business_day is not None and task.business_day > 0:
-                print(f"[DEBUG] 月次営業日指定が有効です: {task.business_day}営業日目")
-            elif task.monthday is not None and task.monthday > 0:
-                print(f"[DEBUG] 月次日付指定が有効です: {task.monthday}日")
+        try:
+            next_task = task.generate_next_instance()
+            if next_task:
+                return Response({
+                    'success': True,
+                    'message': '次の繰り返しタスクを生成しました',
+                    'next_task_id': next_task.id
+                })
             else:
-                print(f"[DEBUG] 月次設定が不完全です: monthday={task.monthday}, business_day={task.business_day}")
+                return Response({
+                    'success': False,
+                    'message': '繰り返しタスクの生成に失敗しました'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': f'エラーが発生しました: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=True, methods=['post'], url_path='archive')
+    def archive_task(self, request, pk=None):
+        """タスクをアーカイブする"""
+        task = self.get_object()
         
-        # タスクが繰り返し設定を持っているか確認
-        if not task.is_recurring or not task.recurrence_pattern:
-            print(f"[DEBUG] Task {task.id} does not have recurring settings: is_recurring={task.is_recurring}, recurrence_pattern={task.recurrence_pattern}")
-            return Response(
-                {"detail": "このタスクは繰り返し設定がありません"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        try:
+            # アーカイブフラグを設定
+            task.is_archived = True
+            task.archived_at = timezone.now()
+            task.save(update_fields=['is_archived', 'archived_at'])
+            
+            return Response({
+                'success': True,
+                'message': 'タスクをアーカイブしました'
+            })
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': f'アーカイブ処理でエラーが発生しました: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=True, methods=['post'], url_path='unarchive')
+    def unarchive_task(self, request, pk=None):
+        """タスクのアーカイブを解除する"""
+        task = self.get_object()
         
-        # タスクが完了しているか確認
-        if not task.completed_at:
-            print(f"[DEBUG] Task {task.id} is not completed (completed_at is None)")
-            return Response(
-                {"detail": "タスクが完了していません。完了したタスクのみ次のインスタンスを生成できます"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        try:
+            # アーカイブフラグを解除
+            task.is_archived = False
+            task.archived_at = None
+            task.save(update_fields=['is_archived', 'archived_at'])
+            
+            return Response({
+                'success': True,
+                'message': 'タスクのアーカイブを解除しました'
+            })
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': f'アーカイブ解除処理でエラーが発生しました: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=False, methods=['get'], url_path='archived')
+    def get_archived_tasks(self, request):
+        """アーカイブされたタスクの一覧を取得"""
+        # 通常のクエリセットから派生して、アーカイブされたタスクのみをフィルタリング
+        queryset = self.get_queryset().filter(is_archived=True)
         
-        # 次のインスタンスを生成
-        print(f"[DEBUG] Generating next instance for task {task.id}")
-        next_task = task.generate_next_instance()
+        # 他のフィルタリングやページングを適用
+        queryset = self.filter_queryset(queryset)
+        page = self.paginate_queryset(queryset)
         
-        if not next_task:
-            print(f"[DEBUG] Failed to generate next instance for task {task.id}")
-            return Response(
-                {"detail": "次のタスクを生成できませんでした。繰り返し終了日を過ぎている可能性があります"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
         
-        print(f"[DEBUG] Successfully generated next instance: task_id={next_task.id}, due_date={next_task.due_date}")
-        
-        # 生成したタスクのデータを返す
-        serializer = self.get_serializer(next_task)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
     
     @action(detail=True, methods=['get'], url_path='calculate-next-dates')
     def calculate_next_dates(self, request, pk=None):

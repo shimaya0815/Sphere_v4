@@ -158,6 +158,51 @@ export const deleteTask = async (taskId) => {
 };
 
 /**
+ * タスクをアーカイブする
+ * @param {number} taskId タスクID
+ * @returns {Promise<object>} アーカイブ結果
+ */
+export const archiveTask = async (taskId) => {
+  try {
+    const response = await apiClient.post(`/api/tasks/${taskId}/archive/`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error archiving task ${taskId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * タスクのアーカイブを解除する
+ * @param {number} taskId タスクID
+ * @returns {Promise<object>} アーカイブ解除結果
+ */
+export const unarchiveTask = async (taskId) => {
+  try {
+    const response = await apiClient.post(`/api/tasks/${taskId}/unarchive/`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error unarchiving task ${taskId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * アーカイブされたタスク一覧を取得
+ * @param {object} params クエリパラメータ
+ * @returns {Promise<Array>} アーカイブされたタスク一覧
+ */
+export const getArchivedTasks = async (params = {}) => {
+  try {
+    const response = await apiClient.get('/api/tasks/archived/', { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching archived tasks:', error);
+    throw error;
+  }
+};
+
+/**
  * タスクのコメント一覧を取得
  * @param {number} taskId タスクID
  * @returns {Promise<Array>} コメント一覧
@@ -584,5 +629,8 @@ export default {
   updateTemplateTask,
   createTemplateTask,
   markTaskComplete,
-  createNextRecurringTask
+  createNextRecurringTask,
+  archiveTask,
+  unarchiveTask,
+  getArchivedTasks
 };

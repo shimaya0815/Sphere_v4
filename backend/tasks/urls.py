@@ -31,6 +31,19 @@ urlpatterns = [
         'post': 'change_status'
     }), name='task-change-status'),
     
+    # アーカイブアクション
+    path('<int:pk>/archive/', views.TaskViewSet.as_view({
+        'post': 'archive_task'
+    }), name='task-archive'),
+    
+    path('<int:pk>/unarchive/', views.TaskViewSet.as_view({
+        'post': 'unarchive_task'
+    }), name='task-unarchive'),
+    
+    path('archived/', views.TaskViewSet.as_view({
+        'get': 'get_archived_tasks'
+    }), name='tasks-archived'),
+    
     # タイマーアクション
     path('<int:pk>/timers/start/', views.TaskViewSet.as_view({
         'post': 'start_timer'

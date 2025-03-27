@@ -12,7 +12,9 @@ import {
   HiOutlineUserCircle,
   HiOutlineEye,
   HiOutlineOfficeBuilding,
-  HiOutlineDocumentDuplicate
+  HiOutlineDocumentDuplicate,
+  HiOutlineArchive,
+  HiOutlineReply
 } from 'react-icons/hi';
 // import { format } from 'date-fns';
 // import { ja } from 'date-fns/locale';
@@ -79,6 +81,54 @@ const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
     } catch (error) {
       console.error('Error marking task as complete:', error);
       toast.error('タスクの完了操作中にエラーが発生しました');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleArchiveTask = async () => {
+    if (loading) return;
+    
+    setLoading(true);
+    try {
+      await tasksApi.archiveTask(task.id);
+      toast.success('タスクをアーカイブしました');
+      
+      // メニューを閉じる
+      setIsMenuOpen(false);
+      
+      // タスクリストを強制的に更新するイベントを発火
+      window.dispatchEvent(new CustomEvent('task-update-force-refresh'));
+      
+      // 親コンポーネントの更新関数を呼び出し
+      onTaskUpdated && onTaskUpdated();
+    } catch (error) {
+      console.error('Error archiving task:', error);
+      toast.error('タスクのアーカイブ中にエラーが発生しました');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUnarchiveTask = async () => {
+    if (loading) return;
+    
+    setLoading(true);
+    try {
+      await tasksApi.unarchiveTask(task.id);
+      toast.success('タスクのアーカイブを解除しました');
+      
+      // メニューを閉じる
+      setIsMenuOpen(false);
+      
+      // タスクリストを強制的に更新するイベントを発火
+      window.dispatchEvent(new CustomEvent('task-update-force-refresh'));
+      
+      // 親コンポーネントの更新関数を呼び出し
+      onTaskUpdated && onTaskUpdated();
+    } catch (error) {
+      console.error('Error unarchiving task:', error);
+      toast.error('タスクのアーカイブ解除中にエラーが発生しました');
     } finally {
       setLoading(false);
     }
@@ -241,7 +291,8 @@ const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
     <div 
       className={`bg-white rounded-lg shadow-card overflow-hidden transition-all hover:shadow-card-hover cursor-pointer ${
         task.completed_at ? 'border-l-4 border-green-500' : 
-        isOverdue() ? 'border-l-4 border-red-500' : ''
+        isOverdue() ? 'border-l-4 border-red-500' : 
+        task.is_archived ? 'border-l-4 border-gray-500 opacity-75' : ''
       }`}
       onClick={() => onEdit(task)} // カード全体をクリック可能に
     >
@@ -256,80 +307,102 @@ const TaskItem = ({ task, onEdit, onDelete, onTaskUpdated }) => {
             </p>
           </div>
           
-          <div className="relative">
-            <button 
-              className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+          <div className="relative flex-shrink-0">
+            <button
               onClick={(e) => {
-                e.stopPropagation(); // イベントの親への伝播を停止
+                e.stopPropagation(); // カード全体のクリックイベントを防止
                 setIsMenuOpen(!isMenuOpen);
               }}
+              className="p-1 rounded-full hover:bg-gray-100 transition-colors text-gray-500"
+              aria-label="タスクメニュー"
             >
-              <HiOutlineDotsVertical />
+              <HiOutlineDotsVertical className="w-5 h-5" />
             </button>
             
             {isMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200" onClick={(e) => e.stopPropagation()}>
-                <ul className="py-1">
-                  <li>
-                    <button 
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                      onClick={() => {
-                        onEdit(task);
-                        setIsMenuOpen(false);
-                      }}
-                    >
-                      <HiOutlinePencil className="mr-2" />
-                      編集
-                    </button>
-                  </li>
-                  <li>
-                    <button 
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                      onClick={() => {
-                        // スライドパネルを表示するためにonEditを呼び出す
-                        onEdit(task);
-                        setIsMenuOpen(false);
-                      }}
-                    >
-                      <HiOutlineEye className="mr-2" />
-                      詳細を表示
-                    </button>
-                  </li>
-                  <li>
-                    <button 
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                      onClick={handleTimerToggle}
-                    >
-                      {isTimerRunning ? 
-                        <><HiOutlineStop className="mr-2" />タイマー停止</> : 
-                        <><HiOutlinePlay className="mr-2" />タイマー開始</>
-                      }
-                    </button>
-                  </li>
-                  {!task.completed_at && (
-                    <li>
-                      <button 
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                        onClick={handleMarkComplete}
-                      >
-                        <HiOutlineClipboardCheck className="mr-2" />
-                        完了としてマーク
-                      </button>
-                    </li>
+              <div 
+                className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg z-20 py-1 text-sm"
+                onClick={(e) => e.stopPropagation()} // カード全体のクリックイベント防止
+              >
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onEdit(task);
+                  }}
+                  className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center text-gray-700"
+                >
+                  <HiOutlinePencil className="mr-2" />
+                  編集
+                </button>
+                
+                {/* アーカイブ/アーカイブ解除ボタン */}
+                {!task.is_archived ? (
+                  <button
+                    onClick={handleArchiveTask}
+                    className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center text-gray-700"
+                  >
+                    <HiOutlineArchive className="mr-2" />
+                    アーカイブ
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleUnarchiveTask}
+                    className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center text-gray-700"
+                  >
+                    <HiOutlineReply className="mr-2" />
+                    アーカイブ解除
+                  </button>
+                )}
+                
+                {/* 完了マークボタン */}
+                {!task.completed_at && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMarkComplete();
+                      setIsMenuOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center text-gray-700"
+                  >
+                    <HiOutlineClipboardCheck className="mr-2" />
+                    完了としてマーク
+                  </button>
+                )}
+                
+                {/* タイマーボタン */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleTimerToggle();
+                    setIsMenuOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center text-gray-700"
+                >
+                  {isTimerRunning ? (
+                    <>
+                      <HiOutlineStop className="mr-2" />
+                      タイマー停止
+                    </>
+                  ) : (
+                    <>
+                      <HiOutlinePlay className="mr-2" />
+                      タイマー開始
+                    </>
                   )}
-                  <li>
-                    <button 
-                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center"
-                      onClick={() => {
-                        onDelete(task);
-                        setIsMenuOpen(false);
-                      }}
-                    >
-                      <HiOutlineTrash className="mr-2" />
-                      削除
-                    </button>
-                  </li>
-                </ul>
+                </button>
+                
+                {/* 削除ボタン */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsMenuOpen(false);
+                    onDelete(task);
+                  }}
+                  className="w-full text-left px-4 py-2 hover:bg-red-50 flex items-center text-red-600"
+                >
+                  <HiOutlineTrash className="mr-2" />
+                  削除
+                </button>
               </div>
             )}
           </div>

@@ -45,7 +45,11 @@ const TaskList = forwardRef((props, ref) => {
     is_fiscal_task: '',
     client: '',
     assignee: currentUser?.id || '',  // 自分の担当タスクのみをデフォルト表示
+    show_archived: false,  // デフォルトでアーカイブタスクは表示しない
   });
+  
+  // アーカイブタスク表示モード
+  const [showingArchived, setShowingArchived] = useState(false);
   
   // ソート順を設定
   const [sortConfig, setSortConfig] = useState({
@@ -127,8 +131,13 @@ const TaskList = forwardRef((props, ref) => {
       let fetchedTasks = [];
       
       try {
-        // APIリクエスト
-        const response = await tasksApi.getTasks(cleanFilters);
+        // APIリクエスト - アーカイブモードに応じてエンドポイントを変更
+        let response;
+        if (showingArchived) {
+          response = await tasksApi.getArchivedTasks(cleanFilters);
+        } else {
+          response = await tasksApi.getTasks(cleanFilters);
+        }
         console.log('API Response full:', response);
         console.log('API Response type:', typeof response);
         console.log('API Response keys:', response ? Object.keys(response) : 'null');
@@ -412,10 +421,13 @@ const TaskList = forwardRef((props, ref) => {
 
   // フィルター変更時に再検索
   const handleFilterChange = (name, value) => {
-    setFilters(prev => ({ ...prev, [name]: value }));
+    setFilters({ ...filters, [name]: value });
   };
 
   const handleFilterApply = () => {
+    setShowFilters(false);
+    // アーカイブ表示モードをフィルターに連動
+    setShowingArchived(filters.show_archived);
     fetchTasks();
   };
 
@@ -426,9 +438,10 @@ const TaskList = forwardRef((props, ref) => {
       searchTerm: '',
       is_fiscal_task: '',
       client: '',
-      assignee: '', // リセット時は自分のタスクフィルターも解除
+      assignee: currentUser?.id || '',
+      show_archived: false,
     });
-    fetchTasks();
+    setShowingArchived(false);
   };
 
   // タスク編集
@@ -540,10 +553,17 @@ const TaskList = forwardRef((props, ref) => {
   };
 
   return (
-    <div>
-      {/* ヘッダー部分 */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <h1 className="text-2xl font-bold text-gray-800">タスク管理</h1>
+    <div className="h-full flex flex-col">
+      {/* Header with filters and actions */}
+      <div className="bg-white p-4 border-b flex flex-wrap justify-between items-center gap-2">
+        <h2 className="text-xl font-semibold flex items-center">
+          タスク一覧
+          {showingArchived && (
+            <span className="ml-2 bg-gray-200 text-gray-800 text-xs px-2 py-1 rounded-full">
+              アーカイブ表示中
+            </span>
+          )}
+        </h2>
         
         <div className="flex items-center space-x-2">
           <button
@@ -670,6 +690,22 @@ const TaskList = forwardRef((props, ref) => {
                 <option value="">すべて</option>
                 <option value={currentUser?.id || ''}>自分のタスク</option>
               </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">アーカイブ表示</label>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="show_archived"
+                  checked={filters.show_archived}
+                  onChange={(e) => handleFilterChange('show_archived', e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="show_archived" className="ml-2 text-sm text-gray-700">
+                  アーカイブ済みのタスクを表示
+                </label>
+              </div>
             </div>
             
             <div className="flex items-end space-x-2">
