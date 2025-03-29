@@ -73,49 +73,69 @@ const TaskList = forwardRef((props, ref) => {
   const [totalItems, setTotalItems] = useState(0);
   const [paginatedTasks, setPaginatedTasks] = useState([]);
   
-  // 保存済みフィルタを読み込む
+  // 保存済みフィルタとユーザー設定を読み込む
   useEffect(() => {
-    if (!currentUser?.id) return;
-    
-    const loadSavedFilters = async () => {
+    const loadUserPreferences = async () => {
+      if (!currentUser?.id) return;
+      
       try {
+        console.log('ユーザー設定を読み込みます');
         const preferences = await usersApi.getUserPreferences();
         
+        // 保存済みフィルタをロード
         if (preferences && preferences.saved_task_filters) {
           setSavedFilters(preferences.saved_task_filters);
         }
         
+        // デフォルトフィルタ名をロード
         if (preferences && preferences.default_task_filter) {
           setDefaultFilterName(preferences.default_task_filter);
         }
+        
+        // システムデフォルトの「マイタスク」フィルタが存在しない場合は作成
+        await ensureSystemDefaultFilter();
       } catch (error) {
-        console.error('保存済みフィルタの読み込みでエラーが発生しました:', error);
+        console.error('ユーザー設定の読み込みでエラーが発生しました:', error);
       }
     };
     
-    loadSavedFilters();
+    loadUserPreferences();
   }, [currentUser?.id]);
-  
-  // ユーザーごとのフィルター設定を保存・復元
+
+  // ユーザーごとのフィルター設定を読み込み・適用
   useEffect(() => {
     const loadUserFilters = async () => {
       if (!currentUser?.id) return;
       
+      console.log('フィルター設定を読み込みます');
+      
       try {
         // バックエンドからユーザー設定を取得
         const preferences = await usersApi.getUserPreferences();
+        console.log('取得したユーザー設定:', preferences);
         
         // デフォルトフィルタがある場合、それを適用
         if (preferences.default_task_filter && preferences.saved_task_filters) {
-          const defaultFilter = preferences.saved_task_filters[preferences.default_task_filter];
+          const defaultFilterName = preferences.default_task_filter;
+          const defaultFilter = preferences.saved_task_filters[defaultFilterName];
           if (defaultFilter) {
-            console.log(`デフォルトフィルタ「${preferences.default_task_filter}」を適用します:`, defaultFilter);
+            console.log(`デフォルトフィルタ「${defaultFilterName}」を適用します:`, defaultFilter);
+            
+            // フィルタの状態を更新
             setFilters(defaultFilter);
             setInitialized(true);
+            
+            // タスクを取得（遅延実行）
+            setTimeout(() => fetchTasks(), 100);
             return;
+          } else {
+            console.log(`デフォルトフィルタ「${defaultFilterName}」が見つかりません`);
           }
+        } else {
+          console.log('デフォルトフィルタが設定されていません');
         }
         
+        // パスごとのフィルター設定を確認
         if (preferences && preferences.task_filters) {
           // パスごとのフィルター設定を持っているか確認
           if (preferences.task_filters[currentPath]) {
@@ -123,68 +143,7 @@ const TaskList = forwardRef((props, ref) => {
             console.log(`バックエンドから現在のパス(${currentPath})のフィルター設定を読み込みました:`, preferences.task_filters[currentPath]);
             setFilters(preferences.task_filters[currentPath]);
           } else {
-            // パスに対する設定がない場合はローカルストレージをチェック
-            const savedFilters = localStorage.getItem(`task_filters_${currentUser.id}_${currentPath}`);
-            if (savedFilters) {
-              try {
-                const parsedFilters = JSON.parse(savedFilters);
-                console.log(`ローカルストレージから現在のパス(${currentPath})のフィルター設定を読み込みました:`, parsedFilters);
-                setFilters(parsedFilters);
-                
-                // ローカルストレージの設定をバックエンドにも保存
-                const updatedTaskFilters = {
-                  ...preferences.task_filters,
-                  [currentPath]: parsedFilters
-                };
-                
-                await usersApi.updateUserPreferences({
-                  task_filters: updatedTaskFilters
-                });
-              } catch (error) {
-                console.error('フィルター設定の読み込みでエラーが発生しました:', error);
-              }
-            } else {
-              // 保存された設定がない場合はデフォルト設定を使用
-              const defaultFilters = {
-                status: '',
-                searchTerm: '',
-                client: '',
-                assignee: currentUser.id,
-                hide_completed: true,
-              };
-              setFilters(defaultFilters);
-              
-              // デフォルト設定をバックエンドに保存
-              const updatedTaskFilters = {
-                ...preferences.task_filters,
-                [currentPath]: defaultFilters
-              };
-              
-              await usersApi.updateUserPreferences({
-                task_filters: updatedTaskFilters
-              });
-            }
-          }
-        } else {
-          // task_filtersがない場合は新規作成
-          const savedFilters = localStorage.getItem(`task_filters_${currentUser.id}_${currentPath}`);
-          if (savedFilters) {
-            try {
-              const parsedFilters = JSON.parse(savedFilters);
-              console.log(`ローカルストレージから現在のパス(${currentPath})のフィルター設定を読み込みました:`, parsedFilters);
-              setFilters(parsedFilters);
-              
-              // ローカルストレージの設定をバックエンドにも保存
-              await usersApi.updateUserPreferences({
-                task_filters: {
-                  [currentPath]: parsedFilters
-                }
-              });
-            } catch (error) {
-              console.error('フィルター設定の読み込みでエラーが発生しました:', error);
-            }
-          } else {
-            // 保存された設定がない場合はデフォルト設定を使用
+            // パスに対する設定がない場合はデフォルト設定を使用
             const defaultFilters = {
               status: '',
               searchTerm: '',
@@ -195,34 +154,105 @@ const TaskList = forwardRef((props, ref) => {
             setFilters(defaultFilters);
             
             // デフォルト設定をバックエンドに保存
+            const updatedTaskFilters = {
+              ...preferences.task_filters,
+              [currentPath]: defaultFilters
+            };
+            
             await usersApi.updateUserPreferences({
-              task_filters: {
-                [currentPath]: defaultFilters
-              }
+              task_filters: updatedTaskFilters
             });
           }
+        } else {
+          // フィルタ設定がない場合はデフォルト設定を使用
+          const defaultFilters = {
+            status: '',
+            searchTerm: '',
+            client: '',
+            assignee: currentUser.id,
+            hide_completed: true,
+          };
+          setFilters(defaultFilters);
+          
+          // デフォルト設定をバックエンドに保存
+          await usersApi.updateUserPreferences({
+            task_filters: {
+              [currentPath]: defaultFilters
+            }
+          });
         }
       } catch (error) {
         console.error('フィルター設定の取得でエラーが発生しました:', error);
         
-        // バックエンドからの取得に失敗した場合はローカルストレージから読み込む
-        const savedFilters = localStorage.getItem(`task_filters_${currentUser.id}_${currentPath}`);
-        if (savedFilters) {
-          try {
-            const parsedFilters = JSON.parse(savedFilters);
-            console.log(`ローカルストレージから現在のパス(${currentPath})のフィルター設定を読み込みました（バックエンド取得失敗時）:`, parsedFilters);
-            setFilters(parsedFilters);
-          } catch (parseError) {
-            console.error('ローカルストレージのフィルター設定の解析でエラーが発生しました:', parseError);
-          }
-        }
+        // エラー時はデフォルト設定を使用
+        const defaultFilters = {
+          status: '',
+          searchTerm: '',
+          client: '',
+          assignee: currentUser?.id || '',
+          hide_completed: true,
+        };
+        setFilters(defaultFilters);
       }
       
       setInitialized(true);
     };
     
-    loadUserFilters();
+    if (currentUser?.id) {
+      loadUserFilters();
+    }
   }, [currentUser, currentPath]);
+  
+  // システムデフォルトフィルタを確保する関数
+  const ensureSystemDefaultFilter = async () => {
+    try {
+      const systemFilterName = 'マイタスク';
+      
+      // 現在の保存済みフィルタを取得
+      const preferences = await usersApi.getUserPreferences();
+      const currentSavedFilters = preferences.saved_task_filters || {};
+      
+      // システムデフォルトフィルタが存在するか確認
+      if (!currentSavedFilters[systemFilterName]) {
+        // 存在しない場合は作成
+        const systemDefaultFilter = {
+          status: '',
+          searchTerm: '',
+          client: '',
+          assignee: currentUser.id,
+          hide_completed: true,
+          is_system_default: true  // システムデフォルトのフラグ
+        };
+        
+        // 保存済みフィルタを更新
+        const updatedSavedFilters = {
+          ...currentSavedFilters,
+          [systemFilterName]: systemDefaultFilter
+        };
+        
+        // バックエンドに保存
+        await usersApi.updateUserPreferences({
+          saved_task_filters: updatedSavedFilters
+        });
+        
+        // ローカルのフィルタも更新
+        setSavedFilters(updatedSavedFilters);
+        
+        console.log(`システムデフォルトフィルタ「${systemFilterName}」を作成しました`);
+        
+        // デフォルトフィルタが設定されていない場合はシステムデフォルトを設定
+        if (!preferences.default_task_filter) {
+          await usersApi.updateUserPreferences({
+            default_task_filter: systemFilterName
+          });
+          setDefaultFilterName(systemFilterName);
+          console.log(`デフォルトフィルタとして「${systemFilterName}」を設定しました`);
+        }
+      }
+    } catch (error) {
+      console.error('システムデフォルトフィルタの作成中にエラーが発生しました:', error);
+    }
+  };
   
   // フィルター設定が変更されたときに保存
   const saveUserFilters = useCallback(async () => {
@@ -314,9 +344,19 @@ const TaskList = forwardRef((props, ref) => {
       const preferences = await usersApi.getUserPreferences();
       const currentSavedFilters = preferences.saved_task_filters || {};
       
+      // システムデフォルトフィルタの保護
+      if (currentSavedFilters[name] && currentSavedFilters[name].is_system_default) {
+        toast.error(`「${name}」はシステムデフォルトフィルタのため変更できません`);
+        return;
+      }
+
+      // 既存の保存済みフィルターを確認
+      const filterExists = Object.keys(currentSavedFilters).includes(name);
+      
+      // フィルタを保存
       const updatedSavedFilters = {
         ...currentSavedFilters,
-        [name]: filterData
+        [name]: { ...filterData, is_system_default: false }
       };
       
       await usersApi.updateUserPreferences({
@@ -325,7 +365,7 @@ const TaskList = forwardRef((props, ref) => {
       
       setSavedFilters(updatedSavedFilters);
       
-      toast.success(`フィルタ「${name}」を保存しました`);
+      toast.success(`フィルタ「${name}」を${filterExists ? '更新' : '保存'}しました`);
     } catch (error) {
       console.error('フィルタの保存に失敗しました:', error);
       toast.error('フィルタの保存に失敗しました');
@@ -337,14 +377,27 @@ const TaskList = forwardRef((props, ref) => {
     if (!currentUser?.id) return;
     
     try {
+      console.log(`デフォルトフィルタを設定: ${name}`);
+      
+      // デフォルトフィルタをバックエンドに保存
       await usersApi.updateUserPreferences({
         default_task_filter: name
       });
       
+      // ローカルステートを更新
       setDefaultFilterName(name);
       
       if (name) {
         toast.success(`フィルタ「${name}」をデフォルトに設定しました`);
+        
+        // デフォルトフィルタの内容を即座に適用
+        if (savedFilters[name]) {
+          setFilters(savedFilters[name]);
+          // タスクを再取得
+          setTimeout(() => fetchTasks(), 100);
+        }
+      } else {
+        toast.success('デフォルトフィルタを解除しました');
       }
     } catch (error) {
       console.error('デフォルトフィルタの設定に失敗しました:', error);
@@ -359,6 +412,12 @@ const TaskList = forwardRef((props, ref) => {
     try {
       const preferences = await usersApi.getUserPreferences();
       const currentSavedFilters = { ...preferences.saved_task_filters };
+      
+      // システムデフォルトフィルタの保護
+      if (currentSavedFilters[name] && currentSavedFilters[name].is_system_default) {
+        toast.error(`「${name}」はシステムデフォルトフィルタのため削除できません`);
+        return;
+      }
       
       // 指定されたフィルタを削除
       delete currentSavedFilters[name];
@@ -386,9 +445,17 @@ const TaskList = forwardRef((props, ref) => {
   
   // 保存済みフィルタを適用
   const handleApplySavedFilter = (name) => {
-    if (!savedFilters[name]) return;
+    if (!savedFilters[name]) {
+      console.error(`フィルタ「${name}」が見つかりません`);
+      return;
+    }
     
+    console.log(`フィルタ「${name}」を適用します:`, savedFilters[name]);
     setFilters(savedFilters[name]);
+    
+    // タスクを再取得（遅延実行）
+    setTimeout(() => fetchTasks(), 100);
+    
     toast.success(`フィルタ「${name}」を適用しました`);
   };
 

@@ -22,7 +22,7 @@ const SavedFilterModal = ({
   useEffect(() => {
     if (isOpen) {
       setFilterName('');
-      setIsDefault(defaultFilterName === '');
+      setIsDefault(false);
       setSelectedFilter('');
       setMode('new');
     }
@@ -34,16 +34,25 @@ const SavedFilterModal = ({
     setFilterName(filterName);
     setIsDefault(defaultFilterName === filterName);
     setMode('edit');
+    
+    // デバッグログ
+    console.log(`編集モードに切り替え: ${filterName}, デフォルト: ${defaultFilterName === filterName}`);
   };
 
   // フィルタの保存
   const handleSaveFilter = () => {
     if (!filterName.trim()) return;
-
+    
+    console.log(`フィルタを保存: ${filterName}, デフォルト: ${isDefault}`);
     onSaveFilter(filterName, currentFilters);
     
     if (isDefault) {
+      console.log(`デフォルトフィルタに設定: ${filterName}`);
       onSetDefaultFilter(filterName);
+    } else if (defaultFilterName === filterName) {
+      // 既存のデフォルトからチェックを外した場合、デフォルト設定を解除
+      console.log(`デフォルトフィルタを解除: ${filterName}`);
+      onSetDefaultFilter('');
     }
 
     onClose();
@@ -52,12 +61,16 @@ const SavedFilterModal = ({
   // 既存のフィルタの更新
   const handleUpdateFilter = () => {
     if (!selectedFilter) return;
-
+    
+    console.log(`フィルタを更新: ${selectedFilter}, デフォルト: ${isDefault}`);
     onSaveFilter(selectedFilter, currentFilters);
     
     if (isDefault) {
+      console.log(`デフォルトフィルタに設定: ${selectedFilter}`);
       onSetDefaultFilter(selectedFilter);
     } else if (defaultFilterName === selectedFilter) {
+      // 既存のデフォルトからチェックを外した場合、デフォルト設定を解除
+      console.log(`デフォルトフィルタを解除: ${selectedFilter}`);
       onSetDefaultFilter('');
     }
 
@@ -146,6 +159,9 @@ const SavedFilterModal = ({
                             デフォルトフィルタとして設定
                           </label>
                         </div>
+                        <p className="mt-1 text-xs text-gray-500">
+                          タスク一覧を開いたときに、このフィルタが自動的に適用されます
+                        </p>
                       </div>
 
                       <button
@@ -173,6 +189,9 @@ const SavedFilterModal = ({
                             デフォルトフィルタとして設定
                           </label>
                         </div>
+                        <p className="mt-1 text-xs text-gray-500">
+                          タスク一覧を開いたときに、このフィルタが自動的に適用されます
+                        </p>
                       </div>
 
                       <div className="flex space-x-2">
@@ -203,34 +222,55 @@ const SavedFilterModal = ({
                   <div className="mt-6">
                     <h4 className="text-sm font-medium text-gray-900 mb-2">保存済みフィルタ</h4>
                     <ul className="divide-y divide-gray-200">
-                      {Object.keys(savedFilters).map((name) => (
-                        <li key={name} className="py-2 flex justify-between items-center">
-                          <div className="flex items-center">
-                            <span className="text-sm text-gray-800">{name}</span>
-                            {defaultFilterName === name && (
-                              <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 rounded-full">
-                                デフォルト
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex space-x-2">
-                            <button
-                              type="button"
-                              className="text-xs text-primary-600 hover:text-primary-800"
-                              onClick={() => handleEditMode(name)}
-                            >
-                              編集
-                            </button>
-                            <button
-                              type="button"
-                              className="text-xs text-red-600 hover:text-red-800"
-                              onClick={() => handleDeleteFilter(name)}
-                            >
-                              削除
-                            </button>
-                          </div>
-                        </li>
-                      ))}
+                      {Object.entries(savedFilters).map(([name, filter]) => {
+                        const isSystemDefault = filter.is_system_default;
+                        return (
+                          <li key={name} className="py-2 flex justify-between items-center">
+                            <div className="flex items-center">
+                              <span className="text-sm text-gray-800">{name}</span>
+                              {isSystemDefault && (
+                                <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                                  システム
+                                </span>
+                              )}
+                              {defaultFilterName === name && (
+                                <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                                  デフォルト
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex space-x-2">
+                              {!isSystemDefault && (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="text-xs text-primary-600 hover:text-primary-800"
+                                    onClick={() => handleEditMode(name)}
+                                  >
+                                    編集
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="text-xs text-red-600 hover:text-red-800"
+                                    onClick={() => handleDeleteFilter(name)}
+                                  >
+                                    削除
+                                  </button>
+                                </>
+                              )}
+                              {isSystemDefault && (
+                                <button
+                                  type="button"
+                                  className="text-xs text-primary-600 hover:text-primary-800"
+                                  onClick={() => onSetDefaultFilter(name)}
+                                >
+                                  {defaultFilterName === name ? 'デフォルト解除' : 'デフォルトに設定'}
+                                </button>
+                              )}
+                            </div>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 )}
