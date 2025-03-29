@@ -148,6 +148,8 @@ class UserPreferences(models.Model):
     language = models.CharField(max_length=10, default='en')
     task_filters = models.JSONField(null=True, blank=True, default=dict)
     saved_filters = models.JSONField(null=True, blank=True, default=dict)
+    saved_task_filters = models.JSONField(null=True, blank=True, default=dict)
+    default_task_filter = models.CharField(max_length=255, blank=True, default='')
     
     class Meta:
         verbose_name = _('user preference')

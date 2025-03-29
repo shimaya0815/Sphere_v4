@@ -217,10 +217,10 @@ export const deleteUser = async (userId) => {
 };
 
 /**
- * ユーザー設定を取得
- * @returns {Promise<object>} ユーザー設定
+ * ユーザー設定を取得する
+ * @returns {Promise<Object>} ユーザー設定
  */
-export const getUserPreferences = async () => {
+const getUserPreferences = async () => {
   try {
     const response = await apiClient.get('/api/users/preferences/me/');
     return response.data;
@@ -231,11 +231,11 @@ export const getUserPreferences = async () => {
 };
 
 /**
- * ユーザー設定を更新
- * @param {object} preferences 更新する設定データ
- * @returns {Promise<object>} 更新された設定
+ * ユーザー設定を更新する
+ * @param {Object} preferences - 更新するユーザー設定
+ * @returns {Promise<Object>} 更新されたユーザー設定
  */
-export const updateUserPreferences = async (preferences) => {
+const updateUserPreferences = async (preferences) => {
   try {
     const response = await apiClient.patch('/api/users/preferences/me/', preferences);
     return response.data;

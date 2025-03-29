@@ -8,7 +8,9 @@ import {
   HiOutlineExclamationCircle, 
   HiCheck,
   HiChevronLeft,
-  HiChevronRight
+  HiChevronRight,
+  HiOutlineSave,
+  HiOutlineBookmark
 } from 'react-icons/hi';
 import { useAuth } from '../../../context/AuthContext';
 import { tasksApi } from '../../../api';
@@ -21,6 +23,7 @@ import TaskTable from './TaskTable';
 import { TaskBulkEditBar } from './TaskBulkEdit';
 import TaskBulkEditModal from './TaskBulkEdit';
 import DeleteConfirmModal from './DeleteConfirmModal';
+import SavedFilterModal from './SavedFilterModal';
 import useTaskSorting from './useTaskSorting';
 
 const TaskList = forwardRef((props, ref) => {
@@ -50,6 +53,11 @@ const TaskList = forwardRef((props, ref) => {
     due_date: ''
   });
 
+  // 保存済みフィルタ関連の状態
+  const [savedFilterModalOpen, setSavedFilterModalOpen] = useState(false);
+  const [savedFilters, setSavedFilters] = useState({});
+  const [defaultFilterName, setDefaultFilterName] = useState('');
+
   // デフォルトのフィルターを設定（自分担当のみ、完了タスク非表示）
   const [filters, setFilters] = useState({
     status: '',
@@ -65,6 +73,29 @@ const TaskList = forwardRef((props, ref) => {
   const [totalItems, setTotalItems] = useState(0);
   const [paginatedTasks, setPaginatedTasks] = useState([]);
   
+  // 保存済みフィルタを読み込む
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    
+    const loadSavedFilters = async () => {
+      try {
+        const preferences = await usersApi.getUserPreferences();
+        
+        if (preferences && preferences.saved_task_filters) {
+          setSavedFilters(preferences.saved_task_filters);
+        }
+        
+        if (preferences && preferences.default_task_filter) {
+          setDefaultFilterName(preferences.default_task_filter);
+        }
+      } catch (error) {
+        console.error('保存済みフィルタの読み込みでエラーが発生しました:', error);
+      }
+    };
+    
+    loadSavedFilters();
+  }, [currentUser?.id]);
+  
   // ユーザーごとのフィルター設定を保存・復元
   useEffect(() => {
     const loadUserFilters = async () => {
@@ -73,6 +104,17 @@ const TaskList = forwardRef((props, ref) => {
       try {
         // バックエンドからユーザー設定を取得
         const preferences = await usersApi.getUserPreferences();
+        
+        // デフォルトフィルタがある場合、それを適用
+        if (preferences.default_task_filter && preferences.saved_task_filters) {
+          const defaultFilter = preferences.saved_task_filters[preferences.default_task_filter];
+          if (defaultFilter) {
+            console.log(`デフォルトフィルタ「${preferences.default_task_filter}」を適用します:`, defaultFilter);
+            setFilters(defaultFilter);
+            setInitialized(true);
+            return;
+          }
+        }
         
         if (preferences && preferences.task_filters) {
           // パスごとのフィルター設定を持っているか確認
@@ -186,6 +228,16 @@ const TaskList = forwardRef((props, ref) => {
   const saveUserFilters = useCallback(async () => {
     if (!currentUser?.id) return;
     
+    // フィルター設定が空の場合は保存しない
+    const hasActiveFilters = Object.values(filters).some(value => 
+      value !== '' && value !== null && value !== undefined && value !== false
+    );
+    
+    if (!hasActiveFilters) {
+      console.log('フィルター設定が空のため、保存をスキップします');
+      return;
+    }
+    
     try {
       // ローカルストレージにパスごとに保存
       localStorage.setItem(`task_filters_${currentUser.id}_${currentPath}`, JSON.stringify(filters));
@@ -223,7 +275,8 @@ const TaskList = forwardRef((props, ref) => {
       console.log('🔄 初期化時に現在のユーザーをフィルターに設定します:', currentUser.id);
       setFilters(prev => ({
         ...prev,
-        assignee: currentUser.id
+        assignee: currentUser.id,
+        hide_completed: true // 承認完了（クローズ）ステータスを非表示
       }));
       setInitialized(true);
     }
@@ -253,6 +306,92 @@ const TaskList = forwardRef((props, ref) => {
     }
   }, [location.search, currentUser?.id]);
   
+  // フィルターを保存
+  const handleSaveFilter = async (name, filterData) => {
+    if (!currentUser?.id) return;
+    
+    try {
+      const preferences = await usersApi.getUserPreferences();
+      const currentSavedFilters = preferences.saved_task_filters || {};
+      
+      const updatedSavedFilters = {
+        ...currentSavedFilters,
+        [name]: filterData
+      };
+      
+      await usersApi.updateUserPreferences({
+        saved_task_filters: updatedSavedFilters
+      });
+      
+      setSavedFilters(updatedSavedFilters);
+      
+      toast.success(`フィルタ「${name}」を保存しました`);
+    } catch (error) {
+      console.error('フィルタの保存に失敗しました:', error);
+      toast.error('フィルタの保存に失敗しました');
+    }
+  };
+  
+  // デフォルトフィルタを設定
+  const handleSetDefaultFilter = async (name) => {
+    if (!currentUser?.id) return;
+    
+    try {
+      await usersApi.updateUserPreferences({
+        default_task_filter: name
+      });
+      
+      setDefaultFilterName(name);
+      
+      if (name) {
+        toast.success(`フィルタ「${name}」をデフォルトに設定しました`);
+      }
+    } catch (error) {
+      console.error('デフォルトフィルタの設定に失敗しました:', error);
+      toast.error('デフォルトフィルタの設定に失敗しました');
+    }
+  };
+  
+  // フィルタを削除
+  const handleDeleteFilter = async (name) => {
+    if (!currentUser?.id) return;
+    
+    try {
+      const preferences = await usersApi.getUserPreferences();
+      const currentSavedFilters = { ...preferences.saved_task_filters };
+      
+      // 指定されたフィルタを削除
+      delete currentSavedFilters[name];
+      
+      await usersApi.updateUserPreferences({
+        saved_task_filters: currentSavedFilters
+      });
+      
+      setSavedFilters(currentSavedFilters);
+      
+      // 削除したフィルタがデフォルトだった場合、デフォルト設定も削除
+      if (defaultFilterName === name) {
+        await usersApi.updateUserPreferences({
+          default_task_filter: ''
+        });
+        setDefaultFilterName('');
+      }
+      
+      toast.success(`フィルタ「${name}」を削除しました`);
+    } catch (error) {
+      console.error('フィルタの削除に失敗しました:', error);
+      toast.error('フィルタの削除に失敗しました');
+    }
+  };
+  
+  // 保存済みフィルタを適用
+  const handleApplySavedFilter = (name) => {
+    if (!savedFilters[name]) return;
+    
+    setFilters(savedFilters[name]);
+    toast.success(`フィルタ「${name}」を適用しました`);
+  };
+
   // ソート機能のカスタムフック
   const { 
     tasks, 
@@ -370,15 +509,15 @@ const TaskList = forwardRef((props, ref) => {
           fetchedTasks = filterTasksByAssignee(fetchedTasks, filters.assignee);
         }
         
-        // 完了タスク非表示フィルター
+        // 承認完了（クローズ）のステータスを非表示フィルター
         if (hideCompleted) {
           fetchedTasks = fetchedTasks.filter(task => {
-            // 完了ステータスを検出
-            const isCompleted = 
-              (task.status && task.status.toString() === '11') || // 完了ステータスID
-              (task.status_name && task.status_name === '完了') || 
-              (task.status_data && task.status_data.name === '完了');
-            return !isCompleted;
+            // 承認完了（クローズ）ステータスを検出
+            const isClosedStatus = 
+              (task.status && task.status.toString() === '11') || // 承認完了ステータスID（必要に応じて実際のIDに変更してください）
+              (task.status_name && task.status_name === '承認完了（クローズ）') || 
+              (task.status_data && task.status_data.name === '承認完了（クローズ）');
+            return !isClosedStatus;
           });
         }
         
@@ -469,120 +608,51 @@ const TaskList = forwardRef((props, ref) => {
     }
   }, []); // fetchTasksを依存配列から削除して不要な再取得を防ぐ
 
-  // タスク更新イベントの監視
+  // タスク更新・削除イベントリスナーのセットアップ
   useEffect(() => {
-    const handleTaskUpdate = (event) => {
-      console.log("🔔 Task updated event received", event.detail);
+    // タスク更新イベントのリスナー
+    const handleTaskUpdated = (event) => {
+      const { task, isNew } = event.detail || {};
       
-      if (!event.detail || !event.detail.task) {
-        console.warn("Invalid task update event with no task data");
-        memoizedFetchTasks(); // 無効なイベントの場合は全体を再取得
-        return;
-      }
-      
-      const updatedTask = event.detail.task;
-      console.log("Handling task update for task:", updatedTask);
-      
-      // タイムスタンプを確認して最新のイベントであることを確認
-      const timestamp = event.detail.timestamp || Date.now();
-      const currentTime = Date.now();
-      // 10秒以上前のイベントは処理しない
-      if (currentTime - timestamp > 10000) {
-        console.warn("Ignoring outdated task update event");
-        return;
-      }
-      
-      if (event.detail.isNew) {
-        // 新規作成されたタスクの場合はリストに追加してソート
-        console.log("Adding new task to the list", updatedTask);
-        
-        // 担当者フィルタリングをチェック
-        if (filters.assignee && 
-            updatedTask.assignee && 
-            updatedTask.assignee.toString() !== filters.assignee.toString()) {
-          console.log(`タスク「${updatedTask.title}」は現在のフィルタ（担当者ID: ${filters.assignee}）と一致しないため表示しません`);
-          return;
-        }
-        
-        // 既存のタスクをチェックして重複を避ける
-        const existingTask = tasks.find(t => t.id === updatedTask.id);
-        if (!existingTask) {
-          updateTasks([updatedTask, ...tasks]);
-          
-          // 重要：新規タスクが追加されたことを明示的に表示
-          toast.success(`新しいタスク「${updatedTask.title}」がリストに追加されました`, {
-            id: `task-added-list-${Date.now()}`,
-            duration: 3000
-          });
+      // synchronous処理に変更
+      if (task) {
+        if (isNew) {
+          // 新規タスクの場合は追加
+          updateTasks([...tasks, task]);
         } else {
-          console.log('タスクは既にリストに存在します - 全体を更新します');
-          memoizedFetchTasks();
-        }
-      } else {
-        // 既存タスクの更新の場合は、そのタスクだけを置き換える
-        console.log("Updating existing task in the list", updatedTask);
-        const taskIndex = tasks.findIndex(t => t.id === updatedTask.id);
-        
-        if (taskIndex >= 0) {
-          // タスクが見つかった場合は置き換えてソート
-          console.log(`Task found at index ${taskIndex}, replacing with updated version`);
-          const newTasks = [...tasks];
-          newTasks[taskIndex] = updatedTask;
-          updateTasks(newTasks);
-        } else {
-          // 更新されたタスクがリストにない場合は追加
-          console.log("Updated task not found in current list, adding to top");
-          
-          // 担当者フィルタリングをチェック
-          if (filters.assignee && 
-              updatedTask.assignee && 
-              updatedTask.assignee.toString() !== filters.assignee.toString()) {
-            console.log(`タスク「${updatedTask.title}」は現在のフィルタ（担当者ID: ${filters.assignee}）と一致しないため表示しません`);
-            return;
-          }
-          
-          updateTasks([updatedTask, ...tasks]);
+          // 既存タスクの場合は更新
+          updateTasks(tasks.map(t => t.id === task.id ? task : t));
         }
       }
+      
+      return false; // synchronous処理として完了を通知
     };
-    
+
+    // タスク削除イベントのリスナー
     const handleTaskDeleted = (event) => {
-      console.log("🔔 Task deleted event received", event.detail);
+      const { taskId } = event.detail || {};
       
-      if (!event.detail || !event.detail.taskId) {
-        console.warn("Invalid task delete event with no task ID");
-        memoizedFetchTasks(); // 無効なイベントの場合は全体を再取得
-        return;
+      // synchronous処理に変更
+      if (taskId) {
+        updateTasks(tasks.filter(t => t.id !== taskId));
       }
       
-      const deletedTaskId = event.detail.taskId;
-      console.log("Removing deleted task from list, ID:", deletedTaskId);
-      
-      // 削除されたタスクをリストから除外
-      updateTasks(tasks.filter(task => task.id !== deletedTaskId));
+      return false; // synchronous処理として完了を通知
     };
-    
-    const handleForceRefresh = () => {
-      console.log("🔔 Force refresh event received - reloading task list");
-      memoizedFetchTasks();
-    };
-    
-    // カスタムイベントのリスナーを追加
-    window.addEventListener('task-updated', handleTaskUpdate);
+
+    // イベントリスナーの登録
+    window.addEventListener('task-updated', handleTaskUpdated);
     window.addEventListener('task-deleted', handleTaskDeleted);
-    window.addEventListener('task-update-force-refresh', handleForceRefresh);
     
-    // デバッグ用：イベントリスナーが登録されたことを確認
-    console.log("🎧 Event listeners registered for task updates and deletes");
-    
+    console.log('🎧 Event listeners registered for task updates and deletes');
+
     // クリーンアップ関数
     return () => {
-      console.log("🧹 Cleaning up event listeners");
-      window.removeEventListener('task-updated', handleTaskUpdate);
+      window.removeEventListener('task-updated', handleTaskUpdated);
       window.removeEventListener('task-deleted', handleTaskDeleted);
-      window.removeEventListener('task-update-force-refresh', handleForceRefresh);
+      console.log('🧹 Cleaning up event listeners');
     };
-  }, [tasks, memoizedFetchTasks, filters.assignee]);
+  }, [tasks]); // tasksを依存配列に追加
   
   // TasksPageから渡されるforceRefreshプロップの変更を監視
   useEffect(() => {
@@ -825,11 +895,23 @@ const TaskList = forwardRef((props, ref) => {
       const taskId = selectedTask.id;
       const taskTitle = selectedTask.title;
       
+      // 先にタスクの存在確認
+      try {
+        await tasksApi.getTask(taskId);
+      } catch (error) {
+        if (error.response?.status === 404) {
+          toast.error('タスクが見つかりません。既に削除されている可能性があります。');
+          setDeleteModalOpen(false);
+          return;
+        }
+        throw error;
+      }
+      
       // 先にUIを更新して良いレスポンス時間を確保
       setDeleteModalOpen(false);
       
       // UIからタスクを先に削除することで、表示の即時性を確保
-      updateTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
+      updateTasks(tasks.filter(t => t.id !== taskId));
       
       // 削除イベントを発火（タイムスタンプを含めて）
       const deleteEvent = new CustomEvent('task-deleted', {
@@ -855,7 +937,13 @@ const TaskList = forwardRef((props, ref) => {
       toast.success(`「${taskTitle}」を削除しました`);
     } catch (error) {
       console.error('Error deleting task:', error);
-      toast.error('タスクの削除に失敗しました');
+      if (error.response?.status === 404) {
+        toast.error('タスクが見つかりません。既に削除されている可能性があります。');
+      } else if (error.response?.status === 403) {
+        toast.error('このタスクを削除する権限がありません。');
+      } else {
+        toast.error('タスクの削除に失敗しました');
+      }
       
       // エラーが発生した場合、最新のタスクリストを再取得
       memoizedFetchTasks();
@@ -927,10 +1015,65 @@ const TaskList = forwardRef((props, ref) => {
   return (
     <div className="bg-gray-50 shadow-card rounded-lg overflow-hidden">
       {/* ツールバー */}
-      <div className="flex flex-wrap justify-between items-center gap-2">
+      <div className="flex flex-wrap justify-between items-center gap-2 p-4">
         <h1 className="text-2xl font-semibold text-gray-900">タスク一覧</h1>
         
         <div className="flex space-x-2 items-center">
+          {/* 保存済みフィルタドロップダウン */}
+          {Object.keys(savedFilters).length > 0 && (
+            <div className="relative inline-block text-left">
+              <div>
+                <button 
+                  type="button" 
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                  onClick={() => {
+                    const dropdown = document.getElementById('savedFiltersDropdown');
+                    dropdown.classList.toggle('hidden');
+                  }}
+                >
+                  <HiOutlineBookmark className="mr-2 h-5 w-5" />
+                  保存済みフィルタ
+                </button>
+              </div>
+              <div 
+                id="savedFiltersDropdown" 
+                className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10 hidden"
+              >
+                <div className="py-1" role="menu" aria-orientation="vertical">
+                  {Object.keys(savedFilters).map((name) => (
+                    <button
+                      key={name}
+                      className={`block w-full text-left px-4 py-2 text-sm ${
+                        defaultFilterName === name ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                      onClick={() => {
+                        handleApplySavedFilter(name);
+                        document.getElementById('savedFiltersDropdown').classList.add('hidden');
+                      }}
+                    >
+                      {name}
+                      {defaultFilterName === name && (
+                        <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                          デフォルト
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                  <div className="border-t border-gray-100 mt-1"></div>
+                  <button
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    onClick={() => {
+                      setSavedFilterModalOpen(true);
+                      document.getElementById('savedFiltersDropdown').classList.add('hidden');
+                    }}
+                  >
+                    フィルタを管理...
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {/* フィルターボタン */}
           <button
             className="inline-flex items-center px-4 py-2 rounded-lg text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 shadow-sm"
@@ -938,6 +1081,15 @@ const TaskList = forwardRef((props, ref) => {
           >
             <HiOutlineFilter className="mr-2 h-5 w-5" />
             フィルター
+          </button>
+          
+          {/* フィルタを保存ボタン */}
+          <button
+            className="inline-flex items-center px-4 py-2 rounded-lg text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 shadow-sm"
+            onClick={() => setSavedFilterModalOpen(true)}
+          >
+            <HiOutlineSave className="mr-2 h-5 w-5" />
+            フィルタを保存
           </button>
           
           {/* 一括編集モードボタン */}
@@ -973,19 +1125,22 @@ const TaskList = forwardRef((props, ref) => {
           onResetFilters={handleFilterReset}
           onClose={() => setShowFilters(false)}
           currentUser={currentUser}
-          usersList={usersList} // ユーザー一覧を渡す
-          clientsList={clientsList} // クライアント一覧を渡す
+          usersList={usersList}
+          clientsList={clientsList}
         />
       )}
       
-      {/* 一括編集バー */}
-      {bulkEditMode && selectedTasks.length > 0 && (
-        <TaskBulkEditBar
-          selectedCount={selectedTasks.length}
-          onEditClick={() => setBulkEditModalOpen(true)}
-          onClearSelection={() => setSelectedTasks([])}
-        />
-      )}
+      {/* 保存済みフィルタモーダル */}
+      <SavedFilterModal
+        isOpen={savedFilterModalOpen}
+        onClose={() => setSavedFilterModalOpen(false)}
+        currentFilters={filters}
+        savedFilters={savedFilters}
+        onSaveFilter={handleSaveFilter}
+        onSetDefaultFilter={handleSetDefaultFilter}
+        defaultFilterName={defaultFilterName}
+        onDeleteFilter={handleDeleteFilter}
+      />
       
       {/* エラー表示 */}
       {error && (

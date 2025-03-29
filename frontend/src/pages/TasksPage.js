@@ -91,13 +91,6 @@ const TasksPage = () => {
     
     // URLをタスク一覧に戻す
     navigate('/tasks', { replace: true });
-    
-    // タスクリストを更新（遅延を短くして即時性を向上）
-    setTimeout(() => {
-      if (taskListRef.current && typeof taskListRef.current.refreshTasks === 'function') {
-        taskListRef.current.refreshTasks();
-      }
-    }, 50);
   }, [navigate]);
   
   // タスクを選択して右からスライドするパネルを開く

@@ -83,6 +83,29 @@ const useTaskSorting = (
   
   // 外部からタスクが更新された時のハンドラー
   const updateTasks = (newTasks) => {
+    // newTasksが関数の場合やundefinedの場合の対策
+    if (!newTasks) {
+      console.warn('updateTasks: newTasks is undefined or null');
+      return; // 何も更新せずに終了
+    }
+    
+    // 関数の場合は現在のタスクに適用
+    if (typeof newTasks === 'function') {
+      setTasks(prevTasks => {
+        const updatedTasks = newTasks(prevTasks);
+        return sortTasks(updatedTasks || []);
+      });
+      return;
+    }
+    
+    // 配列でない場合は空配列として扱う
+    if (!Array.isArray(newTasks)) {
+      console.warn('updateTasks: expected an array but got', typeof newTasks);
+      setTasks([]);
+      return;
+    }
+    
+    // 通常のケース: 配列を受け取ってソートして設定
     setTasks(sortTasks(newTasks));
   };
   

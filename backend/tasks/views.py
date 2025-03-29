@@ -88,68 +88,83 @@ class TaskViewSet(viewsets.ModelViewSet):
             instance.save()
     
     def get_queryset(self):
-        """Return tasks for the authenticated user's business."""
-        queryset = Task.objects.filter(business=self.request.user.business)
+        # スーパークラスのクエリセットを取得
+        queryset = super().get_queryset()
         
-        # Filter by is_template (only show non-templates by default)
-        queryset = queryset.filter(is_template=False)
+        # フィルタリング処理
+        # ここでURLから取得したクエリパラメータでフィルタリングします
         
-        # デフォルトで非アーカイブタスクのみを表示
-        # 明示的にアーカイブタスクを要求されない限り
-        show_archived = self.request.query_params.get('show_archived', '').lower() == 'true'
-        if not show_archived and not self.request.path.endswith('/archived/'):
-            queryset = queryset.filter(is_archived=False)
-        
-        # Apply filters from query parameters
-        status = self.request.query_params.get('status', None)
-        priority = self.request.query_params.get('priority', None)
-        category = self.request.query_params.get('category', None)
-        search_term = self.request.query_params.get('searchTerm', None)
-        client = self.request.query_params.get('client', None)
-        
+        # ステータスでフィルタリング
+        status = self.request.query_params.get('status')
         if status:
-            # ステータス名での検索とコード名での検索に対応
-            if status in ['not_started', 'in_progress', 'in_review', 'completed']:
-                # フロントエンドから送られてくるコード名に基づいてフィルタリング
-                status_map = {
-                    'not_started': '未着手',
-                    'in_progress': '作業中',
-                    'in_review': 'レビュー',  # "レビュー中"や"レビュー待ち"にも部分一致
-                    'completed': '完了'
-                }
-                queryset = queryset.filter(status__name__icontains=status_map[status])
+            # カンマ区切りの場合は複数のステータスでフィルタリング
+            if ',' in status:
+                status_ids = status.split(',')
+                queryset = queryset.filter(status__in=status_ids)
             else:
-                # 直接名前または識別子でフィルタリング
-                queryset = queryset.filter(Q(status__name__icontains=status) | Q(status__id=status if status.isdigit() else 0))
+                queryset = queryset.filter(status=status)
         
-        if priority:
-            # 優先度名での検索とコード名での検索に対応
-            if priority in ['high', 'medium', 'low']:
-                # フロントエンドから送られてくるコード名に基づいてフィルタリング
-                priority_map = {
-                    'high': '高',
-                    'medium': '中',
-                    'low': '低'
-                }
-                queryset = queryset.filter(priority__name__icontains=priority_map[priority])
-            else:
-                # 直接名前または識別子でフィルタリング
-                queryset = queryset.filter(Q(priority__name__icontains=priority) | Q(priority__id=priority if priority.isdigit() else 0))
-            
-        if category:
-            # カテゴリ名または識別子でフィルタリング
-            queryset = queryset.filter(Q(category__name__icontains=category) | Q(category__id=category if category.isdigit() else 0))
-            
         # クライアントでフィルタリング
+        client = self.request.query_params.get('client')
         if client:
-            queryset = queryset.filter(client_id=client)
-            
-        if search_term:
-            queryset = queryset.filter(
-                Q(title__icontains=search_term) | 
-                Q(description__icontains=search_term)
-            )
-            
+            queryset = queryset.filter(client=client)
+        
+        # カテゴリーでフィルタリング
+        category = self.request.query_params.get('category')
+        if category:
+            queryset = queryset.filter(category=category)
+        
+        # 作成者でフィルタリング
+        creator = self.request.query_params.get('creator')
+        if creator:
+            queryset = queryset.filter(creator=creator)
+        
+        # 担当者でフィルタリング
+        assignee = self.request.query_params.get('assignee')
+        if assignee:
+            if assignee.lower() == 'none':
+                queryset = queryset.filter(assignee__isnull=True)
+            else:
+                queryset = queryset.filter(assignee=assignee)
+        
+        # 完了日でフィルタリング
+        completed = self.request.query_params.get('completed')
+        if completed:
+            if completed.lower() == 'true':
+                queryset = queryset.exclude(completed_at=None)
+            elif completed.lower() == 'false':
+                queryset = queryset.filter(completed_at=None)
+        
+        # 予定日でフィルタリング
+        due_date = self.request.query_params.get('due_date')
+        if due_date:
+            queryset = queryset.filter(due_date=due_date)
+        
+        # 予定日範囲でフィルタリング
+        due_date_after = self.request.query_params.get('due_date_after')
+        if due_date_after:
+            queryset = queryset.filter(due_date__gte=due_date_after)
+        
+        due_date_before = self.request.query_params.get('due_date_before')
+        if due_date_before:
+            queryset = queryset.filter(due_date__lte=due_date_before)
+        
+        # 優先度でフィルタリング
+        priority = self.request.query_params.get('priority')
+        if priority:
+            queryset = queryset.filter(priority_value=priority)
+        
+        # 期間フィルタ
+        is_fiscal_task = self.request.query_params.get('is_fiscal_task')
+        if is_fiscal_task:
+            if is_fiscal_task.lower() == 'true':
+                queryset = queryset.filter(fiscal_year__isnull=False)
+            elif is_fiscal_task.lower() == 'false':
+                queryset = queryset.filter(fiscal_year__isnull=True)
+        
+        # その他のカスタムフィルタ
+        # ...
+
         return queryset
     
     def create(self, request, *args, **kwargs):

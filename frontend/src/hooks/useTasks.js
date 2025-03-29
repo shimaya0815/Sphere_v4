@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useContext } from 'react';
 import { tasksApi } from '../api';
 import toast from 'react-hot-toast';
+import _ from 'lodash';
 
 /**
  * タスク管理用カスタムフック
@@ -82,31 +83,45 @@ export const useTasks = () => {
   
   // タスクを更新
   const updateTask = useCallback(async (taskId, taskData) => {
-    if (!taskId) {
-      setError('タスクIDが指定されていません');
+    if (!taskId || !taskData || Object.keys(taskData).length === 0) {
+      console.warn('更新対象のタスクIDまたは更新データが無効です', { taskId, taskData });
       return null;
     }
     
-    setIsLoading(true);
-    setError(null);
-    
     try {
-      const response = await tasksApi.updateTask(taskId, taskData);
+      // APIでタスクを更新
+      const updatedTask = await tasksApi.updateTask(taskId, taskData);
       
-      // タスク一覧を更新
-      setTasks(prev => prev.map(task => 
-        task.id === taskId ? { ...task, ...response } : task
-      ));
+      // タスクリストを更新（キャッシュを更新）
+      setTasks(prevTasks => 
+        prevTasks.map(task => 
+          task.id === taskId ? { ...task, ...updatedTask } : task
+        )
+      );
       
-      return response;
-    } catch (err) {
-      console.error(`Error updating task ${taskId}:`, err);
-      setError(err.message || 'タスクの更新に失敗しました');
-      throw err;
-    } finally {
-      setIsLoading(false);
+      // タスク更新イベントをディスパッチ
+      window.dispatchEvent(new CustomEvent('task-updated', { 
+        detail: { 
+          task: updatedTask,
+          isNew: false,
+          timestamp: new Date().getTime()
+        } 
+      }));
+      
+      return updatedTask;
+    } catch (error) {
+      console.error(`Error updating task ${taskId}:`, error);
+      throw error;
     }
   }, []);
+  
+  // デバウンスされたタスク更新関数
+  const debouncedUpdateTask = useCallback(
+    _.debounce(async (taskId, taskData) => {
+      return updateTask(taskId, taskData);
+    }, 300), // 300msのデバウンス処理
+    [updateTask]
+  );
   
   // タスクを削除
   const deleteTask = useCallback(async (taskId) => {
@@ -140,8 +155,9 @@ export const useTasks = () => {
     error,
     fetchTasks,
     getTask,
-    createTask,
     updateTask,
+    debouncedUpdateTask,
+    createTask,
     deleteTask
   };
 };

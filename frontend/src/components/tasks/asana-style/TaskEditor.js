@@ -110,7 +110,8 @@ const TaskEditor = ({
   const isNew = isNewTask;
   const { 
     getTask, 
-    updateTask, 
+    updateTask,
+    debouncedUpdateTask, 
     createTask, 
     isLoading: isTaskLoading,
     tasks
@@ -552,6 +553,69 @@ const TaskEditor = ({
     }
   };
   
+  const handleFieldChange = useCallback(async (field, value) => {
+    if (!task || !task.id) return;
+    
+    // 値が変更されていない場合は更新をスキップ
+    if (task[field] === value) {
+      return;
+    }
+    
+    // 更新データを作成
+    const updateData = { [field]: value };
+    
+    // 空のオブジェクトの場合は更新をスキップ
+    if (Object.keys(updateData).length === 0) {
+      return;
+    }
+    
+    try {
+      // まずタスクの存在確認
+      try {
+        await tasksApi.getTask(task.id);
+      } catch (error) {
+        if (error.response?.status === 404) {
+          console.error(`タスク ${task.id} が見つかりません`);
+          toast.error('タスクが見つかりません。既に削除されている可能性があります。');
+          // パネルを閉じてタスク一覧に戻る
+          if (onClose) {
+            onClose();
+          } else {
+            navigate('/tasks', { replace: true });
+          }
+          return;
+        }
+        throw error;
+      }
+      
+      // デバウンスされたタスク更新関数を使用
+      debouncedUpdateTask(task.id, updateData)
+        .then(updatedTask => {
+          if (updatedTask) {
+            setTask(updatedTask);
+          }
+        })
+        .catch(error => {
+          console.error(`タスク ${task.id} の更新中にエラーが発生しました:`, error);
+          
+          // エラーメッセージの表示
+          if (error.response?.status === 404) {
+            toast.error('タスクが見つかりません。既に削除されている可能性があります。');
+            if (onClose) {
+              onClose();
+            }
+          } else if (error.response?.status === 403) {
+            toast.error('このタスクを更新する権限がありません。');
+          } else {
+            toast.error('タスクの更新に失敗しました。');
+          }
+        });
+    } catch (error) {
+      console.error(`タスク ${task.id} の確認中にエラーが発生しました:`, error);
+      toast.error('タスクの確認に失敗しました。');
+    }
+  }, [task, debouncedUpdateTask, onClose, navigate]);
+  
   if (isLoading && !isNew) {
     // 非表示の場合はローディングも表示しない
     if (!isOpen) {
@@ -726,6 +790,25 @@ const TaskEditor = ({
                       if (window.confirm('このタスクを削除してもよろしいですか？')) {
                         try {
                           setIsSaving(true);
+                          
+                          // まずタスクの存在確認
+                          try {
+                            await tasksApi.getTask(task.id);
+                          } catch (error) {
+                            if (error.response?.status === 404) {
+                              toast.error('タスクが見つかりません。既に削除されている可能性があります。');
+                              // パネルを閉じてタスク一覧に戻る
+                              if (onClose) {
+                                onClose();
+                              } else {
+                                navigate('/tasks', { replace: true });
+                              }
+                              return;
+                            }
+                            throw error;
+                          }
+                          
+                          // タスクの削除を実行
                           await tasksApi.deleteTask(task.id);
                           toast.success('タスクを削除しました');
                           
@@ -745,7 +828,13 @@ const TaskEditor = ({
                           }
                         } catch (error) {
                           console.error('タスク削除エラー:', error);
-                          toast.error('タスクの削除に失敗しました');
+                          if (error.response?.status === 404) {
+                            toast.error('タスクが見つかりません。既に削除されている可能性があります。');
+                          } else if (error.response?.status === 403) {
+                            toast.error('このタスクを削除する権限がありません。');
+                          } else {
+                            toast.error('タスクの削除に失敗しました。');
+                          }
                         } finally {
                           setIsSaving(false);
                         }
